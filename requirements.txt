@@ -1,0 +1,22 @@
+# Framework Web y Base de Datos
+Flask==3.1.3
+Flask-Migrate==4.1.0
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.0.49
+alembic==1.18.4 
+psycopg2-binary==2.9.12 
+Flask-Bcrypt==1.0.1
+
+# Análisis y Visualización de Datos
+streamlit==1.53.1
+pandas==2.3.3 
+numpy==2.4.1 
+plotly==6.5.2 
+altair==6.0.0 
+
+# Utilidades
+python-dotenv==1.0.1
+requests==2.32.5
+pillow==12.1.0 
+openpyxl==3.1.5
+GitPython==3.1.46

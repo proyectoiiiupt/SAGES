@@ -1,0 +1,14 @@
+# Ignora el entorno virtual (es muy pesado y se regenera con requirements.txt)
+venv/
+env/
+
+# Ignora archivos de configuración personal y contraseñas
+.env
+
+# Ignora archivos basura de Python
+__pycache__/
+*.pyc
+
+# Ignora archivos del sistema operativo
+.DS_Store
+Thumbs.db
