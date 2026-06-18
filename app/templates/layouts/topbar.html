@@ -1,0 +1,26 @@
+<header class="topbar">
+    <div class="topbar-left">
+        <button class="menu-toggle" id="menu-toggle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+    </div>
+    
+    <div class="topbar-right">
+        <div class="user-info">
+            <span class="user-name">{{ current_user.person.first_name }} {{ current_user.person.last_name }}</span>
+            {% set user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant' %}
+            <span class="user-role">
+                {% if user_role == 'super_admin' %}
+                    Super Administrador
+                {% elif user_role == 'state_admin' %}
+                    Administrador Estadal
+                {% else %}
+                    Solicitante
+                {% endif %}
+            </span>
+        </div>
+        <div class="user-avatar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+        </div>
+    </div>
+</header>
