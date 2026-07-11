@@ -1,7 +1,7 @@
 from app.extensions import db
 
 class PermissionRole(db.Model):
-    __tablename__ = 'permissions_roles'
+    __tablename__ = 'permission_roles'
     __table_args__ = {'schema': 'sages'}
 
     id = db.Column(db.BigInteger, primary_key=True)
@@ -13,4 +13,4 @@ class PermissionRole(db.Model):
     permission = db.relationship('Permission', back_populates='roles_assoc')
 
     def __repr__(self):
-        return f"<PermissionRole Role:{self.role_id} Permission:{self.permission_id}>"
+        return f'<PermissionRole Role:{self.role_id} Permission:{self.permission_id}>'

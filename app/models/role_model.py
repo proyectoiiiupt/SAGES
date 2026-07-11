@@ -10,8 +10,8 @@ class Role(db.Model):
     description = db.Column(db.Text, nullable=False)
 
     # Relaciones
-    users_assoc = db.relationship('RoleUser', back_populates='role', cascade="all, delete-orphan")
-    permissions_assoc = db.relationship('PermissionRole', back_populates='role', cascade="all, delete-orphan")
+    users_assoc = db.relationship('RoleUser', back_populates='role', cascade='all, delete-orphan')
+    permissions_assoc = db.relationship('PermissionRole', back_populates='role', cascade='all, delete-orphan')
 
     def __repr__(self):
-        return f"<Role {self.name}>"
+        return f'<Role {self.name}>'
