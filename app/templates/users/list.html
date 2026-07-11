@@ -1,0 +1,172 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<div class="users-container" style="padding: 1.5rem; background-color: #f8fafc; min-height: 100vh; width: 100%; box-sizing: border-box;">
+    
+    <div class="card" style="padding: 1.25rem 2rem; margin-bottom: 1.5rem; background: white; border-radius: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; justify-content: space-between; align-items: center; flex-direction: row; width: 100%; box-sizing: border-box;">
+        <div class="welcome-text" style="font-size: 1.3rem; font-weight: bold; color: #1e293b; font-style: italic;">
+            Gestión de Usuarios 👥
+        </div>
+        <div style="color: #94a3b8; font-size: 0.9rem; font-weight: 500;">
+            <span id="current-date"></span>
+        </div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; width: 100%; box-sizing: border-box;">
+        
+        <form method="GET" action="{{ url_for('users.list_users') }}" style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; flex: 1; box-sizing: border-box;">
+            
+            <div style="position: relative; min-width: 280px;">
+                <span style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.95rem;">🔍</span>
+                <input type="text" name="search" value="{{ filters.search or '' }}" placeholder="Buscar por nombre, cedula..." style="width: 100%; padding: 0.6rem 1rem 0.6rem 2.4rem; border: 1px solid #e2e8f0; border-radius: 20px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02); font-size: 0.9rem; background: #fff; color: #334155; box-sizing: border-box;">
+            </div>
+
+            <div style="font-size: 1.1rem; color: #cbd5e1; font-weight: 300;">|</div>
+
+            <select name="role" style="padding: 0.55rem 1.5rem 0.55rem 1rem; border: 1px solid #e2e8f0; border-radius: 20px; background: white; font-size: 0.9rem; color: #475569; cursor: pointer; min-width: 90px; box-sizing: border-box;">
+                <option value="">Rol 🔽</option>
+                <option value="1" {% if filters.role == '1' %}selected{% endif %}>Super Admin</option>
+                <option value="2" {% if filters.role == '2' %}selected{% endif %}>Admin Estadal</option>
+                <option value="3" {% if filters.role == '3' %}selected{% endif %}>Solicitante</option>
+            </select>
+
+            <select name="status" style="padding: 0.55rem 1.5rem 0.55rem 1rem; border: 1px solid #e2e8f0; border-radius: 20px; background: white; font-size: 0.9rem; color: #475569; cursor: pointer; min-width: 100px; box-sizing: border-box;">
+                <option value="">Estatus 🔽</option>
+                <option value="1" {% if filters.status == '1' %}selected{% endif %}>Activo</option>
+                <option value="2" {% if filters.status == '2' %}selected{% endif %}>Inactivo</option>
+            </select>
+
+            <select name="state" style="padding: 0.55rem 1.5rem 0.55rem 1rem; border: 1px solid #e2e8f0; border-radius: 20px; background: white; font-size: 0.9rem; color: #475569; cursor: pointer; min-width: 100px; box-sizing: border-box;">
+                <option value="">Estado 🔽</option>
+                <option value="1" {% if filters.state == '1' %}selected{% endif %}>Mérida</option>
+                <option value="2" {% if filters.state == '2' %}selected{% endif %}>Aragua</option>
+                <option value="3" {% if filters.state == '3' %}selected{% endif %}>Trujillo</option>
+                <option value="4" {% if filters.state == '4' %}selected{% endif %}>Yaracuy</option>
+                <option value="5" {% if filters.state == '5' %}selected{% endif %}>Miranda</option>
+            </select>
+
+            <button type="submit" style="background: #0b3a77; border: none; padding: 0.55rem 1.2rem; border-radius: 20px; color: white; cursor: pointer; font-weight: 500; font-size: 0.85rem;">
+                Filtrar
+            </button>
+            <a href="{{ url_for('users.list_users') }}" style="background: #64748b; padding: 0.55rem 1.2rem; border-radius: 20px; color: white; text-decoration: none; font-size: 0.85rem; text-align: center;">
+                Limpiar
+            </a>
+        </form>
+
+        <a href="#" style="background: linear-gradient(135deg, #00e676, #00cc99); color: white; text-decoration: none; padding: 0.6rem 1.4rem; border-radius: 20px; font-weight: bold; font-size: 0.85rem; display: flex; align-items: center; gap: 0.4rem; box-shadow: 0 4px 10px rgba(0, 230, 118, 0.2); box-sizing: border-box;">
+            Registrar Nuevo <span style="font-size: 1.1rem; line-height: 1;">+</span>
+        </a>
+    </div>
+
+    <div class="card" style="padding: 0; overflow: hidden; background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); border: 1px solid #e2e8f0; width: 100%; box-sizing: border-box;">
+        <div style="width: 100%; overflow-x: auto;">
+            
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; table-layout: auto; box-sizing: border-box;">
+                <thead>
+                    <tr style="background-color: #e2e8f0; color: #1e293b; font-weight: bold; border-bottom: 1px solid #cbd5e1;">
+                        <th style="padding: 0.85rem 1.2rem; font-weight: 700; width: 6%; box-sizing: border-box;">ID</th>
+                        <th style="padding: 0.85rem 1.2rem; font-weight: 700; width: 24%; box-sizing: border-box;">Nombre</th>
+                        <th style="padding: 0.85rem 1.2rem; font-weight: 700; width: 22%; box-sizing: border-box;">Tipo de Usuario</th>
+                        <th style="padding: 0.85rem 1.2rem; font-weight: 700; width: 16%; box-sizing: border-box;">Cédula</th>
+                        <th style="padding: 0.85rem 1.2rem; font-weight: 700; width: 14%; box-sizing: border-box;">Estado</th>
+                        <th style="padding: 0.85rem 1.2rem; font-weight: 700; width: 12%; box-sizing: border-box;">Estatus</th>
+                        <th style="padding: 0.85rem 1.2rem; font-weight: 700; width: 6%; box-sizing: border-box; text-align: center;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody style="color: #334155;">
+                    {% if users %}
+                        {% for user in users %}
+                        <tr style="background-color: {{ loop.cycle('#eaeded', '#ffffff') }}; border-bottom: 1px solid #e2e8f0;">
+                            
+                            <td style="padding: 0.85rem 1.2rem; font-weight: 500; color: #64748b; box-sizing: border-box;">{{ user.id }}</td>
+                            
+                            <td style="padding: 0.85rem 1.2rem; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-sizing: border-box;">
+                                {{ user.person.first_name if user.person else 'N/A' }} {{ user.person.last_name if user.person and user.person.last_name else '' }}
+                            </td>
+                            
+                            <td style="padding: 0.85rem 1.2rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-sizing: border-box;">
+                                {% if user.roles_assoc %}
+                                    {% set r = user.roles_assoc[0].role.name %}
+                                    {% if r == 'super_admin' %}Super Administrador
+                                    {% elif r == 'state_admin' %}Administrador Estadal
+                                    {% elif r == 'director' or r == 'directora' or r == 'applicant' %}Solicitante
+                                    {% else %}{{ r | title }}{% endif %}
+                                {% else %}
+                                    Usuario General
+                                {% endif %}
+                            </td>
+                            
+                            <td style="padding: 0.85rem 1.2rem; font-weight: 500; box-sizing: border-box;">
+                                {{ user.user_name if user.user_name else (user.person.id_card if user.person and user.person.id_card else 'N/A') }}
+                            </td>
+                            
+                            <td style="padding: 0.85rem 1.2rem; box-sizing: border-box;">
+                                {{ user.person.state_id if user.person and user.person.state_id else 'Sin Asignar' }}
+                            </td>
+                            
+                            <td style="padding: 0.85rem 1.2rem; box-sizing: border-box;">
+                                <span style="font-size: 0.8rem; padding: 0.2rem 0.6rem; border-radius: 50px; background: #dcfce7; color: #15803d; font-weight: bold;">
+                                    {{ 'Activo' if user.status_id == 1 else 'Inactivo' }}
+                                </span>
+                            </td>
+                            
+                            <td style="padding: 0.85rem 1.2rem; text-align: center; box-sizing: border-box;">
+                                <a href="{{ url_for('users.view_user', user_id=user.id) }}"
+                                    style="background: #e0f2fe; color: #0284c7; padding: 0.25rem 0.8rem; border-radius: 50px; text-decoration: none; font-size: 0.8rem; font-weight: bold; display: inline-block;">
+                                Ver
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="7" style="padding: 4rem 1.5rem; text-align: center; color: #94a3b8;">
+                                <span style="display: block; font-size: 2rem; margin-bottom: 0.5rem;">🔍</span>
+                                <strong style="color: #475569;">No se encontraron registros</strong>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if pagination and pagination.pages > 1 %}
+        <div style="padding: 1rem 1.5rem; background: #ffffff; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; width: 100%; box-sizing: border-box;">
+            <div style="font-size: 0.85rem; color: #64748b;">
+                Mostrando página {{ pagination.page }} de {{ pagination.pages }}
+            </div>
+            
+            <div style="display: flex; gap: 0.3rem;">
+                {% if pagination.has_prev %}
+                    <a href="{{ url_for('users.list_users', page=pagination.prev_num, search=filters.search, status=filters.status, state=filters.state, role=filters.role) }}" style="padding: 0.35rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 4px; text-decoration: none; color: #334155; font-size: 0.85rem; background: white;">&lt;&lt;</a>
+                {% endif %}
+                
+                <span style="padding: 0.35rem 0.75rem; background: #00cc99; color: white; border-radius: 4px; font-size: 0.85rem; font-weight: bold;">{{ pagination.page }}</span>
+
+                {% if pagination.has_next %}
+                    <a href="{{ url_for('users.list_users', page=pagination.next_num, search=filters.search, status=filters.status, state=filters.state, role=filters.role) }}" style="padding: 0.35rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 4px; text-decoration: none; color: #334155; font-size: 0.85rem; background: white;">&gt;&gt;</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set dynamic date in Spanish format
+        const dateElement = document.getElementById('current-date');
+        if (dateElement) {
+            const options = { day: 'numeric', month: 'long', year: 'numeric' };
+            const today = new Date();
+            // Format example: "1 de abril, 2026"
+            const formattedDate = today.toLocaleDateString('es-ES', options);
+            // Replace generic string to match the requested format "1 de abril, 2026"
+            // toLocaleDateString might output "1 de abril de 2026", we replace " de 20" with ", 20"
+            dateElement.textContent = formattedDate.replace(' de 20', ', 20');
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,249 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<!-- Variable para extraer el rol del usuario actual, igual que en el home -->
+{% set user_role = current_user.roles_assoc[0].role.name if current_user and current_user.roles_assoc else 'applicant' %}
+
+<style>
+    .figma-label { font-size: 0.8rem; font-weight: bold; color: #1e293b; margin-bottom: 0.3rem; display: block; }
+    .figma-box { border: 1px solid #94a3b8; border-radius: 4px; padding: 0.4rem 0.6rem; font-size: 0.85rem; color: #333; background: #fff; min-height: 1.2rem; display: flex; align-items: center; }
+    .figma-title-green { color: #16a34a; font-weight: bold; font-size: 0.95rem; margin-bottom: 1rem; margin-top: 0; }
+    
+    .switch { position: relative; display: inline-block; width: 46px; height: 24px; vertical-align: middle; margin-left: 10px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+    input:checked + .slider { background-color: #00cc99; }
+    input:checked + .slider:before { transform: translateX(22px); }
+
+    /* Estilos para la ventana modal */
+    .modal-overlay {
+        display: none; 
+        position: fixed; 
+        top: 0; left: 0; width: 100%; height: 100%; 
+        background: rgba(15, 23, 42, 0.6); 
+        z-index: 1000; 
+        justify-content: center; 
+        align-items: center;
+        backdrop-filter: blur(3px);
+    }
+    .modal-content {
+        background: white; 
+        padding: 2rem; 
+        border-radius: 16px; 
+        max-width: 420px; 
+        width: 90%; 
+        text-align: center; 
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+</style>
+
+<div class="container" style="padding: 2rem; background-color: #e2e8f0; min-height: 100vh;">
+    
+    <div style="background: #e2e8f0; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <a href="{{ url_for('users.list_users') }}" style="text-decoration: none; color: #1e293b; background: #cbd5e1; padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9rem;">⬅ Volver</a>
+            <h2 style="margin: 0; color: #1e293b; font-style: italic;">Registro de Usuarios</h2>
+        </div>
+    </div>
+
+    <div style="display: flex; gap: 2rem; margin-bottom: 1rem; border-bottom: 2px solid #cbd5e1; padding-bottom: 5px;">
+        <button onclick="showTab('personal')" id="tab-btn-personal" style="border:none; background:transparent; color: #0284c7; font-weight:bold; font-size: 1rem; cursor:pointer; border-bottom: 3px solid #0284c7; padding-bottom: 5px;">Informacion Personal</button>
+        <button onclick="showTab('corp')" id="tab-btn-corp" style="border:none; background:transparent; color: #64748b; font-weight:bold; font-size: 1rem; cursor:pointer; padding-bottom: 5px;">Informacion de Corporacion</button>
+    </div>
+
+    <div id="personal" class="tab-content" style="display: block; background: #fff; border-radius: 10px; border: 2px solid #cbd5e1; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+        <div style="background: #0f766e; padding: 10px 20px; border-left: 5px solid #00e676;">
+            <h3 style="color: white; margin: 0; font-size: 1.1rem;">Identificacion del Usuario</h3>
+        </div>
+        
+        <div style="padding: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; position: relative;">
+            <div>
+                <h4 class="figma-title-green">Datos del usuario</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div><label class="figma-label">Cedula de Identidad</label><div class="figma-box">{{ user.person.identification_number if user.person else 'N/A' }}</div></div>
+                    <div><label class="figma-label">Correo Electronico</label><div class="figma-box">{{ user.person.email if user.person and user.person.email else 'N/A' }}</div></div>
+                    
+                    <div><label class="figma-label">Primer Nombre</label><div class="figma-box">{{ user.person.first_name if user.person else 'N/A' }}</div></div>
+                    <div><label class="figma-label">Segundo Nombre</label><div class="figma-box">{{ user.person.second_name if user.person else 'N/A' }}</div></div>
+                    
+                    <div><label class="figma-label">Primer Apellido</label><div class="figma-box">{{ user.person.last_name if user.person else 'N/A' }}</div></div>
+                    <div><label class="figma-label">Segundo Apellido</label><div class="figma-box">{{ user.person.middle_name if user.person else 'N/A' }}</div></div>
+                </div>
+            </div>
+            
+            <div style="position: absolute; left: 50%; top: 20px; bottom: 20px; width: 1px; background-color: #1e293b;"></div>
+            
+            <div>
+                <h4 class="figma-title-green">Contacto y Ubicacion</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div><label class="figma-label">Telefono Principal</label><div class="figma-box">{{ user.person.mobile if user.person and user.person.mobile else 'N/A' }}</div></div>
+                    <div><label class="figma-label">Telefono Secundario</label><div class="figma-box">{{ user.person.phone if user.person and user.person.phone else 'N/A' }}</div></div>
+                    
+                    <div><label class="figma-label">Estado</label><div class="figma-box">N/A</div></div>
+                    <div><label class="figma-label">Municipio</label><div class="figma-box">N/A</div></div>
+                    <div><label class="figma-label">Parroquia</label><div class="figma-box">N/A</div></div>
+                    <div></div>
+                    <div style="grid-column: 1 / -1;"><label class="figma-label">Direccion</label><div class="figma-box">N/A</div></div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="padding: 10px 40px 30px 40px;">
+            <span style="font-weight: 800; font-size: 1.1rem; color: #000;">Perfil Activo</span>
+            
+            {% if user_role == 'super_admin' %}
+                <form action="{{ url_for('users.toggle_user_status', user_id=user.id) }}" method="POST" style="display:inline;">
+                    <label class="switch">
+                        <!-- El onclick frena el botón y lanza el popup -->
+                        <input type="checkbox" onclick="requireConfirmation(event, this)" {% if user.status_id == 1 %}checked{% endif %}>
+                        <span class="slider round"></span>
+                    </label>
+                </form>
+            {% else %}
+                <label class="switch">
+                    <input type="checkbox" {% if user.status_id == 1 %}checked{% endif %} disabled>
+                    <span class="slider round"></span>
+                </label>
+            {% endif %}
+        </div>
+    </div>
+
+    <div id="corp" class="tab-content" style="display: none; background: #fff; border-radius: 10px; border: 2px solid #cbd5e1; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+        <div style="background: #0f766e; padding: 10px 20px; border-left: 5px solid #00e676;">
+            <h3 style="color: white; margin: 0; font-size: 1.1rem;">Identificacion de la Institucion/Organizacion del usuario</h3>
+        </div>
+        
+        <div style="padding: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; position: relative;">
+            <div>
+                <h4 class="figma-title-green">Datos Institucionales</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div><label class="figma-label">Cedula de Identidad</label><div class="figma-box">{{ corp_data.id_card if corp_data else 'N/A' }}</div></div>
+                    <div><label class="figma-label">Nombre o Razon Social</label><div class="figma-box">{{ corp_data.name if corp_data else 'N/A' }}</div></div>
+                    <div><label class="figma-label">Tipo de Organizacion</label><div class="figma-box">{{ corp_data.type if corp_data else 'N/A' }}</div></div>
+                    <div><label class="figma-label">Sector</label><div class="figma-box">{{ corp_data.sector if corp_data else 'N/A' }}</div></div>
+                    <div><label class="figma-label">Dependencia</label><div class="figma-box">{{ corp_data.dependency if corp_data else 'N/A' }}</div></div>
+                    <div><label class="figma-label">Cargo del Usuario</label><div class="figma-box">{{ corp_data.position if corp_data else 'N/A' }}</div></div>
+                </div>
+            </div>
+            
+            <div style="position: absolute; left: 50%; top: 20px; bottom: 20px; width: 1px; background-color: #1e293b;"></div>
+            
+            <div>
+                <h4 class="figma-title-green">Contacto y Ubicacion</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div><label class="figma-label">Telefono Principal (Corp)</label><div class="figma-box">{{ corp_data.phone_main if corp_data else 'N/A' }}</div></div>
+                    <div><label class="figma-label">Telefono Secundario (Corp)</label><div class="figma-box">{{ corp_data.phone_sec if corp_data else 'N/A' }}</div></div>
+                    <div><label class="figma-label">Estado</label><div class="figma-box">{{ corp_data.state if corp_data else 'N/A' }}</div></div>
+                    <div><label class="figma-label">Municipio</label><div class="figma-box">{{ corp_data.municipality if corp_data else 'N/A' }}</div></div>
+                    <div><label class="figma-label">Parroquia</label><div class="figma-box">{{ corp_data.parish if corp_data else 'N/A' }}</div></div>
+                    <div></div>
+                    <div style="grid-column: 1 / -1;"><label class="figma-label">Direccion</label><div class="figma-box">{{ corp_data.address if corp_data else 'N/A' }}</div></div>
+                </div>
+            </div>
+        </div>
+
+        <div style="padding: 10px 40px 30px 40px;">
+            <span style="font-weight: 800; font-size: 1.1rem; color: #000;">Perfil Activo</span>
+            
+            {% if user_role == 'super_admin' %}
+                <form action="{{ url_for('users.toggle_user_status', user_id=user.id) }}" method="POST" style="display:inline;">
+                    <label class="switch">
+                        <input type="checkbox" onclick="requireConfirmation(event, this)" {% if user.status_id == 1 %}checked{% endif %}>
+                        <span class="slider round"></span>
+                    </label>
+                </form>
+            {% else %}
+                <label class="switch">
+                    <input type="checkbox" {% if user.status_id == 1 %}checked{% endif %} disabled>
+                    <span class="slider round"></span>
+                </label>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmación -->
+<div id="confirmModal" class="modal-overlay">
+    <div class="modal-content">
+        <h3 id="modal-title" style="margin-top: 0; color: #1e293b; font-size: 1.3rem;">Confirmar Acción</h3>
+        <p id="modal-text" style="color: #64748b; margin-bottom: 1.5rem; font-size: 0.95rem; line-height: 1.5;"></p>
+        <div style="display: flex; justify-content: center; gap: 1rem;">
+            <button onclick="closeModal()" style="padding: 0.6rem 1.2rem; border: 1px solid #cbd5e1; background: white; color: #475569; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s;">
+                Cancelar
+            </button>
+            <button id="confirm-btn" style="padding: 0.6rem 1.2rem; border: none; color: white; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s;">
+                Confirmar
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Lógica para las Pestañas (Tabs)
+function showTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+    document.getElementById(tabId).style.display = 'block';
+    
+    let btnPersonal = document.getElementById('tab-btn-personal');
+    let btnCorp = document.getElementById('tab-btn-corp');
+    
+    if(tabId === 'personal') {
+        btnPersonal.style.color = '#0284c7';
+        btnPersonal.style.borderBottom = '3px solid #0284c7';
+        btnCorp.style.color = '#64748b';
+        btnCorp.style.borderBottom = 'none';
+    } else {
+        btnCorp.style.color = '#0284c7';
+        btnCorp.style.borderBottom = '3px solid #0284c7';
+        btnPersonal.style.color = '#64748b';
+        btnPersonal.style.borderBottom = 'none';
+    }
+}
+
+// Lógica de la Ventana Modal para Activar/Desactivar
+let formToSubmit = null;
+
+function requireConfirmation(event, checkbox) {
+    // Frena el cambio automático del switch temporalmente
+    event.preventDefault(); 
+    
+    formToSubmit = checkbox.form;
+    const isCurrentlyActive = checkbox.checked; // Es true si antes del click estaba inactivo, false si estaba activo
+    
+    const modal = document.getElementById('confirmModal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalText = document.getElementById('modal-text');
+    const confirmBtn = document.getElementById('confirm-btn');
+
+    if (isCurrentlyActive) {
+        // Significa que vamos a Activar (porque el checkbox falso está intentando volverse true)
+        modalTitle.textContent = "Activar Perfil";
+        modalText.innerHTML = "¿Estás seguro de que deseas <strong>activar</strong> este perfil? El usuario recuperará el acceso al sistema.";
+        confirmBtn.style.background = "#10b981"; // Verde
+        confirmBtn.textContent = "Sí, Activar";
+    } else {
+        // Significa que vamos a Desactivar
+        modalTitle.textContent = "Desactivar Perfil";
+        modalText.innerHTML = "⚠️ ¿Estás seguro de que deseas <strong>desactivar</strong> este perfil? El usuario ya no podrá ingresar al sistema.";
+        confirmBtn.style.background = "#ef4444"; // Rojo
+        confirmBtn.textContent = "Sí, Desactivar";
+    }
+    
+    // Muestra la ventana modal
+    modal.style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('confirmModal').style.display = 'none';
+    formToSubmit = null;
+}
+
+// Acción cuando se presiona confirmar en el modal
+document.getElementById('confirm-btn').addEventListener('click', function() {
+    if (formToSubmit) {
+        formToSubmit.submit();
+    }
+});
+</script>
+{% endblock %}
