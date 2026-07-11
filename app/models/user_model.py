@@ -18,10 +18,10 @@ class User(db.Model, UserMixin):
     # Relaciones
     person = db.relationship('Person', back_populates='user')
     status = db.relationship('Status', back_populates='users')
-    roles_assoc = db.relationship('RoleUser', back_populates='user', cascade="all, delete-orphan")
-    requests = db.relationship('Request', back_populates='user', lazy=True)
-    enabled_services = db.relationship('StateService', back_populates='enabled_by_user', lazy=True)
+    roles_assoc = db.relationship('RoleUser', back_populates='user', cascade='all, delete-orphan')
     logs = db.relationship('Binnacle', back_populates='user', lazy=True)
+    request_trackings = db.relationship('RequestTracking', back_populates='user', lazy=True)
+    ratings = db.relationship('Rating', back_populates='user', lazy=True)
 
     def __repr__(self):
-        return f"<User {self.user_code}: {self.user_name}>"
+        return f'<User {self.user_code}: {self.user_name}>'

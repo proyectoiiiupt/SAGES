@@ -10,7 +10,7 @@ class Permission(db.Model):
     view = db.Column(db.String(200), nullable=False)
 
     # Relaciones
-    roles_assoc = db.relationship('PermissionRole', back_populates='permission', cascade="all, delete-orphan")
+    roles_assoc = db.relationship('PermissionRole', back_populates='permission', cascade='all, delete-orphan')
 
     def __repr__(self):
-        return f"<Permission {self.name}>"
+        return f'<Permission {self.name}>'
