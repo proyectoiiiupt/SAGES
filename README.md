@@ -13,8 +13,8 @@ El proyecto sigue una organización por **features** (módulos), permitiendo que
 
 ## 🚀 Instalación rápida
 1. Clonar repositorio: `git clone [url-aqui]`
-2. Crear entorno virtual: `py -m venv venv`
-3. Activar entorno: `.\venv\Scripts\Activate.ps1` (Windows)
+2. Crear entorno virtual: `py -m venv venv` (Windows) `python3 -m venv .venv`
+3. Activar entorno: `.\venv\Scripts\Activate.ps1` (Windows) `. .venv/bin/activate`
 4. Instalar librerías: `pip install -r requirements.txt`
 5. Configurar `.env` con tus datos de base de datos.
 6. Ejecutar: `python run.py`
