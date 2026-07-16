@@ -231,7 +231,190 @@ body {
     visibility: visible;
 }
 
+/* =========================================
+   SIDEBAR COMPONENT
+   ========================================= */
+.sidebar {
+    width: var(--sidebar-width);
+    background: linear-gradient(180deg, var(--bg-main-start) 0%, var(--bg-main-mid) 100%);
+    color: var(--text-light);
+    display: flex;
+    flex-direction: column;
+    transition: width var(--transition-speed) cubic-bezier(0.2, 0.8, 0.2, 1);
+    z-index: 1000;
+    position: fixed;
+    height: 100vh;
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.15);
+}
 
+.sidebar.collapsed {
+    width: var(--sidebar-collapsed-width);
+}
+
+.sidebar-header {
+    height: var(--topbar-height);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 15px;
+    background: rgba(0, 0, 0, 0.15);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    overflow: hidden;
+    transition: padding var(--transition-speed);
+}
+
+.sidebar-header img.logo-full {
+    height: 42px;
+    width: auto;
+    transition: transform var(--transition-speed), opacity var(--transition-speed);
+}
+
+.sidebar-header img.logo-icon {
+    display: none;
+    height: 35px;
+    width: auto;
+}
+
+.sidebar.collapsed .sidebar-header img.logo-full {
+    display: none;
+}
+
+.sidebar.collapsed .sidebar-header img.logo-icon {
+    display: block;
+    animation: fadeInIcon 0.3s ease forwards;
+}
+
+@keyframes fadeInIcon {
+    from {
+        opacity: 0;
+        transform: scale(0.5);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.sidebar-menu {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    list-style: none;
+    padding: 20px 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.sidebar-menu::-webkit-scrollbar {
+    width: 5px;
+}
+
+.sidebar-menu::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+}
+
+.sidebar-menu li {
+    width: 100%;
+    margin-bottom: 6px;
+    padding: 0 12px;
+}
+
+.sidebar-menu a {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    color: var(--text-muted);
+    text-decoration: none;
+    border-radius: 10px;
+    transition: all 0.25s ease;
+    white-space: nowrap;
+    position: relative;
+    overflow: hidden;
+}
+
+.sidebar-menu a span {
+    transition: opacity var(--transition-speed), transform var(--transition-speed);
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    font-size: 0.95rem;
+}
+
+.sidebar.collapsed .sidebar-menu a span {
+    opacity: 0;
+    transform: translateX(20px);
+    pointer-events: none;
+    width: 0;
+}
+
+.sidebar-menu a:hover {
+    color: var(--text-light);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-menu a.active {
+    color: var(--text-dark);
+    background: var(--text-teal);
+    box-shadow: 0 4px 15px rgba(31, 202, 176, 0.4);
+}
+
+.sidebar-menu a svg {
+    min-width: 22px;
+    height: 22px;
+    margin-right: 15px;
+    transition: margin var(--transition-speed);
+}
+
+.sidebar.collapsed .sidebar-menu a {
+    justify-content: center;
+    padding: 12px 0;
+}
+
+.sidebar.collapsed .sidebar-menu a svg {
+    margin-right: 0;
+}
+
+.sidebar-footer {
+    padding: 20px 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-footer a {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    color: #f4f7f6;
+    text-decoration: none;
+    border-radius: 10px;
+    transition: all 0.25s ease;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.sidebar-footer a:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.sidebar-footer a svg {
+    min-width: 22px;
+    height: 22px;
+    margin-right: 15px;
+}
+
+.sidebar.collapsed .sidebar-footer a {
+    justify-content: center;
+    padding: 12px 0;
+}
+
+.sidebar.collapsed .sidebar-footer a span {
+    display: none;
+}
+
+.sidebar.collapsed .sidebar-footer a svg {
+    margin-right: 0;
+}
 
 /* =========================================
    RESPONSIVO

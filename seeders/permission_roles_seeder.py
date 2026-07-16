@@ -10,38 +10,33 @@ def seed_permission_roles():
 
     mappings = [
         # --- SUPER ADMIN (ROL-001) ---
-        {"role_code": "ROL-001", "permission_code": "PERM-001"}, # Inicio Super Admin
-        {"role_code": "ROL-001", "permission_code": "PERM-004"}, # Panel Administrativo Nacional
-        {"role_code": "ROL-001", "permission_code": "PERM-006"}, # Gestión de Solicitudes Generales
-        {"role_code": "ROL-001", "permission_code": "PERM-010"}, # Ver Catalogo de Formación
-        {"role_code": "ROL-001", "permission_code": "PERM-011"}, # Asignar a Estados
-        {"role_code": "ROL-001", "permission_code": "PERM-012"}, # Asignar a Niveles Educativos
-        {"role_code": "ROL-001", "permission_code": "PERM-013"}, # Cargar Formación
-        {"role_code": "ROL-001", "permission_code": "PERM-014"}, # Ver Estadísticas
-        {"role_code": "ROL-001", "permission_code": "PERM-015"}, # Generar Indicadores
-        {"role_code": "ROL-001", "permission_code": "PERM-016"}, # Generar Reportes
-        {"role_code": "ROL-001", "permission_code": "PERM-017"}, # Gestionar Usuarios
-        {"role_code": "ROL-001", "permission_code": "PERM-018"}, # Registrar Usuarios
-        {"role_code": "ROL-001", "permission_code": "PERM-019"}, # Gestionar Institución
-        {"role_code": "ROL-001", "permission_code": "PERM-020"}, # Configuración del sistema
+        {"role_code": "ROL-001", "permission_code": "PERM-001"}, # Ver Inicio
+        {"role_code": "ROL-001", "permission_code": "PERM-002"}, # Ver Panel Administrativo
+        {"role_code": "ROL-001", "permission_code": "PERM-003"}, # Gestión de Solicitudes
+        {"role_code": "ROL-001", "permission_code": "PERM-005"}, # Ver Catalogo de Formación
+        {"role_code": "ROL-001", "permission_code": "PERM-006"}, # Asignar a Estados
+        {"role_code": "ROL-001", "permission_code": "PERM-007"}, # Asignar a Niveles Educativos
+        {"role_code": "ROL-001", "permission_code": "PERM-008"}, # Cargar Formación
+        {"role_code": "ROL-001", "permission_code": "PERM-009"}, # Ver Estadísticas
+        {"role_code": "ROL-001", "permission_code": "PERM-010"}, # Gestionar Usuarios
+        {"role_code": "ROL-001", "permission_code": "PERM-011"}, # Registrar Usuarios
+        {"role_code": "ROL-001", "permission_code": "PERM-012"}, # Gestionar Institución
+        {"role_code": "ROL-001", "permission_code": "PERM-013"}, # Configuración del sistema
 
         # --- ADMIN ESTADAL (ROL-002) ---
-        {"role_code": "ROL-002", "permission_code": "PERM-002"}, # Inicio Admin Estadal
-        {"role_code": "ROL-002", "permission_code": "PERM-005"}, # Panel Administrativo Estadal
-        {"role_code": "ROL-002", "permission_code": "PERM-007"}, # Gestión de Solicitudes Atención
-        {"role_code": "ROL-002", "permission_code": "PERM-010"}, # Ver Catalogo de Formación
-        {"role_code": "ROL-002", "permission_code": "PERM-011"}, # Asignar a Estados
-        {"role_code": "ROL-002", "permission_code": "PERM-014"}, # Ver Estadísticas
-        {"role_code": "ROL-002", "permission_code": "PERM-015"}, # Generar Indicadores
-        {"role_code": "ROL-002", "permission_code": "PERM-016"}, # Generar Reportes
-        {"role_code": "ROL-002", "permission_code": "PERM-017"}, # Gestionar Usuarios
-        {"role_code": "ROL-002", "permission_code": "PERM-019"}, # Gestionar Institución
+        {"role_code": "ROL-002", "permission_code": "PERM-001"}, # Ver Inicio
+        {"role_code": "ROL-002", "permission_code": "PERM-002"}, # Ver Panel Administrativo
+        {"role_code": "ROL-002", "permission_code": "PERM-003"}, # Gestión de Solicitudes
+        {"role_code": "ROL-002", "permission_code": "PERM-005"}, # Ver Catalogo de Formación
+        {"role_code": "ROL-002", "permission_code": "PERM-006"}, # Asignar a Estados
+        {"role_code": "ROL-002", "permission_code": "PERM-009"}, # Ver Estadísticas
+        {"role_code": "ROL-002", "permission_code": "PERM-010"}, # Gestionar Usuarios
+        {"role_code": "ROL-002", "permission_code": "PERM-012"}, # Gestionar Institución
 
         # --- SOLICITANTE (ROL-003) ---
-        {"role_code": "ROL-003", "permission_code": "PERM-003"}, # Inicio Solicitante
-        {"role_code": "ROL-003", "permission_code": "PERM-008"}, # Crear Solicitud
-        {"role_code": "ROL-003", "permission_code": "PERM-009"}, # Ver mis Solicitudes
-        {"role_code": "ROL-003", "permission_code": "PERM-010"}  # Ver Catalogo de Formación
+        {"role_code": "ROL-003", "permission_code": "PERM-001"}, # Ver Inicio
+        {"role_code": "ROL-003", "permission_code": "PERM-004"}, # Crear Solicitud
+        {"role_code": "ROL-003", "permission_code": "PERM-005"}  # Ver Catalogo de Formación
     ]
 
     for data in mappings:
