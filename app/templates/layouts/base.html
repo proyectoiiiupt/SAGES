@@ -1,15 +1,39 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SAGES - Inicio</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/icon_corpoelec.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='CSS/layout.css') }}">
-    
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/loader.css') }}">
+
     {% block extra_css %}{% endblock %}
 </head>
+
 <body>
+
+    <!-- ===== PANTALLA DE CARGA ===== -->
+    <script>
+        if (sessionStorage.getItem('systemLoaderShown')) {
+            document.write('<style>#system-loader { display: none !important; }</style>');
+        }
+    </script>
+    <div id="system-loader" role="status" aria-label="Cargando sistema">
+        <div class="loader-content">
+            <img
+                class="loader-icon"
+                src="{{ url_for('static', filename='img/icon_corpoelec.png') }}"
+                alt="CORPOELEC"
+            >
+            <p class="loader-title">Iniciando Sistema...</p>
+            <p class="loader-subtitle">Conectando comunidades a trav&eacute;s de la eficiencia</p>
+            <div class="loader-progress-track">
+                <div class="loader-progress-fill" id="loader-bar"></div>
+            </div>
+        </div>
+    </div>
 
     {% include 'layouts/sidebar.html' %}
 
@@ -23,12 +47,38 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        (function () {
+            var loader = document.getElementById('system-loader');
+            if (!loader) return;
+
+            if (sessionStorage.getItem('systemLoaderShown')) {
+                loader.remove();
+                return;
+            }
+
+            sessionStorage.setItem('systemLoaderShown', 'true');
+
+            function hideLoader() {
+                var bar = document.getElementById('loader-bar');
+                if (bar) { bar.style.width = '100%'; }
+
+                setTimeout(function () {
+                    loader.classList.add('loader-hidden');
+                    setTimeout(function () { loader.remove(); }, 600);
+                }, 200);
+            }
+
+            setTimeout(hideLoader, 2500);
+        })();
+    </script>
+
+        <script>
+        document.addEventListener('DOMContentLoaded', function () {
             const menuToggle = document.getElementById('menu-toggle');
             const sidebar = document.getElementById('sidebar');
 
-            if(menuToggle && sidebar) {
-                menuToggle.addEventListener('click', function() {
+            if (menuToggle && sidebar) {
+                menuToggle.addEventListener('click', function () {
                     if (window.innerWidth <= 768) {
                         sidebar.classList.toggle('mobile-open');
                     } else {
@@ -40,4 +90,5 @@
     </script>
     {% block extra_js %}{% endblock %}
 </body>
+
 </html>
