@@ -2,9 +2,11 @@ from flask import request, jsonify, redirect, url_for, flash, render_template, a
 from flask_login import login_user, logout_user, login_required, current_user
 from app.auth import auth_bp
 from app.auth.services import authenticate_user
-from app.extensions import login_manager 
+from app.extensions import login_manager
 import random
-from app.utils.email_utils import send_recovery_email
+# IMPORTACIÓN DE FUNCIONES SMTP (Línea 8)
+# Importa funciones del sistema de email SMTP para recuperación de contraseña
+from app.utils.email_utils import send_recovery_email, set_token
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -99,6 +101,9 @@ def admin_test():
         
     return f"<h1>Éxito</h1><p>Bienvenido {current_user.user_name}, tienes acceso de Super Administrador.</p>"
 
+# RUTA DE RECUPERACIÓN DE CONTRASEÑA (Líneas 103-158)
+# Flujo completo de recuperación de contraseña con envío de email SMTP.
+# Paso 1: Validar cédula, Paso 2: Confirmar email, Generar código y enviar por SMTP.
 @auth_bp.route('/password', methods=['GET', 'POST'])
 def password():
 
@@ -133,7 +138,6 @@ def password():
 
             code = str(random.randint(100000, 999999))
 
-            from app.auth.token_store import set_token
             set_token(person.email, code, minutes=5)
 
             try:
@@ -144,7 +148,6 @@ def password():
             if sent:
                 flash('Se envió un código al correo registrado.', 'success')
             else:
-
                 flash('No se pudo enviar el correo. El código fue generado; contacte al administrador o solicite reenvío.', 'warning')
 
             return redirect(url_for('verify_code', email=person.email))
@@ -155,9 +158,10 @@ def password():
     return render_template('auth/password.html', step=1)
 
 
+# RUTA DE REENVÍO DE CÓDIGO (Líneas 161-185)
+# Regenera y reenvía el código de recuperación por SMTP cuando el usuario solicita un nuevo código.
 @auth_bp.route('/resend-code', methods=['GET'])
 def resend_code():
-    """Regenera y reenvía el código de recuperación para el correo proporcionado (query param 'email')."""
     email = request.args.get('email')
     if not email:
         flash('Email ausente para reenviar código.', 'danger')
@@ -166,12 +170,10 @@ def resend_code():
     from app.models.person_model import Person
     person = Person.query.filter_by(email=email).first()
     if not person:
-
         flash('Si el correo está registrado, se enviará el código.', 'info')
         return redirect(url_for('verify_code', email=email))
-    
+
     code = str(random.randint(100000, 999999))
-    from app.auth.token_store import set_token
     set_token(email, code, minutes=5)
 
     sent = False

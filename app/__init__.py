@@ -33,31 +33,32 @@ def create_app(config_class=Config) -> Flask:
     @app.route('/home/super_admin')
     @login_required
     @role_required('super_admin')
-    @check_permissions('inicio_super_admin')
+    @check_permissions('view_home')
     def home_super_admin():
         return render_template('home.html')
 
     @app.route('/home/state_admin')
     @login_required
     @role_required('state_admin')
-    @check_permissions('inicio_admin_estadal')
+    @check_permissions('view_home')
     def home_state_admin():
         return render_template('home.html')
 
     @app.route('/home/applicant')
     @login_required
     @role_required('applicant')
-    @check_permissions('inicio_solicitante')
+    @check_permissions('view_home')
     def home_applicant():
         return render_template('home.html')
     
+    # RUTA DE VERIFICACIÓN DE CÓDIGO (Líneas 54-82)
+    # Valida el código de recuperación enviado por email usando las funciones de email_utils.py.
+    # Maneja estados: VALID, BLOCKED, EXPIRED, INVALID y muestra cuenta regresiva.
     @app.route('/verify-code', methods=['GET', 'POST'])
     def verify_code():
-        # Recibe 'email' por querystring y un código por POST; valida expiración
         email = request.args.get('email')
 
-        # Import local to avoid circular imports at app import time
-        from app.auth.token_store import validate_token_attempt
+        from app.utils.email_utils import validate_token_attempt
 
         if request.method == 'POST':
             entered_code = request.form.get('code')
@@ -73,17 +74,19 @@ def create_app(config_class=Config) -> Flask:
             else:
                 flash('El código es incorrecto. Verifique e intente nuevamente.', 'danger')
 
-        from app.auth.token_store import get_remaining_seconds
+        from app.utils.email_utils import get_remaining_seconds
         remaining = get_remaining_seconds(email)
         return render_template('auth/verify_code.html', email=email, remaining=remaining)
 
+    # RUTA DE NUEVA CONTRASEÑA (Líneas 81-118)
+    # Permite establecer nueva contraseña después de verificar el código email.
+    # Consume el token validado usando email_utils.py y actualiza la contraseña del usuario.
     @app.route('/new-password', methods=['GET', 'POST'])
     def new_password():
-        # Muestra form para cambiar la contraseña luego de verificar código
         email = request.args.get('email') or request.form.get('email')
         token = request.args.get('token') or request.form.get('token')
 
-        from app.auth.token_store import verify_token
+        from app.utils.email_utils import verify_token
         from werkzeug.security import generate_password_hash
         from app.models.person_model import Person
 
@@ -94,7 +97,6 @@ def create_app(config_class=Config) -> Flask:
                 flash('Las contraseñas no coinciden o están vacías.', 'danger')
                 return render_template('auth/new_password.html', email=email, token=token)
 
-            # Verify and consume token
             if not verify_token(email, token):
                 flash('Token inválido o expirado.', 'danger')
                 return redirect(url_for('auth.password'))
@@ -111,7 +113,6 @@ def create_app(config_class=Config) -> Flask:
             flash('Contraseña actualizada. Inicia sesión con tu nueva contraseña.', 'success')
             return redirect(url_for('auth.login'))
 
-        # GET
         return render_template('auth/new_password.html', email=email, token=token)
 
     @app.after_request
