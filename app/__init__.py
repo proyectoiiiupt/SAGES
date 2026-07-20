@@ -22,6 +22,10 @@ def create_app(config_class=Config) -> Flask:
     from app.auth import auth_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')
 
+    # Registro del blueprint del sprint de Usuarios
+    from app.users.routes import users_bp
+    app.register_blueprint(users_bp, url_prefix='/users')
+
     @app.route('/')
     def index():
         return redirect(url_for('auth.login'))
@@ -33,21 +37,21 @@ def create_app(config_class=Config) -> Flask:
     @app.route('/home/super_admin')
     @login_required
     @role_required('super_admin')
-    @check_permissions('inicio_super_admin')
+    #@check_permissions('inicio_super_admin')
     def home_super_admin():
         return render_template('home.html')
 
     @app.route('/home/state_admin')
     @login_required
     @role_required('state_admin')
-    @check_permissions('inicio_admin_estadal')
+   # @check_permissions('inicio_admin_estadal')
     def home_state_admin():
         return render_template('home.html')
 
     @app.route('/home/applicant')
     @login_required
     @role_required('applicant')
-    @check_permissions('inicio_solicitante')
+    #@check_permissions('inicio_solicitante')
     def home_applicant():
         return render_template('home.html')
     

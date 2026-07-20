@@ -1,0 +1,163 @@
+{% extends "layouts/base.html" %}
+
+{% block extra_css %}
+<!-- Enlace al nuevo archivo CSS local -->
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/users_list.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="users-container">
+    
+    <!-- Encabezado -->
+    <div class="header-card">
+        <div class="welcome-text">
+            Gestión de Usuarios 👥
+        </div>
+        <div class="date-text">
+            <span id="current-date"></span>
+        </div>
+    </div>
+
+    <!-- Barra de Filtros y Acciones -->
+    <div class="actions-toolbar">
+        <form method="GET" action="{{ url_for('users.list_users') }}" class="filter-form">
+            
+            <div class="search-wrapper">
+                <span class="search-icon">🔍</span>
+                <input type="text" name="search" value="{{ filters.search or '' }}" placeholder="Buscar por nombre, cedula..." class="search-input">
+            </div>
+
+            <div class="separator">|</div>
+
+            <select name="role" class="filter-select">
+                <option value="">Rol</option>
+                <option value="1" {% if filters.role == '1' %}selected{% endif %}>Super Admin</option>
+                <option value="2" {% if filters.role == '2' %}selected{% endif %}>Admin Estadal</option>
+                <option value="3" {% if filters.role == '3' %}selected{% endif %}>Solicitante</option>
+            </select>
+
+            <select name="status" class="filter-select">
+                <option value="">Estatus</option>
+                <option value="1" {% if filters.status == '1' %}selected{% endif %}>Activo</option>
+                <option value="2" {% if filters.status == '2' %}selected{% endif %}>Inactivo</option>
+            </select>
+
+            <select name="state" class="filter-select">
+                <option value="">Estado</option>
+                <option value="1" {% if filters.state == '1' %}selected{% endif %}>Mérida</option>
+                <option value="2" {% if filters.state == '2' %}selected{% endif %}>Aragua</option>
+                <option value="3" {% if filters.state == '3' %}selected{% endif %}>Trujillo</option>
+                <option value="4" {% if filters.state == '4' %}selected{% endif %}>Yaracuy</option>
+                <option value="5" {% if filters.state == '5' %}selected{% endif %}>Miranda</option>
+            </select>
+
+            <button type="submit" class="btn-filter">Filtrar</button>
+            <a href="{{ url_for('users.list_users') }}" class="btn-clear">Limpiar</a>
+        </form>
+
+        <a href="#" class="btn-register">
+            Registrar Nuevo <span class="plus-icon">+</span>
+        </a>
+    </div>
+
+    <!-- Contenedor de la Tabla -->
+    <div class="table-card">
+        <div class="table-responsive">
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Tipo de Usuario</th>
+                        <th>Cédula</th>
+                        <th>Estado</th>
+                        <th>Estatus</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if users %}
+                        {% for user in users %}
+                        <tr class="{{ loop.cycle('row-even', 'row-odd') }}">
+                            <td class="text-muted font-medium">{{ user.id }}</td>
+                            <td class="text-dark truncate">
+                                {{ user.person.first_name if user.person else 'N/A' }} {{ user.person.last_name if user.person and user.person.last_name else '' }}
+                            </td>
+                            <td class="truncate">
+                                {% if user.roles_assoc %}
+                                    {% set r = user.roles_assoc[0].role.name %}
+                                    {% if r == 'super_admin' %}Super Administrador
+                                    {% elif r == 'state_admin' %}Administrador Estadal
+                                    {% elif r == 'director' or r == 'directora' or r == 'applicant' %}Solicitante
+                                    {% else %}{{ r | title }}{% endif %}
+                                {% else %}
+                                    Usuario General
+                                {% endif %}
+                            </td>
+                            <td class="font-medium">
+                                {{ user.user_name if user.user_name else (user.person.id_card if user.person and user.person.id_card else 'N/A') }}
+                            </td>
+                            <td>
+                                {{ user.person.state_id if user.person and user.person.state_id else 'Sin Asignar' }}
+                            </td>
+                            <td>
+                                <span class="status-badge {{ 'status-active' if user.status_id == 1 else 'status-inactive' }}">
+                                    {{ 'Activo' if user.status_id == 1 else 'Inactivo' }}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <a href="{{ url_for('users.view_user', user_id=user.id) }}" class="btn-view">
+                                    Ver
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="7" class="empty-state">
+                                <span class="empty-icon">🔍</span>
+                                <strong>No se encontraron registros</strong>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación -->
+        {% if pagination and pagination.pages > 1 %}
+        <div class="pagination-wrapper">
+            <div class="pagination-info">
+                Mostrando página {{ pagination.page }} de {{ pagination.pages }}
+            </div>
+            
+            <div class="pagination-controls">
+                {% if pagination.has_prev %}
+                    <a href="{{ url_for('users.list_users', page=pagination.prev_num, search=filters.search, status=filters.status, state=filters.state, role=filters.role) }}" class="page-link">&lt;&lt;</a>
+                {% endif %}
+                
+                <span class="page-current">{{ pagination.page }}</span>
+
+                {% if pagination.has_next %}
+                    <a href="{{ url_for('users.list_users', page=pagination.next_num, search=filters.search, status=filters.status, state=filters.state, role=filters.role) }}" class="page-link">&gt;&gt;</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const dateElement = document.getElementById('current-date');
+        if (dateElement) {
+            const options = { day: 'numeric', month: 'long', year: 'numeric' };
+            const today = new Date();
+            const formattedDate = today.toLocaleDateString('es-ES', options);
+            dateElement.textContent = formattedDate.replace(' de 20', ', 20');
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,287 @@
+/* Contenedor Principal */
+.users-container {
+    padding: 1.5rem;
+    background-color: #f8fafc;
+    min-height: 100vh;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Tarjeta de Encabezado */
+.header-card {
+    padding: 1.25rem 2rem;
+    margin-bottom: 1.5rem;
+    background: white;
+    border-radius: 30px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.welcome-text {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: #1e293b;
+    font-style: italic;
+}
+
+.date-text {
+    color: #94a3b8;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* Barra de Herramientas (Filtros y Botones) */
+.actions-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.filter-form {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    flex: 1;
+}
+
+.search-wrapper {
+    position: relative;
+    min-width: 280px;
+    flex-grow: 1;
+}
+
+.search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 0.95rem;
+}
+
+.search-input {
+    width: 100%;
+    padding: 0.6rem 1rem 0.6rem 2.4rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);
+    font-size: 0.9rem;
+    background: #fff;
+    color: #334155;
+    box-sizing: border-box;
+}
+
+.separator {
+    font-size: 1.1rem;
+    color: #cbd5e1;
+    font-weight: 300;
+}
+
+.filter-select {
+    padding: 0.55rem 1.5rem 0.55rem 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    background: white;
+    font-size: 0.9rem;
+    color: #475569;
+    cursor: pointer;
+    min-width: 100px;
+}
+
+.btn-filter {
+    background: #0b3a77;
+    border: none;
+    padding: 0.55rem 1.2rem;
+    border-radius: 20px;
+    color: white;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.85rem;
+}
+
+.btn-clear {
+    background: #64748b;
+    padding: 0.55rem 1.2rem;
+    border-radius: 20px;
+    color: white;
+    text-decoration: none;
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+.btn-register {
+    background: linear-gradient(135deg, #00e676, #00cc99);
+    color: white;
+    text-decoration: none;
+    padding: 0.6rem 1.4rem;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    box-shadow: 0 4px 10px rgba(0, 230, 118, 0.2);
+}
+
+.plus-icon {
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+/* Tarjeta de la Tabla */
+.table-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    border: 1px solid #e2e8f0;
+    width: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.users-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 0.9rem;
+    white-space: nowrap; /* Evita que el texto se rompa y aplaste la tabla */
+}
+
+.users-table thead tr {
+    background-color: #e2e8f0;
+    color: #1e293b;
+    border-bottom: 1px solid #cbd5e1;
+}
+
+.users-table th {
+    padding: 0.85rem 1.2rem;
+    font-weight: 700;
+}
+
+.users-table tbody {
+    color: #334155;
+}
+
+.users-table tbody tr {
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.row-even {
+    background-color: #eaeded;
+}
+
+.row-odd {
+    background-color: #ffffff;
+}
+
+.users-table td {
+    padding: 0.85rem 1.2rem;
+}
+
+/* Utilidades de texto y celdas */
+.text-muted { color: #64748b; }
+.text-dark { color: #1e293b; }
+.font-medium { font-weight: 500; }
+.text-center { text-align: center; }
+
+.truncate {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Badges y Botones de Tabla */
+.status-badge {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 50px;
+    font-weight: bold;
+}
+
+.status-active {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.status-inactive {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.btn-view {
+    background: #e0f2fe;
+    color: #0284c7;
+    padding: 0.25rem 0.8rem;
+    border-radius: 50px;
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: bold;
+    display: inline-block;
+}
+
+/* Estado Vacío (Sin resultados) */
+.empty-state {
+    padding: 4rem 1.5rem !important;
+    text-align: center;
+    color: #94a3b8;
+}
+
+.empty-icon {
+    display: block;
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Paginación */
+.pagination-wrapper {
+    padding: 1rem 1.5rem;
+    background: #ffffff;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.pagination-info {
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.pagination-controls {
+    display: flex;
+    gap: 0.3rem;
+}
+
+.page-link {
+    padding: 0.35rem 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    text-decoration: none;
+    color: #334155;
+    font-size: 0.85rem;
+    background: white;
+}
+
+.page-current {
+    padding: 0.35rem 0.75rem;
+    background: #00cc99;
+    color: white;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: bold;
+}
