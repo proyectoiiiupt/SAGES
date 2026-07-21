@@ -7,26 +7,19 @@ def seed_permissions():
         return
 
     permissions_data = [
-        {"permission_code": "PERM-001", "name": "Inicio Super Admin", "view": "inicio_super_admin"},
-        {"permission_code": "PERM-002", "name": "Inicio Admin Estadal", "view": "inicio_admin_estadal"},
-        {"permission_code": "PERM-003", "name": "Inicio Solicitante", "view": "inicio_solicitante"},
-        {"permission_code": "PERM-004", "name": "Panel Administrativo Nacional", "view": "panel_admin_nacional"},
-        {"permission_code": "PERM-005", "name": "Panel Administrativo Estadal", "view": "panel_admin_estadal"},
-        {"permission_code": "PERM-006", "name": "Gestión de Solicitudes Generales", "view": "gestion_solicitudes_generales"},
-        {"permission_code": "PERM-007", "name": "Gestión de Solicitudes Atención", "view": "gestion_solicitudes_atencion"},
-        {"permission_code": "PERM-008", "name": "Crear Solicitud", "view": "crear_solicitud"},
-        {"permission_code": "PERM-009", "name": "Ver mis Solicitudes", "view": "ver_mis_solicitudes"},
-        {"permission_code": "PERM-010", "name": "Ver Catalogo de Formación", "view": "ver_catalogo_formacion"},
-        {"permission_code": "PERM-011", "name": "Asignar a Estados", "view": "asignar_estados"},
-        {"permission_code": "PERM-012", "name": "Asignar a Niveles Educativos", "view": "asignar_niveles_educativos"},
-        {"permission_code": "PERM-013", "name": "Cargar Formación", "view": "cargar_formacion"},
-        {"permission_code": "PERM-014", "name": "Ver Estadísticas", "view": "ver_estadisticas"},
-        {"permission_code": "PERM-015", "name": "Generar Indicadores", "view": "generar_indicadores"},
-        {"permission_code": "PERM-016", "name": "Generar Reportes", "view": "generar_reportes"},
-        {"permission_code": "PERM-017", "name": "Gestionar Usuarios", "view": "gestionar_usuarios"},
-        {"permission_code": "PERM-018", "name": "Registrar Usuarios", "view": "registrar_usuarios"},
-        {"permission_code": "PERM-019", "name": "Gestionar Institución", "view": "gestionar_institucion"},
-        {"permission_code": "PERM-020", "name": "Configuración del sistema", "view": "configuracion_sistema"}
+        {"permission_code": "PERM-001", "name": "Ver Inicio", "view": "view_home"},
+        {"permission_code": "PERM-002", "name": "Ver Panel Administrativo", "view": "view_admin_panel"},
+        {"permission_code": "PERM-003", "name": "Gestión de Solicitudes", "view": "manage_requests"},
+        {"permission_code": "PERM-004", "name": "Crear Solicitud", "view": "create_request"},
+        {"permission_code": "PERM-005", "name": "Ver Catalogo de Formación", "view": "view_training_catalog"},
+        {"permission_code": "PERM-006", "name": "Asignar a Estados", "view": "assign_to_states"},
+        {"permission_code": "PERM-007", "name": "Asignar a Niveles Educativos", "view": "assign_to_educational_levels"},
+        {"permission_code": "PERM-008", "name": "Cargar Formación", "view": "upload_training"},
+        {"permission_code": "PERM-009", "name": "Ver Estadísticas", "view": "view_statistics"},
+        {"permission_code": "PERM-010", "name": "Gestionar Usuarios", "view": "manage_users"},
+        {"permission_code": "PERM-011", "name": "Registrar Usuarios", "view": "register_users"},
+        {"permission_code": "PERM-012", "name": "Gestionar Institución", "view": "manage_institution"},
+        {"permission_code": "PERM-013", "name": "Configuración del sistema", "view": "system_configuration"}
     ]
 
     for data in permissions_data:

@@ -6,21 +6,92 @@
     </div>
     
     <div class="topbar-right">
-        <div class="user-info">
-            <span class="user-name">{{ current_user.person.first_name }} {{ current_user.person.last_name }}</span>
-            {% set user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant' %}
-            <span class="user-role">
-                {% if user_role == 'super_admin' %}
-                    Super Administrador
-                {% elif user_role == 'state_admin' %}
-                    Administrador Estadal
-                {% else %}
-                    Solicitante
-                {% endif %}
-            </span>
+        <div class="topbar-bell-wrapper">
+            <button class="topbar-bell-btn" id="bell-btn" aria-label="Notificaciones">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            </button>
+            <span class="topbar-bell-tooltip">Notificaciones</span>
         </div>
-        <div class="user-avatar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+        <div class="user-info">
+            {% set user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant' %}
+            {% if user_role == 'applicant' %}
+                {% set staff = current_user.person.institutional_staff[0] if current_user.person.institutional_staff else none %}
+                {% set position_name = staff.position.name if staff and staff.position else 'Solicitante' %}
+                {% set institution_name = staff.institution.institution_name if staff and staff.institution else '' %}
+                <span class="user-name">
+                    <span class="user-position-label">{{ position_name }}</span>
+                    {{ current_user.person.first_name }} {{ current_user.person.last_name }}
+                </span>
+                {% if institution_name %}
+                    <span class="user-institution">{{ institution_name }}</span>
+                {% endif %}
+            {% else %}
+                <span class="user-name">{{ current_user.person.first_name }} {{ current_user.person.last_name }}</span>
+                <span class="user-role">
+                    {% if user_role == 'super_admin' %}
+                        Super Administrador
+                    {% elif user_role == 'state_admin' %}
+                        {% set state_name = current_user.person.company_staff[0].place.parish.municipality.state.name if current_user.person.company_staff and current_user.person.company_staff[0].place and current_user.person.company_staff[0].place.parish and current_user.person.company_staff[0].place.parish.municipality and current_user.person.company_staff[0].place.parish.municipality.state else 'Estadal' %}
+                        Administrador {{ state_name }}
+                    {% else %}
+                        Usuario
+                    {% endif %}
+                </span>
+            {% endif %}
+        </div>
+        <div class="user-avatar-container" style="position: relative;">
+            <button id="avatar-btn" class="user-avatar" style="border: none; cursor: pointer; padding: 0; outline: none; background: #ffffff;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            </button>
+            <div id="avatar-dropdown" class="avatar-dropdown-menu" style="display: none; position: absolute; right: 0; top: 120%; background: #ffffff; min-width: 150px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); z-index: 1000; overflow: hidden;">
+                <a href="#" class="dropdown-item-link" onmouseover="this.style.backgroundColor='#f3f4f6'" onmouseout="this.style.backgroundColor='transparent'">Perfil</a>
+                <button id="btn-logout" class="dropdown-item-logout" onmouseover="this.style.backgroundColor='#fee2e2'" onmouseout="this.style.backgroundColor='transparent'" data-logout-url="{{ url_for('auth.logout') }}">Cerrar Sesión</button>
+            </div>
         </div>
     </div>
 </header>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/sweetalert2.min.css') }}">
+<script src="{{ url_for('static', filename='JS/sweetalert2.all.min.js') }}"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const avatarBtn = document.getElementById('avatar-btn');
+        const dropdownMenu = document.getElementById('avatar-dropdown');
+
+        if (avatarBtn && dropdownMenu) {
+            avatarBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const isVisible = dropdownMenu.style.display === 'block';
+                dropdownMenu.style.display = isVisible ? 'none' : 'block';
+            });
+
+            document.addEventListener('click', function(e) {
+                if (!avatarBtn.contains(e.target) && !dropdownMenu.contains(e.target)) {
+                    dropdownMenu.style.display = 'none';
+                }
+            });
+        }
+
+        const logoutBtn = document.getElementById('btn-logout');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', function() {
+                const logoutUrl = this.dataset.logoutUrl;
+                Swal.fire({
+                    title: '¿Cerrar sesión?',
+                    text: '¿Estás seguro de que deseas cerrar tu sesión?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#019577',
+                    cancelButtonColor: '#6b7280',
+                    confirmButtonText: 'Sí, cerrar sesión',
+                    cancelButtonText: 'Cancelar'
+                }).then(function(result) {
+                    if (result.isConfirmed) {
+                        window.location.href = logoutUrl;
+                    }
+                });
+            });
+        }
+    });
+</script>

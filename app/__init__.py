@@ -37,21 +37,21 @@ def create_app(config_class=Config) -> Flask:
     @app.route('/home/super_admin')
     @login_required
     @role_required('super_admin')
-    #@check_permissions('inicio_super_admin')
+    @check_permissions('view_home')
     def home_super_admin():
         return render_template('home.html')
 
     @app.route('/home/state_admin')
     @login_required
     @role_required('state_admin')
-   # @check_permissions('inicio_admin_estadal')
+    @check_permissions('view_home')
     def home_state_admin():
         return render_template('home.html')
 
     @app.route('/home/applicant')
     @login_required
     @role_required('applicant')
-    #@check_permissions('inicio_solicitante')
+    @check_permissions('view_home')
     def home_applicant():
         return render_template('home.html')
     
