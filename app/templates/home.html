@@ -237,7 +237,7 @@
 
     {# Instituciones #}
     {% if 'manage_institution' in user_permissions %}
-    <a href="#" class="card card-cyan">
+    <a href="{{ url_for('institutions.list_institutions') }}" class="card card-cyan">
         <div class="card-header">
             <div class="card-title">Instituciones</div>
             <div class="card-icon">
