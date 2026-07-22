@@ -22,6 +22,9 @@ def create_app(config_class=Config) -> Flask:
     from app.auth import auth_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')
 
+    from app.institutions import institutions_bp
+    app.register_blueprint(institutions_bp, url_prefix='/institutions')
+
     @app.route('/')
     def index():
         return redirect(url_for('auth.login'))
