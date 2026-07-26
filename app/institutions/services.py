@@ -13,6 +13,7 @@ from app.models.institution_scope_model import InstitutionScope
 from app.models.institution_dependency_model import InstitutionDependency
 from app.models.status_model import Status
 from sqlalchemy.orm import joinedload
+from sqlalchemy import or_
 
 # Código del estado en la tabla State al que se restringe el sistema.
 # Usar código en lugar de nombre para mayor precisión
@@ -91,13 +92,27 @@ def get_all_institutions(filters=None, user=None, page=1, per_page=10):
                 )
             )
 
-        # Ordenar alfabéticamente por nombre de institución
-        query = query.order_by(Institution.institution_name)
+        # Ordenar por ID de institución
+        query = query.order_by(Institution.id)
 
         # Aplicar filtros si se proporcionan
         if filters:
             if filters.get('search_name'):
-                query = query.filter(Institution.institution_name.ilike(f"%{filters['search_name']}%"))
+                # Buscar por nombre o ID
+                search_term = filters['search_name']
+                # Intentar convertir a entero para búsqueda por ID
+                try:
+                    search_id = int(search_term)
+                    # Si es un número válido, buscar por ID o nombre
+                    query = query.filter(
+                        or_(
+                            Institution.id == search_id,
+                            Institution.institution_name.ilike(f"%{search_term}%")
+                        )
+                    )
+                except ValueError:
+                    # Si no es un número, buscar solo por nombre
+                    query = query.filter(Institution.institution_name.ilike(f"%{search_term}%"))
             if filters.get('institution_type'):
                 query = query.filter(Institution.institution_type_id == filters['institution_type'])
             if filters.get('institution_scope'):

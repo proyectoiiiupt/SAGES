@@ -31,11 +31,11 @@
     <div class="filters-container">
         <div class="filters-section">
             <div class="filter-row">
-                {# Campo de búsqueda por nombre con debounce para evitar múltiples consultas #}
+                {# Campo de búsqueda por nombre o ID con debounce para evitar múltiples consultas #}
                 <div class="filter-group search-group">
                     <input type="text" name="search_name" id="search_name"
                            value="{{ current_filters.search_name if current_filters.search_name else '' }}"
-                           placeholder="Buscar por nombre"
+                           placeholder="Buscar por Nombre/ID"
                            oninput="debouncedSearch()">
                     <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="11" cy="11" r="8"></circle>
@@ -67,24 +67,14 @@
                     </select>
                 </div>
 
-                {# Filtro geográfico según rol: Estado y Parroquia para super_admin, solo Parroquia para state_admin #}
+                {# Filtro geográfico según rol: Estado para super_admin, Parroquia para state_admin #}
                 {% if current_user.roles_assoc[0].role.name == 'super_admin' %}
                 <div class="filter-group">
-                    <select name="state_id" id="state_id" onchange="updateParishesByState(); updateFilters()">
+                    <select name="state_id" id="state_id" onchange="updateFilters()">
                         <option value="">Estado</option>
                         {% for state in filter_options.states %}
                         <option value="{{ state.id }}" {% if current_filters.state_id == state.id %}selected{% endif %}>
                             {{ state.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <select name="parish_id" id="parish_id" onchange="updateFilters()">
-                        <option value="">Parroquia</option>
-                        {% for parish in filter_options.parishes %}
-                        <option value="{{ parish.id }}" data-state-id="{{ parish.municipality.state_id if parish.municipality else '' }}" {% if current_filters.parish_id == parish.id %}selected{% endif %}>
-                            {{ parish.name }}
                         </option>
                         {% endfor %}
                     </select>
@@ -128,12 +118,12 @@
             <table class="institutions-table">
                 <thead>
                     <tr>
+                        <th>ID</th>
                         <th>Nombre</th>
                         <th>Tipo de Institución</th>
                         <th>Dependencia</th>
                         {% if current_user.roles_assoc[0].role.name == 'super_admin' %}
                         <th>Estado</th>
-                        <th>Parroquia</th>
                         {% else %}
                         <th>Parroquia</th>
                         {% endif %}
@@ -145,12 +135,12 @@
                     {# Filas de instituciones con datos #}
                     {% for institution in institutions %}
                     <tr>
+                        <td>{{ institution.id }}</td>
                         <td>{{ institution.institution_name }}</td>
                         <td>{{ institution.institution_type.name if institution.institution_type else 'N/A' }}</td>
                         <td>{{ institution.institution_dependency.name if institution.institution_dependency else 'N/A' }}</td>
                         {% if current_user.roles_assoc[0].role.name == 'super_admin' %}
                         <td>{{ institution.parish.municipality.state.name if institution.parish and institution.parish.municipality else 'N/A' }}</td>
-                        <td>{{ institution.parish.name if institution.parish else 'N/A' }}</td>
                         {% else %}
                         <td>{{ institution.parish.name if institution.parish else 'N/A' }}</td>
                         {% endif %}
@@ -175,7 +165,7 @@
                     {% else %}
                     {# Mensaje cuando no hay instituciones #}
                     <tr>
-                        <td colspan="{% if current_user.roles_assoc[0].role.name == 'super_admin' %}8{% else %}7{% endif %}" class="no-data">No hay planteles registrados</td>
+                        <td colspan="{% if current_user.roles_assoc[0].role.name == 'super_admin' %}8{% else %}8{% endif %}" class="no-data">No hay planteles registrados</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -232,11 +222,6 @@
             const formattedDate = today.toLocaleDateString('es-ES', options);
             dateElement.textContent = formattedDate.replace(' de 20', ', 20');
         }
-        
-        // Inicializar parroquias según el estado seleccionado (para super_admin)
-        {% if current_user.roles_assoc and current_user.roles_assoc[0].role.name == 'super_admin' %}
-        updateParishesByState();
-        {% endif %}
     });
 
     function debouncedSearch() {
@@ -244,56 +229,6 @@
         clearTimeout(searchTimeout);
         // Establecer un nuevo timeout de 500ms
         searchTimeout = setTimeout(updateFilters, 500);
-    }
-
-    function updateParishesByState() {
-        const stateIdElement = document.getElementById('state_id');
-        const parishIdElement = document.getElementById('parish_id');
-        
-        if (!stateIdElement || !parishIdElement) return;
-        
-        const selectedStateId = stateIdElement.value;
-        const parishOptions = parishIdElement.querySelectorAll('option');
-        
-        // Si no hay estado seleccionado, ocultar todas las parroquias (solo mostrar placeholder)
-        if (!selectedStateId) {
-            parishOptions.forEach(option => {
-                if (option.value === '') {
-                    // Mantener solo la opción "Parroquia" (placeholder)
-                    option.style.display = '';
-                } else {
-                    // Ocultar todas las parroquias
-                    option.style.display = 'none';
-                }
-            });
-            // Deseleccionar parroquia si estaba seleccionada
-            parishIdElement.value = '';
-            return;
-        }
-        
-        // Filtrar parroquias por estado seleccionado
-        parishOptions.forEach(option => {
-            if (option.value === '') {
-                // Mantener la opción "Parroquia" (placeholder)
-                option.style.display = '';
-            } else {
-                const optionStateId = option.getAttribute('data-state-id');
-                if (optionStateId === selectedStateId) {
-                    option.style.display = '';
-                } else {
-                    option.style.display = 'none';
-                }
-            }
-        });
-        
-        // Deseleccionar parroquia si ya no pertenece al estado seleccionado
-        const selectedParishId = parishIdElement.value;
-        if (selectedParishId) {
-            const selectedOption = parishIdElement.querySelector(`option[value="${selectedParishId}"]`);
-            if (selectedOption && selectedOption.style.display === 'none') {
-                parishIdElement.value = '';
-            }
-        }
     }
 
     function updateFilters() {
@@ -309,15 +244,12 @@
         url.searchParams.set('status', status);
 
         {% if current_user.roles_assoc and current_user.roles_assoc[0].role.name == 'super_admin' %}
-        // Super_admin: manejar ambos filtros (state_id y parish_id)
+        // Super_admin: manejar filtro state_id
         const stateIdElement = document.getElementById('state_id');
         if (stateIdElement) {
             url.searchParams.set('state_id', stateIdElement.value);
         }
-        const parishIdElement = document.getElementById('parish_id');
-        if (parishIdElement) {
-            url.searchParams.set('parish_id', parishIdElement.value);
-        }
+        url.searchParams.delete('parish_id');
         {% else %}
         // State_admin: solo manejar parish_id
         const parishIdElement = document.getElementById('parish_id');
@@ -348,15 +280,12 @@
         url.searchParams.set('status', status);
 
         {% if current_user.roles_assoc and current_user.roles_assoc[0].role.name == 'super_admin' %}
-        // Super_admin: manejar ambos filtros (state_id y parish_id)
+        // Super_admin: manejar filtro state_id
         const stateIdElement = document.getElementById('state_id');
         if (stateIdElement) {
             url.searchParams.set('state_id', stateIdElement.value);
         }
-        const parishIdElement = document.getElementById('parish_id');
-        if (parishIdElement) {
-            url.searchParams.set('parish_id', parishIdElement.value);
-        }
+        url.searchParams.delete('parish_id');
         {% else %}
         // State_admin: solo manejar parish_id
         const parishIdElement = document.getElementById('parish_id');

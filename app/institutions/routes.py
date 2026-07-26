@@ -17,7 +17,7 @@ def list_institutions():
     Solo accesible para super_admin y state_admin.
     
     Funcionalidades:
-    - Búsqueda por nombre de institución
+    - Búsqueda por nombre o ID de institución
     - Filtros por tipo, alcance, dependencia, estatus, estado y parroquia
     - Paginación de 10 registros por página
     - Filtrado automático por estado para administradores estadales
