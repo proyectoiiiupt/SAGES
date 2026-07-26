@@ -35,7 +35,7 @@
             </svg>
             Volver a la lista
         </a>
-        <button class="btn-view-users" disabled title="Ver usuarios afiliados">
+        <a href="{{ url_for('institutions.view_institution_users', institution_id=institution.id) }}" class="btn-view-users" title="Ver usuarios afiliados">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                 <circle cx="9" cy="7" r="4"></circle>
@@ -43,7 +43,7 @@
                 <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
             </svg>
             Ver usuarios afiliados
-        </button>
+        </a>
     </div>
 
     <div class="institution-detail">
@@ -59,11 +59,7 @@
                 <div class="detail-section">
                     <h3>Información General</h3>
                     <div class="detail-row">
-                        <span class="label">Código Institución:</span>
-                        <span class="value">{{ institution.institution_code }}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="label">Código Plantel:</span>
+                        <span class="label">Código del Plantel:</span>
                         <span class="value">{{ institution.plantel_code }}</span>
                     </div>
                     <div class="detail-row">
