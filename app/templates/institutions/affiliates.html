@@ -1,0 +1,154 @@
+{# 
+    Template: Usuarios Afiliados a Institución
+    Muestra una tabla con el personal afiliado a una institución específica.
+    Solo accesible para usuarios con roles super_admin y state_admin.
+#}
+{% extends "layouts/base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/institutions.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/institutions-detail.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/affiliates.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="institutions-container">
+    {# Encabezado de página con título y fecha actual #}
+    <div class="page-header">
+        <div class="page-title">
+            <h1>Usuarios Afiliados a Institución</h1>
+        </div>
+        <div class="page-date">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span id="current-date"></span>
+        </div>
+    </div>
+
+    {# Información de la institución y botón de volver #}
+    <div class="page-actions">
+        <a href="{{ url_for('institutions.view_institution', institution_id=institution.id) }}" class="back-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Volver al detalle
+        </a>
+    </div>
+
+    {# Información de la institución #}
+    <div class="institution-info-card">
+        <h3>{{ institution.institution_name }}</h3>
+        <p>
+            <strong>Código del plantel:</strong> {{ institution.plantel_code }} |
+            <strong>Tipo:</strong> {{ institution.institution_type.name if institution.institution_type else 'N/A' }} |
+            <strong>Dependencia:</strong> {{ institution.institution_dependency.name if institution.institution_dependency else 'N/A' }}
+        </p>
+    </div>
+
+    {# Tabla de usuarios afiliados #}
+    <div class="table-container">
+        <div class="table-responsive">
+            <table class="institutions-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre Completo</th>
+                        <th>Cédula</th>
+                        <th>Cargo</th>
+                        <th>Email</th>
+                        <th>Teléfono</th>
+                        <th>Estatus</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {# Filas de usuarios afiliados #}
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.staff_id }}</td>
+                        <td>{{ user.full_name }}</td>
+                        <td>{{ user.identification_type }}-{{ user.identification_number }}</td>
+                        <td>{{ user.position }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>{{ user.mobile }}</td>
+                        <td>
+                            {% if user.user_status %}
+                                <span class="status-badge status-{{ user.user_status.status_code }}">
+                                    {{ user.user_status.status_name }}
+                                </span>
+                            {% else %}
+                                <span class="no-data">N/A</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    {# Mensaje cuando no hay usuarios afiliados #}
+                    <tr>
+                        <td colspan="7" class="no-data">No hay usuarios afiliados a esta institución</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {# Controles de paginación #}
+        {% if pagination and pagination.total > 0 %}
+        <div class="pagination-container">
+            <div class="pagination-info">
+                <span>Mostrando {{ (pagination.current_page - 1) * pagination.per_page + 1 }}-{% if pagination.current_page * pagination.per_page < pagination.total %}{{ pagination.current_page * pagination.per_page }}{% else %}{{ pagination.total }}{% endif %} de {{ pagination.total }} registros</span>
+            </div>
+            <div class="pagination-controls">
+                <div class="pagination-buttons">
+                    <button class="pagination-btn" {% if not pagination.has_prev %}disabled{% endif %} onclick="goToPage({{ pagination.prev_num }})">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                        Anterior
+                    </button>
+                    <div class="page-numbers">
+                        {% for page_num in range(1, pagination.pages + 1) %}
+                            {% if page_num == 1 or page_num == pagination.pages or (page_num >= pagination.current_page - 1 and page_num <= pagination.current_page + 1) %}
+                                <button class="page-number {% if page_num == pagination.current_page %}active{% endif %}" onclick="goToPage({{ page_num }})">
+                                    {{ page_num }}
+                                </button>
+                            {% elif page_num == pagination.current_page - 2 or page_num == pagination.current_page + 2 %}
+                                <span class="page-ellipsis">...</span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    <button class="pagination-btn" {% if not pagination.has_next %}disabled{% endif %} onclick="goToPage({{ pagination.next_num }})">
+                        Siguiente
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Set dynamic date in Spanish format
+        const dateElement = document.getElementById('current-date');
+        if (dateElement) {
+            const options = { day: 'numeric', month: 'long', year: 'numeric' };
+            const today = new Date();
+            const formattedDate = today.toLocaleDateString('es-ES', options);
+            dateElement.textContent = formattedDate.replace(' de 20', ', 20');
+        }
+    });
+
+    function goToPage(page) {
+        let url = new URL(window.location.href);
+        url.searchParams.set('page', page);
+        window.location.href = url.toString();
+    }
+</script>
+{% endblock %}

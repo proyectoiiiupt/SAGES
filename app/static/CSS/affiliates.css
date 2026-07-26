@@ -1,0 +1,74 @@
+/*
+Estilos CSS para el Módulo de Afiliados
+Vista de usuarios afiliados a instituciones
+*/
+
+/* Estilos específicos para tabla de afiliados */
+.table-container {
+    margin-top: 1rem;
+}
+
+.institutions-table th:nth-child(1),
+.institutions-table td:nth-child(1) {
+    width: 80px;
+    text-align: center;
+}
+
+.institutions-table th:nth-child(2),
+.institutions-table td:nth-child(2) {
+    width: 200px;
+}
+
+.institutions-table th:nth-child(3),
+.institutions-table td:nth-child(3) {
+    width: 150px;
+}
+
+.institutions-table th:nth-child(4),
+.institutions-table td:nth-child(4) {
+    width: 150px;
+}
+
+.institutions-table th:nth-child(5),
+.institutions-table td:nth-child(5) {
+    width: 200px;
+}
+
+.institutions-table th:nth-child(6),
+.institutions-table td:nth-child(6) {
+    width: 120px;
+}
+
+.institutions-table th:nth-child(7),
+.institutions-table td:nth-child(7) {
+    width: 120px;
+    text-align: center;
+}
+
+.institution-info-card {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border-left: 5px solid #007bff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.institution-info-card h3 {
+    margin: 0 0 0.75rem 0;
+    color: #2c3e50;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.institution-info-card p {
+    margin: 0;
+    color: #495057;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.institution-info-card p strong {
+    color: #2c3e50;
+    font-weight: 600;
+}
