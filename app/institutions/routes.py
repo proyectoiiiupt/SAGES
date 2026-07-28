@@ -81,7 +81,6 @@ def view_institution(institution_id):
     - Niveles educativos
     - Ubicación (parroquia, municipio, estado)
     - Información del sistema (fechas de creación/actualización)
-    - Control de estatus (Activo/Inactivo)
     """
     try:
         institution = get_institution_by_id(institution_id)

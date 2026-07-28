@@ -1,6 +1,6 @@
 {# 
     Template: Detalle de Institución
-    Muestra información completa de una institución específica con opción de cambiar estatus.
+    Muestra información completa de una institución específica.
     Solo accesible para usuarios con roles super_admin y state_admin.
 #}
 {% extends "layouts/base.html" %}
@@ -126,16 +126,6 @@
                     {% endif %}
                 </div>
             </div>
-            
-            <div class="detail-actions">
-                <button class="toggle-status-btn" id="toggle-btn"
-                        data-institution-id="{{ institution.id }}"
-                        data-current-status="{{ institution.status.status_code }}"
-                        title="Cambiar estatus">
-                    <span class="toggle-slider"></span>
-                </button>
-                <span class="toggle-label">Cambiar estatus</span>
-            </div>
         </div>
     </div>
 </div>
@@ -152,61 +142,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const formattedDate = today.toLocaleDateString('es-ES', options);
         dateElement.textContent = formattedDate.replace(' de 20', ', 20');
     }
-
-    const toggleBtn = document.getElementById('toggle-btn');
-    const statusBadge = document.getElementById('status-badge');
-    
-    // Set initial state
-    const currentStatus = toggleBtn.dataset.currentStatus;
-    if (currentStatus === 'STAT-001') {
-        toggleBtn.classList.add('active');
-    }
-    
-    toggleBtn.addEventListener('click', async function() {
-        const institutionId = this.dataset.institutionId;
-        const isActive = this.classList.contains('active');
-        
-        // Disable button during request
-        this.disabled = true;
-        
-        try {
-            const response = await fetch(`/institutions/${institutionId}/toggle-status`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                // Update button state
-                if (data.new_status === 'Activo') {
-                    toggleBtn.classList.add('active');
-                } else {
-                    toggleBtn.classList.remove('active');
-                }
-                
-                // Update status badge
-                statusBadge.textContent = data.new_status;
-                statusBadge.className = `status-badge status-${data.status_code}`;
-                
-                // Update data attribute
-                toggleBtn.dataset.currentStatus = data.status_code;
-                
-                // Show success message
-                alert(data.message);
-            } else {
-                alert('Error: ' + data.message);
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Error al cambiar el estatus de la institución');
-        } finally {
-            // Re-enable button
-            this.disabled = false;
-        }
-    });
 });
 </script>
 {% endblock %}
