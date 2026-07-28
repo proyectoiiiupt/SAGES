@@ -5,7 +5,7 @@ Define los endpoints para la gestión de instituciones educativas.
 from flask import render_template, flash, redirect, request, jsonify, abort, url_for
 from flask_login import login_required, current_user
 from app.institutions import institutions_bp
-from app.institutions.services import get_all_institutions, get_institution_by_id, get_filter_options, toggle_institution_status, get_institution_users
+from app.institutions.services import get_all_institutions, get_institution_by_id, get_filter_options, get_institution_users
 from app.decorators import role_required
 
 @institutions_bp.route('/', methods=['GET'])
@@ -92,36 +92,6 @@ def view_institution(institution_id):
         print(f"Error en view_institution: {e}")
         flash("Error al cargar la institución", 'danger')
         return redirect(url_for('institutions.list_institutions'))
-
-@institutions_bp.route('/<int:institution_id>/toggle-status', methods=['POST'])
-@login_required
-@role_required('super_admin', 'state_admin')
-def toggle_institution_status_route(institution_id):
-    """
-    Ruta AJAX para alternar el estatus de una institución entre Activo e Inactivo.
-    Solo accesible para super_admin y state_admin.
-    
-    Retorna JSON con:
-    - success: booleano indicando éxito/error
-    - message: mensaje descriptivo
-    - new_status: nuevo estatus ('Activo' o 'Inactivo')
-    - status_code: código del estatus en base de datos
-    """
-    try:
-        institution, new_status = toggle_institution_status(institution_id)
-        
-        if institution is None:
-            return jsonify({'success': False, 'message': new_status}), 404
-        
-        return jsonify({
-            'success': True,
-            'message': f'Institución cambiada a {new_status}',
-            'new_status': new_status,
-            'status_code': institution.status.status_code
-        })
-    except Exception as e:
-        print(f"Error en toggle_institution_status_route: {e}")
-        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 @institutions_bp.route('/<int:institution_id>/users', methods=['GET'])
 @login_required
