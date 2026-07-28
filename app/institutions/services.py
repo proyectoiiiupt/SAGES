@@ -13,6 +13,7 @@ from app.models.institution_scope_model import InstitutionScope
 from app.models.institution_dependency_model import InstitutionDependency
 from app.models.status_model import Status
 from sqlalchemy.orm import joinedload
+from sqlalchemy import or_
 
 # Código del estado en la tabla State al que se restringe el sistema.
 # Usar código en lugar de nombre para mayor precisión
@@ -91,13 +92,27 @@ def get_all_institutions(filters=None, user=None, page=1, per_page=10):
                 )
             )
 
-        # Ordenar alfabéticamente por nombre de institución
-        query = query.order_by(Institution.institution_name)
+        # Ordenar por ID de institución
+        query = query.order_by(Institution.id)
 
         # Aplicar filtros si se proporcionan
         if filters:
             if filters.get('search_name'):
-                query = query.filter(Institution.institution_name.ilike(f"%{filters['search_name']}%"))
+                # Buscar por nombre o ID
+                search_term = filters['search_name']
+                # Intentar convertir a entero para búsqueda por ID
+                try:
+                    search_id = int(search_term)
+                    # Si es un número válido, buscar por ID o nombre
+                    query = query.filter(
+                        or_(
+                            Institution.id == search_id,
+                            Institution.institution_name.ilike(f"%{search_term}%")
+                        )
+                    )
+                except ValueError:
+                    # Si no es un número, buscar solo por nombre
+                    query = query.filter(Institution.institution_name.ilike(f"%{search_term}%"))
             if filters.get('institution_type'):
                 query = query.filter(Institution.institution_type_id == filters['institution_type'])
             if filters.get('institution_scope'):
@@ -263,7 +278,6 @@ def get_filter_options(user=None):
 def toggle_institution_status(institution_id):
     """
     Alterna el estatus de una institución entre Activo (STAT-001) e Inactivo (STAT-002).
-    Cuando se deshabilita una institución, también deshabilita automáticamente a los usuarios afiliados.
     
     Parámetros:
     - institution_id: ID de la institución a modificar
@@ -274,13 +288,10 @@ def toggle_institution_status(institution_id):
     Nota:
     - Realiza commit de cambios en base de datos
     - Realiza rollback en caso de error
-    - Al deshabilitar institución, deshabilita usuarios afiliados
+    - Solo modifica el estatus de la institución, no afecta a los usuarios afiliados
     """
     try:
         from app.extensions import db
-        from app.models.institutional_staff_model import InstitutionalStaff
-        from app.models.person_model import Person
-        from app.models.user_model import User
         
         institution = db.session.get(Institution, institution_id)
         if not institution:
@@ -293,38 +304,18 @@ def toggle_institution_status(institution_id):
         if not active_status or not inactive_status:
             return None, 'Estados no configurados correctamente'
         
-        # Alternar el estatus
+        # Determinar el nuevo estatus de la institución
         if institution.status_id == active_status.id:
             institution.status_id = inactive_status.id
             new_status = 'Inactivo'
-            
-            # Deshabilitar usuarios afiliados a esta institución
-            institutional_staff_list = InstitutionalStaff.query.filter_by(institution_id=institution_id).all()
-            users_disabled = 0
-            
-            for staff in institutional_staff_list:
-                if staff.person and staff.person.user:
-                    staff.person.user.status_id = inactive_status.id
-                    users_disabled += 1
-            
-            print(f"Se deshabilitaron {users_disabled} usuarios afiliados a la institución {institution.institution_name}")
         else:
             institution.status_id = active_status.id
             new_status = 'Activo'
-            
-            # Reactivar usuarios afiliados a esta institución
-            institutional_staff_list = InstitutionalStaff.query.filter_by(institution_id=institution_id).all()
-            users_reactivated = 0
-            
-            for staff in institutional_staff_list:
-                if staff.person and staff.person.user:
-                    staff.person.user.status_id = active_status.id
-                    users_reactivated += 1
-            
-            print(f"Se reactivaron {users_reactivated} usuarios afiliados a la institución {institution.institution_name}")
         
-        from app.extensions import db
         db.session.commit()
+        
+        # Recargar la institución para obtener el estatus actualizado
+        db.session.refresh(institution)
         
         return institution, new_status
     except Exception as e:
@@ -332,3 +323,89 @@ def toggle_institution_status(institution_id):
         from app.extensions import db
         db.session.rollback()
         return None, f'Error: {str(e)}'
+
+def get_institution_users(institution_id, page=1, per_page=10):
+    """
+    Obtiene los usuarios afiliados a una institución específica con paginación.
+    
+    Parámetros:
+    - institution_id: ID de la institución
+    - page: número de página para paginación
+    - per_page: cantidad de registros por página
+    
+    Retorna:
+    - dict: con usuarios paginados y metadatos de paginación
+    """
+    try:
+        from app.models.institutional_staff_model import InstitutionalStaff
+        from app.models.person_model import Person
+        from app.models.user_model import User
+        from app.models.position_model import Position
+        from app.models.status_model import Status
+        from sqlalchemy.orm import joinedload
+        
+        # Obtener el personal institucional con todas las relaciones cargadas
+        query = InstitutionalStaff.query.options(
+            joinedload(InstitutionalStaff.person).joinedload(Person.user),
+            joinedload(InstitutionalStaff.position),
+            joinedload(InstitutionalStaff.institution)
+        ).filter_by(institution_id=institution_id)
+        
+        # Obtener total de registros para paginación
+        total = query.count()
+        
+        # Aplicar paginación
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        users_data = []
+        for staff in pagination.items:
+            person = staff.person
+            user = person.user if person else None
+            
+            # Obtener el estatus del usuario si existe
+            user_status = None
+            if user and user.status:
+                user_status = {
+                    'status_code': user.status.status_code,
+                    'status_name': user.status.status_name
+                }
+            
+            user_info = {
+                'staff_id': staff.id,
+                'person_id': person.id if person else None,
+                'person_code': person.person_code if person else 'N/A',
+                'full_name': f"{person.first_name} {person.last_name}" if person else 'N/A',
+                'identification_type': person.identification_type if person else 'N/A',
+                'identification_number': person.identification_number if person else 'N/A',
+                'email': person.email if person else 'N/A',
+                'mobile': person.mobile if person else 'N/A',
+                'position': staff.position.name if staff.position else 'N/A',
+                'user_status': user_status,
+                'has_user_account': user is not None
+            }
+            users_data.append(user_info)
+        
+        return {
+            'users': users_data,
+            'total': total,
+            'pages': pagination.pages,
+            'current_page': pagination.page,
+            'per_page': per_page,
+            'has_prev': pagination.has_prev,
+            'has_next': pagination.has_next,
+            'prev_num': pagination.prev_num,
+            'next_num': pagination.next_num
+        }
+    except Exception as e:
+        print(f"Error en get_institution_users: {e}")
+        return {
+            'users': [],
+            'total': 0,
+            'pages': 0,
+            'current_page': 1,
+            'per_page': per_page,
+            'has_prev': False,
+            'has_next': False,
+            'prev_num': None,
+            'next_num': None
+        }
