@@ -56,8 +56,8 @@
 
 .search-wrapper {
     position: relative;
-    min-width: 280px;
-    flex-grow: 1;
+    width: 250px; /* Ajustamos el contenedor al mismo tamaño de la barra */
+    /* Eliminamos min-width y flex-grow para evitar que empuje los filtros */
 }
 
 .search-icon {
@@ -71,6 +71,7 @@
 
 .search-input {
     width: 100%;
+    max-width: 250px; /* NUEVO: Límite para que la barra de búsqueda no empuje lo demás */
     padding: 0.6rem 1rem 0.6rem 2.4rem;
     border: 1px solid #e2e8f0;
     border-radius: 20px;
@@ -96,6 +97,11 @@
     color: #475569;
     cursor: pointer;
     min-width: 100px;
+    /* NUEVAS REGLAS: Evitan que se estire demasiado y rompa la línea */
+    max-width: 140px;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 .btn-filter {
@@ -284,4 +290,11 @@
     border-radius: 4px;
     font-size: 0.85rem;
     font-weight: bold;
+}
+
+/* Alineación para el ícono del calendario */
+.date-with-icon {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }

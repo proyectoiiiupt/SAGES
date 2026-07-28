@@ -13,7 +13,15 @@
         <div class="welcome-text">
             Gestión de Usuarios 👥
         </div>
-        <div class="date-text">
+
+        <!-- calendario -->
+        <div class="date-text date-with-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
             <span id="current-date"></span>
         </div>
     </div>
@@ -29,12 +37,37 @@
 
             <div class="separator">|</div>
 
-            <select name="role" class="filter-select">
-                <option value="">Rol</option>
-                <option value="1" {% if filters.role == '1' %}selected{% endif %}>Super Admin</option>
-                <option value="2" {% if filters.role == '2' %}selected{% endif %}>Admin Estadal</option>
-                <option value="3" {% if filters.role == '3' %}selected{% endif %}>Solicitante</option>
-            </select>
+            {% if current_role == 'super_admin' %}
+                <!-- Filtros exclusivos del Super Admin -->
+                <select name="role" class="filter-select">
+                    <option value="">Rol</option>
+                    {% for r in db_roles %}
+                        <option value="{{ r.id }}" {% if filters.role == r.id|string %}selected{% endif %}>{{ r.translated_name }}</option>
+                    {% endfor %}
+                </select>
+
+                <select name="state" class="filter-select">
+                    <option value="">Estado</option>
+                    {% for s in db_states %}
+                        <option value="{{ s.id }}" {% if filters.state == s.id|string %}selected{% endif %}>{{ s.name | title }}</option>
+                    {% endfor %}
+                </select>
+            {% elif current_role == 'state_admin' %}
+                <!-- Filtros exclusivos del Admin Estadal -->
+                <select name="municipality" class="filter-select">
+                    <option value="">Municipio</option>
+                    {% for m in db_municipalities %}
+                        <option value="{{ m.id }}" {% if filters.municipality == m.id|string %}selected{% endif %}>{{ m.name | title }}</option>
+                    {% endfor %}
+                </select>
+
+                <select name="parish" class="filter-select">
+                    <option value="">Parroquia</option>
+                    {% for p in db_parishes %}
+                        <option value="{{ p.id }}" {% if filters.parish == p.id|string %}selected{% endif %}>{{ p.name | title }}</option>
+                    {% endfor %}
+                </select>
+            {% endif %}
 
             <select name="status" class="filter-select">
                 <option value="">Estatus</option>
@@ -42,22 +75,15 @@
                 <option value="2" {% if filters.status == '2' %}selected{% endif %}>Inactivo</option>
             </select>
 
-            <select name="state" class="filter-select">
-                <option value="">Estado</option>
-                <option value="1" {% if filters.state == '1' %}selected{% endif %}>Mérida</option>
-                <option value="2" {% if filters.state == '2' %}selected{% endif %}>Aragua</option>
-                <option value="3" {% if filters.state == '3' %}selected{% endif %}>Trujillo</option>
-                <option value="4" {% if filters.state == '4' %}selected{% endif %}>Yaracuy</option>
-                <option value="5" {% if filters.state == '5' %}selected{% endif %}>Miranda</option>
-            </select>
-
-            <button type="submit" class="btn-filter">Filtrar</button>
             <a href="{{ url_for('users.list_users') }}" class="btn-clear">Limpiar</a>
         </form>
 
+        {% if current_role == 'super_admin' %}
+        <!-- TAREA: Quitar el botón registrar al Admin Estadal -->
         <a href="#" class="btn-register">
             Registrar Nuevo <span class="plus-icon">+</span>
         </a>
+        {% endif %}
     </div>
 
     <!-- Contenedor de la Tabla -->
@@ -66,10 +92,10 @@
             <table class="users-table">
                 <thead>
                     <tr>
-                        <th>ID</th>
+                        <th>N°</th>
+                        <th>Cédula</th>
                         <th>Nombre</th>
                         <th>Tipo de Usuario</th>
-                        <th>Cédula</th>
                         <th>Estado</th>
                         <th>Estatus</th>
                         <th class="text-center">Acciones</th>
@@ -79,10 +105,16 @@
                     {% if users %}
                         {% for user in users %}
                         <tr class="{{ loop.cycle('row-even', 'row-odd') }}">
-                            <td class="text-muted font-medium">{{ user.id }}</td>
+                            <td class="text-muted font-medium">{{ loop.index }}</td>
+                            
+                            <td class="font-medium">
+                                {{ user.user_name if user.user_name else (user.person.id_card if user.person and user.person.id_card else 'N/A') }}
+                            </td>
+
                             <td class="text-dark truncate">
                                 {{ user.person.first_name if user.person else 'N/A' }} {{ user.person.last_name if user.person and user.person.last_name else '' }}
                             </td>
+                            
                             <td class="truncate">
                                 {% if user.roles_assoc %}
                                     {% set r = user.roles_assoc[0].role.name %}
@@ -94,17 +126,17 @@
                                     Usuario General
                                 {% endif %}
                             </td>
-                            <td class="font-medium">
-                                {{ user.user_name if user.user_name else (user.person.id_card if user.person and user.person.id_card else 'N/A') }}
-                            </td>
+                            
                             <td>
-                                {{ user.person.state_id if user.person and user.person.state_id else 'Sin Asignar' }}
+                                {{ user.state_name if user.state_name else 'Sin Asignar' }}
                             </td>
+                            
                             <td>
                                 <span class="status-badge {{ 'status-active' if user.status_id == 1 else 'status-inactive' }}">
                                     {{ 'Activo' if user.status_id == 1 else 'Inactivo' }}
                                 </span>
                             </td>
+                            
                             <td class="text-center">
                                 <a href="{{ url_for('users.view_user', user_id=user.id) }}" class="btn-view">
                                     Ver
@@ -149,15 +181,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const dateElement = document.getElementById('current-date');
-        if (dateElement) {
-            const options = { day: 'numeric', month: 'long', year: 'numeric' };
-            const today = new Date();
-            const formattedDate = today.toLocaleDateString('es-ES', options);
-            dateElement.textContent = formattedDate.replace(' de 20', ', 20');
-        }
-    });
-</script>
+<!-- Enlace al nuevo archivo JS local -->
+<script src="{{ url_for('static', filename='JS/users_list.js') }}"></script>
 {% endblock %}
