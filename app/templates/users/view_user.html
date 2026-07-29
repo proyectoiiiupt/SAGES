@@ -15,20 +15,20 @@
     <div class="view-header">
         <div class="header-actions">
             <a href="{{ url_for('users.list_users') }}" class="btn-back">⬅ Volver</a>
-            <h2 class="view-title">Registro de Usuarios</h2>
+            <h2 class="view-title">Información de Usuario</h2>
         </div>
     </div>
 
     <!-- Pestañas (Tabs) -->
     <div class="tabs-container">
-        <button onclick="showTab('personal')" id="tab-btn-personal" class="tab-btn tab-active">Informacion Personal</button>
-        <button onclick="showTab('corp')" id="tab-btn-corp" class="tab-btn tab-inactive">Informacion de Corporacion</button>
+        <button onclick="showTab('personal')" id="tab-btn-personal" class="tab-btn tab-active">Información Personal</button>
+        <button onclick="showTab('corp')" id="tab-btn-corp" class="tab-btn tab-inactive">Información de Institución</button>
     </div>
 
     <!-- Contenido: Información Personal -->
     <div id="personal" class="tab-content active-content">
         <div class="section-header">
-            <h3>Identificacion del Usuario</h3>
+            <h3>Identificación del Usuario</h3>
         </div>
         
         <div class="data-grid-container">
@@ -37,11 +37,11 @@
                 <h4 class="figma-title-green">Datos del usuario</h4>
                 <div class="info-grid">
                     <div>
-                        <label class="figma-label">Cedula de Identidad</label>
-                        <div class="figma-box">{{ user.person.identification_number if user.person else 'N/A' }}</div>
+                        <label class="figma-label">Cédula de Identidad</label>
+                        <div class="figma-box">{{ user.formatted_id }}</div>
                     </div>
                     <div>
-                        <label class="figma-label">Correo Electronico</label>
+                        <label class="figma-label">Correo Electrónico</label>
                         <div class="figma-box">{{ user.person.email if user.person and user.person.email else 'N/A' }}</div>
                     </div>
                     
@@ -70,33 +70,15 @@
             
             <!-- Columna Derecha -->
             <div class="data-column">
-                <h4 class="figma-title-green">Contacto y Ubicacion</h4>
+                <h4 class="figma-title-green">Contacto</h4>
                 <div class="info-grid">
                     <div>
-                        <label class="figma-label">Telefono Principal</label>
-                        <div class="figma-box">{{ user.person.mobile if user.person and user.person.mobile else 'N/A' }}</div>
+                        <label class="figma-label">Teléfono Principal</label>
+                        <div class="figma-box">{{ user.formatted_phone }}</div>
                     </div>
                     <div>
-                        <label class="figma-label">Telefono Secundario</label>
-                        <div class="figma-box">{{ user.person.phone if user.person and user.person.phone else 'N/A' }}</div>
-                    </div>
-                    
-                    <div>
-                        <label class="figma-label">Estado</label>
-                        <div class="figma-box">N/A</div>
-                    </div>
-                    <div>
-                        <label class="figma-label">Municipio</label>
-                        <div class="figma-box">N/A</div>
-                    </div>
-                    <div>
-                        <label class="figma-label">Parroquia</label>
-                        <div class="figma-box">N/A</div>
-                    </div>
-                    <div></div>
-                    <div class="full-width">
-                        <label class="figma-label">Direccion</label>
-                        <div class="figma-box">N/A</div>
+                        <label class="figma-label">Teléfono Secundario</label>
+                        <div class="figma-box">{{ user.formatted_phone_sec }}</div>
                     </div>
                 </div>
             </div>
@@ -125,7 +107,7 @@
     <!-- Contenido: Información Corporativa -->
     <div id="corp" class="tab-content">
         <div class="section-header">
-            <h3>Identificacion de la Institucion/Organizacion del usuario</h3>
+            <h3>Información de la institución a la que pertenece el usuario</h3>
         </div>
         
         <div class="data-grid-container">
@@ -133,15 +115,15 @@
                 <h4 class="figma-title-green">Datos Institucionales</h4>
                 <div class="info-grid">
                     <div>
-                        <label class="figma-label">Cedula de Identidad</label>
+                        <label class="figma-label">Código de Plantel</label>
                         <div class="figma-box">{{ corp_data.id_card if corp_data else 'N/A' }}</div>
                     </div>
                     <div>
-                        <label class="figma-label">Nombre o Razon Social</label>
+                        <label class="figma-label">Nombre o Razón Social</label>
                         <div class="figma-box">{{ corp_data.name if corp_data else 'N/A' }}</div>
                     </div>
                     <div>
-                        <label class="figma-label">Tipo de Organizacion</label>
+                        <label class="figma-label">Tipo de Organización</label>
                         <div class="figma-box">{{ corp_data.type if corp_data else 'N/A' }}</div>
                     </div>
                     <div>
@@ -162,14 +144,14 @@
             <div class="vertical-divider"></div>
             
             <div class="data-column">
-                <h4 class="figma-title-green">Contacto y Ubicacion</h4>
+                <h4 class="figma-title-green">Contacto y Ubicación</h4>
                 <div class="info-grid">
                     <div>
-                        <label class="figma-label">Telefono Principal (Corp)</label>
+                        <label class="figma-label">Teléfono Principal (Corp)</label>
                         <div class="figma-box">{{ corp_data.phone_main if corp_data else 'N/A' }}</div>
                     </div>
                     <div>
-                        <label class="figma-label">Telefono Secundario (Corp)</label>
+                        <label class="figma-label">Teléfono Secundario (Corp)</label>
                         <div class="figma-box">{{ corp_data.phone_sec if corp_data else 'N/A' }}</div>
                     </div>
                     <div>
@@ -184,9 +166,12 @@
                         <label class="figma-label">Parroquia</label>
                         <div class="figma-box">{{ corp_data.parish if corp_data else 'N/A' }}</div>
                     </div>
-                    <div></div>
+                    <div>
+                        <label class="figma-label">Ciudad</label>
+                        <div class="figma-box">{{ corp_data.city if corp_data else 'N/A' }}</div>
+                    </div>
                     <div class="full-width">
-                        <label class="figma-label">Direccion</label>
+                        <label class="figma-label">Dirección</label>
                         <div class="figma-box">{{ corp_data.address if corp_data else 'N/A' }}</div>
                     </div>
                 </div>
