@@ -1,0 +1,301 @@
+{# 
+    Template: Vista Tabular de Planteles
+    Muestra una tabla paginada de instituciones con filtros de dependencia y localización.
+    Solo accesible para usuarios con roles super_admin y state_admin.
+#}
+{% extends "layouts/base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/institutions.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="institutions-container">
+    {# Encabezado de página con título y fecha actual #}
+    <div class="page-header">
+        <div class="page-title">
+            <h1>Instituciones</h1>
+        </div>
+        <div class="page-date">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span id="current-date"></span>
+        </div>
+    </div>
+
+    {# Sección de filtros para búsqueda y filtrado de instituciones #}
+    <div class="filters-container">
+        <div class="filters-section">
+            <div class="filter-row">
+                {# Campo de búsqueda por nombre o ID con debounce para evitar múltiples consultas #}
+                <div class="filter-group search-group">
+                    <input type="text" name="search_name" id="search_name"
+                           value="{{ current_filters.search_name if current_filters.search_name else '' }}"
+                           placeholder="Buscar por Nombre/ID"
+                           oninput="debouncedSearch()">
+                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                </div>
+
+                {# Filtro por tipo de institución #}
+                <div class="filter-group">
+                    <select name="institution_type" id="institution_type" onchange="updateFilters()">
+                        <option value="">Tipo de Institución</option>
+                        {% for type in filter_options.institution_types %}
+                        <option value="{{ type.id }}" {% if current_filters.institution_type == type.id %}selected{% endif %}>
+                            {{ type.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {# Filtro por dependencia #}
+                <div class="filter-group">
+                    <select name="institution_dependency" id="institution_dependency" onchange="updateFilters()">
+                        <option value="">Dependencia</option>
+                        {% for dependency in filter_options.institution_dependencies %}
+                        <option value="{{ dependency.id }}" {% if current_filters.institution_dependency == dependency.id %}selected{% endif %}>
+                            {{ dependency.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {# Filtro geográfico según rol: Estado para super_admin, Parroquia para state_admin #}
+                {% if current_user.roles_assoc[0].role.name == 'super_admin' %}
+                <div class="filter-group">
+                    <select name="state_id" id="state_id" onchange="updateFilters()">
+                        <option value="">Estado</option>
+                        {% for state in filter_options.states %}
+                        <option value="{{ state.id }}" {% if current_filters.state_id == state.id %}selected{% endif %}>
+                            {{ state.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% else %}
+                <div class="filter-group">
+                    <select name="parish_id" id="parish_id" onchange="updateFilters()">
+                        <option value="">Parroquia</option>
+                        {% for parish in filter_options.parishes %}
+                        <option value="{{ parish.id }}" {% if current_filters.parish_id == parish.id %}selected{% endif %}>
+                            {{ parish.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+                {# Filtro por estatus (Activo/Inactivo) #}
+                <div class="filter-group">
+                    <select name="status" id="status" onchange="updateFilters()">
+                        <option value="">Estatus</option>
+                        {% for status in filter_options.statuses %}
+                        <option value="{{ status.id }}" {% if current_filters.status == status.id %}selected{% endif %}>
+                            {{ status.status_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {# Botón para limpiar todos los filtros #}
+                <div class="filter-actions">
+                    <a href="{{ url_for('institutions.list_institutions') }}" class="btn-clear">Limpiar</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Tabla de planteles con paginación #}
+    <div class="table-container">
+        <div class="table-responsive">
+            <table class="institutions-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Tipo de Institución</th>
+                        <th>Dependencia</th>
+                        {% if current_user.roles_assoc[0].role.name == 'super_admin' %}
+                        <th>Estado</th>
+                        {% else %}
+                        <th>Parroquia</th>
+                        {% endif %}
+                        <th>Estatus</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {# Filas de instituciones con datos #}
+                    {% for institution in institutions %}
+                    <tr>
+                        <td>{{ institution.id }}</td>
+                        <td>{{ institution.institution_name }}</td>
+                        <td>{{ institution.institution_type.name if institution.institution_type else 'N/A' }}</td>
+                        <td>{{ institution.institution_dependency.name if institution.institution_dependency else 'N/A' }}</td>
+                        {% if current_user.roles_assoc[0].role.name == 'super_admin' %}
+                        <td>{{ institution.parish.municipality.state.name if institution.parish and institution.parish.municipality else 'N/A' }}</td>
+                        {% else %}
+                        <td>{{ institution.parish.name if institution.parish else 'N/A' }}</td>
+                        {% endif %}
+                        <td>
+                            {% if institution.status %}
+                            <span class="status-badge status-{{ institution.status.status_code }}">
+                                {{ institution.status.status_name }}
+                            </span>
+                            {% else %}
+                            <span class="no-data">Sin estatus</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('institutions.view_institution', institution_id=institution.id) }}" class="action-btn view-btn" title="Ver detalles">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    {# Mensaje cuando no hay instituciones #}
+                    <tr>
+                        <td colspan="{% if current_user.roles_assoc[0].role.name == 'super_admin' %}8{% else %}8{% endif %}" class="no-data">No hay planteles registrados</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {# Controles de paginación #}
+        {% if pagination and pagination.total > 0 %}
+        <div class="pagination-container">
+            <div class="pagination-info">
+                <span>Mostrando {{ (pagination.current_page - 1) * pagination.per_page + 1 }}-{% if pagination.current_page * pagination.per_page < pagination.total %}{{ pagination.current_page * pagination.per_page }}{% else %}{{ pagination.total }}{% endif %} de {{ pagination.total }} registros</span>
+            </div>
+            <div class="pagination-controls">
+                <div class="pagination-buttons">
+                    <button class="pagination-btn" {% if not pagination.has_prev %}disabled{% endif %} onclick="goToPage({{ pagination.prev_num }})">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                        Anterior
+                    </button>
+                    <div class="page-numbers">
+                        {% for page_num in range(1, pagination.pages + 1) %}
+                            {% if page_num == 1 or page_num == pagination.pages or (page_num >= pagination.current_page - 1 and page_num <= pagination.current_page + 1) %}
+                                <button class="page-number {% if page_num == pagination.current_page %}active{% endif %}" onclick="goToPage({{ page_num }})">
+                                    {{ page_num }}
+                                </button>
+                            {% elif page_num == pagination.current_page - 2 or page_num == pagination.current_page + 2 %}
+                                <span class="page-ellipsis">...</span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    <button class="pagination-btn" {% if not pagination.has_next %}disabled{% endif %} onclick="goToPage({{ pagination.next_num }})">
+                        Siguiente
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    let searchTimeout;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Set dynamic date in Spanish format
+        const dateElement = document.getElementById('current-date');
+        if (dateElement) {
+            const options = { day: 'numeric', month: 'long', year: 'numeric' };
+            const today = new Date();
+            const formattedDate = today.toLocaleDateString('es-ES', options);
+            dateElement.textContent = formattedDate.replace(' de 20', ', 20');
+        }
+    });
+
+    function debouncedSearch() {
+        // Limpiar el timeout anterior si existe
+        clearTimeout(searchTimeout);
+        // Establecer un nuevo timeout de 500ms
+        searchTimeout = setTimeout(updateFilters, 500);
+    }
+
+    function updateFilters() {
+        const searchName = document.getElementById('search_name').value;
+        const institutionType = document.getElementById('institution_type').value;
+        const institutionDependency = document.getElementById('institution_dependency').value;
+        const status = document.getElementById('status').value;
+
+        let url = new URL(window.location.href);
+        url.searchParams.set('search_name', searchName);
+        url.searchParams.set('institution_type', institutionType);
+        url.searchParams.set('institution_dependency', institutionDependency);
+        url.searchParams.set('status', status);
+
+        {% if current_user.roles_assoc and current_user.roles_assoc[0].role.name == 'super_admin' %}
+        // Super_admin: manejar filtro state_id
+        const stateIdElement = document.getElementById('state_id');
+        if (stateIdElement) {
+            url.searchParams.set('state_id', stateIdElement.value);
+        }
+        url.searchParams.delete('parish_id');
+        {% else %}
+        // State_admin: solo manejar parish_id
+        const parishIdElement = document.getElementById('parish_id');
+        if (parishIdElement) {
+            url.searchParams.set('parish_id', parishIdElement.value);
+        }
+        url.searchParams.delete('state_id');
+        {% endif %}
+
+        // Resetear a página 1 cuando se cambian filtros
+        url.searchParams.set('page', '1');
+
+        window.location.href = url.toString();
+    }
+
+    function goToPage(page) {
+        let url = new URL(window.location.href);
+        url.searchParams.set('page', page);
+        // Mantener todos los filtros actuales
+        const searchName = document.getElementById('search_name').value;
+        const institutionType = document.getElementById('institution_type').value;
+        const institutionDependency = document.getElementById('institution_dependency').value;
+        const status = document.getElementById('status').value;
+
+        url.searchParams.set('search_name', searchName);
+        url.searchParams.set('institution_type', institutionType);
+        url.searchParams.set('institution_dependency', institutionDependency);
+        url.searchParams.set('status', status);
+
+        {% if current_user.roles_assoc and current_user.roles_assoc[0].role.name == 'super_admin' %}
+        // Super_admin: manejar filtro state_id
+        const stateIdElement = document.getElementById('state_id');
+        if (stateIdElement) {
+            url.searchParams.set('state_id', stateIdElement.value);
+        }
+        url.searchParams.delete('parish_id');
+        {% else %}
+        // State_admin: solo manejar parish_id
+        const parishIdElement = document.getElementById('parish_id');
+        if (parishIdElement) {
+            url.searchParams.set('parish_id', parishIdElement.value);
+        }
+        url.searchParams.delete('state_id');
+        {% endif %}
+
+        window.location.href = url.toString();
+    }
+</script>
+{% endblock %}
