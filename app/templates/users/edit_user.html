@@ -1,0 +1,239 @@
+{% extends "layouts/base.html" %}
+
+{% block extra_css %}
+<!-- Enlace al archivo CSS local -->
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/users_view.css') }}">
+<style>
+    
+    .modal-overlay {
+        display: none; 
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    }
+    .modal-overlay.active {
+        display: flex; 
+    }
+
+    
+    #confirmChangesModal .modal-actions .btn-confirm {
+        background-color: #87d068; 
+        color: white;              
+        border: none;             
+    }
+    #confirmChangesModal .modal-actions .btn-confirm:hover {
+        background-color: #6ec040; 
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% set user_role = current_user.roles_assoc[0].role.name if current_user and current_user.roles_assoc else 'applicant' %}
+
+<div class="view-container">
+    
+    <!-- Encabezado -->
+    <div class="view-header">
+        <div class="header-actions">
+            <a href="{{ url_for('users.view_user', user_id=user.id) }}" class="btn-back">⬅ Volver</a>
+            <h2 class="view-title">Actualización de Datos: {{ user.identification_number }}</h2>
+        </div>
+    </div>
+
+    <!-- Sección de Edición Integrada (Lienzo Limpio v2.0 con US-15) -->
+    <div id="personal" class="tab-content active-content">
+        <div class="section-header">
+            <h3>Editar Información Personal</h3>
+        </div>
+        
+        <!-- ID añadido al form para identificarlo fácilmente en JS -->
+        <form id="editUserForm" action="{{ url_for('users.edit_user', user_id=user.id) }}" method="POST">
+            <div class="data-grid-container">
+                <!-- Columna Izquierda: Datos del usuario -->
+                <div class="data-column">
+                    <h4 class="figma-title-green">Datos del usuario</h4>
+                    <div class="info-grid">
+
+                       <!-- Cédula de Identidad  -->
+                        <div class="full-width">
+                            <label class="figma-label">Cédula de Identidad</label>
+                            <div class="figma-box">
+                               
+                                <input type="text" name="identification_number" value="{{ user.person.identification_number }}" readonly class="figma-input locked-box">
+                            </div>
+                        </div>
+                        
+                        
+                        <div>
+                            <label class="figma-label">Primer Nombre</label>
+                            <input type="text" name="first_name" value="{{ user.person.first_name if user.person else '' }}" class="figma-input editable-field" required>
+                        </div>
+                        <div>
+                            <label class="figma-label">Segundo Nombre</label>
+                            <input type="text" name="second_name" value="{{ user.person.second_name if user.person else '' }}" class="figma-input editable-field">
+                        </div>
+                        
+                        
+                        <div>
+                            <label class="figma-label">Primer Apellido</label>
+                            <input type="text" name="last_name" value="{{ user.person.last_name if user.person else '' }}" class="figma-input editable-field" required>
+                        </div>
+                        <div>
+                            <label class="figma-label">Segundo Apellido</label>
+                            <input type="text" name="middle_name" value="{{ user.person.middle_name if user.person else '' }}" class="figma-input editable-field">
+                        </div>
+                        
+                       
+                        <div class="full-width">
+                            <label class="figma-label">Correo Electrónico</label>
+                            <input type="email" name="email" value="{{ user.person.email if user.person and user.person.email else '' }}" class="figma-input editable-field" required>
+                        </div>
+                    </div>
+                </div>
+                
+                
+                <div class="vertical-divider"></div>
+                
+               
+                <div class="data-column">
+                    <h4 class="figma-title-green">Contacto</h4>
+                    <div class="info-grid">
+                        
+                        <div>
+                            <label class="figma-label">Teléfono Principal</label>
+                            <input type="tel" name="mobile" value="{{ user.person.mobile if user.person else '' }}" class="figma-input editable-field" required>
+                        </div>
+                        
+                        
+                        <div>
+                            <label class="figma-label">Teléfono Secundario</label>
+                            <input type="tel" name="phone" value="{{ user.person.phone if user.person else '' }}" class="figma-input editable-field">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+           
+            <div class="profile-status-section">
+                
+                {% if user_role == 'super_admin' %}
+                    
+                    <div class="form-actions-container">
+                        <a href="{{ url_for('users.view_user', user_id=user.id) }}" class="btn-cancel">
+                            Cancelar
+                        </a>
+                        
+                        <button type="submit" class="btn-edit">
+                            Actualizar Registro
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<div id="confirmModal" class="modal-overlay">
+    <div class="modal-content">
+        <h3 id="modal-title">Confirmar Acción</h3>
+        <p id="modal-text"></p>
+        <div class="modal-actions">
+            
+            <button onclick="closeGenericModal()" class="btn-cancel">Cancelar</button>
+            <button id="confirm-btn" class="btn-confirm">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+
+<div id="confirmChangesModal" class="modal-overlay">
+    <div class="modal-content">
+        <h3>Confirmar Actualización</h3>
+        <p>Se han detectado cambios en la información personal. ¿Desea guardar estos cambios?</p>
+        <div class="modal-actions">
+            
+            <button type="button" onclick="closeChangesModal()" class="btn-cancel">Cancelar</button>
+            
+            <button type="button" id="submitFormBtn" class="btn-confirm">Guardar Cambios</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('editUserForm');
+        
+        
+        if (!form) return;
+
+        const changesModal = document.getElementById('confirmChangesModal');
+        const submitFormBtn = document.getElementById('submitFormBtn');
+        
+       
+        const inputs = form.querySelectorAll('input.editable-field');
+        
+        
+        let initialValues = {};
+
+        
+        inputs.forEach(input => {
+            initialValues[input.name] = input.value;
+        });
+
+        
+        function hasChanges() {
+            let changed = false;
+            inputs.forEach(input => {
+                
+                if (input.value !== initialValues[input.name]) {
+                    changed = true;
+                }
+            });
+            return changed;
+        }
+
+        
+        form.addEventListener('submit', function(event) {
+            
+            if (hasChanges()) {
+                event.preventDefault(); 
+                openChangesModal();     
+            }
+           
+        });
+
+        
+        submitFormBtn.addEventListener('click', function() {
+            
+            HTMLFormElement.prototype.submit.call(form);
+        });
+    });
+
+    
+    function openChangesModal() {
+        document.getElementById('confirmChangesModal').classList.add('active');
+    }
+
+    function closeChangesModal() {
+        document.getElementById('confirmChangesModal').classList.remove('active');
+    }
+
+    
+    function closeGenericModal() {
+        document.getElementById('confirmModal').classList.remove('active');
+    }
+
+    
+</script>
+{% endblock %}

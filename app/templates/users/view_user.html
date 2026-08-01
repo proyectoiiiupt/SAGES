@@ -1,7 +1,7 @@
 {% extends "layouts/base.html" %}
 
 {% block extra_css %}
-<!-- Enlace al nuevo archivo CSS local -->
+<!-- Enlace al archivo CSS local -->
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/users_view.css') }}">
 {% endblock %}
 
@@ -11,7 +11,7 @@
 
 <div class="view-container">
     
-    <!-- Encabezado -->
+    <!-- Encabezado (Punto de Partida Limpio US-14) -->
     <div class="view-header">
         <div class="header-actions">
             <a href="{{ url_for('users.list_users') }}" class="btn-back">⬅ Volver</a>
@@ -84,22 +84,33 @@
             </div>
         </div>
         
-        <!-- Sección de Estado del Perfil -->
+        <!-- Sección de Estado del Perfil y Botón de Edición (US-15) -->
         <div class="profile-status-section">
-            <span class="status-title">Perfil Activo</span>
-            
-            {% if user_role == 'super_admin' %}
-                <form action="{{ url_for('users.toggle_user_status', user_id=user.id) }}" method="POST" class="inline-form">
+            <!-- Contenedor izquierdo para el toggle de estado -->
+            <div class="status-container">
+                <span class="status-title">Perfil Activo</span>
+                
+                {% if user_role == 'super_admin' %}
+                    <form action="{{ url_for('users.toggle_user_status', user_id=user.id) }}" method="POST" class="inline-form">
+                        <label class="switch">
+                            <input type="checkbox" onclick="requireConfirmation(event, this)" {% if user.status_id == 1 %}checked{% endif %}>
+                            <span class="slider round"></span>
+                        </label>
+                    </form>
+                {% else %}
                     <label class="switch">
-                        <input type="checkbox" onclick="requireConfirmation(event, this)" {% if user.status_id == 1 %}checked{% endif %}>
+                        <input type="checkbox" {% if user.status_id == 1 %}checked{% endif %} disabled>
                         <span class="slider round"></span>
                     </label>
-                </form>
-            {% else %}
-                <label class="switch">
-                    <input type="checkbox" {% if user.status_id == 1 %}checked{% endif %} disabled>
-                    <span class="slider round"></span>
-                </label>
+                {% endif %}
+            </div>
+
+            <!-- Contenedor derecho para el botón de edición (US-15) -->
+            {% if user_role == 'super_admin' %}
+                <!-- ARREGLO STRUCTURAL DEFINITIVO: Enlace dinámico de Flask -->
+                <a href="{{ url_for('users.edit_user', user_id=user.id) }}" class="btn-edit">
+                    Editar Información
+                </a>
             {% endif %}
         </div>
     </div>
@@ -178,22 +189,28 @@
             </div>
         </div>
 
+        <!-- Sección de Estado del Perfil y Botón de Edición (US-15) -->
         <div class="profile-status-section">
-            <span class="status-title">Perfil Activo</span>
-            
-            {% if user_role == 'super_admin' %}
-                <form action="{{ url_for('users.toggle_user_status', user_id=user.id) }}" method="POST" class="inline-form">
+            <!-- Contenedor izquierdo para el toggle de estado -->
+            <div class="status-container">
+                <span class="status-title">Perfil Activo</span>
+                
+                {% if user_role == 'super_admin' %}
+                    <form action="{{ url_for('users.toggle_user_status', user_id=user.id) }}" method="POST" class="inline-form">
+                        <label class="switch">
+                            <input type="checkbox" onclick="requireConfirmation(event, this)" {% if user.status_id == 1 %}checked{% endif %}>
+                            <span class="slider round"></span>
+                        </label>
+                    </form>
+                {% else %}
                     <label class="switch">
-                        <input type="checkbox" onclick="requireConfirmation(event, this)" {% if user.status_id == 1 %}checked{% endif %}>
+                        <input type="checkbox" {% if user.status_id == 1 %}checked{% endif %} disabled>
                         <span class="slider round"></span>
                     </label>
-                </form>
-            {% else %}
-                <label class="switch">
-                    <input type="checkbox" {% if user.status_id == 1 %}checked{% endif %} disabled>
-                    <span class="slider round"></span>
-                </label>
-            {% endif %}
+                {% endif %}
+            </div>
+
+        
         </div>
     </div>
 </div>

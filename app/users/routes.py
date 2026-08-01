@@ -1,3 +1,5 @@
+from app.models.binnacle_model import Binnacle
+import datetime
 from flask import Blueprint, render_template, request, abort, redirect, url_for
 from flask_login import login_required, current_user
 from sqlalchemy import or_
@@ -289,15 +291,100 @@ def view_user(user_id):
 def toggle_user_status(user_id):
     user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
     
+    # Seguridad: Solo el super_admin puede hacer esto
     if user_role != 'super_admin':
         abort(403) 
         
     user = User.query.get_or_404(user_id)
     
+    # Guardamos el estado anterior para la bitácora
+    old_status = user.status_id
+    
     if user.status_id == 1:
         user.status_id = 2
+        action_name = 'Desactivación'
     else:
         user.status_id = 1
+        action_name = 'Activación'
+        
+    try:
+        # Registro de la bitácora
+        binnacle_entry = Binnacle(
+            users_id=current_user.id,
+            module='Gestión de Usuarios',
+            action_type=action_name,
+            description=f'Cambio de estado del usuario ID {user.id}',
+            old_values={'status_id': old_status},
+            new_values={'status_id': user.status_id},
+            created_at=datetime.datetime.now(datetime.timezone.utc)
+        )
+        db.session.add(binnacle_entry)
+    except Exception as e:
+        print(f"Error al guardar en bitácora: {e}")
         
     db.session.commit()
     return redirect(url_for('users.view_user', user_id=user.id))
+
+@users_bp.route('/edit/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+def edit_user(user_id):
+    user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
+    
+    # Seguridad: Solo el super_admin puede editar
+    if user_role != 'super_admin':
+        abort(403)
+
+    user = User.query.get_or_404(user_id)
+    person = user.person
+
+    if request.method == 'POST':
+        # 1. Extraemos los nuevos valores del formulario
+        new_first_name = request.form.get('first_name', '').strip()
+        new_last_name = request.form.get('last_name', '').strip()
+        new_email = request.form.get('email', '').strip()
+        new_mobile = request.form.get('mobile', '').strip()
+        # Nota: NO extraemos 'identification_number' para cumplir con el bloqueo
+        
+        # 2. Guardamos el estado actual (old_values)
+        old_values = {
+            'first_name': person.first_name,
+            'last_name': person.last_name,
+            'email': person.email,
+            'mobile': person.mobile
+        }
+        
+        # 3. Actualizamos las variables del modelo
+        if new_first_name: person.first_name = new_first_name
+        if new_last_name: person.last_name = new_last_name
+        if new_email: person.email = new_email
+        if new_mobile: person.mobile = new_mobile
+        
+        # 4. Construimos el nuevo estado (new_values)
+        new_values = {
+            'first_name': person.first_name,
+            'last_name': person.last_name,
+            'email': person.email,
+            'mobile': person.mobile
+        }
+        
+        # 5. Si hubo cambios reales, guardamos en la bitácora
+        if old_values != new_values:
+            try:
+                binnacle_entry = Binnacle(
+                    users_id=current_user.id,
+                    module='Gestión de Usuarios',
+                    action_type='Edición',
+                    description=f'Actualización de datos personales del usuario ID {user.id}',
+                    old_values=old_values,
+                    new_values=new_values,
+                    created_at=datetime.datetime.now(datetime.timezone.utc)
+                )
+                db.session.add(binnacle_entry)
+            except Exception as e:
+                print(f"Error al guardar en bitácora de edición: {e}")
+                
+        db.session.commit()
+        return redirect(url_for('users.view_user', user_id=user.id))
+
+    # Si la petición es GET, simplemente mostramos el formulario
+    return render_template('users/edit_user.html', user=user, current_role=user_role)
