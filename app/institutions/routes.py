@@ -5,7 +5,7 @@ Define los endpoints para la gestión de instituciones educativas.
 from flask import render_template, flash, redirect, request, jsonify, abort, url_for
 from flask_login import login_required, current_user
 from app.institutions import institutions_bp
-from app.institutions.services import get_all_institutions, get_institution_by_id, get_filter_options, toggle_institution_status, get_institution_users
+from app.institutions.services import get_all_institutions, get_institution_by_id, get_filter_options, toggle_institution_status, get_institution_users, update_institution_contact_infrastructure
 from app.decorators import role_required
 
 @institutions_bp.route('/', methods=['GET'])
@@ -87,7 +87,7 @@ def view_institution(institution_id):
         institution = get_institution_by_id(institution_id)
         if not institution:
             abort(404)
-        return render_template('institutions/detail.html', institution=institution)
+        return render_template('institutions/detail.html', institution=institution, is_applicant=False)
     except Exception as e:
         print(f"Error en view_institution: {e}")
         flash("Error al cargar la institución", 'danger')
@@ -156,3 +156,137 @@ def view_institution_users(institution_id):
         print(f"Error en view_institution_users: {e}")
         flash("Error al cargar los usuarios de la institución", 'danger')
         return redirect(url_for('institutions.view_institution', institution_id=institution_id))
+
+@institutions_bp.route('/<int:institution_id>/edit', methods=['GET', 'POST'])
+@login_required
+@role_required('applicant')
+def edit_institution(institution_id):
+    """
+    Vista para editar los datos de contacto de una institución.
+    Exclusivamente accesible para applicants (solo su institución afiliada).
+    
+    Funcionalidades:
+    - Actualizar datos de contacto (teléfono)
+    - Campos bloqueados: plantel_code y ubicación (parroquia, municipio, estado)
+    """
+    try:
+        # Verificar que el usuario tenga persona y personal institucional
+        if not current_user.person or not current_user.person.institutional_staff:
+            flash("No tienes una institución afiliada.", 'warning')
+            return redirect(url_for('home_applicant'))
+        
+        # Verificar que la institución sea la suya
+        user_staff = current_user.person.institutional_staff[0]
+        if user_staff.institution_id != institution_id:
+            flash("No tienes permiso para editar esta institución.", 'danger')
+            return redirect(url_for('institutions.my_institution'))
+        
+        institution = get_institution_by_id(institution_id)
+        if not institution:
+            abort(404)
+        
+        # Obtener opciones para los select
+        from app.models.institution_type_model import InstitutionType
+        from app.models.institution_scope_model import InstitutionScope
+        from app.models.institution_dependency_model import InstitutionDependency
+        
+        institution_types = InstitutionType.query.order_by(InstitutionType.name).all()
+        institution_scopes = InstitutionScope.query.order_by(InstitutionScope.name).all()
+        institution_dependencies = InstitutionDependency.query.order_by(InstitutionDependency.name).all()
+        
+        # Crear lista de dependencias para el frontend
+        dependencies_list = [{'id': dep.id, 'name': dep.name} for dep in institution_dependencies]
+        
+        # Depuración: verificar qué datos tenemos
+        print(f"Dependencias encontradas: {dependencies_list}")
+        
+        if request.method == 'POST':
+            # Recopilar datos de la institución
+            institution_data = {
+                'phone': request.form.get('phone'),
+                'institution_name': request.form.get('institution_name'),
+                'institution_type_id': request.form.get('institution_type'),
+                'institution_scope_id': request.form.get('institution_scope'),
+                'institution_dependency_id': request.form.get('institution_dependency'),
+                'address': request.form.get('address')
+            }
+            
+            # Convertir campos numéricos
+            if institution_data['institution_type_id']:
+                institution_data['institution_type_id'] = int(institution_data['institution_type_id'])
+            if institution_data['institution_scope_id']:
+                institution_data['institution_scope_id'] = int(institution_data['institution_scope_id'])
+            if institution_data['institution_dependency_id']:
+                institution_data['institution_dependency_id'] = int(institution_data['institution_dependency_id'])
+            
+            # Actualizar institución
+            institution, success, message = update_institution_contact_infrastructure(
+                institution_id, institution_data
+            )
+            
+            print(f"Resultado de actualización: success={success}, message={message}")
+            if success:
+                print(f"Teléfono después de actualizar: {institution.phone}")
+            
+            if success:
+                flash(message, 'success')
+                return redirect(url_for('institutions.my_institution'))
+            else:
+                # Verificar si es un error de validación
+                if 'Errores de validación:' in message:
+                    # Extraer errores específicos para mostrar en el formulario
+                    validation_errors = {}
+                    error_parts = message.replace('Errores de validación: ', '').split('; ')
+                    for error in error_parts:
+                        if ':' in error:
+                            field, error_msg = error.split(':', 1)
+                            validation_errors[field.strip()] = error_msg.strip()
+                    
+                    flash('Por favor, corrija los errores en el formulario.', 'danger')
+                    return render_template('institutions/edit.html', institution=institution, is_applicant=True, 
+                                         institution_types=institution_types, institution_scopes=institution_scopes, 
+                                         institution_dependencies=institution_dependencies, dependencies_list=dependencies_list,
+                                         validation_errors=validation_errors, form_data=institution_data)
+                else:
+                    flash(message, 'danger')
+                    return render_template('institutions/edit.html', institution=institution, is_applicant=True, 
+                                         institution_types=institution_types, institution_scopes=institution_scopes, 
+                                         institution_dependencies=institution_dependencies, dependencies_list=dependencies_list)
+        
+        return render_template('institutions/edit.html', institution=institution, is_applicant=True,
+                             institution_types=institution_types, institution_scopes=institution_scopes,
+                             institution_dependencies=institution_dependencies, dependencies_list=dependencies_list)
+    except Exception as e:
+        print(f"Error en edit_institution: {e}")
+        flash("Error al procesar la solicitud", 'danger')
+        return redirect(url_for('institutions.my_institution'))
+
+@institutions_bp.route('/my-institution', methods=['GET'])
+@login_required
+@role_required('applicant')
+def my_institution():
+    """
+    Vista para que el usuario (applicant) vea directamente su institución afiliada.
+    Solo accesible para usuarios con rol applicant.
+    
+    Muestra el detalle de la institución a la que está afiliado el usuario actual.
+    """
+    try:
+        # Verificar que el usuario tiene persona y personal institucional
+        if not current_user.person or not current_user.person.institutional_staff:
+            flash("No tienes una institución afiliada.", 'warning')
+            return redirect(url_for('home_applicant'))
+        
+        # Obtener la institución del usuario
+        user_staff = current_user.person.institutional_staff[0]
+        institution = get_institution_by_id(user_staff.institution_id)
+        
+        if not institution:
+            flash("Institución no encontrada.", 'danger')
+            return redirect(url_for('home_applicant'))
+        
+        return render_template('institutions/detail.html', institution=institution, is_applicant=True)
+    except Exception as e:
+        print(f"Error en my_institution: {e}")
+        flash("Error al cargar tu institución.", 'danger')
+        return redirect(url_for('home_applicant'))

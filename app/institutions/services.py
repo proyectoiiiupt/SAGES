@@ -14,6 +14,7 @@ from app.models.institution_dependency_model import InstitutionDependency
 from app.models.status_model import Status
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_
+import re
 
 # Código del estado en la tabla State al que se restringe el sistema.
 # Usar código en lugar de nombre para mayor precisión
@@ -433,3 +434,176 @@ def get_institution_users(institution_id, page=1, per_page=10):
             'prev_num': None,
             'next_num': None
         }
+
+def validate_institution_data(institution_data):
+    """
+    Valida los datos de una institución antes de actualizar.
+    
+    Parámetros:
+    - institution_data: dict con datos de la institución a validar
+    
+    Retorna:
+    - tuple: (is_valid, errors) donde is_valid es boolean y errors es dict con errores por campo
+    """
+    errors = {}
+    
+    # Validar teléfono
+    if 'phone' in institution_data:
+        phone = institution_data['phone']
+        if not phone or phone.strip() == '':
+            errors['phone'] = 'El teléfono es obligatorio'
+        else:
+            # Limpiar guiones para validación
+            clean_phone = phone.replace('-', '').strip()
+            # Validar formato: 0212XXXXXXX o 0414XXXXXXX, etc. (11 dígitos)
+            pattern = r'^(0212|0214|0412|0414|0416|0422|0424|0426)\d{7}$'
+            if not re.match(pattern, clean_phone):
+                errors['phone'] = 'Formato de teléfono inválido. Debe ser XXXX-XXXXXXX (ej: 0212-1234567)'
+    
+    # Validar nombre de institución
+    if 'institution_name' in institution_data:
+        institution_name = institution_data['institution_name']
+        if not institution_name or institution_name.strip() == '':
+            errors['institution_name'] = 'El nombre de la institución es obligatorio'
+        elif len(institution_name.strip()) < 3:
+            errors['institution_name'] = 'El nombre debe tener al menos 3 caracteres'
+        elif len(institution_name.strip()) > 100:
+            errors['institution_name'] = 'El nombre no puede exceder 100 caracteres'
+    
+    # Validar dirección
+    if 'address' in institution_data:
+        address = institution_data['address']
+        if not address or address.strip() == '':
+            errors['address'] = 'La dirección es obligatoria'
+        elif len(address.strip()) < 5:
+            errors['address'] = 'La dirección debe tener al menos 5 caracteres'
+        elif len(address.strip()) > 200:
+            errors['address'] = 'La dirección no puede exceder 200 caracteres'
+    
+    # Validar tipo de institución
+    if 'institution_type_id' in institution_data:
+        institution_type_id = institution_data['institution_type_id']
+        if not institution_type_id:
+            errors['institution_type'] = 'Debe seleccionar un tipo de institución'
+        else:
+            try:
+                institution_type_id = int(institution_type_id)
+                type_exists = InstitutionType.query.get(institution_type_id)
+                if not type_exists:
+                    errors['institution_type'] = 'El tipo de institución seleccionado no existe'
+            except (ValueError, TypeError):
+                errors['institution_type'] = 'Tipo de institución inválido'
+    
+    # Validar alcance de institución
+    if 'institution_scope_id' in institution_data:
+        institution_scope_id = institution_data['institution_scope_id']
+        if not institution_scope_id:
+            errors['institution_scope'] = 'Debe seleccionar un alcance de institución'
+        else:
+            try:
+                institution_scope_id = int(institution_scope_id)
+                scope_exists = InstitutionScope.query.get(institution_scope_id)
+                if not scope_exists:
+                    errors['institution_scope'] = 'El alcance de institución seleccionado no existe'
+            except (ValueError, TypeError):
+                errors['institution_scope'] = 'Alcance de institución inválido'
+    
+    # Validar dependencia de institución
+    if 'institution_dependency_id' in institution_data:
+        institution_dependency_id = institution_data['institution_dependency_id']
+        if not institution_dependency_id:
+            errors['institution_dependency'] = 'Debe seleccionar una dependencia de institución'
+        else:
+            try:
+                institution_dependency_id = int(institution_dependency_id)
+                dependency_exists = InstitutionDependency.query.get(institution_dependency_id)
+                if not dependency_exists:
+                    errors['institution_dependency'] = 'La dependencia de institución seleccionada no existe'
+            except (ValueError, TypeError):
+                errors['institution_dependency'] = 'Dependencia de institución inválida'
+    
+    return len(errors) == 0, errors
+
+def update_institution_contact_infrastructure(institution_id, institution_data):
+    """
+    Actualiza los datos de contacto e infraestructura de una institución.
+    Los campos plantel_code y parish_id (ubicación) no pueden ser modificados.
+    
+    Parámetros:
+    - institution_id: ID de la institución a actualizar
+    - institution_data: dict con datos de la institución (phone, institution_name, 
+      institution_type_id, institution_scope_id, institution_dependency_id, address)
+    
+    Retorna:
+    - tuple: (institution, success, message) si éxito, (None, False, error_message) si error
+    
+    Nota:
+    - Realiza commit de cambios en base de datos
+    - Realiza rollback en caso de error
+    - Registra la acción en la bitácora
+    """
+    try:
+        from app.extensions import db
+        from app.utils.binnacle_utils import log_action
+        
+        # Validar datos antes de procesar
+        is_valid, validation_errors = validate_institution_data(institution_data)
+        if not is_valid:
+            return None, False, 'Errores de validación: ' + '; '.join(validation_errors.values())
+        
+        institution = db.session.get(Institution, institution_id)
+        if not institution:
+            return None, False, 'Institución no encontrada'
+        
+        # Guardar valores anteriores para bitácora
+        old_values = {
+            'phone': institution.phone,
+            'institution_name': institution.institution_name,
+            'institution_type_id': institution.institution_type_id,
+            'institution_scope_id': institution.institution_scope_id,
+            'institution_dependency_id': institution.institution_dependency_id,
+            'address': institution.address
+        }
+        
+        # Actualizar datos de la institución (excepto campos bloqueados)
+        if 'phone' in institution_data:
+            # Limpiar el teléfono de guiones antes de guardar
+            clean_phone = institution_data['phone'].replace('-', '').strip()
+            institution.phone = clean_phone
+        if 'institution_name' in institution_data:
+            institution.institution_name = institution_data['institution_name']
+        if 'institution_type_id' in institution_data:
+            institution.institution_type_id = institution_data['institution_type_id']
+        if 'institution_scope_id' in institution_data:
+            institution.institution_scope_id = institution_data['institution_scope_id']
+        if 'institution_dependency_id' in institution_data:
+            institution.institution_dependency_id = institution_data['institution_dependency_id']
+        if 'address' in institution_data:
+            institution.address = institution_data['address']
+        
+        db.session.commit()
+        
+        # Recargar la institución para obtener los datos actualizados
+        db.session.refresh(institution)
+        
+        # Registrar en bitácora
+        try:
+            from flask_login import current_user
+            from app.utils.binnacle_utils import log_action
+            log_action(
+                user_id=current_user.id if current_user.is_authenticated else None,
+                module='institutions',
+                action_type='UPDATE',
+                description=f'Actualización de datos de institución {institution.institution_code}',
+                old_values=old_values,
+                new_values=institution_data
+            )
+        except Exception as log_error:
+            print(f"Error al registrar en bitácora: {log_error}")
+        
+        return institution, True, 'Datos actualizados exitosamente'
+    except Exception as e:
+        print(f"Error en update_institution_contact_infrastructure: {e}")
+        from app.extensions import db
+        db.session.rollback()
+        return None, False, f'Error: {str(e)}'
