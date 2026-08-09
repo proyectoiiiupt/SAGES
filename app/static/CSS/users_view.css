@@ -158,3 +158,141 @@
     margin-bottom: 1rem;
     margin-top: 0;
 }
+
+/* Sección de Estado y Switch Toggle */
+.profile-status-section {
+    padding: 10px 40px 30px 40px;
+    display: flex;
+    align-items: center;
+}
+
+.status-title {
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: #000;
+}
+
+.inline-form {
+    display: inline;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 46px;
+    height: 24px;
+    vertical-align: middle;
+    margin-left: 10px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: #00cc99;
+}
+
+input:checked + .slider:before {
+    transform: translateX(22px);
+}
+
+input:disabled + .slider {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Modal de Confirmación */
+.modal-overlay {
+    display: none; 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    background: rgba(15, 23, 42, 0.6); 
+    z-index: 1000; 
+    justify-content: center; 
+    align-items: center;
+    backdrop-filter: blur(3px);
+}
+
+.modal-content {
+    background: white; 
+    padding: 2rem; 
+    border-radius: 16px; 
+    max-width: 420px; 
+    width: 90%; 
+    text-align: center; 
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+#modal-title {
+    margin-top: 0;
+    color: #1e293b;
+    font-size: 1.3rem;
+}
+
+#modal-text {
+    color: #64748b;
+    margin-bottom: 1.5rem;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.btn-cancel {
+    padding: 0.6rem 1.2rem;
+    border: 1px solid #cbd5e1;
+    background: white;
+    color: #475569;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.2s;
+}
+
+.btn-cancel:hover {
+    background: #f1f5f9;
+}
+
+.btn-confirm {
+    padding: 0.6rem 1.2rem;
+    border: none;
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.2s;
+}

@@ -84,7 +84,24 @@
             </div>
         </div>
         
-       
+        <!-- Sección de Estado del Perfil -->
+        <div class="profile-status-section">
+            <span class="status-title">Perfil Activo</span>
+            
+            {% if user_role == 'super_admin' %}
+                <form action="{{ url_for('users.toggle_user_status', user_id=user.id) }}" method="POST" class="inline-form">
+                    <label class="switch">
+                        <input type="checkbox" onclick="requireConfirmation(event, this)" {% if user.status_id == 1 %}checked{% endif %}>
+                        <span class="slider round"></span>
+                    </label>
+                </form>
+            {% else %}
+                <label class="switch">
+                    <input type="checkbox" {% if user.status_id == 1 %}checked{% endif %} disabled>
+                    <span class="slider round"></span>
+                </label>
+            {% endif %}
+        </div>
     </div>
 
     <!-- Contenido: Información Corporativa -->
@@ -161,10 +178,37 @@
             </div>
         </div>
 
-        
+        <div class="profile-status-section">
+            <span class="status-title">Perfil Activo</span>
+            
+            {% if user_role == 'super_admin' %}
+                <form action="{{ url_for('users.toggle_user_status', user_id=user.id) }}" method="POST" class="inline-form">
+                    <label class="switch">
+                        <input type="checkbox" onclick="requireConfirmation(event, this)" {% if user.status_id == 1 %}checked{% endif %}>
+                        <span class="slider round"></span>
+                    </label>
+                </form>
+            {% else %}
+                <label class="switch">
+                    <input type="checkbox" {% if user.status_id == 1 %}checked{% endif %} disabled>
+                    <span class="slider round"></span>
+                </label>
+            {% endif %}
+        </div>
     </div>
 </div>
 
+<!-- Modal de Confirmación -->
+<div id="confirmModal" class="modal-overlay">
+    <div class="modal-content">
+        <h3 id="modal-title">Confirmar Acción</h3>
+        <p id="modal-text"></p>
+        <div class="modal-actions">
+            <button onclick="closeModal()" class="btn-cancel">Cancelar</button>
+            <button id="confirm-btn" class="btn-confirm">Confirmar</button>
+        </div>
+    </div>
+</div>
 
 {% endblock %}
 
@@ -193,5 +237,44 @@ function showTab(tabId) {
     }
 }
 
+// Lógica de la Ventana Modal para Activar/Desactivar
+let formToSubmit = null;
+
+function requireConfirmation(event, checkbox) {
+    event.preventDefault(); 
+    
+    formToSubmit = checkbox.form;
+    const isCurrentlyActive = checkbox.checked; 
+    
+    const modal = document.getElementById('confirmModal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalText = document.getElementById('modal-text');
+    const confirmBtn = document.getElementById('confirm-btn');
+
+    if (isCurrentlyActive) {
+        modalTitle.textContent = "Activar Perfil";
+        modalText.innerHTML = "¿Estás seguro de que deseas <strong>activar</strong> este perfil? El usuario recuperará el acceso al sistema.";
+        confirmBtn.style.background = "#10b981"; 
+        confirmBtn.textContent = "Sí, Activar";
+    } else {
+        modalTitle.textContent = "Desactivar Perfil";
+        modalText.innerHTML = "⚠️ ¿Estás seguro de que deseas <strong>desactivar</strong> este perfil? El usuario ya no podrá ingresar al sistema.";
+        confirmBtn.style.background = "#ef4444"; 
+        confirmBtn.textContent = "Sí, Desactivar";
+    }
+    
+    modal.style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('confirmModal').style.display = 'none';
+    formToSubmit = null;
+}
+
+document.getElementById('confirm-btn').addEventListener('click', function() {
+    if (formToSubmit) {
+        formToSubmit.submit();
+    }
+});
 </script>
 {% endblock %}
