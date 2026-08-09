@@ -1,0 +1,186 @@
+{% extends "layouts/base.html" %}
+
+{% block extra_css %}
+<!-- Enlace al nuevo archivo CSS local -->
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/users_list.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="users-container">
+    
+    <!-- Encabezado -->
+    <div class="header-card">
+        <div class="welcome-text">
+            Gestión de Usuarios 👥
+        </div>
+
+        <!-- calendario -->
+        <div class="date-text date-with-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span id="current-date"></span>
+        </div>
+    </div>
+
+    <!-- Barra de Filtros y Acciones -->
+    <div class="actions-toolbar">
+        <form method="GET" action="{{ url_for('users.list_users') }}" class="filter-form">
+            
+            <div class="search-wrapper">
+                <span class="search-icon">🔍</span>
+                <input type="text" name="search" value="{{ filters.search or '' }}" placeholder="Buscar por nombre, cedula..." class="search-input">
+            </div>
+
+            <div class="separator">|</div>
+
+            {% if current_role == 'super_admin' %}
+                <!-- Filtros exclusivos del Super Admin -->
+                <select name="role" class="filter-select">
+                    <option value="">Rol</option>
+                    {% for r in db_roles %}
+                        <option value="{{ r.id }}" {% if filters.role == r.id|string %}selected{% endif %}>{{ r.translated_name }}</option>
+                    {% endfor %}
+                </select>
+
+                <select name="state" class="filter-select">
+                    <option value="">Estado</option>
+                    {% for s in db_states %}
+                        <option value="{{ s.id }}" {% if filters.state == s.id|string %}selected{% endif %}>{{ s.name | title }}</option>
+                    {% endfor %}
+                </select>
+            {% elif current_role == 'state_admin' %}
+                <!-- Filtros exclusivos del Admin Estadal -->
+                <select name="municipality" class="filter-select">
+                    <option value="">Municipio</option>
+                    {% for m in db_municipalities %}
+                        <option value="{{ m.id }}" {% if filters.municipality == m.id|string %}selected{% endif %}>{{ m.name | title }}</option>
+                    {% endfor %}
+                </select>
+
+                <select name="parish" class="filter-select">
+                    <option value="">Parroquia</option>
+                    {% for p in db_parishes %}
+                        <option value="{{ p.id }}" {% if filters.parish == p.id|string %}selected{% endif %}>{{ p.name | title }}</option>
+                    {% endfor %}
+                </select>
+            {% endif %}
+
+            <select name="status" class="filter-select">
+                <option value="">Estatus</option>
+                <option value="1" {% if filters.status == '1' %}selected{% endif %}>Activo</option>
+                <option value="2" {% if filters.status == '2' %}selected{% endif %}>Inactivo</option>
+            </select>
+
+            <a href="{{ url_for('users.list_users') }}" class="btn-clear">Limpiar</a>
+        </form>
+
+        {% if current_role == 'super_admin' %}
+        <!-- TAREA: Quitar el botón registrar al Admin Estadal -->
+        <a href="#" class="btn-register">
+            Registrar Nuevo <span class="plus-icon">+</span>
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Contenedor de la Tabla -->
+    <div class="table-card">
+        <div class="table-responsive">
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>N°</th>
+                        <th>Cédula</th>
+                        <th>Nombre</th>
+                        <th>Tipo de Usuario</th>
+                        <th>Estado</th>
+                        <th>Estatus</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if users %}
+                        {% for user in users %}
+                        <tr class="{{ loop.cycle('row-even', 'row-odd') }}">
+                            <td class="text-muted font-medium">{{ loop.index }}</td>
+                            
+                            <td class="font-medium">
+                                {{ user.user_name if user.user_name else (user.person.id_card if user.person and user.person.id_card else 'N/A') }}
+                            </td>
+
+                            <td class="text-dark truncate">
+                                {{ user.person.first_name if user.person else 'N/A' }} {{ user.person.last_name if user.person and user.person.last_name else '' }}
+                            </td>
+                            
+                            <td class="truncate">
+                                {% if user.roles_assoc %}
+                                    {% set r = user.roles_assoc[0].role.name %}
+                                    {% if r == 'super_admin' %}Super Administrador
+                                    {% elif r == 'state_admin' %}Administrador Estadal
+                                    {% elif r == 'director' or r == 'directora' or r == 'applicant' %}Solicitante
+                                    {% else %}{{ r | title }}{% endif %}
+                                {% else %}
+                                    Usuario General
+                                {% endif %}
+                            </td>
+                            
+                            <td>
+                                {{ user.state_name if user.state_name else 'Sin Asignar' }}
+                            </td>
+                            
+                            <td>
+                                <span class="status-badge {{ 'status-active' if user.status_id == 1 else 'status-inactive' }}">
+                                    {{ 'Activo' if user.status_id == 1 else 'Inactivo' }}
+                                </span>
+                            </td>
+                            
+                            <td class="text-center">
+                                <a href="{{ url_for('users.view_user', user_id=user.id) }}" class="btn-view">
+                                    Ver
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="7" class="empty-state">
+                                <span class="empty-icon">🔍</span>
+                                <strong>No se encontraron registros</strong>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación -->
+        {% if pagination and pagination.pages > 1 %}
+        <div class="pagination-wrapper">
+            <div class="pagination-info">
+                Mostrando página {{ pagination.page }} de {{ pagination.pages }}
+            </div>
+            
+            <div class="pagination-controls">
+                {% if pagination.has_prev %}
+                    <a href="{{ url_for('users.list_users', page=pagination.prev_num, search=filters.search, status=filters.status, state=filters.state, role=filters.role) }}" class="page-link">&lt;&lt;</a>
+                {% endif %}
+                
+                <span class="page-current">{{ pagination.page }}</span>
+
+                {% if pagination.has_next %}
+                    <a href="{{ url_for('users.list_users', page=pagination.next_num, search=filters.search, status=filters.status, state=filters.state, role=filters.role) }}" class="page-link">&gt;&gt;</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Enlace al nuevo archivo JS local -->
+<script src="{{ url_for('static', filename='JS/users_list.js') }}"></script>
+{% endblock %}

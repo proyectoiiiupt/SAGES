@@ -284,20 +284,3 @@ def view_user(user_id):
 
     return render_template('users/view_user.html', user=user, corp_data=corp_data, current_role=user_role)
 
-@users_bp.route('/toggle_status/<int:user_id>', methods=['POST'])
-@login_required
-def toggle_user_status(user_id):
-    user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
-    
-    if user_role != 'super_admin':
-        abort(403) 
-        
-    user = User.query.get_or_404(user_id)
-    
-    if user.status_id == 1:
-        user.status_id = 2
-    else:
-        user.status_id = 1
-        
-    db.session.commit()
-    return redirect(url_for('users.view_user', user_id=user.id))
