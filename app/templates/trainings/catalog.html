@@ -1,0 +1,203 @@
+{% extends "layouts/base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/catalog.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="catalog-container">
+    {# Encabezado de página con título y fecha actual #}
+    <div class="page-header">
+        <div class="page-title">
+            <h1>Catálogo de Formación</h1>
+        </div>
+        <div class="page-date">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span id="current-date"></span>
+        </div>
+    </div>
+
+    <div class="catalog-header">
+        <div class="header-top-row">
+            <div class="header-tabs">
+                <button type="button" class="tab-link tab-active">Listado de Formaciones</button>
+                <button type="button" class="tab-link">Listado de Categorías</button>
+                <span class="summary-pill">Formaciones Registradas: {{ pagination.total if pagination and pagination.total else 0 }}</span>
+            </div>
+            <div class="header-actions">
+                {% if current_user.roles_assoc and current_user.roles_assoc[0].role.name == 'super_admin' %}
+                <button type="button" class="btn btn-primary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21.44 11.05l-8.49 8.49a4.25 4.25 0 0 1-6.01-6.01l8.49-8.49a2.25 2.25 0 1 1 3.18 3.18l-7.78 7.78a1.25 1.25 0 0 1-1.77-1.77l7.07-7.07"></path>
+                    </svg>
+                    Asignar Actividad
+                </button>
+                <button type="button" class="btn btn-success">+ Añadir Formación</button>
+                <button type="button" class="btn btn-danger">Eliminar</button>
+                <button type="button" class="btn btn-secondary">Carga Masiva</button>
+                {% elif current_user.roles_assoc and current_user.roles_assoc[0].role.name == 'state_admin' %}
+                <button type="button" class="btn btn-primary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21.44 11.05l-8.49 8.49a4.25 4.25 0 0 1-6.01-6.01l8.49-8.49a2.25 2.25 0 1 1 3.18 3.18l-7.78 7.78a1.25 1.25 0 0 1-1.77-1.77l7.07-7.07"></path>
+                    </svg>
+                    Asignar Actividad
+                </button>
+                {% else %}
+                {# Usuario normal: sin botones #}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Buscador Rápido y Filtros -->
+    <div class="filters-container">
+        <div class="filters-section">
+            <div class="filter-row">
+                {# Campo de búsqueda por Código o Nombre con debounce para evitar múltiples consultas #}
+                <div class="filter-group search-group">
+                    <input type="text" name="search_name" id="search_name"
+                           value="{{ current_filters.search_name if current_filters.search_name else '' }}"
+                           placeholder="Buscar por ID/Nombre"
+                           oninput="debouncedSearch()">
+                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                </div>
+
+                {# Filtro por categoría #}
+                <div class="filter-group">
+                    <select name="category" id="category" onchange="updateFilters()">
+                        <option value="">Categoría</option>
+                        {% for category in filter_options.categories %}
+                        <option value="{{ category.id }}" {% if current_filters.category == category.id %}selected{% endif %}>
+                            {{ category.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {# Filtro por estatus #}
+                <div class="filter-group">
+                    <select name="status" id="status" onchange="updateFilters()">
+                        <option value="">Estatus</option>
+                        <option value="activo" {% if current_filters.status == 'activo' %}selected{% endif %}>Activo</option>
+                        <option value="inactivo" {% if current_filters.status == 'inactivo' %}selected{% endif %}>Inactivo</option>
+                    </select>
+                </div>
+
+                {# Botón para limpiar todos los filtros #}
+                <div class="filter-actions">
+                    <a href="{{ url_for('trainings.catalog') }}" class="btn-clear">Limpiar</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Formaciones -->
+    <div class="table-container">
+        {% if trainings %}
+        <table class="catalog-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Formaciones</th>
+                    <th>Categoría</th>
+                    <th>Estatus</th>
+                    {% if current_user.roles_assoc and current_user.roles_assoc[0].role.name == 'super_admin' %}
+                    <th>Acciones</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in trainings %}
+                {% set training = item.training %}
+                {% set original_index = item.original_index %}
+                <tr>
+                    <td class="code-cell">{{ original_index }}</td>
+                    <td class="name-cell">{{ training.name }}</td>
+                    <td class="category-cell">{{ training.training_category.name if training.training_category else 'N/A' }}</td>
+                    <td class="status-cell">
+                        {% if training.status %}
+                        <span class="status-badge status-{{ training.status.status_code }}">
+                            {{ training.status.status_name }}
+                        </span>
+                        {% else %}
+                        <span class="no-data">Sin estatus</span>
+                        {% endif %}
+                    </td>
+                    {% if current_user.roles_assoc and current_user.roles_assoc[0].role.name == 'super_admin' %}
+                    <td class="actions-cell">
+                        <button type="button" class="table-btn table-btn-edit">Editar</button>
+                        <button type="button" class="table-btn table-btn-delete">Eliminar</button>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <p>No se encontraron formaciones con los filtros seleccionados</p>
+            <a href="{{ url_for('trainings.catalog') }}" class="btn btn-primary">Ver todas las formaciones</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Paginación -->
+    {% if pagination and pagination.total > 0 %}
+    <div class="pagination">
+        <div class="pagination-info">
+            <span>Mostrando {{ (pagination.page - 1) * pagination.per_page + 1 }}-{% if pagination.page * pagination.per_page < pagination.total %}{{ pagination.page * pagination.per_page }}{% else %}{{ pagination.total }}{% endif %} de {{ pagination.total }} registros</span>
+        </div>
+        <div class="pagination-controls">
+            <div class="pagination-buttons">
+                {% if pagination.has_prev %}
+                <button class="pagination-btn" onclick="goToPage({{ pagination.prev_num }})">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                    Anterior
+                </button>
+                {% endif %}
+                
+                {% if pagination.has_next %}
+                <button class="pagination-btn" onclick="goToPage({{ pagination.next_num }})">
+                    Siguiente
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </button>
+                {% endif %}
+            </div>
+            
+            <div class="page-numbers">
+                {% for page_num in range(1, pagination.pages + 1) %}
+                    {% if page_num == 1 or page_num == pagination.pages or (page_num >= pagination.page - 1 and page_num <= pagination.page + 1) %}
+                        <button class="page-number {% if page_num == pagination.page %}active{% endif %}" onclick="goToPage({{ page_num }})">
+                            {{ page_num }}
+                        </button>
+                    {% elif page_num == pagination.page - 2 or page_num == pagination.page + 2 %}
+                        <span class="page-ellipsis">...</span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='JS/catalog.js') }}"></script>
+{% endblock %}

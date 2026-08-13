@@ -125,7 +125,7 @@
 
     {# Catálogo de Formación #}
     {% if 'view_training_catalog' in user_permissions %}
-    <a href="#" class="card card-blue">
+    <a href="{{ url_for('trainings.catalog') }}" class="card card-blue">
         <div class="card-header">
             <div class="card-title">Catálogo de Formación</div>
             <div class="card-icon">
