@@ -84,3 +84,57 @@ def get_filter_options():
         'categories': categories,
         'statuses': statuses
     }
+
+def get_all_categories(filters=None, page=1, per_page=10):
+    """
+    Obtiene todas las categorías con filtros y paginación.
+
+    Args:
+        filters: dict con filtros (search_name)
+        page: número de página (default 1)
+        per_page: registros por página (default 10)
+
+    Returns:
+        dict con datos de paginación y resultados
+    """
+    # Obtener todos los IDs ordenados sin filtros para calcular índices originales
+    all_ids_query = TrainingCategory.query.order_by(TrainingCategory.id.asc())
+    all_ids = [category.id for category in all_ids_query.all()]
+    id_to_index = {id: index + 1 for index, id in enumerate(all_ids)}
+    
+    # Incluir todas las categorías sin filtro de deleted_at
+    query = TrainingCategory.query
+    
+    # Aplicar filtros
+    if filters and filters.get('search_name'):
+        search_term = f"%{filters['search_name']}%"
+        query = query.filter(
+            or_(
+                TrainingCategory.category_code.ilike(search_term),
+                TrainingCategory.name.ilike(search_term)
+            )
+        )
+    
+    # Ordenar por ID
+    query = query.order_by(TrainingCategory.id.asc())
+    
+    # Paginación
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+
+    # Calcular índices originales para los resultados paginados
+    categories_with_index = []
+    for category in pagination.items:
+        original_index = id_to_index.get(category.id, 0)
+        # Contar cuántas formaciones tiene esta categoría
+        training_count = len(category.trainings)
+        categories_with_index.append({
+            'category': category,
+            'original_index': original_index,
+            'training_count': training_count
+        })
+
+    return {
+        'categories': categories_with_index,
+        'pagination': pagination,
+        'total_all': len(all_ids)  # Total sin filtros
+    }

@@ -450,6 +450,12 @@ Estilos CSS Modernos para el Módulo de Formaciones
     color: #666;
 }
 
+.count-cell {
+    font-weight: 600;
+    color: #007865;
+    text-align: center;
+}
+
 .description-cell {
     color: #666;
     max-width: 250px;

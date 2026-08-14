@@ -5,7 +5,7 @@ Define los endpoints para la gestión del catálogo de formación.
 from flask import render_template, flash, redirect, request, url_for
 from flask_login import login_required
 from app.trainings import trainings_bp
-from app.trainings.services import get_all_trainings, get_filter_options
+from app.trainings.services import get_all_trainings, get_filter_options, get_all_categories
 
 @trainings_bp.route('/catalog', methods=['GET'])
 @login_required
@@ -69,4 +69,60 @@ def catalog():
                              trainings=[],
                              pagination=FakePagination(),
                              filter_options={'categories': [], 'statuses': []},
+                             current_filters={})
+
+@trainings_bp.route('/categories', methods=['GET'])
+@login_required
+def categories():
+    """
+    Vista para el catálogo de categorías con buscador rápido y paginación.
+    Accesible para todos los usuarios autenticados.
+
+    Funcionalidades:
+    - Búsqueda rápida por código o nombre
+    - Paginación de 10 registros por página
+    - Diseño tabular responsivo
+    - Muestra el conteo de formaciones por categoría
+    """
+    try:
+        # Obtener filtros de la URL
+        filters = {
+            'search_name': request.args.get('search_name')
+        }
+
+        # Obtener parámetros de paginación
+        page = request.args.get('page', 1, type=int)
+        per_page = 10  # Fijado a 10 filas por página
+
+        # Obtener datos paginados
+        pagination_data = get_all_categories(filters, page=page, per_page=per_page)
+
+        pagination = pagination_data['pagination']
+
+        return render_template('trainings/categories.html',
+                             categories=pagination_data['categories'],
+                             pagination=pagination,
+                             current_filters=filters)
+    except Exception as e:
+        print(f"Error en categories: {e}")
+        flash("Error al cargar el catálogo de categorías", 'danger')
+
+        # Crear un objeto de paginación mínimo para evitar errores en el template
+        class FakePagination:
+            def __init__(self):
+                self.total = 0
+                self.pages = 0
+                self.page = 1
+                self.has_prev = False
+                self.has_next = False
+                self.prev_num = None
+                self.next_num = None
+                self.items = []
+
+            def iter_pages(self, left_edge=2, left_current=2, right_current=3, right_edge=2):
+                return []
+
+        return render_template('trainings/categories.html',
+                             categories=[],
+                             pagination=FakePagination(),
                              current_filters={})

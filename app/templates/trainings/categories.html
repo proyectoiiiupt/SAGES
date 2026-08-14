@@ -9,7 +9,7 @@
     {# Encabezado de página con título y fecha actual #}
     <div class="page-header">
         <div class="page-title">
-            <h1>Catálogo de Formación</h1>
+            <h1>Catálogo de Categorías</h1>
         </div>
         <div class="page-date">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -25,36 +25,19 @@
     <div class="catalog-header">
         <div class="header-top-row">
             <div class="header-tabs">
-                <button type="button" class="tab-link tab-active">Listado de Formaciones</button>
-                <button type="button" class="tab-link" onclick="window.location.href='{{ url_for('trainings.categories') }}'">Listado de Categorías</button>
-                <span class="summary-pill">Formaciones Registradas: {{ pagination.total if pagination and pagination.total else 0 }}</span>
+                <button type="button" class="tab-link" onclick="window.location.href='{{ url_for('trainings.catalog') }}'">Listado de Formaciones</button>
+                <button type="button" class="tab-link tab-active">Listado de Categorías</button>
+                <span class="summary-pill">Categorías Registradas: {{ pagination.total if pagination and pagination.total else 0 }}</span>
             </div>
             <div class="header-actions">
                 {% if current_user.roles_assoc and current_user.roles_assoc[0].role.name == 'super_admin' %}
-                <button type="button" class="btn btn-primary">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21.44 11.05l-8.49 8.49a4.25 4.25 0 0 1-6.01-6.01l8.49-8.49a2.25 2.25 0 1 1 3.18 3.18l-7.78 7.78a1.25 1.25 0 0 1-1.77-1.77l7.07-7.07"></path>
-                    </svg>
-                    Asignar Actividad
-                </button>
-                <button type="button" class="btn btn-success">+ Añadir Formación</button>
-                <button type="button" class="btn btn-danger">Eliminar</button>
-                <button type="button" class="btn btn-secondary">Carga Masiva</button>
-                {% elif current_user.roles_assoc and current_user.roles_assoc[0].role.name == 'state_admin' %}
-                <button type="button" class="btn btn-primary">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21.44 11.05l-8.49 8.49a4.25 4.25 0 0 1-6.01-6.01l8.49-8.49a2.25 2.25 0 1 1 3.18 3.18l-7.78 7.78a1.25 1.25 0 0 1-1.77-1.77l7.07-7.07"></path>
-                    </svg>
-                    Asignar Actividad
-                </button>
-                {% else %}
-                {# Usuario normal: sin botones #}
+                <button type="button" class="btn btn-success">+ Añadir Categoría</button>
                 {% endif %}
             </div>
         </div>
     </div>
 
-    <!-- Buscador Rápido y Filtros -->
+    <!-- Buscador Rápido -->
     <div class="filters-container">
         <div class="filters-section">
             <div class="filter-row">
@@ -62,7 +45,7 @@
                 <div class="filter-group search-group">
                     <input type="text" name="search_name" id="search_name"
                            value="{{ current_filters.search_name if current_filters.search_name else '' }}"
-                           placeholder="Buscar por ID/Nombre"
+                           placeholder="Buscar por ID, Categoría..."
                            oninput="debouncedSearch()">
                     <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="11" cy="11" r="8"></circle>
@@ -70,67 +53,37 @@
                     </svg>
                 </div>
 
-                {# Filtro por categoría #}
-                <div class="filter-group">
-                    <select name="category" id="category" onchange="updateFilters()">
-                        <option value="">Categoría</option>
-                        {% for category in filter_options.categories %}
-                        <option value="{{ category.id }}" {% if current_filters.category == category.id %}selected{% endif %}>
-                            {{ category.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                {# Filtro por estatus #}
-                <div class="filter-group">
-                    <select name="status" id="status" onchange="updateFilters()">
-                        <option value="">Estatus</option>
-                        <option value="activo" {% if current_filters.status == 'activo' %}selected{% endif %}>Activo</option>
-                        <option value="inactivo" {% if current_filters.status == 'inactivo' %}selected{% endif %}>Inactivo</option>
-                    </select>
-                </div>
-
                 {# Botón para limpiar todos los filtros #}
                 <div class="filter-actions">
-                    <a href="{{ url_for('trainings.catalog') }}" class="btn-clear">Limpiar</a>
+                    <a href="{{ url_for('trainings.categories') }}" class="btn-clear">Limpiar</a>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Tabla de Formaciones -->
+    <!-- Tabla de Categorías -->
     <div class="table-container">
-        {% if trainings %}
+        {% if categories %}
         <table class="catalog-table">
             <thead>
                 <tr>
                     <th>ID</th>
-                    <th>Formaciones</th>
                     <th>Categoría</th>
-                    <th>Estatus</th>
+                    <th>Formaciones</th>
                     {% if current_user.roles_assoc and current_user.roles_assoc[0].role.name == 'super_admin' %}
                     <th>Acciones</th>
                     {% endif %}
                 </tr>
             </thead>
             <tbody>
-                {% for item in trainings %}
-                {% set training = item.training %}
+                {% for item in categories %}
+                {% set category = item.category %}
                 {% set original_index = item.original_index %}
+                {% set training_count = item.training_count %}
                 <tr>
                     <td class="code-cell">{{ original_index }}</td>
-                    <td class="name-cell">{{ training.name }}</td>
-                    <td class="category-cell">{{ training.training_category.name if training.training_category else 'N/A' }}</td>
-                    <td class="status-cell">
-                        {% if training.status %}
-                        <span class="status-badge status-{{ training.status.status_code }}">
-                            {{ training.status.status_name }}
-                        </span>
-                        {% else %}
-                        <span class="no-data">Sin estatus</span>
-                        {% endif %}
-                    </td>
+                    <td class="name-cell">{{ category.name }}</td>
+                    <td class="count-cell">{{ training_count }}</td>
                     {% if current_user.roles_assoc and current_user.roles_assoc[0].role.name == 'super_admin' %}
                     <td class="actions-cell">
                         <button type="button" class="table-btn table-btn-edit">Editar</button>
@@ -146,9 +99,8 @@
             <thead>
                 <tr>
                     <th>ID</th>
-                    <th>Formaciones</th>
                     <th>Categoría</th>
-                    <th>Estatus</th>
+                    <th>Formaciones</th>
                     {% if current_user.roles_assoc and current_user.roles_assoc[0].role.name == 'super_admin' %}
                     <th>Acciones</th>
                     {% endif %}
@@ -156,7 +108,7 @@
             </thead>
             <tbody>
                 <tr>
-                    <td colspan="{% if current_user.roles_assoc and current_user.roles_assoc[0].role.name == 'super_admin' %}5{% else %}4{% endif %}" class="no-data">No hay formaciones registradas</td>
+                    <td colspan="{% if current_user.roles_assoc and current_user.roles_assoc[0].role.name == 'super_admin' %}4{% else %}3{% endif %}" class="no-data">No hay categorías registradas</td>
                 </tr>
             </tbody>
         </table>
@@ -208,5 +160,47 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='JS/catalog.js') }}"></script>
+<script>
+// Configuración del debounce para búsqueda
+let debounceTimer;
+function debouncedSearch() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(function() {
+        updateFilters();
+    }, 500);
+}
+
+// Actualizar filtros recargando la página con los parámetros
+function updateFilters() {
+    const searchName = document.getElementById('search_name').value;
+    const url = new URL(window.location);
+    
+    if (searchName) {
+        url.searchParams.set('search_name', searchName);
+    } else {
+        url.searchParams.delete('search_name');
+    }
+    
+    // Resetear a página 1 cuando se cambia un filtro
+    url.searchParams.set('page', '1');
+    
+    window.location.href = url.toString();
+}
+
+// Navegación de paginación
+function goToPage(page) {
+    const url = new URL(window.location);
+    url.searchParams.set('page', page);
+    window.location.href = url.toString();
+}
+
+// Mostrar fecha actual en español
+document.addEventListener('DOMContentLoaded', function() {
+    const dateElement = document.getElementById('current-date');
+    const options = { day: 'numeric', month: 'long', year: 'numeric' };
+    const today = new Date();
+    const dateString = today.toLocaleDateString('es-ES', options);
+    dateElement.textContent = dateString;
+});
+</script>
 {% endblock %}
