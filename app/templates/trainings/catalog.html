@@ -142,15 +142,24 @@
             </tbody>
         </table>
         {% else %}
-        <div class="empty-state">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="8" x2="12" y2="12"></line>
-                <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
-            <p>No se encontraron formaciones con los filtros seleccionados</p>
-            <a href="{{ url_for('trainings.catalog') }}" class="btn btn-primary">Ver todas las formaciones</a>
-        </div>
+        <table class="catalog-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Formaciones</th>
+                    <th>Categoría</th>
+                    <th>Estatus</th>
+                    {% if current_user.roles_assoc and current_user.roles_assoc[0].role.name == 'super_admin' %}
+                    <th>Acciones</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td colspan="{% if current_user.roles_assoc and current_user.roles_assoc[0].role.name == 'super_admin' %}5{% else %}4{% endif %}" class="no-data">No hay formaciones registradas</td>
+                </tr>
+            </tbody>
+        </table>
         {% endif %}
     </div>
 
