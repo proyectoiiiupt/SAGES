@@ -83,6 +83,11 @@
         <a href="#" class="btn-register">
             Registrar Nuevo <span class="plus-icon">+</span>
         </a>
+        {% elif current_role == 'state_admin' %}
+        <!-- BOTÓN TEMPORAL PARA LA BANDEJA DE SOLICITUDES -->
+        <a href="{{ url_for('users.list_requests') }}" class="btn-register" style="background-color: #0f766e; border-color: #0f766e;">
+            Solicitudes de Registro 📥
+        </a>
         {% endif %}
     </div>
 

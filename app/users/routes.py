@@ -1,7 +1,10 @@
-from flask import Blueprint, render_template, request, abort, redirect, url_for
+from flask import session, flash, jsonify, Blueprint, render_template, request, abort, redirect, url_for
+from werkzeug.security import generate_password_hash
 from flask_login import login_required, current_user
 from sqlalchemy import or_
 from app.extensions import db
+
+# Modelos
 from app.models.user_model import User
 from app.models.person_model import Person
 from app.models.company_model import Company
@@ -14,8 +17,7 @@ from app.models.place_model import Place
 from app.models.parish_model import Parish
 from app.models.municipality_model import Municipality
 
-# definimos el blueprint
-
+# Definimos el blueprint
 users_bp = Blueprint('users', __name__)
 
 @users_bp.route('/list', methods=['GET'])
@@ -284,3 +286,34 @@ def view_user(user_id):
 
     return render_template('users/view_user.html', user=user, corp_data=corp_data, current_role=user_role)
 
+
+# ==========================================
+# BANDEJA DE SOLICITUDES (US-10)
+# ==========================================
+
+@users_bp.route('/requests', methods=['GET'])
+@login_required
+def list_requests():
+    user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
+    if user_role != 'state_admin':
+        abort(403)
+
+    target_state_id = None
+    if current_user.person:
+        admin_inst = InstitutionalStaff.query.filter_by(person_id=current_user.person.id).first()
+        if admin_inst and admin_inst.institution and admin_inst.institution.parish:
+            target_state_id = admin_inst.institution.parish.municipality.state_id
+            
+    if not target_state_id:
+        flash("Tu usuario no tiene un estado geográfico asignado. No puedes ver solicitudes.", "error")
+        pending_requests = []
+    else:
+        pending_requests = InstitutionalStaff.query.join(Institution).filter(
+            Institution.parish.has(Parish.municipality.has(state_id=target_state_id))
+        ).all()
+
+    return render_template(
+        'users/requests_list.html', 
+        requests=pending_requests,
+        current_role=user_role
+    )

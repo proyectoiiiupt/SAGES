@@ -1,0 +1,90 @@
+{% extends "layouts/base.html" %}
+
+{% block extra_css %}
+<!-- Llamamos al CSS correcto de listas -->
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/users_list.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="users-container">
+    
+    <!-- Encabezado (Hereda el estilo turquesa/verde oscuro) -->
+    <div class="header-card">
+        <div class="welcome-text">
+            Bandeja de Solicitudes Pendientes 📥
+        </div>
+    </div>
+    <!-- Botón Volver -->
+    <div style="margin-top: 20px; margin-bottom: 20px; margin-left: 5px;">
+        <a href="{{ url_for('users.list_users') }}" class="btn-clear" style="text-decoration: none;">
+        &larr; Volver a Gestión de Usuarios
+        </a>
+    </div>
+    <div class="table-card">
+        <div class="table-responsive">
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>N°</th>
+                        <th>Nombre</th>
+                        <th>Cargo Institucional</th>
+                        <th>Municipio</th>
+                        <th>Parroquia</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if requests %}
+                        {% for req in requests %}
+                        <tr class="{{ loop.cycle('row-even', 'row-odd') }}">
+                            <td class="text-muted font-medium">{{ loop.index }}</td>
+                            
+                            <!-- Nombre y Apellido (Unificados) -->
+                            <td class="font-medium">
+                                {{ req.person.first_name if req.person else 'N/A' }} {{ req.person.last_name if req.person and req.person.last_name else '' }}
+                            </td>
+
+                            <!-- Cargo Institucional -->
+                            <td class="text-dark truncate">
+                                {{ req.position.name if req.position else 'N/A' }}
+                            </td>
+                            
+                            <!-- Municipio -->
+                            <td>
+                                {{ req.institution.parish.municipality.name if req.institution and req.institution.parish else 'N/A' }}
+                            </td>
+
+                            <!-- Parroquia -->
+                            <td>
+                                {{ req.institution.parish.name if req.institution and req.institution.parish else 'N/A' }}
+                            </td>
+                            <td class="text-center">
+                                <!-- Botón Aprobar (Inactivo hasta que Backend cree la ruta) -->
+                                <button type="button" class="btn-register" style="padding: 5px 15px; font-size: 13px; border: none; cursor: pointer; margin-right: 5px;">
+                                    Aprobar
+                                </button>
+                            
+                                <!-- Botón Rechazar (Inactivo hasta que Backend cree la ruta) -->
+                                <button type="button" class="btn-clear" style="padding: 5px 15px; font-size: 13px; border: none; cursor: pointer;">
+                                    Rechazar
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="empty-state">
+                                <span class="empty-icon">📂</span>
+                                <strong>No hay solicitudes pendientes en tu estado.</strong>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    
+
+</div>
+{% endblock %}
