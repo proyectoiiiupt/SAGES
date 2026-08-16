@@ -49,6 +49,41 @@ def get_all_institutions(filters=None, user=None, page=1, per_page=10):
     - Super admin ve todas las instituciones permitidas
     """
     try:
+        # Primero, obtener todos los IDs ordenados sin filtros para calcular índices originales
+        base_query = Institution.query
+        # Aplicar las mismas restricciones geográficas que la query principal
+        if user and user.person and user.person.institutional_staff:
+            user_institution = user.person.institutional_staff[0].institution
+            if user_institution and user_institution.parish and user_institution.parish.municipality:
+                user_state_id = user_institution.parish.municipality.state_id
+                if user_state_id == 24:  # ID de Distrito Capital
+                    base_query = base_query.join(Parish).join(Municipality).join(State).filter(
+                        Parish.name.in_(DC_PARISHES),
+                        State.state_code == DC_STATE_CODE
+                    )
+                else:
+                    base_query = base_query.join(Parish).join(Municipality).filter(
+                        Municipality.state_id == user_state_id
+                    )
+            else:
+                base_query = base_query.join(Parish)
+        else:
+            # Para super admin: restringir a las parroquias reales de Distrito Capital
+            base_query = (
+                base_query.join(Parish)
+                .join(Municipality)
+                .join(State)
+                .filter(
+                    Parish.name.in_(DC_PARISHES),
+                    State.state_code == DC_STATE_CODE
+                )
+            )
+        
+        # Obtener todos los IDs ordenados
+        all_ids_query = base_query.order_by(Institution.id.asc())
+        all_ids = [institution.id for institution in all_ids_query.all()]
+        id_to_index = {id: index + 1 for index, id in enumerate(all_ids)}
+        
         # Cargar relaciones optimizadamente para evitar N+1 queries
         query = Institution.query.options(
             joinedload(Institution.institution_type),
@@ -150,8 +185,17 @@ def get_all_institutions(filters=None, user=None, page=1, per_page=10):
         # Aplicar paginación
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
 
+        # Calcular índices originales para los resultados paginados
+        institutions_with_index = []
+        for institution in pagination.items:
+            original_index = id_to_index.get(institution.id, 0)
+            institutions_with_index.append({
+                'institution': institution,
+                'original_index': original_index
+            })
+
         return {
-            'institutions': pagination.items,
+            'institutions': institutions_with_index,
             'total': total,
             'pages': pagination.pages,
             'current_page': pagination.page,
@@ -159,7 +203,8 @@ def get_all_institutions(filters=None, user=None, page=1, per_page=10):
             'has_prev': pagination.has_prev,
             'has_next': pagination.has_next,
             'prev_num': pagination.prev_num,
-            'next_num': pagination.next_num
+            'next_num': pagination.next_num,
+            'total_all': len(all_ids)  # Total sin filtros
         }
     except Exception as e:
         print(f"Error en get_all_institutions: {e}")
@@ -172,7 +217,8 @@ def get_all_institutions(filters=None, user=None, page=1, per_page=10):
             'has_prev': False,
             'has_next': False,
             'prev_num': None,
-            'next_num': None
+            'next_num': None,
+            'total_all': 0
         }
 
 def get_institution_by_id(institution_id):

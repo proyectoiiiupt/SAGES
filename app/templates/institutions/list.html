@@ -133,9 +133,11 @@
                 </thead>
                 <tbody>
                     {# Filas de instituciones con datos #}
-                    {% for institution in institutions %}
+                    {% for item in institutions %}
+                    {% set institution = item.institution %}
+                    {% set original_index = item.original_index %}
                     <tr>
-                        <td>{{ institution.id }}</td>
+                        <td class="code-cell">{{ original_index }}</td>
                         <td>{{ institution.institution_name }}</td>
                         <td>{{ institution.institution_type.name if institution.institution_type else 'N/A' }}</td>
                         <td>{{ institution.institution_dependency.name if institution.institution_dependency else 'N/A' }}</td>
