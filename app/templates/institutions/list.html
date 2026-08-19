@@ -118,10 +118,9 @@
             <table class="institutions-table">
                 <thead>
                     <tr>
-                        <th>ID</th>
+                        <th>N°</th>
                         <th>Nombre</th>
                         <th>Tipo de Institución</th>
-                        <th>Dependencia</th>
                         {% if current_user.roles_assoc[0].role.name == 'super_admin' %}
                         <th>Estado</th>
                         {% else %}
@@ -140,7 +139,6 @@
                         <td class="code-cell">{{ original_index }}</td>
                         <td>{{ institution.institution_name }}</td>
                         <td>{{ institution.institution_type.name if institution.institution_type else 'N/A' }}</td>
-                        <td>{{ institution.institution_dependency.name if institution.institution_dependency else 'N/A' }}</td>
                         {% if current_user.roles_assoc[0].role.name == 'super_admin' %}
                         <td>{{ institution.parish.municipality.state.name if institution.parish and institution.parish.municipality else 'N/A' }}</td>
                         {% else %}
@@ -167,7 +165,7 @@
                     {% else %}
                     {# Mensaje cuando no hay instituciones #}
                     <tr>
-                        <td colspan="{% if current_user.roles_assoc[0].role.name == 'super_admin' %}8{% else %}8{% endif %}" class="no-data">No hay planteles registrados</td>
+                        <td colspan="{% if current_user.roles_assoc[0].role.name == 'super_admin' %}7{% else %}7{% endif %}" class="no-data">No hay planteles registrados</td>
                     </tr>
                     {% endfor %}
                 </tbody>

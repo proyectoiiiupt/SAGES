@@ -165,7 +165,7 @@ def get_all_institutions(filters=None, user=None, page=1, per_page=10):
                 # Para super admin, si selecciona un estado diferente a DC, remover restricción de parroquias
                 if not user or not (user.person and user.person.institutional_staff):
                     if state_id != 24:  # Si no es Distrito Capital
-                        # Reconstruir query sin restricción de parroquias DC
+                        # Reconstruir query sin restricción de parroquias DC pero manteniendo filtros existentes
                         query = Institution.query.options(
                             joinedload(Institution.institution_type),
                             joinedload(Institution.institution_scope),
@@ -174,6 +174,28 @@ def get_all_institutions(filters=None, user=None, page=1, per_page=10):
                             joinedload(Institution.status),
                             joinedload(Institution.institution_levels).joinedload(InstitutionLevel.educational_level)
                         ).join(Parish).join(Municipality).join(State)
+                        
+                        # Reaplicar filtros de búsqueda y clasificación que ya se habían aplicado
+                        if filters.get('search_name'):
+                            search_term = filters['search_name']
+                            try:
+                                search_id = int(search_term)
+                                query = query.filter(
+                                    or_(
+                                        Institution.id == search_id,
+                                        Institution.institution_name.ilike(f"%{search_term}%")
+                                    )
+                                )
+                            except ValueError:
+                                query = query.filter(Institution.institution_name.ilike(f"%{search_term}%"))
+                        if filters.get('institution_type'):
+                            query = query.filter(Institution.institution_type_id == filters['institution_type'])
+                        if filters.get('institution_scope'):
+                            query = query.filter(Institution.institution_scope_id == filters['institution_scope'])
+                        if filters.get('institution_dependency'):
+                            query = query.filter(Institution.institution_dependency_id == filters['institution_dependency'])
+                        if filters.get('status'):
+                            query = query.filter(Institution.status_id == filters['status'])
                 
                 query = query.filter(Municipality.state_id == state_id)
             if filters.get('parish_id'):
@@ -390,6 +412,12 @@ def get_institution_users(institution_id, page=1, per_page=10):
         from app.models.status_model import Status
         from sqlalchemy.orm import joinedload
         
+        # Primero, obtener todos los IDs ordenados sin filtros para calcular índices originales
+        base_query = InstitutionalStaff.query.filter_by(institution_id=institution_id)
+        all_ids_query = base_query.order_by(InstitutionalStaff.id.asc())
+        all_ids = [staff.id for staff in all_ids_query.all()]
+        id_to_index = {id: index + 1 for index, id in enumerate(all_ids)}
+        
         # Obtener el personal institucional con todas las relaciones cargadas
         query = InstitutionalStaff.query.options(
             joinedload(InstitutionalStaff.person).joinedload(Person.user),
@@ -416,6 +444,9 @@ def get_institution_users(institution_id, page=1, per_page=10):
                     'status_name': user.status.status_name
                 }
             
+            # Calcular índice original
+            original_index = id_to_index.get(staff.id, 0)
+            
             user_info = {
                 'staff_id': staff.id,
                 'person_id': person.id if person else None,
@@ -427,7 +458,8 @@ def get_institution_users(institution_id, page=1, per_page=10):
                 'mobile': person.mobile if person else 'N/A',
                 'position': staff.position.name if staff.position else 'N/A',
                 'user_status': user_status,
-                'has_user_account': user is not None
+                'has_user_account': user is not None,
+                'original_index': original_index
             }
             users_data.append(user_info)
         
@@ -440,7 +472,8 @@ def get_institution_users(institution_id, page=1, per_page=10):
             'has_prev': pagination.has_prev,
             'has_next': pagination.has_next,
             'prev_num': pagination.prev_num,
-            'next_num': pagination.next_num
+            'next_num': pagination.next_num,
+            'total_all': len(all_ids)  # Total sin filtros
         }
     except Exception as e:
         print(f"Error en get_institution_users: {e}")
@@ -453,5 +486,6 @@ def get_institution_users(institution_id, page=1, per_page=10):
             'has_prev': False,
             'has_next': False,
             'prev_num': None,
-            'next_num': None
+            'next_num': None,
+            'total_all': 0
         }
