@@ -40,7 +40,7 @@
             {% if current_role == 'super_admin' %}
                 <!-- Filtros exclusivos del Super Admin -->
                 <select name="role" class="filter-select">
-                    <option value="">Rol</option>
+                    <option value="">Tipo de Usuario</option>
                     {% for r in db_roles %}
                         <option value="{{ r.id }}" {% if filters.role == r.id|string %}selected{% endif %}>{{ r.translated_name }}</option>
                     {% endfor %}
@@ -54,14 +54,15 @@
                 </select>
             {% elif current_role == 'state_admin' %}
                 <!-- Filtros exclusivos del Admin Estadal -->
-                <select name="municipality" class="filter-select">
+                <select name="municipality" class="filter-select" onchange="this.form.submit()">
                     <option value="">Municipio</option>
                     {% for m in db_municipalities %}
                         <option value="{{ m.id }}" {% if filters.municipality == m.id|string %}selected{% endif %}>{{ m.name | title }}</option>
                     {% endfor %}
                 </select>
 
-                <select name="parish" class="filter-select">
+                <!-- Filtro de Parroquia Bloqueado / Desbloqueado -->
+                <select name="parish" class="filter-select" {% if not db_parishes %}disabled style="opacity: 0.6; cursor: not-allowed;"{% endif %}>
                     <option value="">Parroquia</option>
                     {% for p in db_parishes %}
                         <option value="{{ p.id }}" {% if filters.parish == p.id|string %}selected{% endif %}>{{ p.name | title }}</option>
@@ -79,7 +80,6 @@
         </form>
 
         {% if current_role == 'super_admin' %}
-        <!-- TAREA: Quitar el botón registrar al Admin Estadal -->
         <a href="#" class="btn-register">
             Registrar Nuevo <span class="plus-icon">+</span>
         </a>
@@ -95,8 +95,13 @@
                         <th>N°</th>
                         <th>Cédula</th>
                         <th>Nombre</th>
-                        <th>Tipo de Usuario</th>
-                        <th>Estado</th>
+                        {% if current_role == 'super_admin' %}
+                            <th>Tipo de Usuario</th>
+                            <th>Ubicación</th>
+                        {% elif current_role == 'state_admin' %}
+                            <th>Institución</th>
+                            <th>Ubicación</th>
+                        {% endif %}
                         <th>Estatus</th>
                         <th class="text-center">Acciones</th>
                     </tr>
@@ -108,28 +113,44 @@
                             <td class="text-muted font-medium">{{ loop.index }}</td>
                             
                             <td class="font-medium">
-                                {{ user.user_name if user.user_name else (user.person.id_card if user.person and user.person.id_card else 'N/A') }}
+                                {{ user.formatted_id }}
                             </td>
 
                             <td class="text-dark truncate">
                                 {{ user.person.first_name if user.person else 'N/A' }} {{ user.person.last_name if user.person and user.person.last_name else '' }}
                             </td>
                             
-                            <td class="truncate">
-                                {% if user.roles_assoc %}
-                                    {% set r = user.roles_assoc[0].role.name %}
-                                    {% if r == 'super_admin' %}Super Administrador
-                                    {% elif r == 'state_admin' %}Administrador Estadal
-                                    {% elif r == 'director' or r == 'directora' or r == 'applicant' %}Solicitante
-                                    {% else %}{{ r | title }}{% endif %}
-                                {% else %}
-                                    Usuario General
-                                {% endif %}
-                            </td>
-                            
-                            <td>
-                                {{ user.state_name if user.state_name else 'Sin Asignar' }}
-                            </td>
+                            {% if current_role == 'super_admin' %}
+                                <td class="truncate">
+                                    {% if user.roles_assoc %}
+                                        {% set r = user.roles_assoc[0].role.name %}
+                                        {% if r == 'super_admin' %}Super Administrador
+                                        {% elif r == 'state_admin' %}Administrador Estadal
+                                        {% elif r == 'director' or r == 'directora' or r == 'applicant' %}Solicitante
+                                        {% else %}{{ r | title }}{% endif %}
+                                    {% else %}
+                                        Usuario General
+                                    {% endif %}
+                                </td>
+                                
+                                <td>
+                                    <div class="font-medium text-dark">{{ user.state_name if user.state_name else 'Sin Asignar' }}</div>
+                                    <small class="text-muted" style="display: block; font-size: 11px;">
+                                        {{ user.municipality_name if user.municipality_name else 'N/A' }} - {{ user.parish_name if user.parish_name else 'N/A' }}
+                                    </small>
+                                </td>
+                            {% elif current_role == 'state_admin' %}
+                                <td class="text-dark truncate">
+                                    {{ user.institution_name if user.institution_name else 'N/A' }}
+                                </td>
+                                
+                                <td>
+                                    <div class="font-medium text-dark">{{ user.municipality_name if user.municipality_name else 'N/A' }}</div>
+                                    <small class="text-muted" style="display: block; font-size: 11px;">
+                                        {{ user.parish_name if user.parish_name else 'N/A' }}
+                                    </small>
+                                </td>
+                            {% endif %}
                             
                             <td>
                                 <span class="status-badge {{ 'status-active' if user.status_id == 1 else 'status-inactive' }}">
@@ -165,13 +186,13 @@
             
             <div class="pagination-controls">
                 {% if pagination.has_prev %}
-                    <a href="{{ url_for('users.list_users', page=pagination.prev_num, search=filters.search, status=filters.status, state=filters.state, role=filters.role) }}" class="page-link">&lt;&lt;</a>
+                    <a href="{{ url_for('users.list_users', page=pagination.prev_num, search=filters.search, status=filters.status, state=filters.state, role=filters.role, municipality=filters.municipality, parish=filters.parish) }}" class="page-link">&lt;&lt;</a>
                 {% endif %}
                 
                 <span class="page-current">{{ pagination.page }}</span>
 
                 {% if pagination.has_next %}
-                    <a href="{{ url_for('users.list_users', page=pagination.next_num, search=filters.search, status=filters.status, state=filters.state, role=filters.role) }}" class="page-link">&gt;&gt;</a>
+                    <a href="{{ url_for('users.list_users', page=pagination.next_num, search=filters.search, status=filters.status, state=filters.state, role=filters.role, municipality=filters.municipality, parish=filters.parish) }}" class="page-link">&gt;&gt;</a>
                 {% endif %}
             </div>
         </div>
