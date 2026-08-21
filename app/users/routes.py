@@ -14,9 +14,30 @@ from app.models.place_model import Place
 from app.models.parish_model import Parish
 from app.models.municipality_model import Municipality
 
-# definimos el blueprint
 
 users_bp = Blueprint('users', __name__)
+
+def format_identification(id_type, id_number):
+    """
+    Formatea cédulas venezolanas sin paréntesis: V-12.345.678 o E-1.234.567
+    Soporta 7 u 8 dígitos formateando miles con puntos.
+    """
+    if not id_number:
+        return 'N/A'
+    
+    clean_type = str(id_type).strip().upper() if id_type else 'V'
+    if clean_type not in ['V', 'E', 'J', 'G', 'P']:
+        clean_type = 'V'
+
+    clean_num = ''.join(filter(str.isdigit, str(id_number)))
+    if not clean_num:
+        return 'N/A'
+        
+    try:
+        formatted_num = f"{int(clean_num):,}".replace(',', '.')
+        return f"{clean_type}-{formatted_num}"
+    except ValueError:
+        return f"{clean_type}-{clean_num}"
 
 @users_bp.route('/list', methods=['GET'])
 @login_required
@@ -44,13 +65,11 @@ def list_users():
     }
 
     try:
-        # 1. Cargamos los catálogos base
         db_roles = Role.query.all()
         db_states = State.query.all()
         db_municipalities = []
         db_parishes = []
         
-        # Traducimos los roles usando versiones cortas
         for r in db_roles:
             if r.name == 'super_admin':
                 r.translated_name = 'Super Admin'
@@ -61,17 +80,14 @@ def list_users():
             else:
                 r.translated_name = r.name.title()
 
-        query = User.query
-        query = query.outerjoin(Person)
+        query = User.query.outerjoin(Person)
         
-        # --- TAREA: El Admin Estadal solo debe ver a los roles solicitantes ---
         if user_role == 'state_admin':
             applicant_roles = [r.id for r in db_roles if r.name in ['applicant', 'director', 'directora']]
             if applicant_roles:
                 conditions = [User.roles_assoc.any(role_id=r_id) for r_id in applicant_roles]
                 query = query.filter(or_(*conditions))
 
-        # --- FILTRO GEOGRÁFICO DINÁMICO ---
         target_state_id = None
         
         if user_role == 'state_admin' and current_user.person:
@@ -87,22 +103,21 @@ def list_users():
             target_state_id = int(filter_state)
 
         if target_state_id:
-            # Enviamos municipios del estado objetivo al HTML para el filtro de Admin Estadal
             db_municipalities = Municipality.query.filter_by(state_id=target_state_id).all()
-            municipality_ids = [m.id for m in db_municipalities]
             
-            # Enviamos las parroquias del estado objetivo al HTML
-            if municipality_ids:
-                db_parishes = Parish.query.filter(Parish.municipality_id.in_(municipality_ids)).all()
+            if filter_municipality and filter_municipality.isdigit():
+                db_parishes = Parish.query.filter_by(municipality_id=int(filter_municipality)).all()
+            else:
+                db_parishes = []
             
-            # --- EVALUACIÓN DE FILTROS SELECCIONADOS ---
             if filter_parish and filter_parish.isdigit():
                 parish_ids = [int(filter_parish)]
             elif filter_municipality and filter_municipality.isdigit():
                 m_parishes = Parish.query.filter_by(municipality_id=int(filter_municipality)).all()
                 parish_ids = [p.id for p in m_parishes]
             else:
-                parish_ids = [p.id for p in db_parishes] if db_parishes else []
+                all_m_ids = [m.id for m in db_municipalities]
+                parish_ids = [p.id for p in Parish.query.filter(Parish.municipality_id.in_(all_m_ids)).all()] if all_m_ids else []
             
             if parish_ids:
                 inst_staffs = InstitutionalStaff.query.join(Institution).filter(Institution.parish_id.in_(parish_ids)).all()
@@ -113,9 +128,7 @@ def list_users():
             else:
                 query = query.filter(User.id == 0)
         elif user_role == 'state_admin' and not target_state_id:
-             # Falla de seguridad: si el Admin Estadal no tiene estado asignado, bloqueamos los registros
              query = query.filter(User.id == 0)
-        # --- FIN DEL FILTRO GEOGRÁFICO ---
             
         if search_query:
             search_pattern = f"%{search_query}%"
@@ -133,7 +146,6 @@ def list_users():
                     (Person.identification_number.ilike(search_pattern))
                 )
 
-        # Solo el super_admin puede filtrar por rol directamente desde la vista
         if user_role == 'super_admin' and filter_role and filter_role.isdigit():
             query = query.filter(User.roles_assoc.any(role_id=int(filter_role)))
 
@@ -143,23 +155,36 @@ def list_users():
         pagination = query.order_by(User.id.desc()).paginate(page=page, per_page=10, error_out=False)
         users_list = pagination.items
 
-        # 2. Rescatamos el Estado geográfico correcto de cada usuario para la tabla
         for u in users_list:
             u.state_name = "Sin Asignar"
+            u.institution_name = "N/A"
+            u.municipality_name = "N/A"
+            u.parish_name = "N/A"
+            u.formatted_id = "N/A"
+
             if u.person:
+                id_type = getattr(u.person, 'identification_type', 'V')
+                id_num = getattr(u.person, 'identification_number', getattr(u.person, 'id_card', ''))
+                u.formatted_id = format_identification(id_type, id_num)
+
                 inst_staff = InstitutionalStaff.query.filter_by(person_id=u.person.id).first()
                 if inst_staff and inst_staff.institution:
-                    try:
-                        u.state_name = inst_staff.institution.parish.municipality.state.name
-                    except AttributeError:
-                        pass
+                    u.institution_name = inst_staff.institution.institution_name
+                    if inst_staff.institution.parish:
+                        u.parish_name = inst_staff.institution.parish.name
+                        if inst_staff.institution.parish.municipality:
+                            u.municipality_name = inst_staff.institution.parish.municipality.name
+                            u.state_name = inst_staff.institution.parish.municipality.state.name
                 else:
                     comp_staff = CompanyStaff.query.filter_by(person_id=u.person.id).first()
                     if comp_staff and comp_staff.place:
-                        try:
-                            u.state_name = comp_staff.place.parish.municipality.state.name
-                        except AttributeError:
-                            pass
+                        if comp_staff.place.company:
+                            u.institution_name = comp_staff.place.company.company_name
+                        if comp_staff.place.parish:
+                            u.parish_name = comp_staff.place.parish.name
+                            if comp_staff.place.parish.municipality:
+                                u.municipality_name = comp_staff.place.parish.municipality.name
+                                u.state_name = comp_staff.place.parish.municipality.state.name
         
     except Exception as e:
         print(f"Error en filtros: {e}")
@@ -187,15 +212,12 @@ def list_users():
 def view_user(user_id):
     user = User.query.get_or_404(user_id)
     person = user.person
-    user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
-
-    # --- FUNCIONES DE FORMATO ---
-    def format_venezuelan_id(id_str):
-        if not id_str: return 'N/A'
-        id_clean = str(id_str).strip().upper().replace('-', '')
-        if id_clean.startswith(('V', 'E', 'J', 'G', 'P')):
-            return f"({id_clean[0]}-{id_clean[1:]})"
-        return f"(V-{id_clean})"
+    
+    
+    current_user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
+    
+    
+    viewed_role = user.roles_assoc[0].role.name if user.roles_assoc else 'applicant'
 
     def format_venezuelan_phone(phone_str):
         if not phone_str or phone_str == 'N/A': return 'N/A'
@@ -203,17 +225,28 @@ def view_user(user_id):
         if len(clean_phone) >= 10:
             return f"({clean_phone[:4]})-{clean_phone[4:]}"
         return phone_str
-    # ----------------------------
 
     corp_data = None
     
     if person:
         # 1. Identificación y Contacto Personal
+        id_type = getattr(person, 'identification_type', 'V')
         person_id_val = getattr(person, 'identification_number', getattr(person, 'id_card', ''))
-        user.formatted_id = format_venezuelan_id(person_id_val)
+        
+        
+        user.formatted_id = format_identification(id_type, person_id_val)
         
         user.formatted_phone = format_venezuelan_phone(getattr(person, 'mobile', ''))
         user.formatted_phone_sec = format_venezuelan_phone(getattr(person, 'phone', ''))
+
+        
+        first_n = getattr(person, 'first_name', '') or ''
+        second_n = getattr(person, 'second_name', '') or ''
+        last_n = getattr(person, 'last_name', '') or ''
+        middle_n = getattr(person, 'middle_name', '') or ''
+        
+        user.full_first_name = f"{first_n} {second_n}".strip() if first_n else 'N/A'
+        user.full_last_name = f"{last_n} {middle_n}".strip() if last_n else 'N/A'
 
         # 2. Búsqueda de Institución / Empresa
         inst_staff = InstitutionalStaff.query.filter_by(person_id=person.id).first()
@@ -232,15 +265,17 @@ def view_user(user_id):
                 except Exception:
                     pass
             
+            
+            plantel_code = getattr(inst, 'plantel_code', None)
+            
             corp_data = {
-                'id_card': inst.institution_code if inst else 'N/A',
+                'id_card': plantel_code if plantel_code else 'N/A',
                 'name': inst.institution_name if inst else 'N/A',
                 'type': inst.institution_type.name if inst and getattr(inst, 'institution_type', None) else 'N/A',
                 'sector': inst.institution_scope.name if inst and getattr(inst, 'institution_scope', None) else 'N/A',
                 'dependency': inst.institution_dependency.name if inst and getattr(inst, 'institution_dependency', None) else 'N/A',
                 'position': pos.name if pos else 'N/A',
                 'phone_main': format_venezuelan_phone(getattr(inst, 'phone', 'N/A')),
-                'phone_sec': 'N/A',
                 'state': inst.parish.municipality.state.name if inst and getattr(inst, 'parish', None) and getattr(inst.parish, 'municipality', None) else 'N/A',
                 'municipality': inst.parish.municipality.name if inst and getattr(inst, 'parish', None) else 'N/A',
                 'parish': inst.parish.name if inst and getattr(inst, 'parish', None) else 'N/A',
@@ -266,21 +301,43 @@ def view_user(user_id):
                         pass
                 
                 if comp:
+                    
+                    type_rif = getattr(comp, 'identification_type', '') or ''
+                    num_rif = getattr(comp, 'rif', '') or ''
+                    formatted_rif = f"{type_rif}-{num_rif}".strip('-') if (type_rif or num_rif) else 'N/A'
+
                     corp_data = {
-                        'id_card': comp.rif,
+                        'id_card': formatted_rif,
                         'name': comp.company_name,
                         'type': 'Empresa Privada', 
                         'sector': 'N/A',
                         'dependency': 'N/A',
                         'position': pos.name if pos else 'N/A',
                         'phone_main': format_venezuelan_phone(getattr(place, 'phone', 'N/A')),
-                        'phone_sec': 'N/A',
                         'state': place.parish.municipality.state.name if place and getattr(place, 'parish', None) and getattr(place.parish, 'municipality', None) else 'N/A',
                         'municipality': place.parish.municipality.name if place and getattr(place, 'parish', None) else 'N/A',
                         'parish': place.parish.name if place and getattr(place, 'parish', None) else 'N/A',
                         'city': city_name,
-                        'address': place.address if place else 'N/A'
+                        'address': place.address if place else 'N/A',
+                        'sede': place.name if place else 'N/A'
                     }
 
-    return render_template('users/view_user.html', user=user, corp_data=corp_data, current_role=user_role)
+    return render_template('users/view_user.html', user=user, corp_data=corp_data, current_role=current_user_role, viewed_role=viewed_role)
 
+@users_bp.route('/toggle_status/<int:user_id>', methods=['POST'])
+@login_required
+def toggle_user_status(user_id):
+    user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
+    
+    if user_role != 'super_admin':
+        abort(403) 
+        
+    user = User.query.get_or_404(user_id)
+    
+    if user.status_id == 1:
+        user.status_id = 2
+    else:
+        user.status_id = 1
+        
+    db.session.commit()
+    return redirect(url_for('users.view_user', user_id=user.id))
