@@ -12,6 +12,7 @@ from app.models.institution_type_model import InstitutionType
 from app.models.institution_scope_model import InstitutionScope
 from app.models.institution_dependency_model import InstitutionDependency
 from app.models.status_model import Status
+from app.models.location_model import Location
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_
 
@@ -191,6 +192,7 @@ def get_institution_by_id(institution_id):
             joinedload(Institution.institution_scope),
             joinedload(Institution.institution_dependency),
             joinedload(Institution.parish).joinedload(Parish.municipality).joinedload(Municipality.state),
+            joinedload(Institution.parish).joinedload(Parish.locations).joinedload(Location.city),
             joinedload(Institution.status),
             joinedload(Institution.institution_levels).joinedload(InstitutionLevel.educational_level)
         ).get(institution_id)

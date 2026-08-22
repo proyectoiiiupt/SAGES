@@ -86,7 +86,7 @@ def view_institution(institution_id):
         institution = get_institution_by_id(institution_id)
         if not institution:
             abort(404)
-        return render_template('institutions/detail.html', institution=institution)
+        return render_template('institutions/detail.html', institution=institution, is_applicant=False)
     except Exception as e:
         print(f"Error en view_institution: {e}")
         flash("Error al cargar la institución", 'danger')
@@ -121,3 +121,46 @@ def toggle_institution_status_route(institution_id):
     except Exception as e:
         print(f"Error en toggle_institution_status_route: {e}")
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+@institutions_bp.route('/my-institution', methods=['GET'])
+@login_required
+@role_required('applicant')
+def my_institution():
+    """
+    Vista para que el usuario (applicant) vea directamente su institución afiliada.
+    Solo accesible para usuarios con rol applicant.
+    
+    Muestra el detalle de la institución a la que está afiliado el usuario actual.
+    """
+    try:
+        # Verificar que el usuario tiene persona
+        if not current_user.person:
+            print("Error: Usuario no tiene persona asociada")
+            flash("No tienes una institución afiliada. Contacta al administrador.", 'warning')
+            return redirect(url_for('home_applicant'))
+        
+        # Verificar que el usuario tiene personal institucional
+        if not current_user.person.institutional_staff or len(current_user.person.institutional_staff) == 0:
+            print("Error: Usuario no tiene personal institucional asociado")
+            flash("No tienes una institución afiliada. Contacta al administrador.", 'warning')
+            return redirect(url_for('home_applicant'))
+        
+        # Obtener la institución del usuario
+        user_staff = current_user.person.institutional_staff[0]
+        print(f"User staff institution_id: {user_staff.institution_id}")
+        
+        institution = get_institution_by_id(user_staff.institution_id)
+        
+        if not institution:
+            print(f"Error: Institución no encontrada con ID {user_staff.institution_id}")
+            flash("Institución no encontrada. Contacta al administrador.", 'danger')
+            return redirect(url_for('home_applicant'))
+        
+        print(f"Institución encontrada: {institution.institution_name}")
+        return render_template('institutions/detail.html', institution=institution, is_applicant=True)
+    except Exception as e:
+        print(f"Error en my_institution: {e}")
+        import traceback
+        traceback.print_exc()
+        flash("Error al cargar tu institución. Contacta al administrador.", 'danger')
+        return redirect(url_for('home_applicant'))
