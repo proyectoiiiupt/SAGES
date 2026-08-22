@@ -1,6 +1,7 @@
 /**
  * JavaScript para manejar el toggle de estatus de instituciones
  * Maneja el botón de activar/desactivar en la página de detalle de institución
+ * Usa SweetAlert2 para confirmaciones y mensajes de éxito
  */
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -27,6 +28,34 @@ document.addEventListener('DOMContentLoaded', function() {
         toggleBtn.addEventListener('click', async function() {
             const institutionId = this.dataset.institutionId;
             const isActive = this.classList.contains('active');
+            
+            // Determinar el mensaje según el estado actual
+            const action = isActive ? 'desactivar' : 'activar';
+            const newStatus = isActive ? 'Inactivo' : 'Activo';
+            
+            // Mensaje de confirmación con SweetAlert2
+            const confirmMessage = isActive 
+                ? `¿Está seguro que desea desactivar esta institución? <br><br>
+                   <strong>Esto también desactivará a todos los usuarios afiliados a la institución.</strong>`
+                : `¿Está seguro que desea activar esta institución? <br><br>
+                   <strong>Esto también activará a todos los usuarios afiliados a la institución.</strong>`;
+            
+            const result = await Swal.fire({
+                title: `¿${action.charAt(0).toUpperCase() + action.slice(1)} institución?`,
+                html: confirmMessage,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: isActive ? '#d33' : '#3085d6',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: `Sí, ${action}`,
+                cancelButtonText: 'Cancelar',
+                reverseButtons: true
+            });
+            
+            // Si el usuario cancela, no hacer nada
+            if (!result.isConfirmed) {
+                return;
+            }
             
             // Disable button during request
             this.disabled = true;
@@ -56,14 +85,39 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Update data attribute
                     toggleBtn.dataset.currentStatus = data.status_code;
                     
-                    // Show success message
-                    alert(data.message);
+                    // Mensaje de éxito con SweetAlert2
+                    const successMessage = data.affected_users > 0
+                        ? `Institución cambiada a ${data.new_status} exitosamente.<br><br>
+                           <strong>${data.affected_users} usuario(s) afiliado(s) también fueron ${data.new_status.toLowerCase()}ados.</strong>`
+                        : `Institución cambiada a ${data.new_status} exitosamente.`;
+                    
+                    await Swal.fire({
+                        title: '¡Éxito!',
+                        html: successMessage,
+                        icon: 'success',
+                        confirmButtonColor: '#3085d6',
+                        confirmButtonText: 'Aceptar'
+                    });
                 } else {
-                    alert('Error: ' + data.message);
+                    // Mensaje de error con SweetAlert2
+                    await Swal.fire({
+                        title: 'Error',
+                        text: data.message,
+                        icon: 'error',
+                        confirmButtonColor: '#d33',
+                        confirmButtonText: 'Aceptar'
+                    });
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Error al cambiar el estatus de la institución');
+                // Mensaje de error de conexión con SweetAlert2
+                await Swal.fire({
+                    title: 'Error de conexión',
+                    text: 'Error al cambiar el estatus de la institución. Por favor, intente nuevamente.',
+                    icon: 'error',
+                    confirmButtonColor: '#d33',
+                    confirmButtonText: 'Aceptar'
+                });
             } finally {
                 // Re-enable button
                 this.disabled = false;
