@@ -46,7 +46,8 @@
         <p>
             <strong>Código del plantel:</strong> {{ institution.plantel_code }} |
             <strong>Tipo:</strong> {{ institution.institution_type.name if institution.institution_type else 'N/A' }} |
-            <strong>Dependencia:</strong> {{ institution.institution_dependency.name if institution.institution_dependency else 'N/A' }}
+            <strong>Dependencia:</strong> {{ institution.institution_dependency.name if institution.institution_dependency else 'N/A' }} |
+            <strong>Alcance:</strong> {{ institution.institution_scope.name if institution.institution_scope else 'N/A' }}
         </p>
     </div>
 
@@ -56,25 +57,26 @@
             <table class="institutions-table">
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>Nombre Completo</th>
+                        <th>N°</th>
                         <th>Cédula</th>
+                        <th>Nombre Completo</th>
                         <th>Cargo</th>
-                        <th>Email</th>
                         <th>Teléfono</th>
+                        <th>Correo</th>
                         <th>Estatus</th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     {# Filas de usuarios afiliados #}
                     {% for user in users %}
                     <tr>
-                        <td>{{ user.staff_id }}</td>
+                        <td>{{ (pagination.current_page - 1) * pagination.per_page + loop.index }}</td>
+                        <td class="cedula-cell" data-type="{{ user.identification_type }}" data-number="{{ user.identification_number }}"></td>
                         <td>{{ user.full_name }}</td>
-                        <td>{{ user.identification_type }}-{{ user.identification_number }}</td>
                         <td>{{ user.position }}</td>
+                        <td class="phone-cell" data-phone="{{ user.mobile }}"></td>
                         <td>{{ user.email }}</td>
-                        <td>{{ user.mobile }}</td>
                         <td>
                             {% if user.user_status %}
                                 <span class="status-badge status-{{ user.user_status.status_code }}">
@@ -84,11 +86,19 @@
                                 <span class="no-data">N/A</span>
                             {% endif %}
                         </td>
+                        <td>
+                            <a href="#" class="action-btn view-btn" title="Ver detalles de persona">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                            </a>
+                        </td>
                     </tr>
                     {% else %}
                     {# Mensaje cuando no hay usuarios afiliados #}
                     <tr>
-                        <td colspan="7" class="no-data">No hay usuarios afiliados a esta institución</td>
+                        <td colspan="8" class="no-data">No hay usuarios afiliados a esta institución</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -143,7 +153,66 @@
             const formattedDate = today.toLocaleDateString('es-ES', options);
             dateElement.textContent = formattedDate.replace(' de 20', ', 20');
         }
+
+        // Formatear cédulas
+        formatCedulas();
+
+        // Formatear teléfonos
+        formatPhones();
     });
+
+    function formatCedulas() {
+        const cedulaCells = document.querySelectorAll('.cedula-cell');
+        cedulaCells.forEach(cell => {
+            const type = cell.getAttribute('data-type');
+            const number = cell.getAttribute('data-number');
+            const formattedNumber = formatIdentificationNumber(number);
+            cell.textContent = `${type}-${formattedNumber}`;
+        });
+    }
+
+    function formatIdentificationNumber(number) {
+        // Limpiar el número de posibles caracteres no numéricos
+        const cleanNumber = number.toString().replace(/\D/g, '');
+
+        // Verificar que tenga entre 7 y 8 dígitos
+        if (cleanNumber.length < 7 || cleanNumber.length > 8) {
+            return cleanNumber; // Si no está en el rango esperado, devolver sin formato
+        }
+
+        // Formatear según la longitud
+        if (cleanNumber.length === 7) {
+            // Formato: 1.234.567
+            return cleanNumber.replace(/^(\d{1})(\d{3})(\d{3})$/, '$1.$2.$3');
+        } else if (cleanNumber.length === 8) {
+            // Formato: 12.345.678
+            return cleanNumber.replace(/^(\d{2})(\d{3})(\d{3})$/, '$1.$2.$3');
+        }
+
+        return cleanNumber;
+    }
+
+    function formatPhones() {
+        const phoneCells = document.querySelectorAll('.phone-cell');
+        phoneCells.forEach(cell => {
+            const phone = cell.getAttribute('data-phone');
+            const formattedPhone = formatPhoneNumber(phone);
+            cell.textContent = formattedPhone;
+        });
+    }
+
+    function formatPhoneNumber(phone) {
+        // Limpiar el número de posibles caracteres no numéricos
+        const cleanPhone = phone.toString().replace(/\D/g, '');
+
+        // Verificar que tenga 11 dígitos (código de área + número de 7 dígitos)
+        if (cleanPhone.length !== 11) {
+            return phone; // Si no tiene 11 dígitos, devolver sin formato
+        }
+
+        // Formato: (0414)-1234567
+        return cleanPhone.replace(/^(\d{4})(\d{7})$/, '($1)-$2');
+    }
 
     function goToPage(page) {
         let url = new URL(window.location.href);
