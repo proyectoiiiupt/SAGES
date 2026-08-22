@@ -12,6 +12,8 @@ from app.models.institution_type_model import InstitutionType
 from app.models.institution_scope_model import InstitutionScope
 from app.models.institution_dependency_model import InstitutionDependency
 from app.models.status_model import Status
+from app.models.location_model import Location
+from app.models.city_model import City
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_
 import re
@@ -435,42 +437,33 @@ def get_institution_users(institution_id, page=1, per_page=10):
             'next_num': None
         }
 
-def validate_institution_data(institution_data):
+def validate_institution_data(institution_data, is_admin=False):
     """
     Valida los datos de una institución antes de actualizar.
     
     Parámetros:
     - institution_data: dict con datos de la institución a validar
+    - is_admin: booleano que indica si el usuario es administrador
     
     Retorna:
     - tuple: (is_valid, errors) donde is_valid es boolean y errors es dict con errores por campo
     """
     errors = {}
     
-    # Validar teléfono
+    # Validar teléfono (ambos roles)
     if 'phone' in institution_data:
         phone = institution_data['phone']
         if not phone or phone.strip() == '':
             errors['phone'] = 'El teléfono es obligatorio'
         else:
-            # Limpiar guiones para validación
-            clean_phone = phone.replace('-', '').strip()
-            # Validar formato: 0212XXXXXXX o 0414XXXXXXX, etc. (11 dígitos)
-            pattern = r'^(0212|0214|0412|0414|0416|0422|0424|0426)\d{7}$'
+            # Limpiar paréntesis y guiones para validación
+            clean_phone = phone.replace('(', '').replace(')', '').replace('-', '').strip()
+            # Validar formato: 11 dígitos numéricos
+            pattern = r'^\d{11}$'
             if not re.match(pattern, clean_phone):
-                errors['phone'] = 'Formato de teléfono inválido. Debe ser XXXX-XXXXXXX (ej: 0212-1234567)'
+                errors['phone'] = 'Formato de teléfono inválido. Debe ser (XXXX)-XXXXXXX (ej: (0414)-1234567)'
     
-    # Validar nombre de institución
-    if 'institution_name' in institution_data:
-        institution_name = institution_data['institution_name']
-        if not institution_name or institution_name.strip() == '':
-            errors['institution_name'] = 'El nombre de la institución es obligatorio'
-        elif len(institution_name.strip()) < 3:
-            errors['institution_name'] = 'El nombre debe tener al menos 3 caracteres'
-        elif len(institution_name.strip()) > 100:
-            errors['institution_name'] = 'El nombre no puede exceder 100 caracteres'
-    
-    # Validar dirección
+    # Validar dirección (ambos roles)
     if 'address' in institution_data:
         address = institution_data['address']
         if not address or address.strip() == '':
@@ -480,59 +473,111 @@ def validate_institution_data(institution_data):
         elif len(address.strip()) > 200:
             errors['address'] = 'La dirección no puede exceder 200 caracteres'
     
-    # Validar tipo de institución
-    if 'institution_type_id' in institution_data:
-        institution_type_id = institution_data['institution_type_id']
-        if not institution_type_id:
-            errors['institution_type'] = 'Debe seleccionar un tipo de institución'
-        else:
-            try:
-                institution_type_id = int(institution_type_id)
-                type_exists = InstitutionType.query.get(institution_type_id)
-                if not type_exists:
-                    errors['institution_type'] = 'El tipo de institución seleccionado no existe'
-            except (ValueError, TypeError):
-                errors['institution_type'] = 'Tipo de institución inválido'
-    
-    # Validar alcance de institución
-    if 'institution_scope_id' in institution_data:
-        institution_scope_id = institution_data['institution_scope_id']
-        if not institution_scope_id:
-            errors['institution_scope'] = 'Debe seleccionar un alcance de institución'
-        else:
-            try:
-                institution_scope_id = int(institution_scope_id)
-                scope_exists = InstitutionScope.query.get(institution_scope_id)
-                if not scope_exists:
-                    errors['institution_scope'] = 'El alcance de institución seleccionado no existe'
-            except (ValueError, TypeError):
-                errors['institution_scope'] = 'Alcance de institución inválido'
-    
-    # Validar dependencia de institución
-    if 'institution_dependency_id' in institution_data:
-        institution_dependency_id = institution_data['institution_dependency_id']
-        if not institution_dependency_id:
-            errors['institution_dependency'] = 'Debe seleccionar una dependencia de institución'
-        else:
-            try:
-                institution_dependency_id = int(institution_dependency_id)
-                dependency_exists = InstitutionDependency.query.get(institution_dependency_id)
-                if not dependency_exists:
-                    errors['institution_dependency'] = 'La dependencia de institución seleccionada no existe'
-            except (ValueError, TypeError):
-                errors['institution_dependency'] = 'Dependencia de institución inválida'
+    # Validaciones solo para administradores
+    if is_admin:
+        # Validar código de plantel (DEA)
+        if 'plantel_code' in institution_data:
+            plantel_code = institution_data['plantel_code']
+            if not plantel_code or plantel_code.strip() == '':
+                errors['plantel_code'] = 'El código de plantel es obligatorio'
+            else:
+                # Validar formato DEA: XXX-X0000 (ej: DEA-U0001)
+                pattern = r'^[A-Z]{3}-[A-Z]{1}[0-9]{4}$'
+                if not re.match(pattern, plantel_code.upper()):
+                    errors['plantel_code'] = 'Formato de código de plantel inválido. Debe ser XXX-X0000 (ej: DEA-U0001)'
+        
+        # Validar nombre de institución
+        if 'institution_name' in institution_data:
+            institution_name = institution_data['institution_name']
+            if not institution_name or institution_name.strip() == '':
+                errors['institution_name'] = 'El nombre de la institución es obligatorio'
+            elif len(institution_name.strip()) < 3:
+                errors['institution_name'] = 'El nombre debe tener al menos 3 caracteres'
+            elif len(institution_name.strip()) > 100:
+                errors['institution_name'] = 'El nombre no puede exceder 100 caracteres'
+        
+        # Validar tipo de institución
+        if 'institution_type_id' in institution_data:
+            institution_type_id = institution_data['institution_type_id']
+            if not institution_type_id:
+                errors['institution_type'] = 'Debe seleccionar un tipo de institución'
+            else:
+                try:
+                    institution_type_id = int(institution_type_id)
+                    type_exists = InstitutionType.query.get(institution_type_id)
+                    if not type_exists:
+                        errors['institution_type'] = 'El tipo de institución seleccionado no existe'
+                except (ValueError, TypeError):
+                    errors['institution_type'] = 'Tipo de institución inválido'
+        
+        # Validar alcance de institución
+        if 'institution_scope_id' in institution_data:
+            institution_scope_id = institution_data['institution_scope_id']
+            if not institution_scope_id:
+                errors['institution_scope'] = 'Debe seleccionar un alcance de institución'
+            else:
+                try:
+                    institution_scope_id = int(institution_scope_id)
+                    scope_exists = InstitutionScope.query.get(institution_scope_id)
+                    if not scope_exists:
+                        errors['institution_scope'] = 'El alcance de institución seleccionado no existe'
+                except (ValueError, TypeError):
+                    errors['institution_scope'] = 'Alcance de institución inválido'
+        
+        # Validar dependencia de institución
+        if 'institution_dependency_id' in institution_data:
+            institution_dependency_id = institution_data['institution_dependency_id']
+            if not institution_dependency_id:
+                errors['institution_dependency'] = 'Debe seleccionar una dependencia de institución'
+            else:
+                try:
+                    institution_dependency_id = int(institution_dependency_id)
+                    dependency_exists = InstitutionDependency.query.get(institution_dependency_id)
+                    if not dependency_exists:
+                        errors['institution_dependency'] = 'La dependencia de institución seleccionada no existe'
+                except (ValueError, TypeError):
+                    errors['institution_dependency'] = 'Dependencia de institución inválida'
+        
+        # Validar parroquia (ubicación)
+        if 'parish_id' in institution_data:
+            parish_id = institution_data['parish_id']
+            if not parish_id:
+                errors['parish_id'] = 'Debe seleccionar una parroquia'
+            else:
+                try:
+                    parish_id = int(parish_id)
+                    parish_exists = Parish.query.get(parish_id)
+                    if not parish_exists:
+                        errors['parish_id'] = 'La parroquia seleccionada no existe'
+                except (ValueError, TypeError):
+                    errors['parish_id'] = 'Parroquia inválida'
+        
+        # Validar ciudad (ubicación)
+        if 'city_id' in institution_data:
+            city_id = institution_data['city_id']
+            if not city_id:
+                errors['city_id'] = 'Debe seleccionar una ciudad'
+            else:
+                try:
+                    city_id = int(city_id)
+                    city_exists = City.query.get(city_id)
+                    if not city_exists:
+                        errors['city_id'] = 'La ciudad seleccionada no existe'
+                except (ValueError, TypeError):
+                    errors['city_id'] = 'Ciudad inválida'
     
     return len(errors) == 0, errors
 
-def update_institution_contact_infrastructure(institution_id, institution_data):
+def update_institution_contact_infrastructure(institution_id, institution_data, is_admin=False):
     """
     Actualiza los datos de contacto e infraestructura de una institución.
-    Los campos plantel_code y parish_id (ubicación) no pueden ser modificados.
+    Para applicants: solo actualiza teléfono y dirección.
+    Para administradores: actualiza todos los campos incluyendo código de plantel y ubicación.
     
     Parámetros:
     - institution_id: ID de la institución a actualizar
-    - institution_data: dict con datos de la institución (phone, institution_name, 
-      institution_type_id, institution_scope_id, institution_dependency_id, address)
+    - institution_data: dict con datos de la institución
+    - is_admin: booleano que indica si el usuario es administrador
     
     Retorna:
     - tuple: (institution, success, message) si éxito, (None, False, error_message) si error
@@ -545,9 +590,10 @@ def update_institution_contact_infrastructure(institution_id, institution_data):
     try:
         from app.extensions import db
         from app.utils.binnacle_utils import log_action
+        from flask_login import current_user
         
-        # Validar datos antes de procesar
-        is_valid, validation_errors = validate_institution_data(institution_data)
+        # Validar datos antes de procesar según rol
+        is_valid, validation_errors = validate_institution_data(institution_data, is_admin)
         if not is_valid:
             return None, False, 'Errores de validación: ' + '; '.join(validation_errors.values())
         
@@ -558,28 +604,66 @@ def update_institution_contact_infrastructure(institution_id, institution_data):
         # Guardar valores anteriores para bitácora
         old_values = {
             'phone': institution.phone,
-            'institution_name': institution.institution_name,
-            'institution_type_id': institution.institution_type_id,
-            'institution_scope_id': institution.institution_scope_id,
-            'institution_dependency_id': institution.institution_dependency_id,
             'address': institution.address
         }
         
-        # Actualizar datos de la institución (excepto campos bloqueados)
+        if is_admin:
+            # Para administradores, guardar todos los valores anteriores
+            old_values.update({
+                'plantel_code': institution.plantel_code,
+                'institution_name': institution.institution_name,
+                'institution_type_id': institution.institution_type_id,
+                'institution_scope_id': institution.institution_scope_id,
+                'institution_dependency_id': institution.institution_dependency_id,
+                'parish_id': institution.parish_id,
+                'city_id': None
+            })
+            
+            # Obtener ciudad actual
+            if institution.parish and institution.parish.locations and len(institution.parish.locations) > 0:
+                old_values['city_id'] = institution.parish.locations[0].city_id
+        
+        # Actualizar datos según rol
+        # Campos que ambos roles pueden editar
         if 'phone' in institution_data:
-            # Limpiar el teléfono de guiones antes de guardar
-            clean_phone = institution_data['phone'].replace('-', '').strip()
+            # Limpiar el teléfono de paréntesis y guiones antes de guardar
+            clean_phone = institution_data['phone'].replace('(', '').replace(')', '').replace('-', '').strip()
             institution.phone = clean_phone
-        if 'institution_name' in institution_data:
-            institution.institution_name = institution_data['institution_name']
-        if 'institution_type_id' in institution_data:
-            institution.institution_type_id = institution_data['institution_type_id']
-        if 'institution_scope_id' in institution_data:
-            institution.institution_scope_id = institution_data['institution_scope_id']
-        if 'institution_dependency_id' in institution_data:
-            institution.institution_dependency_id = institution_data['institution_dependency_id']
         if 'address' in institution_data:
             institution.address = institution_data['address']
+        
+        # Campos que solo administradores pueden editar
+        if is_admin:
+            if 'plantel_code' in institution_data:
+                institution.plantel_code = institution_data['plantel_code']
+            if 'institution_name' in institution_data:
+                institution.institution_name = institution_data['institution_name']
+            if 'institution_type_id' in institution_data:
+                institution.institution_type_id = institution_data['institution_type_id']
+            if 'institution_scope_id' in institution_data:
+                institution.institution_scope_id = institution_data['institution_scope_id']
+            if 'institution_dependency_id' in institution_data:
+                institution.institution_dependency_id = institution_data['institution_dependency_id']
+            if 'parish_id' in institution_data:
+                institution.parish_id = institution_data['parish_id']
+            
+            # Manejo de ciudad a través de Location
+            if 'city_id' in institution_data and institution_data['city_id']:
+                # Eliminar locations existentes para esta parroquia
+                Location.query.filter_by(parish_id=institution.parish_id).delete()
+                
+                # Obtener ciudad y parroquia de forma segura
+                city = City.query.get(institution_data['city_id'])
+                parish = Parish.query.get(institution.parish_id)
+                
+                # Crear nueva location solo si ambas existen
+                if city and parish:
+                    new_location = Location(
+                        city_id=institution_data['city_id'],
+                        parish_id=institution.parish_id,
+                        name=f"{city.name} - {parish.name}"
+                    )
+                    db.session.add(new_location)
         
         db.session.commit()
         
@@ -588,13 +672,18 @@ def update_institution_contact_infrastructure(institution_id, institution_data):
         
         # Registrar en bitácora
         try:
-            from flask_login import current_user
             from app.utils.binnacle_utils import log_action
+            action_description = f'Actualización de datos de institución {institution.institution_code}'
+            if is_admin:
+                action_description += ' (administrador)'
+            else:
+                action_description += ' (applicant)'
+                
             log_action(
                 user_id=current_user.id if current_user.is_authenticated else None,
                 module='institutions',
                 action_type='UPDATE',
-                description=f'Actualización de datos de institución {institution.institution_code}',
+                description=action_description,
                 old_values=old_values,
                 new_values=institution_data
             )
@@ -604,6 +693,5 @@ def update_institution_contact_infrastructure(institution_id, institution_data):
         return institution, True, 'Datos actualizados exitosamente'
     except Exception as e:
         print(f"Error en update_institution_contact_infrastructure: {e}")
-        from app.extensions import db
         db.session.rollback()
-        return None, False, f'Error: {str(e)}'
+        return None, False, f'Error al actualizar: {str(e)}'

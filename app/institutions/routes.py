@@ -7,6 +7,11 @@ from flask_login import login_required, current_user
 from app.institutions import institutions_bp
 from app.institutions.services import get_all_institutions, get_institution_by_id, get_filter_options, toggle_institution_status, get_institution_users, update_institution_contact_infrastructure
 from app.decorators import role_required
+from app.models.municipality_model import Municipality
+from app.models.parish_model import Parish
+from app.models.city_model import City
+from app.models.state_model import State
+from app.forms.institution_forms import InstitutionEditForm, InstitutionEditApplicantForm
 
 @institutions_bp.route('/', methods=['GET'])
 @login_required
@@ -87,7 +92,11 @@ def view_institution(institution_id):
         institution = get_institution_by_id(institution_id)
         if not institution:
             abort(404)
-        return render_template('institutions/detail.html', institution=institution, is_applicant=False)
+        
+        # Verificar si viene de una edición exitosa
+        show_success = request.args.get('success', 'false') == 'true'
+        
+        return render_template('institutions/detail.html', institution=institution, is_applicant=False, show_success=show_success)
     except Exception as e:
         print(f"Error en view_institution: {e}")
         flash("Error al cargar la institución", 'danger')
@@ -159,33 +168,41 @@ def view_institution_users(institution_id):
 
 @institutions_bp.route('/<int:institution_id>/edit', methods=['GET', 'POST'])
 @login_required
-@role_required('applicant')
+@role_required('applicant', 'state_admin', 'super_admin')
 def edit_institution(institution_id):
     """
     Vista para editar los datos de contacto de una institución.
-    Exclusivamente accesible para applicants (solo su institución afiliada).
+    Accesible para applicants (solo su institución afiliada), state_admin y super_admin.
     
     Funcionalidades:
     - Actualizar datos de contacto (teléfono)
-    - Campos bloqueados: plantel_code y ubicación (parroquia, municipio, estado)
+    - Para applicants: campos bloqueados (plantel_code y ubicación)
+    - Para administradores: edición completa de datos
+    - Usa Flask-WTF para validación de seguridad y reglas de inserción de datos
     """
     try:
-        # Verificar que el usuario tenga persona y personal institucional
-        if not current_user.person or not current_user.person.institutional_staff:
-            flash("No tienes una institución afiliada.", 'warning')
-            return redirect(url_for('home_applicant'))
+        # Verificar el rol del usuario
+        user_role = None
+        if current_user.roles_assoc and len(current_user.roles_assoc) > 0:
+            user_role = current_user.roles_assoc[0].role.name
         
-        # Verificar que la institución sea la suya
-        user_staff = current_user.person.institutional_staff[0]
-        if user_staff.institution_id != institution_id:
-            flash("No tienes permiso para editar esta institución.", 'danger')
-            return redirect(url_for('institutions.my_institution'))
+        # Para applicants, verificar que tenga persona y personal institucional
+        if user_role == 'applicant':
+            if not current_user.person or not current_user.person.institutional_staff:
+                flash("No tienes una institución afiliada.", 'warning')
+                return redirect(url_for('home_applicant'))
+            
+            # Verificar que la institución sea la suya
+            user_staff = current_user.person.institutional_staff[0]
+            if user_staff.institution_id != institution_id:
+                flash("No tienes permiso para editar esta institución.", 'danger')
+                return redirect(url_for('institutions.my_institution'))
         
         institution = get_institution_by_id(institution_id)
         if not institution:
             abort(404)
         
-        # Obtener opciones para los select
+        # Obtener opciones para los select (para el template)
         from app.models.institution_type_model import InstitutionType
         from app.models.institution_scope_model import InstitutionScope
         from app.models.institution_dependency_model import InstitutionDependency
@@ -197,69 +214,131 @@ def edit_institution(institution_id):
         # Crear lista de dependencias para el frontend
         dependencies_list = [{'id': dep.id, 'name': dep.name} for dep in institution_dependencies]
         
-        # Depuración: verificar qué datos tenemos
-        print(f"Dependencias encontradas: {dependencies_list}")
+        # Obtener ciudad actual de la institución
+        current_city_id = None
+        try:
+            if institution.parish and institution.parish.locations and len(institution.parish.locations) > 0:
+                location = institution.parish.locations[0]
+                if location and hasattr(location, 'city_id'):
+                    current_city_id = location.city_id
+        except:
+            current_city_id = None
         
-        if request.method == 'POST':
-            # Recopilar datos de la institución
+        # Seleccionar el formulario WTForms según el rol
+        if user_role == 'applicant':
+            form = InstitutionEditApplicantForm()
+        else:
+            form = InstitutionEditForm()
+        
+        if request.method == 'GET':
+            # Pre-poblar el formulario con datos existentes
+            # Formatear teléfono si viene sin formato de la BD
+            phone_value = institution.phone
+            if phone_value and len(phone_value) == 11 and not phone_value.startswith('('):
+                phone_value = '(' + phone_value[:4] + ')-' + phone_value[4:]
+            
+            # El código de plantel ya viene con el formato correcto de la BD (DEA-U0001)
+            plantel_code_value = institution.plantel_code
+            
+            form.phone.data = phone_value
+            form.address.data = institution.address
+            
+            if user_role != 'applicant':
+                form.plantel_code.data = plantel_code_value
+                form.institution_name.data = institution.institution_name
+                form.institution_type.data = str(institution.institution_type_id) if institution.institution_type_id else ''
+                form.institution_scope.data = str(institution.institution_scope_id) if institution.institution_scope_id else ''
+                form.institution_dependency.data = str(institution.institution_dependency_id) if institution.institution_dependency_id else ''
+                
+                # Manejo seguro de relaciones que pueden ser None
+                try:
+                    if institution.parish and institution.parish.municipality and institution.parish.municipality.state:
+                        form.state_id.data = str(institution.parish.municipality.state_id)
+                    else:
+                        form.state_id.data = ''
+                except:
+                    form.state_id.data = ''
+                
+                try:
+                    if institution.parish and institution.parish.municipality:
+                        form.municipality_id.data = str(institution.parish.municipality_id)
+                    else:
+                        form.municipality_id.data = ''
+                except:
+                    form.municipality_id.data = ''
+                
+                try:
+                    if institution.parish:
+                        form.parish_id.data = str(institution.parish_id)
+                    else:
+                        form.parish_id.data = ''
+                except:
+                    form.parish_id.data = ''
+                
+                form.city_id.data = str(current_city_id) if current_city_id else ''
+            
+            return render_template('institutions/edit.html', institution=institution, is_applicant=(user_role == 'applicant'),
+                                 institution_types=institution_types, institution_scopes=institution_scopes,
+                                 institution_dependencies=institution_dependencies, dependencies_list=dependencies_list,
+                                 current_city_id=current_city_id, form=form)
+        
+        elif request.method == 'POST':
+            # Validar formulario WTForms
+            if not form.validate():
+                # Formulario WTForms inválido - mostrar errores
+                flash('Por favor, corrija los errores en el formulario.', 'danger')
+                return render_template('institutions/edit.html', institution=institution, is_applicant=(user_role == 'applicant'),
+                                     institution_types=institution_types, institution_scopes=institution_scopes,
+                                     institution_dependencies=institution_dependencies, dependencies_list=dependencies_list,
+                                     current_city_id=current_city_id, form=form)
+            
+            # Recopilar datos validados del formulario WTForms
             institution_data = {
-                'phone': request.form.get('phone'),
-                'institution_name': request.form.get('institution_name'),
-                'institution_type_id': request.form.get('institution_type'),
-                'institution_scope_id': request.form.get('institution_scope'),
-                'institution_dependency_id': request.form.get('institution_dependency'),
-                'address': request.form.get('address')
+                'phone': form.phone.data,
+                'address': form.address.data
             }
             
-            # Convertir campos numéricos
-            if institution_data['institution_type_id']:
-                institution_data['institution_type_id'] = int(institution_data['institution_type_id'])
-            if institution_data['institution_scope_id']:
-                institution_data['institution_scope_id'] = int(institution_data['institution_scope_id'])
-            if institution_data['institution_dependency_id']:
-                institution_data['institution_dependency_id'] = int(institution_data['institution_dependency_id'])
+            # Solo agregar campos de administradores si el usuario es administrador
+            if user_role != 'applicant':
+                institution_data.update({
+                    'plantel_code': form.plantel_code.data,
+                    'institution_name': form.institution_name.data,
+                    'institution_type_id': int(form.institution_type.data) if form.institution_type.data else None,
+                    'institution_scope_id': int(form.institution_scope.data) if form.institution_scope.data else None,
+                    'institution_dependency_id': int(form.institution_dependency.data) if form.institution_dependency.data else None,
+                    'parish_id': int(form.parish_id.data) if form.parish_id.data else None,
+                    'city_id': int(form.city_id.data) if form.city_id.data else None
+                })
             
-            # Actualizar institución
+            # Actualizar institución con datos validados por WTForms
             institution, success, message = update_institution_contact_infrastructure(
-                institution_id, institution_data
+                institution_id, institution_data, is_admin=(user_role != 'applicant')
             )
             
-            print(f"Resultado de actualización: success={success}, message={message}")
             if success:
-                print(f"Teléfono después de actualizar: {institution.phone}")
-            
-            if success:
-                flash(message, 'success')
-                return redirect(url_for('institutions.my_institution'))
-            else:
-                # Verificar si es un error de validación
-                if 'Errores de validación:' in message:
-                    # Extraer errores específicos para mostrar en el formulario
-                    validation_errors = {}
-                    error_parts = message.replace('Errores de validación: ', '').split('; ')
-                    for error in error_parts:
-                        if ':' in error:
-                            field, error_msg = error.split(':', 1)
-                            validation_errors[field.strip()] = error_msg.strip()
-                    
-                    flash('Por favor, corrija los errores en el formulario.', 'danger')
-                    return render_template('institutions/edit.html', institution=institution, is_applicant=True, 
-                                         institution_types=institution_types, institution_scopes=institution_scopes, 
-                                         institution_dependencies=institution_dependencies, dependencies_list=dependencies_list,
-                                         validation_errors=validation_errors, form_data=institution_data)
+                # Redirigir según el rol
+                if user_role == 'applicant':
+                    return redirect(url_for('institutions.my_institution', success=True))
                 else:
-                    flash(message, 'danger')
-                    return render_template('institutions/edit.html', institution=institution, is_applicant=True, 
-                                         institution_types=institution_types, institution_scopes=institution_scopes, 
-                                         institution_dependencies=institution_dependencies, dependencies_list=dependencies_list)
-        
-        return render_template('institutions/edit.html', institution=institution, is_applicant=True,
-                             institution_types=institution_types, institution_scopes=institution_scopes,
-                             institution_dependencies=institution_dependencies, dependencies_list=dependencies_list)
+                    return redirect(url_for('institutions.view_institution', institution_id=institution_id, success=True))
+            else:
+                flash(message, 'danger')
+                return render_template('institutions/edit.html', institution=institution, is_applicant=(user_role == 'applicant'),
+                                     institution_types=institution_types, institution_scopes=institution_scopes,
+                                     institution_dependencies=institution_dependencies, dependencies_list=dependencies_list,
+                                     current_city_id=current_city_id, form=form)
     except Exception as e:
         print(f"Error en edit_institution: {e}")
         flash("Error al procesar la solicitud", 'danger')
-        return redirect(url_for('institutions.my_institution'))
+        # Redirigir según el rol
+        user_role = None
+        if current_user.roles_assoc and len(current_user.roles_assoc) > 0:
+            user_role = current_user.roles_assoc[0].role.name
+        
+        if user_role == 'applicant':
+            return redirect(url_for('institutions.my_institution'))
+        else:
+            return redirect(url_for('institutions.view_institution', institution_id=institution_id))
 
 @institutions_bp.route('/my-institution', methods=['GET'])
 @login_required
@@ -272,21 +351,104 @@ def my_institution():
     Muestra el detalle de la institución a la que está afiliado el usuario actual.
     """
     try:
-        # Verificar que el usuario tiene persona y personal institucional
-        if not current_user.person or not current_user.person.institutional_staff:
-            flash("No tienes una institución afiliada.", 'warning')
+        # Verificar que el usuario tiene persona
+        if not current_user.person:
+            print("Error: Usuario no tiene persona asociada")
+            flash("No tienes una institución afiliada. Contacta al administrador.", 'warning')
+            return redirect(url_for('home_applicant'))
+        
+        # Verificar que el usuario tiene personal institucional
+        if not current_user.person.institutional_staff or len(current_user.person.institutional_staff) == 0:
+            print("Error: Usuario no tiene personal institucional asociado")
+            flash("No tienes una institución afiliada. Contacta al administrador.", 'warning')
             return redirect(url_for('home_applicant'))
         
         # Obtener la institución del usuario
         user_staff = current_user.person.institutional_staff[0]
+        print(f"User staff institution_id: {user_staff.institution_id}")
+        
         institution = get_institution_by_id(user_staff.institution_id)
         
         if not institution:
-            flash("Institución no encontrada.", 'danger')
+            print(f"Error: Institución no encontrada con ID {user_staff.institution_id}")
+            flash("Institución no encontrada. Contacta al administrador.", 'danger')
             return redirect(url_for('home_applicant'))
         
-        return render_template('institutions/detail.html', institution=institution, is_applicant=True)
+        print(f"Institución encontrada: {institution.institution_name}")
+        
+        # Verificar si viene de una edición exitosa
+        show_success = request.args.get('success', 'false') == 'true'
+        
+        return render_template('institutions/detail.html', institution=institution, is_applicant=True, show_success=show_success)
     except Exception as e:
         print(f"Error en my_institution: {e}")
-        flash("Error al cargar tu institución.", 'danger')
+        import traceback
+        traceback.print_exc()
+        flash("Error al cargar tu institución. Contacta al administrador.", 'danger')
         return redirect(url_for('home_applicant'))
+
+@institutions_bp.route('/api/states', methods=['GET'])
+@login_required
+def get_states_api():
+    """
+    API para obtener todos los estados.
+    Usado para los selects dinámicos en el formulario de edición.
+    """
+    try:
+        states = State.query.order_by(State.name).all()
+        return jsonify([{'id': s.id, 'name': s.name} for s in states])
+    except Exception as e:
+        print(f"Error en get_states_api: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@institutions_bp.route('/api/cities', methods=['GET'])
+@login_required
+def get_cities_api():
+    """
+    API para obtener ciudades filtradas por parroquia.
+    Usado para los selects dinámicos en el formulario de edición.
+    Si no se proporciona parish_id, no devuelve ninguna ciudad.
+    """
+    try:
+        parish_id = request.args.get('parish_id', type=int)
+        if parish_id:
+            # Obtener ciudades relacionadas con la parroquia a través de la tabla locations
+            from app.models.location_model import Location
+            locations = Location.query.filter_by(parish_id=parish_id).all()
+            city_ids = [loc.city_id for loc in locations]
+            cities = City.query.filter(City.id.in_(city_ids)).order_by(City.name).all()
+            return jsonify([{'id': c.id, 'name': c.name} for c in cities])
+        else:
+            # Si no hay parroquia seleccionada, no cargar ninguna ciudad
+            return jsonify([])
+    except Exception as e:
+        print(f"Error en get_cities_api: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@institutions_bp.route('/api/municipalities/<int:state_id>', methods=['GET'])
+@login_required
+def get_municipalities_api(state_id):
+    """
+    API para obtener municipios de un estado específico.
+    Usado para los selects dinámicos en el formulario de edición.
+    """
+    try:
+        municipalities = Municipality.query.filter_by(state_id=state_id).order_by(Municipality.name).all()
+        return jsonify([{'id': m.id, 'name': m.name} for m in municipalities])
+    except Exception as e:
+        print(f"Error en get_municipalities_api: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@institutions_bp.route('/api/parishes/<int:municipality_id>', methods=['GET'])
+@login_required
+def get_parishes_api(municipality_id):
+    """
+    API para obtener parroquias de un municipio específico.
+    Usado para los selects dinámicos en el formulario de edición.
+    """
+    try:
+        parishes = Parish.query.filter_by(municipality_id=municipality_id).order_by(Parish.name).all()
+        return jsonify([{'id': p.id, 'name': p.name} for p in parishes])
+    except Exception as e:
+        print(f"Error en get_parishes_api: {e}")
+        return jsonify({'error': str(e)}), 500
