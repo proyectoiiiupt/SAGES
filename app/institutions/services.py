@@ -15,19 +15,81 @@ from app.models.status_model import Status
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_
 
-# Código del estado en la tabla State al que se restringe el sistema.
-# Usar código en lugar de nombre para mayor precisión
-DC_STATE_CODE = "ST-024"  # Distrito Capital
-DC_STATE_NAME = "Distrito Capital"  # Backup por si se necesita
-
-# Lista oficial de las 22 parroquias de Distrito Capital (Caracas)
-DC_PARISHES = [
-    "23 de enero", "Altagracia", "Antímano", "Caricuao", "Catedral", 
-    "Coche", "El Junquito", "El Paraíso", "El Recreo", "El Valle", 
-    "La Candelaria", "La Pastora", "La Vega", "Macarao", "San Agustín", 
-    "San Bernardino", "San José", "San Juan", "San Pedro", "Santa Rosalía", 
-    "Santa Teresa", "Sucre (Catia)"
-]
+def get_user_state_info(user):
+    """
+    Obtiene la información del estado al que pertenece un usuario administrador.
+    
+    Esta función centraliza la lógica para determinar el estado de un usuario basándose
+    en su relación con la empresa a través de la ruta: User -> Person -> CompanyStaff -> Place -> Parish -> Municipality -> State.
+    Utiliza state_code en lugar de IDs numéricos para mayor robustez y mantenimiento.
+    
+    Parámetros:
+    - user: objeto User del usuario actual
+    
+    Retorna:
+    - dict con información del estado:
+        - state_id: ID del estado (para queries compatibles)
+        - state_code: Código del estado (identificador robusto)
+        - state_name: Nombre del estado
+    - None si no se puede determinar el estado del usuario
+    """
+    if not user:
+        return None
+    
+    try:
+        from app.models.user_model import User
+        from app.models.person_model import Person
+        from app.models.company_staff_model import CompanyStaff
+        from app.models.place_model import Place
+        from app.models.parish_model import Parish
+        from app.models.municipality_model import Municipality
+        from app.models.state_model import State
+        
+        # Recargar el usuario con todas las relaciones necesarias usando joinedload
+        user_with_relations = User.query.options(
+            joinedload(User.person)
+            .joinedload(Person.company_staff)
+            .joinedload(CompanyStaff.place)
+            .joinedload(Place.parish)
+            .joinedload(Parish.municipality)
+            .joinedload(Municipality.state)
+        ).get(user.id)
+        
+        if not user_with_relations or not user_with_relations.person:
+            return None
+        
+        person = user_with_relations.person
+        if not person.company_staff or len(person.company_staff) == 0:
+            return None
+        
+        company_staff = person.company_staff[0]
+        if not company_staff.place:
+            return None
+        
+        place = company_staff.place
+        if not place.parish:
+            return None
+        
+        parish = place.parish
+        if not parish.municipality:
+            return None
+        
+        municipality = parish.municipality
+        if not municipality.state:
+            return None
+        
+        state = municipality.state
+        
+        return {
+            'state_id': state.id,
+            'state_code': state.state_code,
+            'state_name': state.name
+        }
+    except Exception as e:
+        print(f"Error en get_user_state_info: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
 
 def get_all_institutions(filters=None, user=None, page=1, per_page=10):
     """
@@ -44,45 +106,26 @@ def get_all_institutions(filters=None, user=None, page=1, per_page=10):
     - dict con instituciones paginadas y metadatos de paginación
     
     Restricciones:
-    - Solo muestra instituciones de parroquias específicas de Distrito Capital
+    - Super admin ve todas las instituciones y puede filtrar por cualquier estado
     - Administradores estadales solo ven instituciones de su estado
-    - Super admin ve todas las instituciones permitidas
     """
     try:
-        # Primero, obtener todos los IDs ordenados sin filtros para calcular índices originales
-        base_query = Institution.query
-        # Aplicar las mismas restricciones geográficas que la query principal
-        if user and user.person and user.person.institutional_staff:
-            user_institution = user.person.institutional_staff[0].institution
-            if user_institution and user_institution.parish and user_institution.parish.municipality:
-                user_state_id = user_institution.parish.municipality.state_id
-                if user_state_id == 24:  # ID de Distrito Capital
-                    base_query = base_query.join(Parish).join(Municipality).join(State).filter(
-                        Parish.name.in_(DC_PARISHES),
-                        State.state_code == DC_STATE_CODE
-                    )
-                else:
-                    base_query = base_query.join(Parish).join(Municipality).filter(
-                        Municipality.state_id == user_state_id
-                    )
-            else:
-                base_query = base_query.join(Parish)
-        else:
-            # Para super admin: restringir a las parroquias reales de Distrito Capital
-            base_query = (
-                base_query.join(Parish)
-                .join(Municipality)
-                .join(State)
-                .filter(
-                    Parish.name.in_(DC_PARISHES),
-                    State.state_code == DC_STATE_CODE
-                )
-            )
+        # Verificar si el usuario es super admin
+        is_super_admin = False
+        if user and user.roles_assoc:
+            for role_assoc in user.roles_assoc:
+                if role_assoc.role.name == 'super_admin':
+                    is_super_admin = True
+                    break
         
-        # Obtener todos los IDs ordenados
-        all_ids_query = base_query.order_by(Institution.id.asc())
-        all_ids = [institution.id for institution in all_ids_query.all()]
-        id_to_index = {id: index + 1 for index, id in enumerate(all_ids)}
+        # Obtener información del estado del usuario de forma centralizada (solo para admin estatal)
+        user_state_info = None
+        if not is_super_admin:
+            try:
+                user_state_info = get_user_state_info(user)
+            except Exception as e:
+                print(f"Error obteniendo información del estado: {e}")
+                user_state_info = None
         
         # Cargar relaciones optimizadamente para evitar N+1 queries
         query = Institution.query.options(
@@ -94,38 +137,27 @@ def get_all_institutions(filters=None, user=None, page=1, per_page=10):
             joinedload(Institution.institution_levels).joinedload(InstitutionLevel.educational_level)
         )
 
-        # Para administrador estadal, filtrar por las parroquias reales de su estado
-        if user and user.person and user.person.institutional_staff:
-            user_institution = user.person.institutional_staff[0].institution
-            if user_institution and user_institution.parish and user_institution.parish.municipality:
-                user_state_id = user_institution.parish.municipality.state_id
-                # Si es Distrito Capital, filtrar por lista oficial de parroquias Y estado
-                if user_state_id == 24:  # ID de Distrito Capital
-                    # Agregar joins necesarios para evitar duplicados
-                    query = query.join(Parish).join(Municipality).join(State).filter(
-                        Parish.name.in_(DC_PARISHES),
-                        State.state_code == DC_STATE_CODE
-                    )
-                else:
-                    # Para otros estados, filtrar por estado (se podría agregar listas similares)
-                    query = query.join(Parish).join(Municipality).filter(
-                        Municipality.state_id == user_state_id
-                    )
-            else:
-                query = query.join(Parish)
-        else:
-            # Para super admin: restringir a las parroquias reales de Distrito Capital
-            # Filtrar por lista oficial de parroquias de Caracas Y estado para evitar duplicados
-            # También incluir joins necesarios para filtros posteriores
-            query = (
-                query.join(Parish)
-                .join(Municipality)
-                .join(State)
-                .filter(
-                    Parish.name.in_(DC_PARISHES),
-                    State.state_code == DC_STATE_CODE
-                )
+        # Aplicar restricciones geográficas según el tipo de usuario
+        if user_state_info:
+            # Administrador estadal: filtrar por su estado usando state_code
+            query = query.join(Parish).join(Municipality).join(State).filter(
+                State.state_code == user_state_info['state_code']
             )
+        # Super admin: ver todas las instituciones sin restricciones geográficas iniciales
+        # Pero los joins se agregarán si se filtra por estado
+
+        # Primero, obtener todos los IDs ordenados sin filtros para calcular índices originales
+        base_query = Institution.query
+        # Aplicar las mismas restricciones geográficas que la query principal
+        if user_state_info:
+            base_query = base_query.join(Parish).join(Municipality).join(State).filter(
+                State.state_code == user_state_info['state_code']
+            )
+        
+        # Obtener todos los IDs ordenados
+        all_ids_query = base_query.order_by(Institution.id.asc())
+        all_ids = [institution.id for institution in all_ids_query.all()]
+        id_to_index = {id: index + 1 for index, id in enumerate(all_ids)}
 
         # Ordenar por ID de institución
         query = query.order_by(Institution.id)
@@ -157,49 +189,27 @@ def get_all_institutions(filters=None, user=None, page=1, per_page=10):
             if filters.get('status'):
                 query = query.filter(Institution.status_id == filters['status'])
             if filters.get('state_id'):
-                # Asegurar que los joins necesarios estén presentes
-                # Si el filtro ya fue aplicado por super admin con restricción DC, 
-                # sobrescribirlo cuando el usuario selecciona explícitamente otro estado
-                state_id = filters['state_id']
-                
-                # Para super admin, si selecciona un estado diferente a DC, remover restricción de parroquias
-                if not user or not (user.person and user.person.institutional_staff):
-                    if state_id != 24:  # Si no es Distrito Capital
-                        # Reconstruir query sin restricción de parroquias DC pero manteniendo filtros existentes
-                        query = Institution.query.options(
-                            joinedload(Institution.institution_type),
-                            joinedload(Institution.institution_scope),
-                            joinedload(Institution.institution_dependency),
-                            joinedload(Institution.parish).joinedload(Parish.municipality).joinedload(Municipality.state),
-                            joinedload(Institution.status),
-                            joinedload(Institution.institution_levels).joinedload(InstitutionLevel.educational_level)
-                        ).join(Parish).join(Municipality).join(State)
-                        
-                        # Reaplicar filtros de búsqueda y clasificación que ya se habían aplicado
-                        if filters.get('search_name'):
-                            search_term = filters['search_name']
-                            try:
-                                search_id = int(search_term)
-                                query = query.filter(
-                                    or_(
-                                        Institution.id == search_id,
-                                        Institution.institution_name.ilike(f"%{search_term}%")
-                                    )
-                                )
-                            except ValueError:
-                                query = query.filter(Institution.institution_name.ilike(f"%{search_term}%"))
-                        if filters.get('institution_type'):
-                            query = query.filter(Institution.institution_type_id == filters['institution_type'])
-                        if filters.get('institution_scope'):
-                            query = query.filter(Institution.institution_scope_id == filters['institution_scope'])
-                        if filters.get('institution_dependency'):
-                            query = query.filter(Institution.institution_dependency_id == filters['institution_dependency'])
-                        if filters.get('status'):
-                            query = query.filter(Institution.status_id == filters['status'])
-                
-                query = query.filter(Municipality.state_id == state_id)
+                # Filtro de estado: solo super admin puede filtrar por estado
+                if not user_state_info:
+                    # Asegurar que los joins necesarios estén presentes para el filtro de estado
+                    query = query.join(Parish).join(Municipality).filter(
+                        Municipality.state_id == filters['state_id']
+                    )
+                # Para admin estatal, ignorar filtro de estado ya que está restringido a su estado
             if filters.get('parish_id'):
-                query = query.filter(Institution.parish_id == filters['parish_id'])
+                # Filtro de parroquia: para admin estatal, asegurar que sea de su estado
+                if user_state_info:
+                    # Verificar que la parroquia pertenezca al estado del usuario
+                    parish = Parish.query.get(filters['parish_id'])
+                    if parish and parish.municipality and parish.municipality.state:
+                        if parish.municipality.state.state_code != user_state_info['state_code']:
+                            # Si la parroquia no es del estado del usuario, ignorar el filtro
+                            pass
+                        else:
+                            query = query.filter(Institution.parish_id == filters['parish_id'])
+                else:
+                    # Super admin puede filtrar por cualquier parroquia
+                    query = query.filter(Institution.parish_id == filters['parish_id'])
 
         # Obtener total de registros para paginación
         total = query.count()
@@ -239,8 +249,7 @@ def get_all_institutions(filters=None, user=None, page=1, per_page=10):
             'has_prev': False,
             'has_next': False,
             'prev_num': None,
-            'next_num': None,
-            'total_all': 0
+            'next_num': None
         }
 
 def get_institution_by_id(institution_id):
@@ -287,42 +296,50 @@ def get_filter_options(user=None):
         # Solo mostrar estatus activo e inactivo para filtros
         statuses = Status.query.filter(Status.status_code.in_(['STAT-001', 'STAT-002'])).all()
 
-        # Obtener todos los estados
-        states = State.query.order_by(State.name).all()
+        # Verificar si el usuario es super admin
+        is_super_admin = False
+        if user and user.roles_assoc:
+            for role_assoc in user.roles_assoc:
+                if role_assoc.role.name == 'super_admin':
+                    is_super_admin = True
+                    break
+        
+        # Obtener información del estado del usuario de forma centralizada (solo para admin estatal)
+        user_state_info = None
+        if not is_super_admin:
+            try:
+                user_state_info = get_user_state_info(user)
+            except Exception as e:
+                print(f"Error obteniendo información del estado: {e}")
+                user_state_info = None
 
-        # Filtrar parroquias según el usuario
-        if user and user.person and user.person.institutional_staff:
-            # Obtener el estado del usuario a través de su institución
-            user_institution = user.person.institutional_staff[0].institution
-            if user_institution and user_institution.parish and user_institution.parish.municipality:
-                user_state_id = user_institution.parish.municipality.state_id
-                # Si es Distrito Capital, usar lista oficial de parroquias con verificación de estado
-                if user_state_id == 24:  # ID de Distrito Capital
-                    parishes = Parish.query.join(Municipality).join(State).filter(
-                        Parish.name.in_(DC_PARISHES),
-                        State.state_code == DC_STATE_CODE
-                    ).order_by(Parish.name).all()
-                else:
-                    # Para otros estados, filtrar por estado
-                    parishes = Parish.query.join(Municipality).filter(
-                        Municipality.state_id == user_state_id
-                    ).order_by(Parish.name).all()
-            else:
-                parishes = []
+        # Filtrar estados y parroquias según el tipo de usuario
+        if user_state_info:
+            # Administrador estadal: solo ver su estado y sus parroquias (sin duplicados por nombre)
+            states = [State.query.filter_by(state_code=user_state_info['state_code']).first()]
+            # Obtener todas las parroquias del estado
+            all_parishes = Parish.query.join(Municipality).join(State).filter(
+                State.state_code == user_state_info['state_code']
+            ).order_by(Parish.name, Parish.id).all()
+            # Eliminar duplicados por nombre usando Python (más seguro que GROUP BY)
+            seen_names = set()
+            parishes = []
+            for parish in all_parishes:
+                if parish.name not in seen_names:
+                    seen_names.add(parish.name)
+                    parishes.append(parish)
         else:
-            # Para super admin: parroquias reales de Distrito Capital
-            # Filtrar por lista oficial de parroquias de Caracas Y estado para evitar duplicados
-            parishes = (
-                Parish.query
-                .join(Municipality)
-                .join(State)
-                .filter(
-                    Parish.name.in_(DC_PARISHES),
-                    State.state_code == DC_STATE_CODE
-                )
-                .order_by(Parish.name)
-                .all()
-            )
+            # Super admin: ver todos los estados y todas las parroquias
+            states = State.query.order_by(State.name).all()
+            # Obtener todas las parroquias
+            all_parishes = Parish.query.order_by(Parish.name, Parish.id).all()
+            # Eliminar duplicados por nombre usando Python
+            seen_names = set()
+            parishes = []
+            for parish in all_parishes:
+                if parish.name not in seen_names:
+                    seen_names.add(parish.name)
+                    parishes.append(parish)
 
         return {
             'institution_types': institution_types,

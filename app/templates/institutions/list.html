@@ -30,71 +30,72 @@
     {# Sección de filtros para búsqueda y filtrado de instituciones #}
     <div class="filters-container">
         <div class="filters-section">
-            <div class="filter-row">
-                {# Campo de búsqueda por nombre o ID con debounce para evitar múltiples consultas #}
-                <div class="filter-group search-group">
-                    <input type="text" name="search_name" id="search_name"
-                           value="{{ current_filters.search_name if current_filters.search_name else '' }}"
-                           placeholder="Buscar por Nombre/ID"
-                           oninput="debouncedSearch()">
-                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                </div>
+            <form method="GET" action="{{ url_for('institutions.list_institutions') }}">
+                <div class="filter-row">
+                    {# Campo de búsqueda por nombre o ID con debounce para evitar múltiples consultas #}
+                    <div class="filter-group search-group">
+                        <input type="text" name="search_name" id="search_name"
+                               value="{{ current_filters.search_name if current_filters.search_name else '' }}"
+                               placeholder="Buscar por Nombre/ID"
+                               oninput="debouncedSearch()">
+                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                    </div>
 
-                {# Filtro por tipo de institución #}
-                <div class="filter-group">
-                    <select name="institution_type" id="institution_type" onchange="updateFilters()">
-                        <option value="">Tipo de Institución</option>
-                        {% for type in filter_options.institution_types %}
-                        <option value="{{ type.id }}" {% if current_filters.institution_type == type.id %}selected{% endif %}>
-                            {{ type.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
+                    {# Filtro por tipo de institución #}
+                    <div class="filter-group">
+                        <select name="institution_type" id="institution_type" onchange="this.form.submit()">
+                            <option value="">Tipo de Institución</option>
+                            {% for type in filter_options.institution_types %}
+                            <option value="{{ type.id }}" {% if current_filters.institution_type == type.id %}selected{% endif %}>
+                                {{ type.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
 
-                {# Filtro por dependencia #}
-                <div class="filter-group">
-                    <select name="institution_dependency" id="institution_dependency" onchange="updateFilters()">
-                        <option value="">Dependencia</option>
-                        {% for dependency in filter_options.institution_dependencies %}
-                        <option value="{{ dependency.id }}" {% if current_filters.institution_dependency == dependency.id %}selected{% endif %}>
-                            {{ dependency.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
+                    {# Filtro por dependencia #}
+                    <div class="filter-group">
+                        <select name="institution_dependency" id="institution_dependency" onchange="this.form.submit()">
+                            <option value="">Dependencia</option>
+                            {% for dependency in filter_options.institution_dependencies %}
+                            <option value="{{ dependency.id }}" {% if current_filters.institution_dependency == dependency.id %}selected{% endif %}>
+                                {{ dependency.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
 
-                {# Filtro geográfico según rol: Estado para super_admin, Parroquia para state_admin #}
-                {% if current_user.roles_assoc[0].role.name == 'super_admin' %}
-                <div class="filter-group">
-                    <select name="state_id" id="state_id" onchange="updateFilters()">
-                        <option value="">Estado</option>
-                        {% for state in filter_options.states %}
-                        <option value="{{ state.id }}" {% if current_filters.state_id == state.id %}selected{% endif %}>
-                            {{ state.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                {% else %}
-                <div class="filter-group">
-                    <select name="parish_id" id="parish_id" onchange="updateFilters()">
-                        <option value="">Parroquia</option>
-                        {% for parish in filter_options.parishes %}
-                        <option value="{{ parish.id }}" {% if current_filters.parish_id == parish.id %}selected{% endif %}>
-                            {{ parish.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                {% endif %}
+                    {# Filtro geográfico según rol: Estado para super_admin, Parroquia para state_admin #}
+                    {% if current_user.roles_assoc[0].role.name == 'super_admin' %}
+                    <div class="filter-group">
+                        <select name="state_id" id="state_id" onchange="this.form.submit()">
+                            <option value="">Estado</option>
+                            {% for state in filter_options.states %}
+                            <option value="{{ state.id }}" {% if current_filters.state_id == state.id %}selected{% endif %}>
+                                {{ state.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% else %}
+                    <div class="filter-group">
+                        <select name="parish_id" id="parish_id" onchange="this.form.submit()">
+                            <option value="">Parroquia</option>
+                            {% for parish in filter_options.parishes %}
+                            <option value="{{ parish.id }}" {% if current_filters.parish_id == parish.id %}selected{% endif %}>
+                                {{ parish.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
 
                 {# Filtro por estatus (Activo/Inactivo) #}
                 <div class="filter-group">
-                    <select name="status" id="status" onchange="updateFilters()">
+                    <select name="status" id="status" onchange="this.form.submit()">
                         <option value="">Estatus</option>
                         {% for status in filter_options.statuses %}
                         <option value="{{ status.id }}" {% if current_filters.status == status.id %}selected{% endif %}>
@@ -109,6 +110,7 @@
                     <a href="{{ url_for('institutions.list_institutions') }}" class="btn-clear">Limpiar</a>
                 </div>
             </div>
+            </form>
         </div>
     </div>
 
