@@ -1,189 +1,99 @@
-# IMPORTACIONES Y CONFIGURACIÓN INICIAL DEL SISTEMA SMTP (Líneas 1-10)
-# Importa librerías para manejo de fechas, protocolo SMTP, creación de emails MIME y variables de entorno.
-# Configura almacenamiento en memoria para tokens de recuperación temporal.
-from datetime import datetime, timedelta
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 import os
-from flask import current_app
+import smtplib
+from email.message import EmailMessage
 
-_tokens = {}
-
-
-# FUNCIÓN DE GENERACIÓN DE TOKENS (Líneas 14-20)
-# Genera y almacena un token temporal con expiración de 5 minutos por defecto.
-def set_token(email: str, code: str, minutes: int = 5):
-    key = email.lower()
-    _tokens[key] = {
-        'code': code,
-        'expires_at': datetime.utcnow() + timedelta(minutes=minutes),
-        'attempts': 0
-    }
-
-
-# FUNCIÓN DE VERIFICACIÓN Y CONSUMO DE TOKENS (Líneas 25-35)
-# Verifica si el token es válido y lo elimina después de usarlo.
-def verify_token(email: str, code: str) -> bool:
-    key = email.lower()
-    entry = _tokens.get(key)
-    if not entry:
+def send_recovery_email(to_email: str, code: str) -> bool:
+    
+    smtp_user = os.getenv('SMTP_USER') or os.getenv('EMAIL_USER') or 'proyectoiiiupt@gmail.com'
+    smtp_pass = os.getenv('SMTP_PASS')
+    if not smtp_pass:
+        print('SMTP_PASS no configurada; no se envió el correo.')
         return False
-    if entry['code'] != code:
-        return False
-    if datetime.utcnow() > entry['expires_at']:
-        _tokens.pop(key, None)
-        return False
-    _tokens.pop(key, None)
-    return True
 
+    msg = EmailMessage()
+    msg['Subject'] = 'Código de recuperación'
+    msg['From'] = smtp_user
+    msg['To'] = to_email
 
-# FUNCIÓN DE VALIDACIÓN DE INTENTOS (Líneas 40-61)
-# Valida token con manejo de intentos fallidos y bloqueo después de 3 intentos incorrectos.
-# Retorna estados: VALID, INVALID, EXPIRED, BLOCKED.
-def validate_token_attempt(email: str, code: str, max_attempts: int = 3) -> str:
-    key = email.lower()
-    entry = _tokens.get(key)
-    if not entry:
-        return 'EXPIRED'
+    # Versión en texto plano (Respaldo)
+    text_content = f"Hola,\n\nSu código de recuperación es: {code}\n\nEste código expira en 5 minutos.\n\nSi no solicitó esto, ignore este mensaje."
+    msg.set_content(text_content)
 
-    if datetime.utcnow() > entry['expires_at']:
-        _tokens.pop(key, None)
-        return 'EXPIRED'
+    # El archivo está en app/utils/, por lo que app/ está un directorio arriba
+    logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'img', 'logo_corpoelec.png')
+    has_logo = os.path.exists(logo_path)
 
-    if entry.get('attempts', 0) >= max_attempts:
-        _tokens.pop(key, None)
-        return 'BLOCKED'
+    logo_html = ""
+    if has_logo:
+        logo_html = '<img src="cid:logo_corpoelec" alt="CORPOELEC" style="max-width: 220px; height: auto; display: block; border: 0;">'
+    else:
+        logo_html = '<span style="font-size: 24px; font-weight: 800; color: #1c3d73; letter-spacing: 1px;">(⚡) CORPOELEC</span>'
 
-    if entry['code'] != code:
-        entry['attempts'] = entry.get('attempts', 0) + 1
-        if entry['attempts'] >= max_attempts:
-            _tokens.pop(key, None)
-            return 'BLOCKED'
-        return 'INVALID'
+    # Versión en HTML estilizado
+    html_content = f"""<!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <title>Código de Verificación</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9fafb; color: #1f2937;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb; overflow: hidden;">
+            <tr>
+                <td style="height: 6px; background: linear-gradient(90deg, #1c3d73 0%, #1fcab0 100%);"></td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 40px 20px 20px 20px;">
+                    {logo_html}
+                    <h1 style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.5;">Sistema de Gestión de Solicitudes</h1>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 0 40px;">
+                    <h2 style="font-size: 22px; font-weight: 700; color: #1f2937; margin: 10px 0 20px 0; text-transform: uppercase; letter-spacing: 0.5px;">CÓDIGO DE VERIFICACIÓN</h2>
+                    <p style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.5;">Su código de seguridad es:</p>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 0 40px;">
+                    <div style="background-color: #f3f4f6; border-radius: 12px; padding: 20px 30px; display: inline-block; min-width: 200px; text-align: center; border: 1px solid #e5e7eb;">
+                        <span style="font-size: 36px; font-weight: 800; color: #1c3d73; letter-spacing: 6px; font-family: monospace;">{code}</span>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 30px 40px 40px 40px;">
+                    <hr style="border: 0; border-top: 1px solid #e5e7eb; margin-bottom: 25px;">
+                    <p style="font-size: 12px; color: #9ca3af; line-height: 1.6; margin: 0; text-align: justify;">
+                        Este es un código de seguridad autorizado únicamente para el consumo del receptor, el cual debe permanecer privado y no deberá ser compartido por ningún medio.
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
+                    &copy; 2026 SAGES. Todos los derechos reservados.
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+    msg.add_alternative(html_content, subtype='html')
 
-    return 'VALID'
+    if has_logo:
+        try:
+            with open(logo_path, 'rb') as f:
+                # payload[0] es text/plain, payload[1] es text/html
+                msg.get_payload()[1].add_related(f.read(), 'image', 'png', cid='logo_corpoelec')
+        except Exception as e:
+            print(f"Error al adjuntar imagen inline: {e}")
 
-
-# FUNCIÓN DE CÁLCULO DE TIEMPO RESTANTE (Líneas 66-71)
-# Calcula los segundos restantes antes de que expire el token para mostrar cuenta regresiva en la UI.
-def get_remaining_seconds(email: str) -> int:
-    key = email.lower()
-    entry = _tokens.get(key)
-    if not entry:
-        return 0
-    remaining = entry['expires_at'] - datetime.utcnow()
-    return max(0, int(remaining.total_seconds()))
-
-
-# FUNCIÓN PRINCIPAL DE ENVÍO DE EMAILS SMTP (Líneas 79-184)
-# Envía correo con código de recuperación usando SMTP directo (Gmail).
-# Configura conexión SMTP, crea mensaje MIME con versión texto plano y HTML, y maneja errores con fallback para desarrollo.
-def send_recovery_email(email: str, code: str) -> bool:
     try:
-        # Configuración SMTP desde variables de entorno
-        mail_server = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
-        mail_port = int(os.environ.get('MAIL_PORT', 587))
-        mail_use_tls = os.environ.get('MAIL_USE_TLS', 'True').lower() == 'true'
-        mail_username = os.environ.get('MAIL_USERNAME')
-        mail_password = os.environ.get('MAIL_PASSWORD')
-
-        # Fallback para desarrollo sin configuración de correo
-        if not mail_username or not mail_password:
-            if os.environ.get('FLASK_ENV') == 'development':
-                print(f"=== SIMULACIÓN DE ENVÍO DE CORREO ===")
-                print(f"Para: {email}")
-                print(f"Código: {code}")
-                print(f"=====================================")
-                return True
-            return False
-
-        # Crear mensaje MIME con versión texto plano y HTML
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = 'SAGES - Código de Recuperación de Contraseña'
-        msg['From'] = mail_username
-        msg['To'] = email
-
-        # Versión texto plano
-        text_part = MIMEText(f'''Hola,
-
-Tu código de recuperación de contraseña es: {code}
-
-Este código expirará en 5 minutos.
-
-Si no solicitaste este código, por favor ignora este correo.
-
----
-Sistema SAGES - CORPOELEC
-Gestión de Solicitudes de Servicios de Formación Comunitaria UREE''', 'plain')
-
-        # Versión HTML con estilos
-        html_part = MIMEText(f'''<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <style>
-        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-        .header {{ background: #1a73e8; color: white; padding: 20px; text-align: center; }}
-        .content {{ padding: 20px; background: #f8f9fa; }}
-        .code {{ font-size: 24px; font-weight: bold; background: #e8f0fe; padding: 15px; text-align: center; margin: 20px 0; border-radius: 5px; letter-spacing: 3px; }}
-        .footer {{ text-align: center; padding: 20px; font-size: 12px; color: #666; }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h2>SAGES - CORPOELEC</h2>
-            <p>Sistema de Gestión de Solicitudes</p>
-        </div>
-        <div class="content">
-            <h3>Código de Recuperación de Contraseña</h3>
-            <p>Hola,</p>
-            <p>Tu código de recuperación de contraseña es:</p>
-            <div class="code">{code}</div>
-            <p><strong>Este código expirará en 5 minutos.</strong></p>
-            <p>Si no solicitaste este código, por favor ignora este correo.</p>
-        </div>
-        <div class="footer">
-            <p>Sistema Automatizado de Gestión de Solicitudes de Servicios de Formación Comunitaria UREE (CORPOELEC)</p>
-        </div>
-    </div>
-</body>
-</html>''', 'html')
-
-        msg.attach(text_part)
-        msg.attach(html_part)
-
-        # Conexión y envío por SMTP
-        with smtplib.SMTP(mail_server, mail_port) as server:
-            if mail_use_tls:
-                server.starttls()
-            server.login(mail_username, mail_password)
-            server.send_message(msg)
-
+        with smtplib.SMTP('smtp.gmail.com', 587) as smtp:
+            smtp.ehlo()
+            smtp.starttls()
+            smtp.login(smtp_user, smtp_pass)
+            smtp.send_message(msg)
         return True
-
-    except smtplib.SMTPAuthenticationError as e:
-        # Fallback para desarrollo con error de autenticación
-        if os.environ.get('FLASK_ENV') == 'development':
-            print(f"❌ ERROR DE AUTENTICACIÓN SMTP: {e}")
-            print(f"❌ La contraseña de aplicación de Gmail no es válida o ha expirado.")
-            print(f"❌ Genera una nueva contraseña en: https://myaccount.google.com/apppasswords")
-            print(f"=== SIMULACIÓN DE ENVÍO DE CORREO (FALLBACK) ===")
-            print(f"Para: {email}")
-            print(f"Código: {code}")
-            print(f"=====================================")
-            return True
-        return False
     except Exception as e:
-        # Fallback para desarrollo con errores generales
-        if os.environ.get('FLASK_ENV') == 'development':
-            print(f"Error enviando correo: {e}")
-            print(f"Código generado: {code} para {email}")
-            print(f"=== SIMULACIÓN DE ENVÍO DE CORREO (FALLBACK) ===")
-            print(f"Para: {email}")
-            print(f"Código: {code}")
-            print(f"=====================================")
-            return True
+        print(f'Error enviando correo: {e}')
         return False
