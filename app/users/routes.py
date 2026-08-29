@@ -14,7 +14,7 @@ from app.models.place_model import Place
 from app.models.parish_model import Parish
 from app.models.municipality_model import Municipality
 
-
+# Definimos el blueprint
 users_bp = Blueprint('users', __name__)
 
 def format_identification(id_type, id_number):
@@ -38,6 +38,7 @@ def format_identification(id_type, id_number):
         return f"{clean_type}-{formatted_num}"
     except ValueError:
         return f"{clean_type}-{clean_num}"
+
 
 @users_bp.route('/list', methods=['GET'])
 @login_required
@@ -65,11 +66,13 @@ def list_users():
     }
 
     try:
+        # 1. Cargamos los catálogos base
         db_roles = Role.query.all()
         db_states = State.query.all()
         db_municipalities = []
         db_parishes = []
         
+        # Traducimos los roles usando versiones cortas
         for r in db_roles:
             if r.name == 'super_admin':
                 r.translated_name = 'Super Admin'
@@ -82,12 +85,14 @@ def list_users():
 
         query = User.query.outerjoin(Person)
         
+        # El Admin Estadal solo debe ver a los roles solicitantes
         if user_role == 'state_admin':
             applicant_roles = [r.id for r in db_roles if r.name in ['applicant', 'director', 'directora']]
             if applicant_roles:
                 conditions = [User.roles_assoc.any(role_id=r_id) for r_id in applicant_roles]
                 query = query.filter(or_(*conditions))
 
+        # --- FILTRO GEOGRÁFICO DINÁMICO ---
         target_state_id = None
         
         if user_role == 'state_admin' and current_user.person:
@@ -105,11 +110,13 @@ def list_users():
         if target_state_id:
             db_municipalities = Municipality.query.filter_by(state_id=target_state_id).all()
             
+            # FILTRO DINÁMICO DE PARROQUIA: Solo cargar parroquias si hay municipio seleccionado
             if filter_municipality and filter_municipality.isdigit():
                 db_parishes = Parish.query.filter_by(municipality_id=int(filter_municipality)).all()
             else:
                 db_parishes = []
             
+            # Evaluación de filtros seleccionados
             if filter_parish and filter_parish.isdigit():
                 parish_ids = [int(filter_parish)]
             elif filter_municipality and filter_municipality.isdigit():
@@ -129,6 +136,7 @@ def list_users():
                 query = query.filter(User.id == 0)
         elif user_role == 'state_admin' and not target_state_id:
              query = query.filter(User.id == 0)
+        # --- FIN DEL FILTRO GEOGRÁFICO ---
             
         if search_query:
             search_pattern = f"%{search_query}%"
@@ -155,6 +163,7 @@ def list_users():
         pagination = query.order_by(User.id.desc()).paginate(page=page, per_page=10, error_out=False)
         users_list = pagination.items
 
+        # Rescatamos datos de institución, ubicación y cédula formateada para cada usuario
         for u in users_list:
             u.state_name = "Sin Asignar"
             u.institution_name = "N/A"
