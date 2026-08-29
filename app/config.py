@@ -6,6 +6,9 @@ class Config:
     # Seguridad
     SECRET_KEY = os.environ.get('SECRET_KEY', 'default-dev-key')
     
+    # CSRF Protection para Flask-WTF
+    WTF_CSRF_ENABLED = True
+    
     # Base de Datos
     DB_USER = os.environ.get('DB_USER', 'postgres')
     DB_PASSWORD = os.environ.get('DB_PASSWORD', '')

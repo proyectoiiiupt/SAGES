@@ -21,7 +21,7 @@ def seed_institutions():
             "institution_dependency_code": "DEP-008", # Autónoma
             "parish_code": "PAR-1134", # San Pedro
             "address": "Ciudad Universitaria de Caracas, Los Chaguaramos.",
-            "phone": "0212-6050000",
+            "phone": "02126050000",
             "status_code": "STAT-001" # Activo
         },
         {
@@ -33,7 +33,7 @@ def seed_institutions():
             "institution_dependency_code": "DEP-001", # Nacional (Supervisión MPPEU)
             "parish_code": "PAR-1118", # Antímano
             "address": "Av. Teherán, Montalbán.",
-            "phone": "0212-4072000",
+            "phone": "02124072000",
             "status_code": "STAT-001"
         },
         {
@@ -45,7 +45,7 @@ def seed_institutions():
             "institution_dependency_code": "DEP-001", # Nacional
             "parish_code": "PAR-1123", # El Paraíso
             "address": "Av. Páez, frente a la Plaza Washington.",
-            "phone": "0212-4820011",
+            "phone": "02124820011",
             "status_code": "STAT-001"
         },
         {
@@ -57,7 +57,7 @@ def seed_institutions():
             "institution_dependency_code": "DEP-001", # Nacional (Supervisión MPPE)
             "parish_code": "PAR-1117", # Altagracia
             "address": "Esquina de Tienda Honda a Santa Bárbara.",
-            "phone": "0212-8611122",
+            "phone": "02128611122",
             "status_code": "STAT-001"
         },
         {
@@ -69,7 +69,7 @@ def seed_institutions():
             "institution_dependency_code": "DEP-001", # Nacional
             "parish_code": "PAR-1123", # El Paraíso
             "address": "Av. San Martín, cruce con calle La Paz.",
-            "phone": "0212-4512233",
+            "phone": "02124512233",
             "status_code": "STAT-001"
         },
         {
@@ -81,7 +81,7 @@ def seed_institutions():
             "institution_dependency_code": "DEP-004", # Subvencionada / Convenio MPPE
             "parish_code": "PAR-1121", # Coche
             "address": "Sector La Rinconada, adyacente al Hipódromo.",
-            "phone": "0212-6813344",
+            "phone": "02126813344",
             "status_code": "STAT-001"
         },
         {
@@ -93,7 +93,7 @@ def seed_institutions():
             "institution_dependency_code": "DEP-003", # Municipal
             "parish_code": "PAR-1128", # La Vega
             "address": "Bulevar de La Vega, calle principal.",
-            "phone": "0212-4724455",
+            "phone": "02124724455",
             "status_code": "STAT-001"
         },
         {
@@ -105,7 +105,7 @@ def seed_institutions():
             "institution_dependency_code": "DEP-001", # Nacional (Supervisión)
             "parish_code": "PAR-1124", # El Recreo
             "address": "Av. Casanova, Sabana Grande.",
-            "phone": "0212-7625566",
+            "phone": "02127625566",
             "status_code": "STAT-001"
         },
         {
@@ -117,7 +117,7 @@ def seed_institutions():
             "institution_dependency_code": "DEP-004", # Subvencionada
             "parish_code": "PAR-1138", # 23 de enero
             "address": "Bloque 7, Zona F, 23 de Enero.",
-            "phone": "0212-8586677",
+            "phone": "02128586677",
             "status_code": "STAT-001"
         },
         {
@@ -129,7 +129,7 @@ def seed_institutions():
             "institution_dependency_code": "DEP-002", # Estadal (Gobierno del Distrito Capital)
             "parish_code": "PAR-1125", # El Valle
             "address": "Calle 14 de Los Jardines del Valle.",
-            "phone": "0212-6717788",
+            "phone": "02126717788",
             "status_code": "STAT-001"
         },
         {
@@ -141,7 +141,7 @@ def seed_institutions():
             "institution_dependency_code": "DEP-001", # Nacional
             "parish_code": "PAR-1126", # La Candelaria
             "address": "Av. México, frente a la Galería de Arte Nacional.",
-            "phone": "0212-5718899",
+            "phone": "02125718899",
             "status_code": "STAT-001"
         }
     ]

@@ -1,4 +1,4 @@
-{#
+{# 
     Template: Detalle de Institución
     Muestra información completa de una institución específica con opción de cambiar estatus.
     Solo accesible para usuarios con roles super_admin y state_admin.
@@ -28,6 +28,15 @@
     </div>
 
     <div class="page-actions" style="margin-bottom: 1rem;">
+        {% if is_applicant %}
+        <a href="{{ url_for('home_applicant') }}" class="back-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Volver al inicio
+        </a>
+        {% else %}
         <a href="{{ url_for('institutions.list_institutions') }}" class="back-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12"></line>
@@ -35,6 +44,19 @@
             </svg>
             Volver a la lista
         </a>
+        {% endif %}
+        
+        {% if is_applicant %}
+        <a href="{{ url_for('institutions.edit_institution', institution_id=institution.id) }}" class="btn-edit" title="Editar datos de contacto">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+            Editar datos
+        </a>
+        {% endif %}
+        
+        {% if not is_applicant %}
         <a href="{{ url_for('institutions.view_institution_users', institution_id=institution.id) }}" class="btn-view-users" title="Ver usuarios afiliados">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -44,6 +66,7 @@
             </svg>
             Ver usuarios afiliados
         </a>
+        {% endif %}
     </div>
 
     <div class="institution-detail">
@@ -72,7 +95,13 @@
                     </div>
                     <div class="detail-row">
                         <span class="label">Teléfono:</span>
-                        <span class="value">{{ institution.phone or 'No registrado' }}</span>
+                        <span class="value">
+                            {% if institution.phone and institution.phone|length == 11 %}
+                                {{ institution.phone[:4] }}-{{ institution.phone[4:] }}
+                            {% else %}
+                                {{ institution.phone or 'No registrado' }}
+                            {% endif %}
+                        </span>
                     </div>
                 </div>
 
@@ -124,67 +153,27 @@
                         <span class="label">Parroquia:</span>
                         <span class="value">{{ institution.parish.name if institution.parish else 'No asignada' }}</span>
                     </div>
-                    <div class="detail-row">
-                        <span class="label">Ciudad:</span>
-                        <span class="value">
-                            {% if institution.parish and institution.parish.locations and institution.parish.locations|length > 0 %}
-                                {{ institution.parish.locations[0].city.name if institution.parish.locations[0].city else 'No asignada' }}
-                            {% else %}
-                                No asignada
-                            {% endif %}
-                        </span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="label">Dirección:</span>
-                        <span class="value">{{ institution.address }}</span>
-                    </div>
                 </div>
             </div>
+
+            {% if not is_applicant %}
+            <div class="detail-actions">
+                <button class="toggle-status-btn" id="toggle-btn"
+                        data-institution-id="{{ institution.id }}"
+                        data-current-status="{{ institution.status.status_code }}"
+                        title="Cambiar estatus">
+                    <span class="toggle-slider"></span>
+                </button>
+                <span class="toggle-label">Cambiar estatus</span>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // Set dynamic date in Spanish format
-        const dateElement = document.getElementById('current-date');
-        if (dateElement) {
-            const options = { day: 'numeric', month: 'long', year: 'numeric' };
-            const today = new Date();
-            const formattedDate = today.toLocaleDateString('es-ES', options);
-            dateElement.textContent = formattedDate.replace(' de 20', ', 20');
-        }
-
-        // Formatear teléfono institucional
-        const phoneDisplay = document.getElementById('phone-display');
-        if (phoneDisplay) {
-            const phoneNumber = phoneDisplay.textContent.trim();
-            
-            // Solo formatear si es un número válido de 11 dígitos y no es "No registrado"
-            if (phoneNumber && phoneNumber !== 'No registrado' && /^\d{11}$/.test(phoneNumber)) {
-                const formattedPhone = formatPhoneNumber(phoneNumber);
-                phoneDisplay.textContent = formattedPhone;
-            }
-        }
-
-        // Función para formatear número de teléfono venezolano
-        function formatPhoneNumber(phone) {
-            // Remover cualquier carácter que no sea dígito
-            const cleaned = phone.replace(/\D/g, '');
-            
-            // Verificar que tenga 11 dígitos (formato venezolano)
-            if (cleaned.length === 11) {
-                // Formato: (0414)-1234567
-                const code = cleaned.substring(0, 4);
-                const number = cleaned.substring(4);
-                return `(${code})-${number}`;
-            }
-            
-            // Si no tiene el formato esperado, retornar el original
-            return phone;
-        }
-    });
-</script>
+{% if not is_applicant %}
+<script src="{{ url_for('static', filename='JS/institution-toggle.js') }}"></script>
+{% endif %}
 {% endblock %}
