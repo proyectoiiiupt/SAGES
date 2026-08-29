@@ -42,6 +42,7 @@ def format_identification(id_type, id_number):
     except ValueError:
         return f"{clean_type}-{clean_num}"
 
+
 @users_bp.route('/list', methods=['GET'])
 @login_required
 def list_users():
@@ -85,6 +86,7 @@ def list_users():
 
         query = User.query.outerjoin(Person)
         
+        # El Admin Estadal solo debe ver a los roles solicitantes
         if user_role == 'state_admin':
             applicant_roles = [r.id for r in db_roles if r.name in ['applicant', 'director', 'directora']]
             if applicant_roles:
@@ -108,11 +110,13 @@ def list_users():
         if target_state_id:
             db_municipalities = Municipality.query.filter_by(state_id=target_state_id).all()
             
+            # FILTRO DINÁMICO DE PARROQUIA: Solo cargar parroquias si hay municipio seleccionado
             if filter_municipality and filter_municipality.isdigit():
                 db_parishes = Parish.query.filter_by(municipality_id=int(filter_municipality)).all()
             else:
                 db_parishes = []
             
+            # Evaluación de filtros seleccionados
             if filter_parish and filter_parish.isdigit():
                 parish_ids = [int(filter_parish)]
             elif filter_municipality and filter_municipality.isdigit():
@@ -158,6 +162,7 @@ def list_users():
         pagination = query.order_by(User.id.desc()).paginate(page=page, per_page=10, error_out=False)
         users_list = pagination.items
 
+        # Rescatamos datos de institución, ubicación y cédula formateada para cada usuario
         for u in users_list:
             u.state_name = "Sin Asignar"
             u.institution_name = "N/A"
@@ -229,12 +234,100 @@ def view_user(user_id):
     corp_data = None
     
     if person:
+        # 1. Identificación y Contacto Personal
         id_type = getattr(person, 'identification_type', 'V')
         person_id_val = getattr(person, 'identification_number', getattr(person, 'id_card', ''))
+        
+        
         user.formatted_id = format_identification(id_type, person_id_val)
         
         user.formatted_phone = format_venezuelan_phone(getattr(person, 'mobile', ''))
         user.formatted_phone_sec = format_venezuelan_phone(getattr(person, 'phone', ''))
+
+        
+        first_n = getattr(person, 'first_name', '') or ''
+        second_n = getattr(person, 'second_name', '') or ''
+        last_n = getattr(person, 'last_name', '') or ''
+        middle_n = getattr(person, 'middle_name', '') or ''
+        
+        user.full_first_name = f"{first_n} {second_n}".strip() if first_n else 'N/A'
+        user.full_last_name = f"{last_n} {middle_n}".strip() if last_n else 'N/A'
+
+        # 2. Búsqueda de Institución / Empresa
+        inst_staff = InstitutionalStaff.query.filter_by(person_id=person.id).first()
+        
+        if inst_staff:
+            inst = inst_staff.institution
+            pos = inst_staff.position
+            
+            city_name = 'N/A'
+            if inst and getattr(inst, 'parish_id', None):
+                try:
+                    from app.models.location_model import Location
+                    loc = Location.query.filter_by(parish_id=inst.parish_id).first()
+                    if loc and loc.city:
+                        city_name = loc.city.name
+                except Exception:
+                    pass
+            
+            
+            plantel_code = getattr(inst, 'plantel_code', None)
+            
+            corp_data = {
+                'id_card': plantel_code if plantel_code else 'N/A',
+                'name': inst.institution_name if inst else 'N/A',
+                'type': inst.institution_type.name if inst and getattr(inst, 'institution_type', None) else 'N/A',
+                'sector': inst.institution_scope.name if inst and getattr(inst, 'institution_scope', None) else 'N/A',
+                'dependency': inst.institution_dependency.name if inst and getattr(inst, 'institution_dependency', None) else 'N/A',
+                'position': pos.name if pos else 'N/A',
+                'phone_main': format_venezuelan_phone(getattr(inst, 'phone', 'N/A')),
+                'state': inst.parish.municipality.state.name if inst and getattr(inst, 'parish', None) and getattr(inst.parish, 'municipality', None) else 'N/A',
+                'municipality': inst.parish.municipality.name if inst and getattr(inst, 'parish', None) else 'N/A',
+                'parish': inst.parish.name if inst and getattr(inst, 'parish', None) else 'N/A',
+                'city': city_name, 
+                'address': inst.address if inst else 'N/A'
+            }
+        else:
+            comp_staff = CompanyStaff.query.filter_by(person_id=person.id).first()
+            
+            if comp_staff:
+                place = comp_staff.place
+                comp = place.company if place else None
+                pos = comp_staff.position
+                
+                city_name = 'N/A'
+                if place and getattr(place, 'parish_id', None):
+                    try:
+                        from app.models.location_model import Location
+                        loc = Location.query.filter_by(parish_id=place.parish_id).first()
+                        if loc and loc.city:
+                            city_name = loc.city.name
+                    except Exception:
+                        pass
+                
+                if comp:
+                    
+                    type_rif = getattr(comp, 'identification_type', '') or ''
+                    num_rif = getattr(comp, 'rif', '') or ''
+                    formatted_rif = f"{type_rif}-{num_rif}".strip('-') if (type_rif or num_rif) else 'N/A'
+
+                    corp_data = {
+                        'id_card': formatted_rif,
+                        'name': comp.company_name,
+                        'type': 'Empresa Privada', 
+                        'sector': 'N/A',
+                        'dependency': 'N/A',
+                        'position': pos.name if pos else 'N/A',
+                        'phone_main': format_venezuelan_phone(getattr(place, 'phone', 'N/A')),
+                        'state': place.parish.municipality.state.name if place and getattr(place, 'parish', None) and getattr(place.parish, 'municipality', None) else 'N/A',
+                        'municipality': place.parish.municipality.name if place and getattr(place, 'parish', None) else 'N/A',
+                        'parish': place.parish.name if place and getattr(place, 'parish', None) else 'N/A',
+                        'city': city_name,
+                        'address': place.address if place else 'N/A',
+                        'sede': place.name if place else 'N/A'
+                    }
+
+    return render_template('users/view_user.html', user=user, corp_data=corp_data, current_role=current_user_role, viewed_role=viewed_role)
 
         first_n = getattr(person, 'first_name', '') or ''
         second_n = getattr(person, 'second_name', '') or ''

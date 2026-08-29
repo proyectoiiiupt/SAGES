@@ -135,7 +135,7 @@
     border-bottom: none;
 }
 
-
+/* Contenido de las Pestañas */
 .tab-content {
     display: none;
     background: #fff;
@@ -167,7 +167,7 @@
     font-size: 1.1rem;
 }
 
-
+/* Grilla de Datos */
 .data-grid-container {
     padding: 20px;
     display: grid;
@@ -202,7 +202,7 @@
     background-color: #1e293b;
 }
 
-
+/* Estilos de Cajas de Figma */
 .figma-label {
     font-size: 0.8rem;
     font-weight: bold;

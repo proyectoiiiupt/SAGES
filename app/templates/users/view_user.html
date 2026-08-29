@@ -125,7 +125,7 @@
                         <div class="figma-box">{{ corp_data.name if corp_data else 'N/A' }}</div>
                     </div>
 
-                   
+                    <!-- Si es Admin Estadal o Super Admin NO lleva tipo, alcance ni dependencia -->
                     {% if not is_corp_role %}
                         <div>
                             <label class="figma-label">Tipo de Institución</label>
