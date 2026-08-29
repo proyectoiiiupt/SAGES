@@ -115,9 +115,10 @@ def toggle_institution_status_route(institution_id):
     - message: mensaje descriptivo
     - new_status: nuevo estatus ('Activo' o 'Inactivo')
     - status_code: código del estatus en base de datos
+    - affected_users: número de usuarios afectados por el cambio
     """
     try:
-        institution, new_status = toggle_institution_status(institution_id)
+        institution, new_status, affected_users = toggle_institution_status(institution_id)
         
         if institution is None:
             return jsonify({'success': False, 'message': new_status}), 404
@@ -126,7 +127,8 @@ def toggle_institution_status_route(institution_id):
             'success': True,
             'message': f'Institución cambiada a {new_status}',
             'new_status': new_status,
-            'status_code': institution.status.status_code
+            'status_code': institution.status.status_code,
+            'affected_users': affected_users
         })
     except Exception as e:
         print(f"Error en toggle_institution_status_route: {e}")

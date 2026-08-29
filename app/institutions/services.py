@@ -357,7 +357,7 @@ def toggle_institution_status(institution_id):
     - institution_id: ID de la institución a modificar
     
     Retorna:
-    - tuple: (institution, new_status) si éxito, (None, error_message) si error
+    - tuple: (institution, new_status, affected_users_count) si éxito, (None, error_message, 0) si error
     
     Nota:
     - Realiza commit de cambios en base de datos
@@ -372,14 +372,14 @@ def toggle_institution_status(institution_id):
         
         institution = db.session.get(Institution, institution_id)
         if not institution:
-            return None, 'Institución no encontrada'
+            return None, 'Institución no encontrada', 0
         
         # Obtener los estatus Activo e Inactivo
         active_status = Status.query.filter_by(status_code='STAT-001').first()
         inactive_status = Status.query.filter_by(status_code='STAT-002').first()
         
         if not active_status or not inactive_status:
-            return None, 'Estados no configurados correctamente'
+            return None, 'Estados no configurados correctamente', 0
         
         # Determinar el nuevo estatus de la institución
         if institution.status_id == active_status.id:
@@ -401,12 +401,14 @@ def toggle_institution_status(institution_id):
             joinedload(InstitutionalStaff.person).joinedload(Person.user).joinedload(User.status)
         ).filter_by(institution_id=institution_id).all()
         
+        affected_users_count = 0
         for staff in staff_list:
             # Verificar si la persona tiene un usuario
             if staff.person and staff.person.user:
                 user = staff.person.user
                 # Actualizar el estatus del usuario al mismo estatus de la institución
                 user.status_id = new_institution_status.id
+                affected_users_count += 1
         
         from app.extensions import db
         db.session.commit()
@@ -414,12 +416,12 @@ def toggle_institution_status(institution_id):
         # Recargar la institución para obtener el estatus actualizado
         db.session.refresh(institution)
         
-        return institution, new_status
+        return institution, new_status, affected_users_count
     except Exception as e:
         print(f"Error en toggle_institution_status: {e}")
         from app.extensions import db
         db.session.rollback()
-        return None, f'Error: {str(e)}'
+        return None, f'Error: {str(e)}', 0
 
 def get_institution_users(institution_id, page=1, per_page=10):
     """
