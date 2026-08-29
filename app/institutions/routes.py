@@ -19,10 +19,11 @@ def list_institutions():
     Solo accesible para super_admin y state_admin.
     
     Funcionalidades:
-    - Búsqueda por nombre o ID de institución
+    - Búsqueda por nombre de institución
     - Filtros por tipo, alcance, dependencia, estatus, estado y parroquia
     - Paginación de 10 registros por página
     - Filtrado automático por estado para administradores estadales
+    - Restricción a parroquias específicas de Distrito Capital
     """
     try:
         # Obtener filtros de la URL
@@ -40,19 +41,11 @@ def list_institutions():
         filters = {k: int(v) if v and k != 'search_name' else v for k, v in filters.items()}
 
         # Para administrador estadal, filtrar automáticamente por su estado
-        # Verificar si el usuario es super admin
-        is_super_admin = False
-        if current_user and current_user.roles_assoc:
-            for role_assoc in current_user.roles_assoc:
-                if role_assoc.role.name == 'super_admin':
-                    is_super_admin = True
-                    break
-        
-        # Solo aplicar filtro automático para admin estatal
-        if not is_super_admin:
-            user_state_info = get_user_state_info(current_user)
-            if user_state_info:
-                filters['state_id'] = user_state_info['state_id']
+        if current_user.roles_assoc and len(current_user.roles_assoc) > 0 and current_user.roles_assoc[0].role.name == 'state_admin':
+            if current_user.person and current_user.person.institutional_staff:
+                user_institution = current_user.person.institutional_staff[0].institution
+                if user_institution and user_institution.parish and user_institution.parish.municipality:
+                    filters['state_id'] = user_institution.parish.municipality.state_id
 
         # Obtener parámetros de paginación
         page = request.args.get('page', 1, type=int)
@@ -96,7 +89,7 @@ def view_institution(institution_id):
         institution = get_institution_by_id(institution_id)
         if not institution:
             abort(404)
-        return render_template('institutions/detail.html', institution=institution)
+        return render_template('institutions/detail.html', institution=institution, is_applicant=False)
     except Exception as e:
         print(f"Error en view_institution: {e}")
         flash("Error al cargar la institución", 'danger')
@@ -132,21 +125,45 @@ def toggle_institution_status_route(institution_id):
         print(f"Error en toggle_institution_status_route: {e}")
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
-@institutions_bp.route('/api/parishes-by-state/<int:state_id>', methods=['GET'])
+@institutions_bp.route('/my-institution', methods=['GET'])
 @login_required
-def get_parishes_by_state(state_id):
+@role_required('applicant')
+def my_institution():
     """
-    API endpoint para obtener parroquias filtradas por estado.
-    Utilizado para actualizar dinámicamente el filtro de parroquias cuando se selecciona un estado.
+    Vista para que el usuario (applicant) vea directamente su institución afiliada.
+    Solo accesible para usuarios con rol applicant.
+    
+    Muestra el detalle de la institución a la que está afiliado el usuario actual.
     """
     try:
-        parishes = Parish.query.join(Municipality).filter(
-            Municipality.state_id == state_id
-        ).order_by(Parish.name, Parish.id).all()
+        # Verificar que el usuario tiene persona
+        if not current_user.person:
+            print("Error: Usuario no tiene persona asociada")
+            flash("No tienes una institución afiliada. Contacta al administrador.", 'warning')
+            return redirect(url_for('home_applicant'))
         
-        parishes_data = [{'id': parish.id, 'name': parish.name} for parish in parishes]
+        # Verificar que el usuario tiene personal institucional
+        if not current_user.person.institutional_staff or len(current_user.person.institutional_staff) == 0:
+            print("Error: Usuario no tiene personal institucional asociado")
+            flash("No tienes una institución afiliada. Contacta al administrador.", 'warning')
+            return redirect(url_for('home_applicant'))
         
-        return jsonify({'parishes': parishes_data})
+        # Obtener la institución del usuario
+        user_staff = current_user.person.institutional_staff[0]
+        print(f"User staff institution_id: {user_staff.institution_id}")
+        
+        institution = get_institution_by_id(user_staff.institution_id)
+        
+        if not institution:
+            print(f"Error: Institución no encontrada con ID {user_staff.institution_id}")
+            flash("Institución no encontrada. Contacta al administrador.", 'danger')
+            return redirect(url_for('home_applicant'))
+        
+        print(f"Institución encontrada: {institution.institution_name}")
+        return render_template('institutions/detail.html', institution=institution, is_applicant=True)
     except Exception as e:
-        print(f"Error en get_parishes_by_state: {e}")
-        return jsonify({'parishes': []}), 500
+        print(f"Error en my_institution: {e}")
+        import traceback
+        traceback.print_exc()
+        flash("Error al cargar tu institución. Contacta al administrador.", 'danger')
+        return redirect(url_for('home_applicant'))

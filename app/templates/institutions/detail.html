@@ -1,0 +1,193 @@
+{#
+    Template: Detalle de Institución
+    Muestra información completa de una institución específica con opción de cambiar estatus.
+    Solo accesible para usuarios con roles super_admin y state_admin.
+#}
+{% extends "layouts/base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/institutions.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/institutions-detail.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="institutions-container">
+    <div class="page-header">
+        <div class="page-title">
+            <h1>Detalle de Institución</h1>
+        </div>
+        <div class="page-date">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span id="current-date"></span>
+        </div>
+    </div>
+
+    <div class="page-actions" style="margin-bottom: 1rem;">
+        {% if is_applicant %}
+        <a href="{{ url_for('home_applicant') }}" class="back-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Volver al inicio
+        </a>
+        {% else %}
+        <a href="{{ url_for('institutions.list_institutions') }}" class="back-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Volver a la lista
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="institution-detail">
+        <div class="detail-card">
+            <div class="detail-header">
+                <h2>{{ institution.institution_name }}</h2>
+                <span class="status-badge status-{{ institution.status.status_code }}" id="status-badge">
+                    {{ institution.status.status_name }}
+                </span>
+            </div>
+
+            <div class="detail-content">
+                <div class="detail-section">
+                    <h3>Información General</h3>
+                    <div class="detail-row">
+                        <span class="label">Código del Plantel:</span>
+                        <span class="value">{{ institution.plantel_code }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Nombre:</span>
+                        <span class="value">{{ institution.institution_name }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Teléfono:</span>
+                        <span class="value" id="phone-display">
+                            {% if institution.phone %}
+                                {{ institution.phone }}
+                            {% else %}
+                                No registrado
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <h3>Clasificación</h3>
+                    <div class="detail-row">
+                        <span class="label">Tipo:</span>
+                        <span class="value">{{ institution.institution_type.name }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Alcance:</span>
+                        <span class="value">{{ institution.institution_scope.name }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Dependencia:</span>
+                        <span class="value">{{ institution.institution_dependency.name }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Niveles Educativos:</span>
+                        <span class="value">
+                            {% if institution.institution_levels %}
+                                <div class="levels-list">
+                                    {% for level in institution.institution_levels %}
+                                        <span class="level-tag">{{ level.educational_level.name }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <span class="no-data">Sin niveles educativos asignados</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <h3>Ubicación</h3>
+                    {% if institution.parish and institution.parish.municipality and institution.parish.municipality.state %}
+                    <div class="detail-row">
+                        <span class="label">Estado:</span>
+                        <span class="value">{{ institution.parish.municipality.state.name }}</span>
+                    </div>
+                    {% endif %}
+                    {% if institution.parish and institution.parish.municipality %}
+                    <div class="detail-row">
+                        <span class="label">Municipio:</span>
+                        <span class="value">{{ institution.parish.municipality.name }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="detail-row">
+                        <span class="label">Parroquia:</span>
+                        <span class="value">{{ institution.parish.name if institution.parish else 'No asignada' }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Ciudad:</span>
+                        <span class="value">
+                            {% if institution.parish and institution.parish.locations and institution.parish.locations|length > 0 %}
+                                {{ institution.parish.locations[0].city.name if institution.parish.locations[0].city else 'No asignada' }}
+                            {% else %}
+                                No asignada
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Dirección:</span>
+                        <span class="value">{{ institution.address }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Set dynamic date in Spanish format
+        const dateElement = document.getElementById('current-date');
+        if (dateElement) {
+            const options = { day: 'numeric', month: 'long', year: 'numeric' };
+            const today = new Date();
+            const formattedDate = today.toLocaleDateString('es-ES', options);
+            dateElement.textContent = formattedDate.replace(' de 20', ', 20');
+        }
+
+        // Formatear teléfono institucional
+        const phoneDisplay = document.getElementById('phone-display');
+        if (phoneDisplay) {
+            const phoneNumber = phoneDisplay.textContent.trim();
+            
+            // Solo formatear si es un número válido de 11 dígitos y no es "No registrado"
+            if (phoneNumber && phoneNumber !== 'No registrado' && /^\d{11}$/.test(phoneNumber)) {
+                const formattedPhone = formatPhoneNumber(phoneNumber);
+                phoneDisplay.textContent = formattedPhone;
+            }
+        }
+
+        // Función para formatear número de teléfono venezolano
+        function formatPhoneNumber(phone) {
+            // Remover cualquier carácter que no sea dígito
+            const cleaned = phone.replace(/\D/g, '');
+            
+            // Verificar que tenga 11 dígitos (formato venezolano)
+            if (cleaned.length === 11) {
+                // Formato: (0414)-1234567
+                const code = cleaned.substring(0, 4);
+                const number = cleaned.substring(4);
+                return `(${code})-${number}`;
+            }
+            
+            // Si no tiene el formato esperado, retornar el original
+            return phone;
+        }
+    });
+</script>
+{% endblock %}
