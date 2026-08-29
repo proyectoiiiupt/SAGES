@@ -152,6 +152,7 @@
                         <div class="figma-box">{{ corp_data.name if corp_data else 'N/A' }}</div>
                     </div>
 
+                    <!-- Si es Admin Estadal o Super Admin NO lleva tipo, alcance ni dependencia -->
                     {% if not is_corp_role %}
                         <div>
                             <label class="figma-label">Tipo de Institución</label>
@@ -247,6 +248,23 @@ function showTab(tabId) {
         btnPersonal.className = 'tab-btn tab-inactive';
     }
 }
+document.addEventListener('DOMContentLoaded', function() {
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                let iconType = '{{ category }}';
+                let titleText = 'Notificación';
+
+                if (iconType === 'success') {
+                    titleText = '¡Éxito!';
+                } else if (iconType === 'error' || iconType === 'danger') {
+                    iconType = 'error';
+                    titleText = '¡Atención!';
+                } else if (iconType === 'warning') {
+                    titleText = 'Advertencia';
+                } else {
+                    iconType = 'info';
+                }
 
 document.addEventListener('DOMContentLoaded', function() {
     // 1. Mostrar mensajes Flash con SweetAlert2
