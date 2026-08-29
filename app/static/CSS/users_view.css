@@ -232,20 +232,11 @@
     margin-top: 0;
 }
 
-
+/* Sección de Estado y Switch Toggle */
 .profile-status-section {
     padding: 10px 40px 30px 40px;
-    display: flex !important;
-    align-items: center !important;
-    
-    justify-content: space-between !important;
-}
-
-
-.status-container {
-    display: flex !important;
-    align-items: center !important;
-    gap: 10px !important;
+    display: flex;
+    align-items: center;
 }
 
 .status-title {

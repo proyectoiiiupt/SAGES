@@ -3,6 +3,19 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/users_view.css') }}">
 
+<style>
+    .switch-container { display: flex; align-items: center; gap: 10px; }
+    .switch { position: relative; display: inline-block; width: 46px; height: 24px; margin-bottom: 0;}
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #d33; transition: .4s; border-radius: 24px; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+    input:checked + .slider { background-color: #019577; }
+    input:checked + .slider:before { transform: translateX(22px); }
+    .status-label { font-weight: bold; font-size: 15px; }
+    .text-active { color: #019577; }
+    .text-inactive { color: #d33; }
+</style>
+
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/sweetalert2.min.css') }}">
 {% endblock %}
 
@@ -80,19 +93,33 @@
             </div>
         </div>
 
-        <!-- Botón de Edición (US-15) -->
+        <!-- Controles de Acción (US-15 y US-16) -->
         {% if current_role == 'super_admin' %}
-        <div style="margin-top: 2rem; display: flex; justify-content: flex-end; padding-right: 20px; padding-bottom: 20px;">
-            <a href="{{ url_for('users.edit_user', user_id=user.id) }}" class="btn-edit" style="padding: 10px 20px; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; cursor: pointer;">
+        <div style="margin-top: 2rem; display: flex; justify-content: space-between; align-items: center; padding: 0 20px 20px 20px;">
+            
+            <!-- Switch de Estatus (Aparecerá en el extremo izquierdo) -->
+            <div class="switch-container">
+                <form id="statusForm" action="{{ url_for('users.toggle_status', user_id=user.id) }}" method="POST" style="display: none;"></form>
+                
+                <label class="switch">
+                    <input type="checkbox" id="status-switch" {% if user.status_id == 1 %}checked{% endif %} data-status="{{ user.status_id }}">
+                    <span class="slider"></span>
+                </label>
+
+                <span id="status-text" class="status-label {{ 'text-active' if user.status_id == 1 else 'text-inactive' }}">
+                    {{ 'Perfil Activo' if user.status_id == 1 else 'Perfil Inactivo' }}
+                </span>
+            </div>
+
+            <!-- Botón de Edición (Aparecerá en el extremo derecho) -->
+            <a href="{{ url_for('users.edit_user', user_id=user.id) }}" class="btn-edit" 
+               style="padding: 10px 20px; color: white; background-color: #f0ad4e; text-decoration: none; border-radius: 5px; font-weight: bold; cursor: pointer;">
                 Editar Información
             </a>
         </div>
         {% endif %}
 
     </div>
-
-    
-    
 
     <!-- Contenido: Información Corporativa / Institucional -->
     <div id="corp" class="tab-content">
@@ -239,6 +266,25 @@ document.addEventListener('DOMContentLoaded', function() {
                     iconType = 'info';
                 }
 
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Mostrar mensajes Flash con SweetAlert2
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                let iconType = '{{ category }}';
+                let titleText = 'Notificación';
+
+                if (iconType === 'success') {
+                    titleText = '¡Éxito!';
+                } else if (iconType === 'error' || iconType === 'danger') {
+                    iconType = 'error';
+                    titleText = '¡Atención!';
+                } else if (iconType === 'warning') {
+                    titleText = 'Advertencia';
+                } else {
+                    iconType = 'info';
+                }
+
                 Swal.fire({
                     title: titleText,
                     text: '{{ message }}',
@@ -249,6 +295,44 @@ document.addEventListener('DOMContentLoaded', function() {
             {% endfor %}
         {% endif %}
     {% endwith %}
+
+    // 2. Lógica del Switch US-16
+    const statusSwitch = document.getElementById('status-switch');
+    if (statusSwitch) {
+        statusSwitch.addEventListener('change', function(e) {
+            e.preventDefault(); 
+            
+            // Revertimos visualmente el switch hasta que el usuario confirme
+            const wasChecked = !this.checked; 
+            this.checked = wasChecked; 
+            
+            const currentStatus = this.getAttribute('data-status');
+            const isActivating = currentStatus != 1; // 1 = Activo
+
+            const actionText = isActivating ? 'activar' : 'desactivar';
+            const warningText = isActivating 
+                ? 'El usuario recuperará su acceso al sistema y sus funciones.' 
+                : 'El usuario perderá el acceso al sistema de forma inmediata.';
+            const confirmColor = isActivating ? '#019577' : '#d33';
+
+            Swal.fire({
+                title: `¿Seguro que deseas ${actionText} este perfil?`,
+                text: warningText,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: confirmColor,
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: `Sí, ${actionText}`,
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Si acepta, ejecutamos el cambio visual y enviamos el formulario
+                    this.checked = !wasChecked; 
+                    document.getElementById('statusForm').submit();
+                }
+            });
+        });
+    }
 });
 </script>
 {% endblock %}

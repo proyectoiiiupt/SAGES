@@ -17,6 +17,8 @@ from app.models.municipality_model import Municipality
 from app.models.binnacle_model import Binnacle
 from app.models.position_model import Position  # <-- Importación del modelo Position agregada
 from app.users.forms import UserUpdateForm
+import json
+import datetime
 
 users_bp = Blueprint('users', __name__)
 
@@ -234,17 +236,13 @@ def view_user(user_id):
     corp_data = None
     
     if person:
-        # 1. Identificación y Contacto Personal
         id_type = getattr(person, 'identification_type', 'V')
         person_id_val = getattr(person, 'identification_number', getattr(person, 'id_card', ''))
-        
-        
         user.formatted_id = format_identification(id_type, person_id_val)
         
         user.formatted_phone = format_venezuelan_phone(getattr(person, 'mobile', ''))
         user.formatted_phone_sec = format_venezuelan_phone(getattr(person, 'phone', ''))
 
-        
         first_n = getattr(person, 'first_name', '') or ''
         second_n = getattr(person, 'second_name', '') or ''
         last_n = getattr(person, 'last_name', '') or ''
@@ -269,7 +267,6 @@ def view_user(user_id):
                         city_name = loc.city.name
                 except Exception:
                     pass
-            
             
             plantel_code = getattr(inst, 'plantel_code', None)
             
@@ -306,7 +303,6 @@ def view_user(user_id):
                         pass
                 
                 if comp:
-                    
                     type_rif = getattr(comp, 'identification_type', '') or ''
                     num_rif = getattr(comp, 'rif', '') or ''
                     formatted_rif = f"{type_rif}-{num_rif}".strip('-') if (type_rif or num_rif) else 'N/A'
@@ -499,3 +495,50 @@ def edit_user(user_id):
             form.position.data = staff_record.position_id
 
     return render_template('users/edit_user.html', user=user, current_role=user_role, form=form)
+
+@users_bp.route('/toggle_status/<int:user_id>', methods=['POST'])
+@login_required
+def toggle_status(user_id):
+    """
+    US-16: Activa o desactiva un usuario.
+    """
+    user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
+    if user_role != 'super_admin':
+        abort(403)
+
+    user = User.query.get_or_404(user_id)
+    
+    # 1 = Activo, 2 = Inactivo
+    old_status = user.status_id
+    new_status = 2 if old_status == 1 else 1 
+    
+    user.status_id = new_status
+    
+    try:
+        action_name = "Desactivación" if new_status == 2 else "Activación"
+        
+        
+        old_val_json = json.dumps({'status_id': old_status})
+        new_val_json = json.dumps({'status_id': new_status})
+        
+        binnacle_entry = Binnacle(
+            user_id=current_user.id,  
+            module='Gestión de Usuarios',
+            action_type='Cambio de Estatus',
+            description=f'{action_name} del usuario ID {user.id}',
+            old_values=old_val_json,
+            new_values=new_val_json,
+            created_at=datetime.datetime.now(datetime.timezone.utc)
+        )
+        db.session.add(binnacle_entry)
+        db.session.commit()
+        
+        estado_str = "activado" if new_status == 1 else "desactivado"
+        flash(f'El perfil del usuario ha sido {estado_str} exitosamente.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"\n[ERROR TOGGLE STATUS]: {e}\n")
+        flash('Ocurrió un error al intentar cambiar el estatus.', 'error')
+        
+    return redirect(url_for('users.view_user', user_id=user.id))
