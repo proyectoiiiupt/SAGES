@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pre-Registro Institucional | SAGES - CORPOELEC</title>
+    <!-- 
+        Vista HTML para el flujo de pre-registro institucional público.
+        Esta plantilla utiliza Jinja2 para inyectar variables de configuración (CSRF, CAPTCHA)
+        y datos de catálogos estáticos pre-cargados (para reducir peticiones AJAX).
+        Contiene modales (comprobante y declaración jurada) manejados por pre_registration.js.
+    -->
+    <meta name="description"
+        content="Formulario de pre-registro institucional controlado. Sólo instituciones educativas autorizadas pueden solicitar acceso al Sistema de Gestión de Solicitudes de CORPOELEC.">
+    <meta name="robots" content="noindex, nofollow">
+
+    <!--
+        Token CSRF generado por Flask-WTF.
+        pre_registration.js lo lee con:
+            document.querySelector('meta[name="csrf-token"]').content
+        y lo envía como header X-CSRFToken en cada petición POST.
+    -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <!-- Cloudflare Turnstile Script -->
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+
+
+    <!-- SweetAlert2 local -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/sweetalert2.min.css') }}">
+    <!-- Registro styles (hereda base de public) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/public.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/pre_registration.css') }}">
+
+</head>
+
+<body class="registro-page">
+
+    <!-- ============================================================
+         NAVBAR (Estilo Landing)
+    ============================================================ -->
+    <nav id="navbar" class="navbar">
+        <div class="container nav-inner" style="position: relative;">
+            <!-- Logo -->
+            <a href="{{ url_for('index') }}" class="nav-logo">
+                <img src="{{ url_for('static', filename='img/logo_corpoelec.png') }}" class="nav-logo-img"
+                    alt="CORPOELEC">
+            </a>
+
+            <!-- Título del Sistema (Centrado) -->
+            <div
+                style="position: absolute; left: 50%; transform: translateX(-50%); text-align: center; width: 100%; pointer-events: none;">
+                <h1
+                    style="font-size: 1.15rem; font-weight: 500; margin: 0; letter-spacing: 0.5px; color: rgba(255, 255, 255, 0.7); text-shadow: 0 1px 2px rgba(0,0,0,0.5);">
+                    Sistema de Gestión de Solicitudes de Formación (CORPOELEC)
+                </h1>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Floating Back Button -->
+    <button id="btn-back-home" class="btn-back-floating" aria-label="Volver al inicio">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+        Volver al inicio
+    </button>
+
+    <!-- Fondo Hero Landing -->
+    <div class="hero-grid-bg"></div>
+    <div class="hero-blob-1"></div>
+    <div class="hero-blob-2"></div>
+
+
+
+    <!-- ============================================================
+         MAIN
+    ============================================================ -->
+    <main class="registro-main" role="main">
+        <div class="registro-card">
+
+            <!-- Card Header -->
+            <div class="registro-card-header">
+                <h2>Solicitud de Acceso Institucional</h2>
+                <p>Complete los pasos a continuación para solicitar acceso al sistema.</p>
+            </div>
+
+            <!-- Card Body -->
+            <div class="registro-card-body">
+
+                <!-- ── Stepper ──────────────────────────────── -->
+                <nav class="stepper" aria-label="Pasos del registro">
+                    <div class="stepper-step step-active" id="stepper-0">
+                        <div class="step-circle" aria-label="Paso 1">
+                            <svg class="icon-check" width="16" height="16" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24" aria-hidden="true">
+                                <polyline points="20 6 9 17 4 12" stroke-width="2.5" />
+                            </svg>
+                            <span class="icon-num">1</span>
+                        </div>
+                        <span class="step-label">Validación</span>
+                    </div>
+                    <div class="stepper-step" id="stepper-1">
+                        <div class="step-circle" aria-label="Paso 2">
+                            <svg class="icon-check" width="16" height="16" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24" aria-hidden="true">
+                                <polyline points="20 6 9 17 4 12" stroke-width="2.5" />
+                            </svg>
+                            <span class="icon-num">2</span>
+                        </div>
+                        <span class="step-label">Institución</span>
+                    </div>
+                    <div class="stepper-step" id="stepper-2">
+                        <div class="step-circle" aria-label="Paso 3">
+                            <svg class="icon-check" width="16" height="16" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24" aria-hidden="true">
+                                <polyline points="20 6 9 17 4 12" stroke-width="2.5" />
+                            </svg>
+                            <span class="icon-num">3</span>
+                        </div>
+                        <span class="step-label">Representante</span>
+                    </div>
+                </nav>
+
+                <!-- ============================================================
+                     PANEL 0 — Validación de código de plantel
+                ============================================================ -->
+                <section class="step-panel step-panel-active" id="panel-0" aria-labelledby="title-step0">
+
+                    <div class="validation-step">
+                        <div class="step-icon" aria-hidden="true">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                        </div>
+                        <h3 id="title-step0"
+                            style="color: var(--text-dark); margin-bottom: 0.5rem; font-size: 1.25rem;">Verificación de
+                            Código de Plantel</h3>
+                        <p class="step-subtitle"
+                            style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.9rem;">
+                            Antes de continuar, verifique que su institución aún no está registrada en el sistema.
+                        </p>
+                    </div>
+
+                    <div class="info-alert" role="note">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p>
+                            <strong>Importante:</strong> La información suministrada estará sujeta a verificación
+                            administrativa. El acceso al sistema será habilitado una vez aprobada su solicitud.
+                        </p>
+                    </div>
+
+                    <div class="form-group" style="max-width:360px; margin: 0 auto 1.5rem; text-align: left;">
+                        <label class="form-label" for="input-plantel-code">
+                            Código de Plantel <span class="required-mark" aria-hidden="true">*</span>
+                        </label>
+                        <div class="input-wrapper" id="wrapper-plantel-code">
+                            <input id="input-plantel-code" type="text" class="form-input" placeholder="Ej: DP123456"
+                                maxlength="50" autocomplete="off" spellcheck="false"
+                                aria-describedby="hint-plantel-code" aria-required="true">
+                            <span class="input-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                                </svg>
+                            </span>
+                        </div>
+                        <span id="error-plantel-code" class="field-error"></span>
+                        <span id="hint-plantel-code" class="field-hint">
+                            Ingrese el código oficial de su plantel educativo.
+                        </span>
+                    </div>
+
+                    <div class="form-nav justify-center">
+                        <button id="btn-validate-plantel" type="button" class="btn-nav-primary btn-primary-registration"
+                            aria-label="Verificar código de plantel">
+                            <span class="btn-spinner" aria-hidden="true" style="display: none;"></span>
+                            <span class="btn-text" style="display: flex; align-items: center; gap: 0.5rem;">
+                                Verificar y Continuar
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" width="18"
+                                    height="18">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                </svg>
+                            </span>
+                        </button>
+                    </div>
+
+                </section>
+
+                <!-- ============================================================
+                     PANEL 1 — Datos Institucionales
+                ============================================================ -->
+                <section class="step-panel" id="panel-1" aria-labelledby="title-step1">
+
+                    <div class="form-section">
+                        <p class="form-section-title" id="title-step1">Datos Institucionales</p>
+
+                        <div class="form-grid form-grid-2">
+
+                            <!-- Tipo de Institución -->
+                            <div class="form-group">
+                                <label class="form-label" for="sel-institution-type">
+                                    Tipo de Institución <span class="required-mark" aria-hidden="true">*</span>
+                                </label>
+                                <div class="input-wrapper">
+                                    <select id="sel-institution-type" class="form-select" aria-required="true">
+                                        <option value="" disabled selected>Cargando...</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Alcance -->
+                            <div class="form-group">
+                                <label class="form-label" for="sel-institution-scope">
+                                    Alcance <span class="required-mark" aria-hidden="true">*</span>
+                                </label>
+                                <div class="input-wrapper">
+                                    <select id="sel-institution-scope" class="form-select" aria-required="true">
+                                        <option value="" disabled selected>Cargando...</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Nombre / Razón Social + Prefijo -->
+                            <div class="form-group form-col-full">
+                                <label class="form-label" for="inp-institution-name">
+                                    Nombre o Razón Social <span class="required-mark" aria-hidden="true">*</span>
+                                </label>
+                                <div class="input-wrapper input-group" id="wrapper-institution-name">
+                                    <!-- Prefijo desplegable (visible solo para INST-003, 004, 006) -->
+                                    <select id="sel-institution-prefix" class="input-prefix-select input-prefix-wide"
+                                        aria-label="Prefijo de la institución" style="display:none;" tabindex="-1">
+                                        <option value="">Prefijo</option>
+                                    </select>
+                                    <input id="inp-institution-name" type="text" class="form-input"
+                                        placeholder="Nombre oficial de la institución" maxlength="200"
+                                        autocomplete="organization" aria-required="true">
+                                </div>
+                            </div>
+
+                            <!-- Dependencia -->
+                            <div class="form-group">
+                                <label class="form-label" for="sel-institution-dependency">
+                                    Dependencia <span class="required-mark" aria-hidden="true">*</span>
+                                </label>
+                                <div class="input-wrapper">
+                                    <select id="sel-institution-dependency" class="form-select" aria-required="true">
+                                        <option value="" disabled selected>Cargando...</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Teléfono institucional -->
+                            <div class="form-group">
+                                <label class="form-label" for="inp-institution-phone">
+                                    Teléfono Institucional
+                                    <span style="color:var(--text-muted);font-weight:400;">(Opcional)</span>
+                                </label>
+                                <div class="input-wrapper">
+                                    <input id="inp-institution-phone" type="tel" class="form-input phone-mask"
+                                        placeholder="(0414)-1234567" maxlength="20" autocomplete="tel">
+                                </div>
+                            </div>
+
+                            <!-- Acrónimo / Siglas (visible solo para INST-001 e INST-002) -->
+                            <div class="form-group form-col-full" id="group-institution-acronym" style="display:none;">
+                                <label class="form-label" for="inp-institution-acronym">
+                                    Acrónimo / Siglas
+                                    <span style="color:var(--text-muted);font-weight:400;">(Opcional)</span>
+                                </label>
+                                <div class="input-wrapper">
+                                    <input id="inp-institution-acronym" type="text" class="form-input"
+                                        placeholder="Ej: UCV, IUTAJS" maxlength="20" autocomplete="off"
+                                        spellcheck="false" aria-label="Acrónimo o siglas de la institución">
+                                </div>
+                                <span class="field-hint">Siglas o acrónimo por el que se conoce la institución.</span>
+                            </div>
+
+                            <!-- Niveles Educativos (Dinámicos) -->
+                            <div class="form-group form-col-full" id="group-educational-levels" style="display:none;">
+                                <label class="form-label">
+                                    Niveles Educativos
+                                </label>
+                                <div id="niveles-contenedor" class="checkbox-grid">
+                                    <!-- Generados dinámicamente desde JS -->
+                                </div>
+                                <span class="field-hint">Seleccione los niveles educativos que imparte la
+                                    institución.</span>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Ubicación -->
+                    <div class="form-section" style="margin-top:1.75rem;">
+                        <p class="form-section-title">Ubicación</p>
+
+                        <div class="form-grid form-grid-3">
+                            <!-- Estado -->
+                            <div class="form-group">
+                                <label class="form-label" for="sel-state">
+                                    Estado <span class="required-mark" aria-hidden="true">*</span>
+                                </label>
+                                <div class="input-wrapper">
+                                    <select id="sel-state" class="form-select" aria-required="true">
+                                        <option value="" disabled selected>Cargando...</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Municipio -->
+                            <div class="form-group">
+                                <label class="form-label" for="sel-municipality">
+                                    Municipio <span class="required-mark" aria-hidden="true">*</span>
+                                </label>
+                                <div class="input-wrapper">
+                                    <select id="sel-municipality" class="form-select" disabled aria-required="true">
+                                        <option value="" disabled selected>Seleccione estado primero</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Parroquia -->
+                            <div class="form-group">
+                                <label class="form-label" for="sel-parish">
+                                    Parroquia <span class="required-mark" aria-hidden="true">*</span>
+                                </label>
+                                <div class="input-wrapper">
+                                    <select id="sel-parish" class="form-select" disabled aria-required="true">
+                                        <option value="" disabled selected>Seleccione municipio primero</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Dirección -->
+                            <div class="form-group form-col-full">
+                                <label class="form-label" for="inp-address">
+                                    Dirección de la Sede <span class="required-mark" aria-hidden="true">*</span>
+                                </label>
+                                <div class="input-wrapper" style="border-radius: 15px;">
+                                    <textarea id="inp-address" class="form-textarea"
+                                        placeholder="Av. / Calle, Edificio / Urbanización, Sector..." maxlength="500"
+                                        rows="3" aria-required="true"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-nav">
+                        <button id="btn-back-step1" type="button" class="btn-nav-secondary"
+                            aria-label="Volver al paso anterior">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" width="18"
+                                height="18">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                            </svg>
+                            Anterior
+                        </button>
+                        <button id="btn-next-step1" type="button" class="btn-nav-primary btn-primary-registration"
+                            aria-label="Continuar al siguiente paso" style="width: auto;">
+                            <span class="btn-text" style="display: flex; align-items: center; gap: 0.5rem;">
+                                Siguiente
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" width="18"
+                                    height="18">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                </svg>
+                            </span>
+                        </button>
+                    </div>
+
+                </section>
+
+                <!-- ============================================================
+                     PANEL 2 — Datos del Representante Institucional
+                ============================================================ -->
+                <section class="step-panel" id="panel-2" aria-labelledby="title-step2">
+
+                    <div class="form-section">
+                        <p class="form-section-title" id="title-step2">Datos Personales del Representante</p>
+
+                        <div class="form-grid form-grid-2">
+
+                            <!-- Cédula de identidad -->
+                            <div class="form-group">
+                                <label class="form-label" for="inp-id-number">
+                                    Cédula de Identidad <span class="required-mark" aria-hidden="true">*</span>
+                                </label>
+                                <div class="input-wrapper input-group" id="id-group">
+                                    <select id="sel-id-type" class="input-prefix-select" aria-label="Tipo de documento">
+                                        <option value="V" selected>V</option>
+                                        <option value="E">E</option>
+                                    </select>
+                                    <input id="inp-id-number" type="text" class="form-input cedula-mask"
+                                        placeholder="12.345.678" maxlength="10" inputmode="numeric" autocomplete="off"
+                                        aria-required="true" aria-label="Número de cédula">
+                                </div>
+                            </div>
+
+                            <!-- Cargo -->
+                            <div class="form-group">
+                                <label class="form-label" for="sel-position">
+                                    Cargo en la Institución <span class="required-mark" aria-hidden="true">*</span>
+                                </label>
+                                <div class="input-wrapper">
+                                    <select id="sel-position" class="form-select" aria-required="true">
+                                        <option value="" disabled selected>Cargando...</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Primer Nombre -->
+                            <div class="form-group">
+                                <label class="form-label" for="inp-first-name">
+                                    Primer Nombre <span class="required-mark" aria-hidden="true">*</span>
+                                </label>
+                                <div class="input-wrapper">
+                                    <input id="inp-first-name" type="text" class="form-input"
+                                        placeholder="Primer nombre" maxlength="100" autocomplete="given-name"
+                                        aria-required="true">
+                                </div>
+                            </div>
+
+                            <!-- Segundo Nombre -->
+                            <div class="form-group">
+                                <label class="form-label" for="inp-second-name">
+                                    Segundo Nombre
+                                    <span style="color:var(--text-muted);font-weight:400;">(Opcional)</span>
+                                </label>
+                                <div class="input-wrapper">
+                                    <input id="inp-second-name" type="text" class="form-input"
+                                        placeholder="Segundo nombre" maxlength="100" autocomplete="additional-name">
+                                </div>
+                            </div>
+
+                            <!-- Primer Apellido -->
+                            <div class="form-group">
+                                <label class="form-label" for="inp-last-name">
+                                    Primer Apellido <span class="required-mark" aria-hidden="true">*</span>
+                                </label>
+                                <div class="input-wrapper">
+                                    <input id="inp-last-name" type="text" class="form-input"
+                                        placeholder="Primer apellido" maxlength="100" autocomplete="family-name"
+                                        aria-required="true">
+                                </div>
+                            </div>
+
+                            <!-- Segundo Apellido -->
+                            <div class="form-group">
+                                <label class="form-label" for="inp-middle-name">
+                                    Segundo Apellido
+                                    <span style="color:var(--text-muted);font-weight:400;">(Opcional)</span>
+                                </label>
+                                <div class="input-wrapper">
+                                    <input id="inp-middle-name" type="text" class="form-input"
+                                        placeholder="Segundo apellido" maxlength="100">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contacto -->
+                    <div class="form-section" style="margin-top:1.75rem;">
+                        <p class="form-section-title">Información de Contacto</p>
+
+                        <div class="form-grid form-grid-3">
+                            <!-- Teléfono principal -->
+                            <div class="form-group">
+                                <label class="form-label" for="inp-mobile">
+                                    Teléfono Principal <span class="required-mark" aria-hidden="true">*</span>
+                                </label>
+                                <div class="input-wrapper">
+                                    <input id="inp-mobile" type="tel" class="form-input phone-mask"
+                                        placeholder="(0414)-1234567" maxlength="20" autocomplete="tel"
+                                        aria-required="true">
+                                </div>
+                            </div>
+
+                            <!-- Teléfono secundario -->
+                            <div class="form-group">
+                                <label class="form-label" for="inp-person-phone">
+                                    Teléfono Secundario
+                                    <span style="color:var(--text-muted);font-weight:400;">(Opcional)</span>
+                                </label>
+                                <div class="input-wrapper">
+                                    <input id="inp-person-phone" type="tel" class="form-input phone-mask"
+                                        placeholder="(0212)-5551234" maxlength="20" autocomplete="tel">
+                                </div>
+                            </div>
+
+                            <!-- Correo -->
+                            <div class="form-group">
+                                <label class="form-label" for="inp-email">
+                                    Correo Electrónico <span class="required-mark" aria-hidden="true">*</span>
+                                </label>
+                                <div class="input-wrapper">
+                                    <input id="inp-email" type="email" class="form-input"
+                                        placeholder="correo@ejemplo.com" maxlength="100" autocomplete="email"
+                                        inputmode="email" aria-required="true">
+                                </div>
+                                <span class="field-hint">
+                                    La Información será enviada a este correo.
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ── Comprobante de Vinculación Institucional ──────── -->
+                    <div class="form-section" style="margin-top:1.75rem;">
+                        <p class="form-section-title">Comprobante de Vinculación</p>
+
+                        <div class="voucher-card" id="voucher-card" role="button" tabindex="0"
+                            aria-label="Adjuntar comprobante de vinculación institucional">
+                            <!-- Estado: sin archivo -->
+                            <div id="voucher-empty" class="voucher-empty-state">
+                                <div class="voucher-icon-wrap">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="32" height="32"
+                                        aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p class="voucher-title">Comprobante de Vinculación Institucional <span
+                                            class="required-mark">*</span></p>
+                                    <p class="voucher-desc">Adjunte un documento que certifique su cargo en la
+                                        institución. Puede ser una <strong>Constancia de Trabajo</strong>,
+                                        <strong>Credencial de Nombramiento</strong> o su <strong>Carnet
+                                            Institucional</strong>.</p>
+                                    <p class="voucher-specs">PDF, JPG o PNG &bull; Máximo 2MB</p>
+                                </div>
+                                <button type="button" class="btn-voucher" id="btn-open-voucher-modal">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"
+                                        aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                    </svg>
+                                    Adjuntar Comprobante
+                                </button>
+                            </div>
+
+                            <!-- Estado: archivo cargado -->
+                            <div id="voucher-loaded" class="voucher-loaded-state" style="display:none;">
+                                <div class="voucher-icon-wrap voucher-icon-ok">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="28" height="28"
+                                        aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
+                                <div style="flex:1;">
+                                    <p class="voucher-title" style="color:#059669;">Comprobante adjuntado</p>
+                                    <p id="voucher-file-name" class="voucher-desc" style="word-break:break-all;"></p>
+                                    <p id="voucher-file-size" class="voucher-specs"></p>
+                                </div>
+                                <button type="button" class="btn-voucher-remove" id="btn-remove-voucher"
+                                    aria-label="Quitar archivo adjunto">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                    Cambiar archivo
+                                </button>
+                            </div>
+                        </div>
+
+                        <p class="voucher-privacy-note">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="13" height="13"
+                                aria-hidden="true" style="flex-shrink:0;">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                            Este documento será de uso estrictamente confidencial para la validación administrativa
+                            interna.
+                        </p>
+                    </div>
+
+                    <!-- Cloudflare Turnstile CAPTCHA Widget -->
+                    <div class="form-section" style="margin-top:1.75rem; display: flex; justify-content: center;">
+                        <div class="cf-turnstile" data-sitekey="{{ config['CAPTCHA_SITE_KEY'] }}" data-theme="light">
+                        </div>
+                    </div>
+
+                    <div class="form-nav">
+                        <button id="btn-back-step2" type="button" class="btn-nav-secondary"
+                            aria-label="Volver al paso anterior">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" width="18"
+                                height="18">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                            </svg>
+                            Anterior
+                        </button>
+                        <button id="btn-submit-registration" type="button"
+                            class="btn-nav-primary btn-primary-registration"
+                            aria-label="Enviar solicitud de pre-registro" style="width: auto;">
+                            <span class="btn-spinner" aria-hidden="true" style="display: none;"></span>
+                            <span class="btn-text" style="display: flex; align-items: center; gap: 0.5rem;">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" width="18"
+                                    height="18">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Validar
+                            </span>
+                        </button>
+                    </div>
+
+                </section>
+
+            </div><!-- /registro-card-body -->
+        </div><!-- /registro-card -->
+    </main>
+
+    <!-- ============================================================
+         FOOTER
+    ============================================================ -->
+    <footer class="registro-footer" role="contentinfo"
+        style="color: rgba(255,255,255,0.5); z-index: 10; position: relative; text-align: center; width: 100%; padding-bottom: 20px;">
+        &copy; 2026 Corporación Eléctrica Nacional &mdash; Todos los derechos reservados.
+    </footer>
+
+    <!-- SweetAlert2 local (no CDN) -->
+    <script src="{{ url_for('static', filename='JS/sweetalert2.all.min.js') }}"></script>
+
+    <!-- Inyectando catálogos estáticos desde el backend para evitar peticiones AJAX -->
+    <script>
+        const CATALOGS = {{ catalogs | tojson }};
+    </script>
+    <script src="{{ url_for('static', filename='JS/pre_registration.js') }}"></script>
+
+</body>
+
+<!-- ============================================================
+     MODAL: Subida de Comprobante
+============================================================ -->
+<div id="voucher-modal" class="file-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="voucher-modal-title"
+    style="display:none;">
+    <div class="file-modal">
+        <div class="file-modal-header">
+            <h3 id="voucher-modal-title" class="file-modal-title">Adjuntar Comprobante</h3>
+            <button type="button" class="file-modal-close" id="btn-close-voucher-modal" aria-label="Cerrar modal">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <div class="file-modal-body">
+            <!-- Tooltip informativo -->
+            <div class="info-alert" style="margin-bottom:1rem;">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p>Para garantizar la seguridad del sistema y validar su acceso, adjunte un documento oficial que
+                    certifique su cargo actual en la institución. Puede ser una <strong>Constancia de Trabajo</strong>
+                    reciente, su <strong>Credencial de Nombramiento</strong> o una imagen de su <strong>Carnet
+                        Institucional</strong> vigente.</p>
+            </div>
+
+            <!-- Selector del tipo de recaudo -->
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label class="form-label" for="sel-document-type">Tipo de Documento <span class="required-mark"
+                        aria-hidden="true">*</span></label>
+                <div class="input-wrapper">
+                    <select id="sel-document-type" name="document_type" class="form-select">
+                        <option value="">Seleccione el tipo de documento...</option>
+                        <option value="constancia">Constancia de Trabajo</option>
+                        <option value="credencial">Credencial de Nombramiento</option>
+                        <option value="carnet">Carnet Institucional Vigente</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Zona Drag & Drop -->
+            <div id="dropzone" class="dropzone" role="button" tabindex="0"
+                aria-label="Arrastre su archivo aquí o haga clic para seleccionar">
+                <div id="dz-idle" class="dz-content">
+                    <div class="dz-icon">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="40" height="40"
+                            aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                    </div>
+                    <p class="dz-title">Arrastre su archivo aquí</p>
+                    <p class="dz-subtitle">o haga clic para buscar en su dispositivo</p>
+                    <p class="dz-specs">PDF, JPG, PNG &bull; Máx. 2MB</p>
+                </div>
+                <div id="dz-preview" class="dz-content" style="display:none;">
+                    <div class="dz-icon dz-icon-ok">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="36" height="36"
+                            aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                    <p id="dz-file-name" class="dz-title" style="word-break:break-all;"></p>
+                    <p id="dz-file-size" class="dz-subtitle"></p>
+                    <button type="button" id="btn-dz-clear" class="dz-clear-btn">Quitar archivo</button>
+                </div>
+            </div>
+
+            <!-- Input file oculto -->
+            <input type="file" id="inp-evidence" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" aria-hidden="true">
+        </div>
+
+        <div class="file-modal-footer">
+            <button type="button" id="btn-cancel-voucher" class="btn-nav-secondary">Cancelar</button>
+            <button type="button" id="btn-confirm-voucher" class="btn-nav-primary btn-primary-registration">
+                <span class="btn-text">Confirmar archivo</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     MODAL: Declaración Jurada
+============================================================ -->
+<div id="sworn-declaration-modal" class="file-modal-overlay" role="dialog" aria-modal="true"
+    aria-labelledby="sworn-modal-title" style="display:none;">
+    <div class="file-modal sworn-modal">
+
+        <!-- Header -->
+        <div class="file-modal-header">
+            <h3 id="sworn-modal-title" class="file-modal-title">Declaración Jurada del Usuario</h3>
+            <button type="button" class="file-modal-close" id="btn-close-sworn-modal"
+                aria-label="Cerrar declaración jurada">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div class="file-modal-body sworn-modal-body">
+
+            <p class="sworn-intro">
+                Por favor, valide que toda la información ingresada sea correcta antes de enviar.
+            </p>
+
+            <!-- Grid: Solicitante | Institución -->
+            <div class="sworn-data-grid">
+
+                <!-- Columna 1: Solicitante -->
+                <div class="sworn-data-col">
+                    <p class="sworn-col-title">Datos del Solicitante</p>
+                    <dl class="sworn-data-list">
+                        <div>
+                            <dt>Cédula: </dt>
+                            <dd id="swd-cedula">—</dd>
+                        </div>
+                        <div>
+                            <dt>Nombre: </dt>
+                            <dd id="swd-nombre">—</dd>
+                        </div>
+                        <div>
+                            <dt>Correo: </dt>
+                            <dd id="swd-email">—</dd>
+                        </div>
+                        <div>
+                            <dt>Teléfono: </dt>
+                            <dd id="swd-mobile">—</dd>
+                        </div>
+                        <div>
+                            <dt>Cargo: </dt>
+                            <dd id="swd-cargo">—</dd>
+                        </div>
+                    </dl>
+                </div>
+
+                <!-- Columna 2: Institución -->
+                <div id="swd-col-institucion" class="sworn-data-col">
+                    <p class="sworn-col-title">Datos de la Institución</p>
+                    <dl class="sworn-data-list">
+                        <div>
+                            <dt>Código de Plantel: </dt>
+                            <dd id="swd-plantel">—</dd>
+                        </div>
+                        <div>
+                            <dt>Tipo de Institución: </dt>
+                            <dd id="swd-tipo">—</dd>
+                        </div>
+                        <div>
+                            <dt>Institución: </dt>
+                            <dd id="swd-nombre-inst">—</dd>
+                        </div>
+                        <div>
+                            <dt>Dependencia: </dt>
+                            <dd id="swd-dependencia">—</dd>
+                        </div>
+                        <div>
+                            <dt>Alcance: </dt>
+                            <dd id="swd-sector">—</dd>
+                        </div>
+                        <div>
+                            <dt>Dirección: </dt>
+                            <dd id="swd-direccion">—</dd>
+                        </div>
+                    </dl>
+                </div>
+
+            </div><!-- /sworn-data-grid -->
+
+            <!-- Texto legal -->
+            <div class="sworn-legal-text">
+                Por voluntad propia, <strong>DECLARO BAJO FE DE JURAMENTO</strong> que la información
+                suministrada a la Corporación Eléctrica Nacional (<strong>CORPOELEC</strong>) y todos
+                los documentos adjuntos son auténticos y veraces. En caso contrario, asumo toda
+                responsabilidad civil, penal y administrativa que pudiera sobrevenir.
+            </div>
+
+            <!-- Checkbox de aceptación -->
+            <label class="sworn-accept-label">
+                <input type="checkbox" id="chk-sworn-accept">
+                <span>Acepto la Declaración Jurada</span>
+            </label>
+
+        </div><!-- /file-modal-body -->
+
+        <!-- Footer -->
+        <div class="file-modal-footer">
+            <button type="button" id="btn-cancel-sworn-modal" class="btn-nav-secondary">Cancelar</button>
+            <button type="button" id="btn-confirm-sworn-modal" class="btn-nav-primary btn-primary-registration">
+                <span class="btn-spinner" aria-hidden="true" style="display:none;"></span>
+                <span class="btn-text" style="display:flex; align-items:center; gap:.5rem;">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" width="18"
+                        height="18">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Enviar Solicitud
+                </span>
+            </button>
+        </div>
+
+    </div>
+</div>
+
+</body>
+
+</html>

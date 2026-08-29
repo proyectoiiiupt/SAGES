@@ -1,0 +1,918 @@
+/* =============================================================
+   pre-registration.css
+   ============================================================= */
+
+/* ── Page layout ──────────────────────────────────────────── */
+.registro-page {
+    /* Fondo heredado de public.css */
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── Navbar custom overrides (if needed) ──────────────────── */
+.registro-page .navbar {
+    position: relative;
+    z-index: 100;
+}
+
+/* Header general de la página de registro */
+.registro-page-header {
+    color: rgba(255, 255, 255, 0.6);
+    z-index: 10;
+    position: relative;
+    text-align: center;
+    width: 100%;
+    padding-top: 3rem;
+    margin-bottom: -1rem;
+}
+
+/* ── Main content area ────────────────────────────────────── */
+.registro-main {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 2.5rem 1rem 3rem;
+    position: relative;
+    z-index: 10;
+}
+
+/* ── Card container (Matches Login white card) ────────────── */
+.registro-card {
+    background: #ffffff;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 780px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    color: var(--text-dark, #1f2937);
+    animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Card Header ──────────────────────────────────────────── */
+.registro-card-header {
+    background: linear-gradient(135deg, #1fcab0, #1c3d73);
+    padding: 2.5rem 2.5rem 1.5rem;
+    text-align: center;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.registro-card-header h2 {
+    margin: 0 0 .5rem;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.registro-card-header p {
+    margin: 0;
+    font-size: .95rem;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+/* ── Card Body ────────────────────────────────────────────── */
+.registro-card-body {
+    padding: 1.5rem 2.5rem 2.5rem;
+}
+
+/* ── Stepper ──────────────────────────────────────────────── */
+.stepper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 2rem;
+}
+
+.stepper-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .4rem;
+    position: relative;
+    flex: 1;
+    max-width: 120px;
+}
+
+.stepper-step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 18px;
+    left: calc(50% + 18px);
+    width: calc(100% - 36px);
+    height: 2px;
+    background: #e2e8f0;
+    transition: background .4s ease;
+}
+
+.stepper-step.step-done:not(:last-child)::after,
+.stepper-step.step-active:not(:last-child)::after {
+    background: #1fcab0;
+}
+
+.step-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid #e2e8f0;
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .8rem;
+    font-weight: 700;
+    color: #94a3b8;
+    transition: all .3s ease;
+}
+
+.stepper-step.step-active .step-circle {
+    border-color: #1fcab0;
+    background: rgba(31, 202, 176, 0.1);
+    color: #1fcab0;
+    box-shadow: 0 0 0 4px rgba(31, 202, 176, 0.12);
+}
+
+.stepper-step.step-done .step-circle {
+    border-color: #1fcab0;
+    background: #1fcab0;
+    color: #ffffff;
+}
+
+/* Show/hide number vs check icon */
+.step-circle .icon-check { display: none; }
+.step-circle .icon-num   { display: block; }
+.stepper-step.step-done .step-circle .icon-check { display: block; }
+.stepper-step.step-done .step-circle .icon-num   { display: none; }
+
+.step-label {
+    font-size: .75rem;
+    color: #94a3b8;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+    transition: color .3s ease;
+}
+
+.stepper-step.step-active .step-label {
+    color: #1fcab0;
+}
+
+.stepper-step.step-done .step-label {
+    color: #64748b;
+}
+
+/* ── Step panels ──────────────────────────────────────────── */
+.step-panel {
+    display: none;
+    animation: fadeSlideIn .3s ease;
+}
+
+.step-panel.step-panel-active {
+    display: block;
+}
+
+@keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Section titles inside form ───────────────────────────── */
+.form-section-title {
+    font-size: .85rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #1fcab0;
+    margin: 0 0 1rem;
+    padding-bottom: .5rem;
+    border-bottom: 1px solid rgba(31, 202, 176, 0.15);
+}
+
+.form-section + .form-section {
+    margin-top: 2rem;
+}
+
+/* ── Form grid ────────────────────────────────────────────── */
+.form-grid {
+    display: grid;
+    gap: 1.25rem;
+}
+
+.form-grid-2 { grid-template-columns: 1fr 1fr; }
+.form-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+.form-col-full { grid-column: 1 / -1; }
+
+/* ── Form groups ──────────────────────────────────────────── */
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+}
+
+.form-label {
+    display: block;
+    color: var(--text-muted, #6b7280);
+    font-size: 0.85rem;
+    margin-bottom: 0.2rem;
+    font-weight: 600;
+}
+
+.form-label .required-mark {
+    color: #ef4444;
+    margin-left: 2px;
+}
+
+/* ── Input Wrapper (Matches Login) ────────────────────────── */
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    background: var(--input-bg, #f3f4f6);
+    border: 1px solid var(--input-border, #e5e7eb);
+    border-radius: 30px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.input-wrapper:focus-within {
+    border-color: #1fcab0;
+    box-shadow: 0 0 0 3px rgba(31, 202, 176, 0.1);
+    background: #ffffff;
+}
+
+.input-wrapper.input-error {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12) !important;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+    width: 100%;
+    padding: 0.85rem 1.2rem;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 0.95rem;
+    color: var(--text-dark, #1f2937);
+    font-family: inherit;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder {
+    color: #9ca3af;
+}
+
+.form-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1.2rem center;
+    background-size: 16px;
+    padding-right: 2.5rem;
+    cursor: pointer;
+}
+
+.form-select:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+.form-textarea {
+    resize: vertical;
+    min-height: 88px;
+    border-radius: 15px; /* Textareas look better not fully rounded */
+}
+
+/* ── Input with prefix (cédula, código) ───────────────────── */
+.input-prefix-select {
+    background: rgba(0,0,0,0.03);
+    border: none;
+    border-right: 1px solid var(--input-border, #e5e7eb);
+    color: var(--text-dark, #1f2937);
+    font-size: 0.95rem;
+    font-family: inherit;
+    padding: 0.85rem 0.5rem 0.85rem 1.2rem;
+    outline: none;
+    cursor: pointer;
+    min-width: 60px;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.input-prefix-wide {
+    min-width: 140px;
+    padding-right: 2.2rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.8rem center;
+    background-size: 14px;
+}
+
+/* Icon inside wrapper */
+.input-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-right: 1.2rem;
+    color: #9ca3af;
+}
+
+/* ── Voucher Card (Comprobante) ────────────────────────────── */
+.voucher-card {
+    border: 1.5px dashed var(--input-border, #e5e7eb);
+    border-radius: 16px;
+    padding: 1.25rem 1.5rem;
+    background: var(--input-bg, #f3f4f6);
+    transition: border-color 0.2s ease, background 0.2s ease;
+    cursor: default;
+}
+
+.voucher-empty-state,
+.voucher-loaded-state {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.voucher-icon-wrap {
+    flex-shrink: 0;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(31, 202, 176, 0.08);
+    border: 1.5px solid rgba(31, 202, 176, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1fcab0;
+}
+
+.voucher-icon-ok {
+    background: rgba(5, 150, 105, 0.1);
+    border-color: rgba(5, 150, 105, 0.25);
+    color: #059669;
+}
+
+.voucher-title {
+    margin: 0 0 .2rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-dark, #1f2937);
+}
+
+.voucher-desc {
+    margin: 0 0 .3rem;
+    font-size: 0.83rem;
+    color: #6b7280;
+    line-height: 1.45;
+}
+
+.voucher-specs {
+    margin: 0;
+    font-size: 0.78rem;
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+.btn-voucher {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    padding: 0.65rem 1.25rem;
+    background: linear-gradient(90deg, #1c3d73, #1fcab0);
+    border: none;
+    border-radius: 30px;
+    color: #fff;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: transform 0.2s, box-shadow 0.2s;
+    flex-shrink: 0;
+}
+
+.btn-voucher:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(31, 202, 176, 0.35);
+}
+
+.btn-voucher-remove {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: 0.55rem 1rem;
+    background: transparent;
+    border: 1px solid #e5e7eb;
+    border-radius: 30px;
+    color: #6b7280;
+    font-size: 0.83rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.btn-voucher-remove:hover {
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+.voucher-privacy-note {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    margin: .6rem .3rem 0;
+    font-size: 0.75rem;
+    color: #94a3b8;
+    line-height: 1.4;
+}
+
+/* ── File Upload Modal ──────────────────────────────────────── */
+.file-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 9000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    animation: fadeIn 0.2s ease;
+}
+
+.file-modal {
+    background: #ffffff;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 520px;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.35);
+    overflow: hidden;
+    animation: fadeSlideIn 0.25s ease;
+}
+
+.file-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem 1.5rem;
+    background: linear-gradient(90deg, #1fcab0, #1c3d73);
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    position: relative;
+}
+
+.file-modal-title {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #ffffff;
+    text-align: center;
+}
+
+.file-modal-close {
+    position: absolute;
+    right: 1.5rem;
+    background: none;
+    border: none;
+    color: #ffffff;
+    cursor: pointer;
+    padding: .25rem;
+    display: flex;
+    border-radius: 6px;
+    transition: background 0.2s, color 0.2s;
+}
+
+.file-modal-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+}
+
+.file-modal-body {
+    padding: 1.5rem;
+}
+
+.file-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: .75rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid rgba(0,0,0,0.06);
+}
+
+/* Dropzone */
+.dropzone {
+    border: 2px dashed #e5e7eb;
+    border-radius: 14px;
+    padding: 2rem 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    background: #f9fafb;
+}
+
+.dropzone:hover,
+.dropzone.drag-over {
+    border-color: #1fcab0;
+    background: rgba(31, 202, 176, 0.04);
+}
+
+.dz-content { display: flex; flex-direction: column; align-items: center; gap: .4rem; }
+
+.dz-icon {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background: rgba(31, 202, 176, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1fcab0;
+    margin-bottom: .5rem;
+}
+
+.dz-icon-ok {
+    background: rgba(5, 150, 105, 0.1);
+    color: #059669;
+}
+
+.dz-title {
+    margin: 0;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text-dark, #1f2937);
+}
+
+.dz-subtitle {
+    margin: 0;
+    font-size: 0.83rem;
+    color: #6b7280;
+}
+
+.dz-specs {
+    margin: .25rem 0 0;
+    font-size: 0.75rem;
+    color: #94a3b8;
+}
+
+.dz-clear-btn {
+    margin-top: .5rem;
+    background: none;
+    border: none;
+    color: #ef4444;
+    font-size: 0.82rem;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+/* ── Checkboxes for Educational Levels ──────────────────────── */
+
+.checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.8rem;
+    margin-top: 0.4rem;
+    align-items: stretch; /* Asegura que todas las tarjetas en la fila tengan la misma altura */
+}
+
+.checkbox-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--input-bg, #f3f4f6);
+    border: 1px solid var(--input-border, #e5e7eb);
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 60px; /* Aumentar para dar más espacio a textos largos */
+    height: 100%;
+    box-sizing: border-box;
+}
+
+.checkbox-item:hover {
+    border-color: rgba(31, 202, 176, 0.5);
+    background: #ffffff;
+}
+
+.checkbox-item.selected {
+    background: rgba(31, 202, 176, 0.08);
+    border-color: rgba(31, 202, 176, 0.5);
+}
+
+.checkbox-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #1fcab0;
+    cursor: pointer;
+}
+
+.checkbox-item span {
+    font-size: 0.9rem;
+    color: var(--text-dark, #1f2937);
+    font-weight: 500;
+    line-height: 1.2;
+    flex: 1; /* Permite que el texto tome el espacio restante */
+}
+
+/* ── Field error messages ─────────────────────────────────── */
+.field-hint {
+    font-size: .75rem;
+    color: #6b7280;
+    margin-top: .2rem;
+    margin-left: 0.5rem;
+}
+
+.field-error {
+    font-size: .78rem;
+    color: #ef4444;
+    font-weight: 500;
+    margin-top: .3rem;
+    margin-left: 0.5rem;
+    display: none;
+}
+
+.field-error.visible { display: block; animation: fadeSlideIn 0.2s; }
+
+/* ── Alert info box ───────────────────────────────────────── */
+.info-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: .75rem;
+    background: rgba(31, 202, 176, 0.08);
+    border: 1px solid rgba(31, 202, 176, 0.2);
+    border-radius: 15px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.info-alert svg {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    color: #1fcab0;
+    margin-top: 1px;
+}
+
+.info-alert p {
+    margin: 0;
+    font-size: .88rem;
+    color: #475569;
+    line-height: 1.5;
+}
+
+/* ── Validation step (step 0) ─────────────────────────────── */
+.validation-step {
+    text-align: center;
+    padding: .5rem 0 1rem;
+}
+
+.validation-step .step-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(31, 202, 176, 0.1);
+    border: 2px solid rgba(31, 202, 176, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.25rem;
+}
+
+.validation-step .step-icon svg {
+    width: 32px;
+    height: 32px;
+    color: #1fcab0;
+}
+
+/* ── Navigation buttons ───────────────────────────────────── */
+.form-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(0,0,0,0.05);
+    gap: 1rem;
+}
+
+.form-nav.justify-center { justify-content: center; }
+
+/* Reusing base styles but scoping it for registration */
+.btn-nav-primary.btn-primary-registration {
+    padding: 0.85rem 2rem;
+    background: linear-gradient(90deg, #1c3d73, #1fcab0);
+    border: none;
+    border-radius: 30px;
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-nav-primary.btn-primary-registration:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(31, 202, 176, 0.4);
+}
+
+.btn-nav-primary.btn-primary-registration:active {
+    transform: translateY(0);
+}
+
+.btn-nav-primary.btn-success {
+    background: #10b981; /* Green check state */
+}
+
+.btn-nav-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    padding: 0.85rem 1.5rem;
+    background: transparent;
+    color: #64748b;
+    border: 1px solid #cbd5e1;
+    border-radius: 30px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s ease;
+}
+
+.btn-nav-secondary:hover {
+    color: #1e293b;
+    border-color: #94a3b8;
+    background: #f1f5f9;
+}
+
+/* ── Loading spinner on button ────────────────────────────── */
+.btn-spinner {
+    display: none;
+    width: 18px;
+    height: 18px;
+    border: 2.5px solid rgba(255,255,255,.35);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+}
+
+.btn-loading .btn-spinner { display: block !important; }
+.btn-loading .btn-text    { display: none !important; }
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ── Back floating button ───────────────────────────────────── */
+.btn-back-floating {
+    position: absolute;
+    top: 90px;
+    left: max(20px, 5vw);
+    z-index: 100;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, #1c3d73, #1fcab0);
+    color: #fff;
+    font-size: 0.875rem;
+    font-weight: 600;
+    box-shadow: 0 0 20px rgba(6,182,212,0.4);
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+}
+.btn-back-floating:hover {
+    box-shadow: 0 6px 20px rgba(6,182,212,0.5);
+    transform: translateY(-2px);
+    color: #fff;
+}
+
+/* ── Sworn Declaration Modal ────────────────────────────────── */
+/* Amplía el ancho del modal base (.file-modal) para mostrar 2 columnas */
+.sworn-modal {
+    max-width: 780px;
+    width: 95%;
+}
+
+/* Padding propio del body del modal de declaración */
+.sworn-modal-body {
+    padding: 1.5rem 2rem;
+}
+
+/* Párrafo introductorio */
+.sworn-intro {
+    color: #475569;
+    font-size: .9rem;
+    margin-bottom: 1.25rem;
+}
+
+/* Grid de dos columnas (solicitante | institución) */
+.sworn-data-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Cada columna de datos */
+.sworn-data-col {
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem;
+}
+
+/* Título de columna (color corporativo) */
+.sworn-col-title {
+    color: #1fcab0;
+    font-weight: 700;
+    font-size: .88rem;
+    margin-bottom: .85rem;
+    letter-spacing: .03em;
+}
+
+/* Lista de pares clave–valor */
+.sworn-data-list {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .55rem;
+    font-size: .875rem;
+    color: #374151;
+}
+.sworn-data-list dt {
+    font-weight: 600;
+    display: inline;
+}
+.sworn-data-list dd {
+    display: inline;
+    margin: 0;
+}
+
+/* Caja del texto legal */
+.sworn-legal-text {
+    background: rgba(31, 202, 176, .08);
+    border: 1.5px solid rgba(31, 202, 176, .3);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.25rem;
+    color: #374151;
+    font-size: .875rem;
+    line-height: 1.6;
+}
+
+/* Label del checkbox de aceptación */
+.sworn-accept-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .6rem;
+    cursor: pointer;
+    font-size: .875rem;
+    color: #374151;
+}
+.sworn-accept-label input[type="checkbox"] {
+    width: 1.1rem;
+    height: 1.1rem;
+    accent-color: #1fcab0;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .registro-card-header { padding: 1.5rem 1.5rem 1rem; }
+    .registro-card-body   { padding: 1.5rem; }
+    .form-grid-2          { grid-template-columns: 1fr; }
+    .form-grid-3          { grid-template-columns: 1fr; }
+    .form-nav             { flex-direction: column-reverse; }
+    .btn-nav-primary,
+    .btn-nav-secondary    { width: 100%; justify-content: center; }
+    /* Sworn modal: apilar columnas en móvil */
+    .sworn-data-grid      { grid-template-columns: 1fr; }
+}
+
+/* ── SweetAlert2 sobre modales ──────────────────────────── */
+/* Los modales del sistema tienen z-index: 9000.             */
+/* SweetAlert2 debe renderizarse siempre por encima.         */
+.swal2-container {
+    z-index: 99999 !important;
+}
