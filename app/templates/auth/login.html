@@ -9,6 +9,15 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='CSS/sweetalert2.min.css') }}">
 </head>
 <body>
+
+        <!-- Botón volver a la página de inicio -->
+    <a href="{{ url_for('index') }}" class="back-to-home-btn">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 12H5m7-7l-7 7 7 7"/>
+        </svg>
+        Volver al inicio
+    </a>
+    
         <div class="circles">
         <div class="circle c1"></div>
         <div class="circle c2"></div>

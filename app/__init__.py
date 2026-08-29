@@ -1,4 +1,4 @@
-from flask import Flask, redirect, url_for, request, flash
+from flask import Flask, redirect, url_for, request, flash, render_template 
 from app.config import Config
 from app.extensions import db, migrate, login_manager
 
@@ -30,7 +30,7 @@ def create_app(config_class=Config) -> Flask:
 
     @app.route('/')
     def index():
-        return redirect(url_for('auth.login'))
+        return render_template('public/index.html')
 
     from flask import render_template
     from flask_login import login_required, current_user
