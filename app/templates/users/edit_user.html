@@ -1,0 +1,288 @@
+{% extends "layouts/base.html" %}
+
+{% block extra_css %}
+<!-- Enlace al archivo CSS local -->
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/users_view.css') }}">
+<!-- SweetAlert2 Local CSS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/sweetalert2.min.css') }}">
+<style>
+    /* Ajuste para el botón de desbloqueo de cédula */
+    .id-container {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    .btn-unlock {
+        background: #f0ad4e;
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: background 0.3s;
+    }
+    .btn-unlock:hover {
+        background: #e09b3d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% set user_role = current_user.roles_assoc[0].role.name if current_user and current_user.roles_assoc else 'applicant' %}
+
+<div class="view-container">
+    
+    <!-- Encabezado -->
+    <div class="view-header">
+        <div class="header-actions">
+            <!-- Interceptaremos este enlace con JS para el SweetAlert de Cancelar -->
+            <a href="{{ url_for('users.view_user', user_id=user.id) }}" class="btn-back btn-cancel-swal">⬅ Volver</a>
+            <h2 class="view-title">Actualización de Datos</h2>
+        </div>
+    </div>
+
+    <div id="personal" class="tab-content active-content">
+        <div class="section-header">
+            <h3>Editar Información Personal</h3>
+        </div>
+        
+        <form id="editUserForm" action="{{ url_for('users.edit_user', user_id=user.id) }}" method="POST">
+            <!-- Token de seguridad de Flask-WTF -->
+            {% if form %}
+                {{ form.hidden_tag() }}
+            {% endif %}
+
+            <div class="data-grid-container">
+                <!-- Columna Izquierda: Datos del usuario -->
+                <div class="data-column">
+                    <h4 class="figma-title-green">Datos del usuario</h4>
+                    <div class="info-grid">
+
+                       <!-- Cédula de Identidad -->
+                        <div class="full-width">
+                            <label class="figma-label">Cédula de Identidad</label>
+                            <div class="id-container">
+                                <input type="text" id="identification_number" name="identification_number" 
+                                       value="{{ user.person.identification_number }}" readonly 
+                                       class="figma-input locked-box" style="flex-grow: 1;">
+                                {% if user_role == 'super_admin' %}
+                                    <button type="button" id="unlockIdBtn" class="btn-unlock" title="Desbloquear para editar">🔓</button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="figma-label">Primer Nombre</label>
+                            <input type="text" name="first_name" value="{{ user.person.first_name if user.person else '' }}" class="figma-input format-name editable-field" required>
+                        </div>
+                        <div>
+                            <label class="figma-label">Segundo Nombre</label>
+                            <input type="text" name="second_name" value="{{ user.person.second_name if user.person else '' }}" class="figma-input format-name editable-field">
+                        </div>
+                        
+                        <div>
+                            <label class="figma-label">Primer Apellido</label>
+                            <input type="text" name="last_name" value="{{ user.person.last_name if user.person else '' }}" class="figma-input format-name editable-field" required>
+                        </div>
+                        <div>
+                            <label class="figma-label">Segundo Apellido</label>
+                            <input type="text" name="middle_name" value="{{ user.person.middle_name if user.person else '' }}" class="figma-input format-name editable-field">
+                        </div>
+
+                        <!-- Cargo del usuario -->
+                        <div class="full-width" style="margin-top: 15px;">
+                            <label class="figma-label">Cargo del usuario</label>
+                            {{ form.position(class="figma-input editable-field", style="width: 100%;") }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="vertical-divider"></div>
+                
+                <!-- Columna Derecha: Contacto (AHORA DE SOLO LECTURA) -->
+                <div class="data-column">
+                    <h4 class="figma-title-green">Contacto</h4>
+                    <div class="info-grid">
+                        
+                        <div>
+                            <label class="figma-label">Teléfono Principal</label>
+                            <input type="tel" name="mobile" value="{{ user.person.mobile if user.person else '' }}" class="figma-input locked-box" readonly>
+                        </div>
+                        
+                        <div>
+                            <label class="figma-label">Teléfono Secundario</label>
+                            <input type="tel" name="phone" value="{{ user.person.phone if user.person else '' }}" class="figma-input locked-box" readonly>
+                        </div>
+                        
+                        <div class="full-width">
+                            <label class="figma-label">Correo Electrónico</label>
+                            <input type="email" name="email" value="{{ user.person.email if user.person and user.person.email else '' }}" class="figma-input locked-box" readonly>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="profile-status-section">
+                {% if user_role == 'super_admin' %}
+                    <div class="form-actions-container">
+                        <a href="{{ url_for('users.view_user', user_id=user.id) }}" class="btn-cancel btn-cancel-swal">
+                            Cancelar
+                        </a>
+                        <button type="submit" class="btn-edit">
+                            Actualizar Registro
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- SweetAlert2 Local JS -->
+<script src="{{ url_for('static', filename='JS/sweetalert2.all.min.js') }}"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('editUserForm');
+        
+        // --- 1. FORMATEO DE CÉDULA (Solo números, 7-8 dígitos, puntos automáticos) ---
+        const idInput = document.getElementById('identification_number');
+        
+        function formatCedula(val) {
+            let nums = val.replace(/\D/g, ''); 
+            if (nums.length > 8) nums = nums.slice(0, 8); 
+            if (nums.length > 0) {
+                nums = nums.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+            }
+            return nums;
+        }
+
+        if (idInput && idInput.value) {
+            idInput.value = formatCedula(idInput.value);
+        }
+
+        if (idInput) {
+            idInput.addEventListener('input', function() {
+                this.value = formatCedula(this.value);
+            });
+        }
+
+        // --- 2. DESBLOQUEO DE CÉDULA ---
+        const unlockBtn = document.getElementById('unlockIdBtn');
+        if (unlockBtn) {
+            unlockBtn.addEventListener('click', function() {
+                Swal.fire({
+                    title: '¿Habilitar edición de Cédula?',
+                    text: 'Modificar este dato es una acción delicada. ¿Estás seguro?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#f0ad4e',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Sí, habilitar',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        idInput.removeAttribute('readonly');
+                        idInput.classList.remove('locked-box');
+                        idInput.focus();
+                        unlockBtn.style.display = 'none';
+                        Swal.fire('Habilitado', 'Ya puedes editar la cédula.', 'info');
+                    }
+                });
+            });
+        }
+
+        // --- 3. FORMATEO DE NOMBRES Y APELLIDOS ---
+        const nameInputs = document.querySelectorAll('.format-name');
+        nameInputs.forEach(input => {
+            input.addEventListener('input', function() {
+                let val = this.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, '');
+                val = val.toLowerCase();
+                if (val.length > 0) {
+                    val = val.charAt(0).toUpperCase() + val.slice(1);
+                }
+                this.value = val;
+            });
+        });
+
+        // --- 4. SWEETALERT: CONFIRMAR CANCELACIÓN ---
+        const cancelBtns = document.querySelectorAll('.btn-cancel-swal');
+        cancelBtns.forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const redirectUrl = this.getAttribute('href');
+                
+                Swal.fire({
+                    title: '¿Seguro que deseas cancelar?',
+                    text: 'Se perderán todos los cambios que no hayas guardado.',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Sí, cancelar',
+                    cancelButtonText: 'Seguir editando'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = redirectUrl;
+                    }
+                });
+            });
+        });
+
+        // --- 5. SWEETALERT: CONFIRMAR GUARDADO ---
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                Swal.fire({
+                    title: '¿Confirmar actualización?',
+                    text: 'Estás a punto de guardar los cambios en la base de datos.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#87d068',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Sí, guardar cambios',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        HTMLFormElement.prototype.submit.call(form);
+                    }
+                });
+            });
+        }
+
+        // --- 6. CAPTURA LOCAL DE MENSAJES FLASH DE FLASK ---
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    let iconType = '{{ category }}';
+                    let titleText = 'Notificación';
+
+                    if (iconType === 'success') {
+                        titleText = '¡Éxito!';
+                    } else if (iconType === 'error' || iconType === 'danger') {
+                        iconType = 'error';
+                        titleText = '¡Atención!';
+                    } else if (iconType === 'warning') {
+                        titleText = 'Advertencia';
+                    } else {
+                        iconType = 'info';
+                    }
+
+                    Swal.fire({
+                        title: titleText,
+                        text: '{{ message }}',
+                        icon: iconType,
+                        confirmButtonColor: '#019577',
+                        confirmButtonText: 'Aceptar'
+                    });
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    });
+</script>
+{% endblock %}

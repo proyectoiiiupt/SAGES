@@ -45,6 +45,11 @@ Vista de usuarios afiliados a instituciones
     text-align: center;
 }
 
+.institutions-table th:nth-child(8),
+.institutions-table td:nth-child(8) {
+    width: 80px;
+}
+
 .institution-info-card {
     background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
     border-radius: 12px;

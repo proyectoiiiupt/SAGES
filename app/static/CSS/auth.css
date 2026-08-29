@@ -322,6 +322,36 @@ body::after {
     transform: translateY(0);
 }
 
+/* Botón de volver al inicio */
+.back-btn {
+    width: 100%;
+    padding: 0.9rem;
+    background: transparent;
+    border: 2px solid var(--btn-gradient-start);
+    border-radius: 30px;
+    color: var(--btn-gradient-start);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
+    margin-top: 1rem;
+}
+
+.back-btn:hover {
+    background: var(--btn-gradient-start);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(28, 61, 115, 0.3);
+}
+
+.back-btn:active {
+    transform: translateY(0);
+}
+
 /* =========================================
    MENSAJES DE ERROR Y ÉXITO
    ========================================= */
