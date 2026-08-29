@@ -2,6 +2,8 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/users_view.css') }}">
+
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/sweetalert2.min.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -77,7 +79,20 @@
                 </div>
             </div>
         </div>
+
+        <!-- Botón de Edición (US-15) -->
+        {% if current_role == 'super_admin' %}
+        <div style="margin-top: 2rem; display: flex; justify-content: flex-end; padding-right: 20px; padding-bottom: 20px;">
+            <a href="{{ url_for('users.edit_user', user_id=user.id) }}" class="btn-edit" style="padding: 10px 20px; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; cursor: pointer;">
+                Editar Información
+            </a>
+        </div>
+        {% endif %}
+
     </div>
+
+    
+    
 
     <!-- Contenido: Información Corporativa / Institucional -->
     <div id="corp" class="tab-content">
@@ -181,6 +196,9 @@
 {% endblock %}
 
 {% block extra_js %}
+
+<script src="{{ url_for('static', filename='JS/sweetalert2.all.min.js') }}"></script>
+
 <script>
 function showTab(tabId) {
     document.querySelectorAll('.tab-content').forEach(t => {
@@ -203,5 +221,34 @@ function showTab(tabId) {
         btnPersonal.className = 'tab-btn tab-inactive';
     }
 }
+document.addEventListener('DOMContentLoaded', function() {
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                let iconType = '{{ category }}';
+                let titleText = 'Notificación';
+
+                if (iconType === 'success') {
+                    titleText = '¡Éxito!';
+                } else if (iconType === 'error' || iconType === 'danger') {
+                    iconType = 'error';
+                    titleText = '¡Atención!';
+                } else if (iconType === 'warning') {
+                    titleText = 'Advertencia';
+                } else {
+                    iconType = 'info';
+                }
+
+                Swal.fire({
+                    title: titleText,
+                    text: '{{ message }}',
+                    icon: iconType,
+                    confirmButtonColor: '#019577',
+                    confirmButtonText: 'Aceptar'
+                });
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+});
 </script>
 {% endblock %}

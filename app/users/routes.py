@@ -1,4 +1,5 @@
-from flask import Blueprint, render_template, request, abort, redirect, url_for
+import datetime
+from flask import Blueprint, render_template, request, abort, redirect, url_for, flash
 from flask_login import login_required, current_user
 from sqlalchemy import or_
 from app.extensions import db
@@ -13,8 +14,10 @@ from app.models.institution_model import Institution
 from app.models.place_model import Place
 from app.models.parish_model import Parish
 from app.models.municipality_model import Municipality
+from app.models.binnacle_model import Binnacle
+from app.models.position_model import Position  # <-- Importación del modelo Position agregada
+from app.users.forms import UserUpdateForm
 
-# Definimos el blueprint
 users_bp = Blueprint('users', __name__)
 
 def format_identification(id_type, id_number):
@@ -66,13 +69,11 @@ def list_users():
     }
 
     try:
-        # 1. Cargamos los catálogos base
         db_roles = Role.query.all()
         db_states = State.query.all()
         db_municipalities = []
         db_parishes = []
         
-        # Traducimos los roles usando versiones cortas
         for r in db_roles:
             if r.name == 'super_admin':
                 r.translated_name = 'Super Admin'
@@ -92,7 +93,6 @@ def list_users():
                 conditions = [User.roles_assoc.any(role_id=r_id) for r_id in applicant_roles]
                 query = query.filter(or_(*conditions))
 
-        # --- FILTRO GEOGRÁFICO DINÁMICO ---
         target_state_id = None
         
         if user_role == 'state_admin' and current_user.person:
@@ -136,7 +136,6 @@ def list_users():
                 query = query.filter(User.id == 0)
         elif user_role == 'state_admin' and not target_state_id:
              query = query.filter(User.id == 0)
-        # --- FIN DEL FILTRO GEOGRÁFICO ---
             
         if search_query:
             search_pattern = f"%{search_query}%"
@@ -222,10 +221,7 @@ def view_user(user_id):
     user = User.query.get_or_404(user_id)
     person = user.person
     
-    
     current_user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
-    
-    
     viewed_role = user.roles_assoc[0].role.name if user.roles_assoc else 'applicant'
 
     def format_venezuelan_phone(phone_str):
@@ -333,20 +329,173 @@ def view_user(user_id):
 
     return render_template('users/view_user.html', user=user, corp_data=corp_data, current_role=current_user_role, viewed_role=viewed_role)
 
-@users_bp.route('/toggle_status/<int:user_id>', methods=['POST'])
+        first_n = getattr(person, 'first_name', '') or ''
+        second_n = getattr(person, 'second_name', '') or ''
+        last_n = getattr(person, 'last_name', '') or ''
+        middle_n = getattr(person, 'middle_name', '') or ''
+        
+        user.full_first_name = f"{first_n} {second_n}".strip() if first_n else 'N/A'
+        user.full_last_name = f"{last_n} {middle_n}".strip() if last_n else 'N/A'
+
+        inst_staff = InstitutionalStaff.query.filter_by(person_id=person.id).first()
+        
+        if inst_staff:
+            inst = inst_staff.institution
+            pos = inst_staff.position
+            
+            city_name = 'N/A'
+            if inst and getattr(inst, 'parish_id', None):
+                try:
+                    from app.models.location_model import Location
+                    loc = Location.query.filter_by(parish_id=inst.parish_id).first()
+                    if loc and loc.city:
+                        city_name = loc.city.name
+                except Exception:
+                    pass
+            
+            plantel_code = getattr(inst, 'plantel_code', None)
+            
+            corp_data = {
+                'id_card': plantel_code if plantel_code else 'N/A',
+                'name': inst.institution_name if inst else 'N/A',
+                'type': inst.institution_type.name if inst and getattr(inst, 'institution_type', None) else 'N/A',
+                'sector': inst.institution_scope.name if inst and getattr(inst, 'institution_scope', None) else 'N/A',
+                'dependency': inst.institution_dependency.name if inst and getattr(inst, 'institution_dependency', None) else 'N/A',
+                'position': pos.name if pos else 'N/A',
+                'phone_main': format_venezuelan_phone(getattr(inst, 'phone', 'N/A')),
+                'state': inst.parish.municipality.state.name if inst and getattr(inst, 'parish', None) and getattr(inst.parish, 'municipality', None) else 'N/A',
+                'municipality': inst.parish.municipality.name if inst and getattr(inst, 'parish', None) else 'N/A',
+                'parish': inst.parish.name if inst and getattr(inst, 'parish', None) else 'N/A',
+                'city': city_name, 
+                'address': inst.address if inst else 'N/A'
+            }
+        else:
+            comp_staff = CompanyStaff.query.filter_by(person_id=person.id).first()
+            
+            if comp_staff:
+                place = comp_staff.place
+                comp = place.company if place else None
+                pos = comp_staff.position
+                
+                city_name = 'N/A'
+                if place and getattr(place, 'parish_id', None):
+                    try:
+                        from app.models.location_model import Location
+                        loc = Location.query.filter_by(parish_id=place.parish_id).first()
+                        if loc and loc.city:
+                            city_name = loc.city.name
+                    except Exception:
+                        pass
+                
+                if comp:
+                    type_rif = getattr(comp, 'identification_type', '') or ''
+                    num_rif = getattr(comp, 'rif', '') or ''
+                    formatted_rif = f"{type_rif}-{num_rif}".strip('-') if (type_rif or num_rif) else 'N/A'
+
+                    corp_data = {
+                        'id_card': formatted_rif,
+                        'name': comp.company_name,
+                        'type': 'Empresa Privada', 
+                        'sector': 'N/A',
+                        'dependency': 'N/A',
+                        'position': pos.name if pos else 'N/A',
+                        'phone_main': format_venezuelan_phone(getattr(place, 'phone', 'N/A')),
+                        'state': place.parish.municipality.state.name if place and getattr(place, 'parish', None) and getattr(place.parish, 'municipality', None) else 'N/A',
+                        'municipality': place.parish.municipality.name if place and getattr(place, 'parish', None) else 'N/A',
+                        'parish': place.parish.name if place and getattr(place, 'parish', None) else 'N/A',
+                        'city': city_name,
+                        'address': place.address if place else 'N/A',
+                        'sede': place.name if place else 'N/A'
+                    }
+
+    return render_template('users/view_user.html', user=user, corp_data=corp_data, current_role=current_user_role, viewed_role=viewed_role)
+
+@users_bp.route('/edit/<int:user_id>', methods=['GET', 'POST'])
 @login_required
-def toggle_user_status(user_id):
+def edit_user(user_id):
+    """
+    Ruta con validaciones JS combinadas con reglas de seguridad base.
+    """
     user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
     
+    # Solo el administrador puede actualizar datos base
     if user_role != 'super_admin':
-        abort(403) 
-        
+        abort(403)
+
     user = User.query.get_or_404(user_id)
+    person = user.person
     
-    if user.status_id == 1:
-        user.status_id = 2
-    else:
-        user.status_id = 1
+    # Determinar si el usuario pertenece a una institución o empresa para el cargo
+    inst_staff = InstitutionalStaff.query.filter_by(person_id=person.id).first()
+    comp_staff = CompanyStaff.query.filter_by(person_id=person.id).first()
+    staff_record = inst_staff or comp_staff
+    
+    form = UserUpdateForm() 
+    
+    # Poblamos las opciones del dropdown directamente desde la BD
+    form.position.choices = [(p.id, p.name) for p in Position.query.order_by(Position.name).all()]
+
+    if form.validate_on_submit():
+        # Guardamos el estado actual para la bitácora
+        old_values = {
+            'identification_number': person.identification_number,
+            'first_name': person.first_name,
+            'second_name': person.second_name,
+            'last_name': person.last_name,
+            'middle_name': person.middle_name,
+            'position_id': staff_record.position_id if staff_record else None
+        }
         
-    db.session.commit()
-    return redirect(url_for('users.view_user', user_id=user.id))
+        # OJO AQUÍ: Como JS pone puntos en la cédula ("12.345.678"), los quitamos antes de guardar
+        raw_cedula = form.identification_number.data.replace('.', '').strip()
+        
+        person.identification_number = raw_cedula
+        person.first_name = form.first_name.data.strip()
+        person.second_name = form.second_name.data.strip() if form.second_name.data else None
+        person.last_name = form.last_name.data.strip()
+        person.middle_name = form.middle_name.data.strip() if form.middle_name.data else None
+        
+        # Guardamos el nuevo cargo
+        if staff_record:
+            staff_record.position_id = form.position.data
+        
+        # Nuevo estado
+        new_values = {
+            'identification_number': person.identification_number,
+            'first_name': person.first_name,
+            'second_name': person.second_name,
+            'last_name': person.last_name,
+            'middle_name': person.middle_name,
+            'position_id': staff_record.position_id if staff_record else None
+        }
+        
+        if old_values != new_values:
+            try:
+                binnacle_entry = Binnacle(
+                    users_id=current_user.id,
+                    module='Gestión de Usuarios',
+                    action_type='Edición',
+                    description=f'Actualización de datos y cargo del usuario ID {user.id}',
+                    old_values=old_values,
+                    new_values=new_values,
+                    created_at=datetime.datetime.now(datetime.timezone.utc)
+                )
+                db.session.add(binnacle_entry)
+            except Exception as e:
+                print(f"Error al guardar en bitácora: {e}")
+                
+        db.session.commit()
+        
+        flash('Datos del usuario actualizados exitosamente.', 'success')
+        return redirect(url_for('users.view_user', user_id=user.id))
+        
+    elif request.method == 'POST':
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(f"{error}", 'error')
+    else:
+        # Pre-seleccionar el cargo actual al cargar la vista GET
+        if staff_record and staff_record.position_id:
+            form.position.data = staff_record.position_id
+
+    return render_template('users/edit_user.html', user=user, current_role=user_role, form=form)
