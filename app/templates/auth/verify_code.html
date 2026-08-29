@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAGES - Validar Código</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/icon_corpoelec.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/auth.css') }}">
+</head>
+<body>
+
+
+    <div class="circles">
+        <div class="circle c1"></div>
+        <div class="circle c2"></div>
+    </div>
+
+    <header class="header-label">
+        <p>Sistema de Gestión de Solicitudes - CORPOELEC</p>
+    </header>
+
+    <main class="login-card">
+        <section class="info-section">
+            <div class="info-content">
+                <h2 class="info-title">
+                    Verificación <br>
+                    <span>de Seguridad</span>
+                </h2>
+                <div class="info-text">
+                    <p>Hemos enviado un código de seguridad a tu correo electrónico para validar tu identidad.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="form-section">
+            <header class="form-header">
+                <div class="logo-container">
+                    <img src="{{ url_for('static', filename='img/logo_corpoelec.png') }}" alt="Logo">
+                </div>
+                <h1>Validar Código</h1>
+                <p>Ingresa el código enviado a:<br><strong>{{ email }}</strong></p>
+            </header>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                {% for category, message in messages %}
+                  <div class="error-container {% if category == 'success' %}success{% endif %}" style="display: block;">
+                    {{ message }}
+                  </div>
+                {% endfor %}
+              {% endif %}
+            {% endwith %}
+
+            <form id="verifyCodeForm" method="POST" class="auth-form" novalidate>
+                <div class="form-group">
+                    <label class="form-label" for="code">Código de 6 Dígitos</label>
+                    <div id="wrapper-code">
+                        <input type="text" id="code" name="code" inputmode="numeric" pattern="\d{6}" style="display: none;" maxlength="6">
+                        <div class="code-inputs-container">
+                            <input type="text" class="digit-input" maxlength="1" inputmode="numeric" pattern="\d" autofocus>
+                            <input type="text" class="digit-input" maxlength="1" inputmode="numeric" pattern="\d">
+                            <input type="text" class="digit-input" maxlength="1" inputmode="numeric" pattern="\d">
+                            <input type="text" class="digit-input" maxlength="1" inputmode="numeric" pattern="\d">
+                            <input type="text" class="digit-input" maxlength="1" inputmode="numeric" pattern="\d">
+                            <input type="text" class="digit-input" maxlength="1" inputmode="numeric" pattern="\d">
+                        </div>
+                    </div>
+                    <span class="field-error" id="error-code"></span>
+                    {% if remaining > 0 %}
+                    <div id="timer" data-remaining="{{ remaining }}" style="color: var(--error-color); font-size: 0.85rem; margin-top: 0.5rem; font-weight: 600; text-align: center;"></div>
+                    {% endif %}
+                </div>
+
+                <button type="submit" class="submit-btn">
+                    <span>Verificar Código</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                </button>
+
+                <button type="button" class="back-btn" onclick="window.location.href='{{ url_for('auth.login') }}'">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                    <span>Volver al Inicio</span>
+                </button>
+
+                <div class="forgot-password" style="text-align: center; margin-top: 1.5rem;">
+                    <a href="{{ url_for('auth.resend_code', email=email) }}">Reenviar código</a>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='JS/validation_password.js') }}"></script>
+</body>
+</html>
