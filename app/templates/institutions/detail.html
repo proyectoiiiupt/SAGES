@@ -1,4 +1,4 @@
-{# 
+{#
     Template: Detalle de Institución
     Muestra información completa de una institución específica con opción de cambiar estatus.
     Solo accesible para usuarios con roles super_admin y state_admin.
@@ -108,22 +108,36 @@
 
                 <div class="detail-section">
                     <h3>Ubicación</h3>
-                    <div class="detail-row">
-                        <span class="label">Parroquia:</span>
-                        <span class="value">{{ institution.parish.name if institution.parish else 'No asignada' }}</span>
-                    </div>
-                    {% if institution.parish and institution.parish.municipality %}
-                    <div class="detail-row">
-                        <span class="label">Municipio:</span>
-                        <span class="value">{{ institution.parish.municipality.name }}</span>
-                    </div>
-                    {% endif %}
                     {% if institution.parish and institution.parish.municipality and institution.parish.municipality.state %}
                     <div class="detail-row">
                         <span class="label">Estado:</span>
                         <span class="value">{{ institution.parish.municipality.state.name }}</span>
                     </div>
                     {% endif %}
+                    {% if institution.parish and institution.parish.municipality %}
+                    <div class="detail-row">
+                        <span class="label">Municipio:</span>
+                        <span class="value">{{ institution.parish.municipality.name }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="detail-row">
+                        <span class="label">Parroquia:</span>
+                        <span class="value">{{ institution.parish.name if institution.parish else 'No asignada' }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Ciudad:</span>
+                        <span class="value">
+                            {% if institution.parish and institution.parish.locations and institution.parish.locations|length > 0 %}
+                                {{ institution.parish.locations[0].city.name if institution.parish.locations[0].city else 'No asignada' }}
+                            {% else %}
+                                No asignada
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Dirección:</span>
+                        <span class="value">{{ institution.address }}</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -133,15 +147,44 @@
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Set dynamic date in Spanish format
-    const dateElement = document.getElementById('current-date');
-    if (dateElement) {
-        const options = { day: 'numeric', month: 'long', year: 'numeric' };
-        const today = new Date();
-        const formattedDate = today.toLocaleDateString('es-ES', options);
-        dateElement.textContent = formattedDate.replace(' de 20', ', 20');
-    }
-});
+    document.addEventListener('DOMContentLoaded', function () {
+        // Set dynamic date in Spanish format
+        const dateElement = document.getElementById('current-date');
+        if (dateElement) {
+            const options = { day: 'numeric', month: 'long', year: 'numeric' };
+            const today = new Date();
+            const formattedDate = today.toLocaleDateString('es-ES', options);
+            dateElement.textContent = formattedDate.replace(' de 20', ', 20');
+        }
+
+        // Formatear teléfono institucional
+        const phoneDisplay = document.getElementById('phone-display');
+        if (phoneDisplay) {
+            const phoneNumber = phoneDisplay.textContent.trim();
+            
+            // Solo formatear si es un número válido de 11 dígitos y no es "No registrado"
+            if (phoneNumber && phoneNumber !== 'No registrado' && /^\d{11}$/.test(phoneNumber)) {
+                const formattedPhone = formatPhoneNumber(phoneNumber);
+                phoneDisplay.textContent = formattedPhone;
+            }
+        }
+
+        // Función para formatear número de teléfono venezolano
+        function formatPhoneNumber(phone) {
+            // Remover cualquier carácter que no sea dígito
+            const cleaned = phone.replace(/\D/g, '');
+            
+            // Verificar que tenga 11 dígitos (formato venezolano)
+            if (cleaned.length === 11) {
+                // Formato: (0414)-1234567
+                const code = cleaned.substring(0, 4);
+                const number = cleaned.substring(4);
+                return `(${code})-${number}`;
+            }
+            
+            // Si no tiene el formato esperado, retornar el original
+            return phone;
+        }
+    });
 </script>
 {% endblock %}

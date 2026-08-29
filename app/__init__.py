@@ -24,6 +24,9 @@ def create_app(config_class=Config) -> Flask:
 
     from app.institutions import institutions_bp
     app.register_blueprint(institutions_bp, url_prefix='/institutions')
+    # Registro del blueprint del sprint de Usuarios
+    from app.users.routes import users_bp
+    app.register_blueprint(users_bp, url_prefix='/users')
 
     @app.route('/')
     def index():

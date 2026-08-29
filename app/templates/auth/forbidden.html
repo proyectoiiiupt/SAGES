@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso Prohibido - SAGES</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/icon_corpoelec.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+</head>
+<body>
+    <div class="header-label">
+        <p>SAGES - Sistema de Gestión de Solicitudes</p>
+    </div>
+
+    <div class="login-card">
+        <div class="info-section">
+            <h1 class="info-title">Acceso <span>Denegado</span></h1>
+            <div class="info-text">
+                <p>Usted ha intentado acceder a un área para la cual su perfil de usuario no tiene permisos suficientes. Esta acción ha sido registrada por el sistema de seguridad.</p>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <div class="form-header">
+                <div class="logo-container">
+                    <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="var(--error-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        <circle cx="12" cy="11" r="3"/>
+                        <path d="M8 17c0-1.5 1.5-2.5 4-2.5s4 1 4 2.5"/>
+                    </svg>
+                </div>
+                <h1>Error 403</h1>
+                <p>Permisos Insuficientes</p>
+            </div>
+
+            <div class="auth-form">
+                <p class="error-help-text">
+                    Si cree que esto es un error, por favor contacte al Administrador del Sistema.
+                </p>
+                
+                {% set role_name = 'applicant' %}
+                {% if current_user.is_authenticated and current_user.roles_assoc %}
+                    {% set role_name = current_user.roles_assoc[0].role.name %}
+                {% endif %}
+                <a href="{{ url_for('auth.logout') }}" class="submit-btn btn-with-icon">
+                    <span>Volver al Login</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -101,6 +101,28 @@
         </li>
         {% endif %}
 
+        {# ── MI INSTITUCIÓN (Solo para Applicants) ───────────── #}
+        {% if current_user.roles_assoc %}
+            {% for role_assoc in current_user.roles_assoc %}
+                {% if role_assoc.role.name == 'applicant' %}
+        <li>
+            <a href="{{ url_for('institutions.my_institution') }}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <line x1="3" y1="22" x2="21" y2="22"></line>
+                    <line x1="6" y1="18" x2="6" y2="11"></line>
+                    <line x1="10" y1="18" x2="10" y2="11"></line>
+                    <line x1="14" y1="18" x2="14" y2="11"></line>
+                    <line x1="18" y1="18" x2="18" y2="11"></line>
+                    <polygon points="12 2 2 7 22 7"></polygon>
+                </svg>
+                <span>Mi Institución</span>
+            </a>
+        </li>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+
         {# ── ESTADÍSTICAS (Ver Estadísticas) ──────────────────── #}
         {% if 'view_statistics' in user_permissions %}
         <li>
@@ -119,7 +141,7 @@
         {# ── USUARIOS (Gestionar Usuarios) ────────────────────── #}
         {% if 'manage_users' in user_permissions %}
         <li>
-            <a href="#">
+            <a href="{{ url_for('users.list_users') }}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round">
                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>

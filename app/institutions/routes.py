@@ -5,8 +5,10 @@ Define los endpoints para la gestión de instituciones educativas.
 from flask import render_template, flash, redirect, request, jsonify, abort, url_for
 from flask_login import login_required, current_user
 from app.institutions import institutions_bp
-from app.institutions.services import get_all_institutions, get_institution_by_id, get_filter_options, get_institution_users
+from app.institutions.services import get_all_institutions, get_institution_by_id, get_filter_options, toggle_institution_status, get_user_state_info
 from app.decorators import role_required
+from app.models.parish_model import Parish
+from app.models.municipality_model import Municipality
 
 @institutions_bp.route('/', methods=['GET'])
 @login_required
@@ -87,7 +89,7 @@ def view_institution(institution_id):
         institution = get_institution_by_id(institution_id)
         if not institution:
             abort(404)
-        return render_template('institutions/detail.html', institution=institution)
+        return render_template('institutions/detail.html', institution=institution, is_applicant=False)
     except Exception as e:
         print(f"Error en view_institution: {e}")
         flash("Error al cargar la institución", 'danger')
