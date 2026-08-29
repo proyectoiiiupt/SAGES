@@ -191,7 +191,7 @@
 
     {# Gestión de Usuarios #}
     {% if 'manage_users' in user_permissions %}
-    <a href="#" class="card card-blue">
+    <a href="{{ url_for('users.list_users') }}" class="card card-blue">
         <div class="card-header">
             <div class="card-title">Gestión de Usuarios</div>
             <div class="card-icon">

@@ -1,0 +1,338 @@
+{% extends "layouts/base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/users_view.css') }}">
+
+<style>
+    .switch-container { display: flex; align-items: center; gap: 10px; }
+    .switch { position: relative; display: inline-block; width: 46px; height: 24px; margin-bottom: 0;}
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #d33; transition: .4s; border-radius: 24px; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+    input:checked + .slider { background-color: #019577; }
+    input:checked + .slider:before { transform: translateX(22px); }
+    .status-label { font-weight: bold; font-size: 15px; }
+    .text-active { color: #019577; }
+    .text-inactive { color: #d33; }
+</style>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/sweetalert2.min.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- Verificación si el rol consultado es Admin Estadal o Super Admin -->
+{% set is_corp_role = (viewed_role in ['state_admin', 'super_admin']) %}
+
+<div class="view-container">
+    
+    <!-- Encabezado -->
+    <div class="view-header">
+        <div class="header-actions">
+            <a href="{{ url_for('users.list_users') }}" class="btn-back">⬅ Volver</a>
+            <h2 class="view-title">Información de Usuario</h2>
+        </div>
+    </div>
+
+    <!-- Pestañas (Tabs) -->
+    <div class="tabs-container">
+        <button onclick="showTab('personal')" id="tab-btn-personal" class="tab-btn tab-active">Información Personal</button>
+        <button onclick="showTab('corp')" id="tab-btn-corp" class="tab-btn tab-inactive">
+            {% if is_corp_role %}Información de Corporación{% else %}Información de Institución{% endif %}
+        </button>
+    </div>
+
+    <!-- Contenido: Información Personal -->
+    <div id="personal" class="tab-content active-content">
+        <div class="section-header">
+            <h3>Identificación del Usuario</h3>
+        </div>
+        
+        <div class="data-grid-container">
+            <!-- Columna Izquierda: Identificación, Nombres y Apellidos -->
+            <div class="data-column">
+                <h4 class="figma-title-green">Datos del usuario</h4>
+                <div class="info-grid">
+                    <div>
+                        <label class="figma-label">Cédula de Identidad</label>
+                        <div class="figma-box">{{ user.formatted_id }}</div>
+                    </div>
+                    <div>
+                        <label class="figma-label">Nombres</label>
+                        <div class="figma-box">{{ user.full_first_name if user.full_first_name else 'N/A' }}</div>
+                    </div>
+                    <div>
+                        <label class="figma-label">Apellidos</label>
+                        <div class="figma-box">{{ user.full_last_name if user.full_last_name else 'N/A' }}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="vertical-divider"></div>
+            
+            <!-- Columna Derecha: Sección de Contacto -->
+            <div class="data-column">
+                <h4 class="figma-title-green">Contacto</h4>
+                <div class="info-grid">
+                    <div>
+                        <label class="figma-label">Correo Electrónico</label>
+                        <div class="figma-box">{{ user.person.email if user.person and user.person.email else 'N/A' }}</div>
+                    </div>
+                    <div>
+                        <label class="figma-label">Teléfono Principal</label>
+                        <div class="figma-box">{{ user.formatted_phone }}</div>
+                    </div>
+                    
+                    <!-- Teléfono secundario dinámico: solo aparece si existe -->
+                    {% if user.formatted_phone_sec and user.formatted_phone_sec != 'N/A' %}
+                    <div>
+                        <label class="figma-label">Teléfono Secundario</label>
+                        <div class="figma-box">{{ user.formatted_phone_sec }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Controles de Acción (US-15 y US-16) -->
+        {% if current_role == 'super_admin' %}
+        <div style="margin-top: 2rem; display: flex; justify-content: space-between; align-items: center; padding: 0 20px 20px 20px;">
+            
+            <!-- Switch de Estatus (Aparecerá en el extremo izquierdo) -->
+            <div class="switch-container">
+                <form id="statusForm" action="{{ url_for('users.toggle_status', user_id=user.id) }}" method="POST" style="display: none;"></form>
+                
+                <label class="switch">
+                    <input type="checkbox" id="status-switch" {% if user.status_id == 1 %}checked{% endif %} data-status="{{ user.status_id }}">
+                    <span class="slider"></span>
+                </label>
+
+                <span id="status-text" class="status-label {{ 'text-active' if user.status_id == 1 else 'text-inactive' }}">
+                    {{ 'Perfil Activo' if user.status_id == 1 else 'Perfil Inactivo' }}
+                </span>
+            </div>
+
+            <!-- Botón de Edición (Aparecerá en el extremo derecho) -->
+            <a href="{{ url_for('users.edit_user', user_id=user.id) }}" class="btn-edit" 
+               style="padding: 10px 20px; color: white; background-color: #f0ad4e; text-decoration: none; border-radius: 5px; font-weight: bold; cursor: pointer;">
+                Editar Información
+            </a>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <!-- Contenido: Información Corporativa / Institucional -->
+    <div id="corp" class="tab-content">
+        <div class="section-header">
+            <h3>
+                {% if is_corp_role %}
+                    Información de la corporación a la que pertenece el usuario
+                {% else %}
+                    Información de la institución a la que pertenece el usuario
+                {% endif %}
+            </h3>
+        </div>
+        
+        <div class="data-grid-container">
+            <div class="data-column">
+                <h4 class="figma-title-green">
+                    {% if is_corp_role %}Datos Corporativos{% else %}Datos Institucionales{% endif %}
+                </h4>
+                <div class="info-grid">
+                    <div>
+                        <label class="figma-label">
+                            {% if is_corp_role %}Rif{% else %}Código de Plantel{% endif %}
+                        </label>
+                        <div class="figma-box">{{ corp_data.id_card if corp_data else 'N/A' }}</div>
+                    </div>
+                    <div>
+                        <label class="figma-label">
+                            {% if is_corp_role %}Nombre de Corporación{% else %}Nombre o Razón Social{% endif %}
+                        </label>
+                        <div class="figma-box">{{ corp_data.name if corp_data else 'N/A' }}</div>
+                    </div>
+
+                    <!-- Si es Admin Estadal o Super Admin NO lleva tipo, alcance ni dependencia -->
+                    {% if not is_corp_role %}
+                        <div>
+                            <label class="figma-label">Tipo de Institución</label>
+                            <div class="figma-box">{{ corp_data.type if corp_data else 'N/A' }}</div>
+                        </div>
+                        <div>
+                            <label class="figma-label">Alcance</label>
+                            <div class="figma-box">{{ corp_data.sector if corp_data else 'N/A' }}</div>
+                        </div>
+                        <div>
+                            <label class="figma-label">Dependencia</label>
+                            <div class="figma-box">{{ corp_data.dependency if corp_data else 'N/A' }}</div>
+                        </div>
+                    {% endif %}
+
+                    <div>
+                        <label class="figma-label">
+                            {% if is_corp_role %}Cargo en la Corporación{% else %}Cargo del Usuario{% endif %}
+                        </label>
+                        <div class="figma-box">{{ corp_data.position if corp_data else 'N/A' }}</div>
+                    </div>
+
+                    {% if is_corp_role %}
+                        <div>
+                            <label class="figma-label">Sede</label>
+                            <div class="figma-box">{{ corp_data.sede if corp_data and corp_data.sede else 'N/A' }}</div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="vertical-divider"></div>
+            
+            <div class="data-column">
+                <h4 class="figma-title-green">Contacto y Ubicación</h4>
+                <div class="info-grid">
+                    <div>
+                        <label class="figma-label">Teléfono Principal</label>
+                        <div class="figma-box">{{ corp_data.phone_main if corp_data else 'N/A' }}</div>
+                    </div>
+                    <div>
+                        <label class="figma-label">Estado</label>
+                        <div class="figma-box">{{ corp_data.state if corp_data else 'N/A' }}</div>
+                    </div>
+                    <div>
+                        <label class="figma-label">Municipio</label>
+                        <div class="figma-box">{{ corp_data.municipality if corp_data else 'N/A' }}</div>
+                    </div>
+                    <div>
+                        <label class="figma-label">Parroquia</label>
+                        <div class="figma-box">{{ corp_data.parish if corp_data else 'N/A' }}</div>
+                    </div>
+                    <div>
+                        <label class="figma-label">Ciudad</label>
+                        <div class="figma-box">{{ corp_data.city if corp_data else 'N/A' }}</div>
+                    </div>
+                    <div class="full-width">
+                        <label class="figma-label">
+                            {% if is_corp_role %}Dirección de Sede{% else %}Dirección{% endif %}
+                        </label>
+                        <div class="figma-box">{{ corp_data.address if corp_data else 'N/A' }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+
+<script src="{{ url_for('static', filename='JS/sweetalert2.all.min.js') }}"></script>
+
+<script>
+function showTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(t => {
+        t.style.display = 'none';
+        t.classList.remove('active-content');
+    });
+    
+    const activeTab = document.getElementById(tabId);
+    activeTab.style.display = 'block';
+    activeTab.classList.add('active-content');
+    
+    let btnPersonal = document.getElementById('tab-btn-personal');
+    let btnCorp = document.getElementById('tab-btn-corp');
+    
+    if(tabId === 'personal') {
+        btnPersonal.className = 'tab-btn tab-active';
+        btnCorp.className = 'tab-btn tab-inactive';
+    } else {
+        btnCorp.className = 'tab-btn tab-active';
+        btnPersonal.className = 'tab-btn tab-inactive';
+    }
+}
+document.addEventListener('DOMContentLoaded', function() {
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                let iconType = '{{ category }}';
+                let titleText = 'Notificación';
+
+                if (iconType === 'success') {
+                    titleText = '¡Éxito!';
+                } else if (iconType === 'error' || iconType === 'danger') {
+                    iconType = 'error';
+                    titleText = '¡Atención!';
+                } else if (iconType === 'warning') {
+                    titleText = 'Advertencia';
+                } else {
+                    iconType = 'info';
+                }
+
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Mostrar mensajes Flash con SweetAlert2
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                let iconType = '{{ category }}';
+                let titleText = 'Notificación';
+
+                if (iconType === 'success') {
+                    titleText = '¡Éxito!';
+                } else if (iconType === 'error' || iconType === 'danger') {
+                    iconType = 'error';
+                    titleText = '¡Atención!';
+                } else if (iconType === 'warning') {
+                    titleText = 'Advertencia';
+                } else {
+                    iconType = 'info';
+                }
+
+                Swal.fire({
+                    title: titleText,
+                    text: '{{ message }}',
+                    icon: iconType,
+                    confirmButtonColor: '#019577',
+                    confirmButtonText: 'Aceptar'
+                });
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    // 2. Lógica del Switch US-16
+    const statusSwitch = document.getElementById('status-switch');
+    if (statusSwitch) {
+        statusSwitch.addEventListener('change', function(e) {
+            e.preventDefault(); 
+            
+            // Revertimos visualmente el switch hasta que el usuario confirme
+            const wasChecked = !this.checked; 
+            this.checked = wasChecked; 
+            
+            const currentStatus = this.getAttribute('data-status');
+            const isActivating = currentStatus != 1; // 1 = Activo
+
+            const actionText = isActivating ? 'activar' : 'desactivar';
+            const warningText = isActivating 
+                ? 'El usuario recuperará su acceso al sistema y sus funciones.' 
+                : 'El usuario perderá el acceso al sistema de forma inmediata.';
+            const confirmColor = isActivating ? '#019577' : '#d33';
+
+            Swal.fire({
+                title: `¿Seguro que deseas ${actionText} este perfil?`,
+                text: warningText,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: confirmColor,
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: `Sí, ${actionText}`,
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Si acepta, ejecutamos el cambio visual y enviamos el formulario
+                    this.checked = !wasChecked; 
+                    document.getElementById('statusForm').submit();
+                }
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

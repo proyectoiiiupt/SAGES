@@ -12,23 +12,84 @@ from app.models.institution_type_model import InstitutionType
 from app.models.institution_scope_model import InstitutionScope
 from app.models.institution_dependency_model import InstitutionDependency
 from app.models.status_model import Status
-from app.models.location_model import Location
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_
 
-# Código del estado en la tabla State al que se restringe el sistema.
-# Usar código en lugar de nombre para mayor precisión
-DC_STATE_CODE = "ST-024"  # Distrito Capital
-DC_STATE_NAME = "Distrito Capital"  # Backup por si se necesita
-
-# Lista oficial de las 22 parroquias de Distrito Capital (Caracas)
-DC_PARISHES = [
-    "23 de enero", "Altagracia", "Antímano", "Caricuao", "Catedral", 
-    "Coche", "El Junquito", "El Paraíso", "El Recreo", "El Valle", 
-    "La Candelaria", "La Pastora", "La Vega", "Macarao", "San Agustín", 
-    "San Bernardino", "San José", "San Juan", "San Pedro", "Santa Rosalía", 
-    "Santa Teresa", "Sucre (Catia)"
-]
+def get_user_state_info(user):
+    """
+    Obtiene la información del estado al que pertenece un usuario administrador.
+    
+    Esta función centraliza la lógica para determinar el estado de un usuario basándose
+    en su relación con la empresa a través de la ruta: User -> Person -> CompanyStaff -> Place -> Parish -> Municipality -> State.
+    Utiliza state_code en lugar de IDs numéricos para mayor robustez y mantenimiento.
+    
+    Parámetros:
+    - user: objeto User del usuario actual
+    
+    Retorna:
+    - dict con información del estado:
+        - state_id: ID del estado (para queries compatibles)
+        - state_code: Código del estado (identificador robusto)
+        - state_name: Nombre del estado
+    - None si no se puede determinar el estado del usuario
+    """
+    if not user:
+        return None
+    
+    try:
+        from app.models.user_model import User
+        from app.models.person_model import Person
+        from app.models.company_staff_model import CompanyStaff
+        from app.models.place_model import Place
+        from app.models.parish_model import Parish
+        from app.models.municipality_model import Municipality
+        from app.models.state_model import State
+        
+        # Recargar el usuario con todas las relaciones necesarias usando joinedload
+        user_with_relations = User.query.options(
+            joinedload(User.person)
+            .joinedload(Person.company_staff)
+            .joinedload(CompanyStaff.place)
+            .joinedload(Place.parish)
+            .joinedload(Parish.municipality)
+            .joinedload(Municipality.state)
+        ).get(user.id)
+        
+        if not user_with_relations or not user_with_relations.person:
+            return None
+        
+        person = user_with_relations.person
+        if not person.company_staff or len(person.company_staff) == 0:
+            return None
+        
+        company_staff = person.company_staff[0]
+        if not company_staff.place:
+            return None
+        
+        place = company_staff.place
+        if not place.parish:
+            return None
+        
+        parish = place.parish
+        if not parish.municipality:
+            return None
+        
+        municipality = parish.municipality
+        if not municipality.state:
+            return None
+        
+        state = municipality.state
+        
+        return {
+            'state_id': state.id,
+            'state_code': state.state_code,
+            'state_name': state.name
+        }
+    except Exception as e:
+        print(f"Error en get_user_state_info: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
 
 def get_all_institutions(filters=None, user=None, page=1, per_page=10):
     """
@@ -151,8 +212,17 @@ def get_all_institutions(filters=None, user=None, page=1, per_page=10):
         # Aplicar paginación
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
 
+        # Calcular índices originales para los resultados paginados
+        institutions_with_index = []
+        for institution in pagination.items:
+            original_index = id_to_index.get(institution.id, 0)
+            institutions_with_index.append({
+                'institution': institution,
+                'original_index': original_index
+            })
+
         return {
-            'institutions': pagination.items,
+            'institutions': institutions_with_index,
             'total': total,
             'pages': pagination.pages,
             'current_page': pagination.page,
@@ -160,7 +230,8 @@ def get_all_institutions(filters=None, user=None, page=1, per_page=10):
             'has_prev': pagination.has_prev,
             'has_next': pagination.has_next,
             'prev_num': pagination.prev_num,
-            'next_num': pagination.next_num
+            'next_num': pagination.next_num,
+            'total_all': len(all_ids)  # Total sin filtros
         }
     except Exception as e:
         print(f"Error en get_all_institutions: {e}")
@@ -346,6 +417,12 @@ def get_institution_users(institution_id, page=1, per_page=10):
         from app.models.status_model import Status
         from sqlalchemy.orm import joinedload
         
+        # Primero, obtener todos los IDs ordenados sin filtros para calcular índices originales
+        base_query = InstitutionalStaff.query.filter_by(institution_id=institution_id)
+        all_ids_query = base_query.order_by(InstitutionalStaff.id.asc())
+        all_ids = [staff.id for staff in all_ids_query.all()]
+        id_to_index = {id: index + 1 for index, id in enumerate(all_ids)}
+        
         # Obtener el personal institucional con todas las relaciones cargadas
         query = InstitutionalStaff.query.options(
             joinedload(InstitutionalStaff.person).joinedload(Person.user),
@@ -372,6 +449,9 @@ def get_institution_users(institution_id, page=1, per_page=10):
                     'status_name': user.status.status_name
                 }
             
+            # Calcular índice original
+            original_index = id_to_index.get(staff.id, 0)
+            
             user_info = {
                 'staff_id': staff.id,
                 'person_id': person.id if person else None,
@@ -383,7 +463,8 @@ def get_institution_users(institution_id, page=1, per_page=10):
                 'mobile': person.mobile if person else 'N/A',
                 'position': staff.position.name if staff.position else 'N/A',
                 'user_status': user_status,
-                'has_user_account': user is not None
+                'has_user_account': user is not None,
+                'original_index': original_index
             }
             users_data.append(user_info)
         
@@ -396,7 +477,8 @@ def get_institution_users(institution_id, page=1, per_page=10):
             'has_prev': pagination.has_prev,
             'has_next': pagination.has_next,
             'prev_num': pagination.prev_num,
-            'next_num': pagination.next_num
+            'next_num': pagination.next_num,
+            'total_all': len(all_ids)  # Total sin filtros
         }
     except Exception as e:
         print(f"Error en get_institution_users: {e}")
@@ -409,5 +491,6 @@ def get_institution_users(institution_id, page=1, per_page=10):
             'has_prev': False,
             'has_next': False,
             'prev_num': None,
-            'next_num': None
+            'next_num': None,
+            'total_all': 0
         }
