@@ -669,3 +669,31 @@ body::after {
     display: inline-block;
     transition: transform 0.2s ease;
 }
+
+/* =========================================
+   BOTÓN VOLVER AL INICIO
+   ========================================= */
+.back-to-home-btn {
+    position: fixed;
+    top: 1.25rem;
+    left: 1.25rem;
+    z-index: 100;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.1rem;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, #1fcab0, #1c3d73);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    text-decoration: none;
+    box-shadow: 0 0 16px rgba(6,182,212,0.35);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.back-to-home-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(6, 182, 212, 0.5);
+}
