@@ -76,15 +76,17 @@ def handle_unauthorized():
         return jsonify({"error": "Authentication required."}), 401
     
 
-    return render_template('auth/unauthorized.html'), 401
+    flash("Debes iniciar sesión para acceder a esta página.", 'warning')
+    return redirect(url_for('auth.login'))
 
 @auth_bp.app_errorhandler(403)
 def handle_forbidden(e):
 
     if request.is_json or (request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html):
         return jsonify({"error": "Forbidden: You do not have permission."}), 403
-    
-    return render_template('auth/forbidden.html'), 403
+
+    flash("No tienes permiso para acceder a esta página.", 'danger')
+    return redirect(url_for('auth.login'))
 
 @auth_bp.route('/admin-test')
 @login_required

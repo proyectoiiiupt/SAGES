@@ -22,6 +22,8 @@ def create_app(config_class=Config) -> Flask:
     from app.auth import auth_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')
 
+    from app.institutions import institutions_bp
+    app.register_blueprint(institutions_bp, url_prefix='/institutions')
     # Registro del blueprint del sprint de Usuarios
     from app.users.routes import users_bp
     app.register_blueprint(users_bp, url_prefix='/users')
@@ -121,9 +123,9 @@ def create_app(config_class=Config) -> Flask:
     @app.after_request
     def add_header(response):
         """
-        Add headers to both force latest IE rendering engine or Chrome Frame,
-        and also to cache the rendered page for 0 seconds.
-        This prevents users from using the back button to view protected pages after logout.
+       Añada encabezados para forzar el uso del motor de renderizado más reciente de IE o de Chrome Frame,
+        y también para establecer el tiempo de caché de la página renderizada en 0 segundos.
+        Esto impide que los usuarios utilicen el botón de retroceso para ver páginas protegidas tras cerrar sesión.
         """
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, public, max-age=0"
         response.headers["Pragma"] = "no-cache"
