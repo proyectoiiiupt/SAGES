@@ -12,3 +12,4 @@ __pycache__/
 # Ignora archivos del sistema operativo
 .DS_Store
 Thumbs.db
+desktop.ini

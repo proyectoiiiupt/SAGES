@@ -4,7 +4,7 @@ from app.auth import auth_bp
 from app.auth.services import authenticate_user
 from app.extensions import login_manager 
 import random
-from app.utils.email_utils import send_recovery_email
+#from app.utils.email_utils import send_recovery_email
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():

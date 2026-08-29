@@ -1,0 +1,207 @@
+{% extends "layouts/base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/users_view.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- Verificación si el rol consultado es Admin Estadal o Super Admin -->
+{% set is_corp_role = (viewed_role in ['state_admin', 'super_admin']) %}
+
+<div class="view-container">
+    
+    <!-- Encabezado -->
+    <div class="view-header">
+        <div class="header-actions">
+            <a href="{{ url_for('users.list_users') }}" class="btn-back">⬅ Volver</a>
+            <h2 class="view-title">Información de Usuario</h2>
+        </div>
+    </div>
+
+    <!-- Pestañas (Tabs) -->
+    <div class="tabs-container">
+        <button onclick="showTab('personal')" id="tab-btn-personal" class="tab-btn tab-active">Información Personal</button>
+        <button onclick="showTab('corp')" id="tab-btn-corp" class="tab-btn tab-inactive">
+            {% if is_corp_role %}Información de Corporación{% else %}Información de Institución{% endif %}
+        </button>
+    </div>
+
+    <!-- Contenido: Información Personal -->
+    <div id="personal" class="tab-content active-content">
+        <div class="section-header">
+            <h3>Identificación del Usuario</h3>
+        </div>
+        
+        <div class="data-grid-container">
+            <!-- Columna Izquierda: Identificación, Nombres y Apellidos -->
+            <div class="data-column">
+                <h4 class="figma-title-green">Datos del usuario</h4>
+                <div class="info-grid">
+                    <div>
+                        <label class="figma-label">Cédula de Identidad</label>
+                        <div class="figma-box">{{ user.formatted_id }}</div>
+                    </div>
+                    <div>
+                        <label class="figma-label">Nombres</label>
+                        <div class="figma-box">{{ user.full_first_name if user.full_first_name else 'N/A' }}</div>
+                    </div>
+                    <div>
+                        <label class="figma-label">Apellidos</label>
+                        <div class="figma-box">{{ user.full_last_name if user.full_last_name else 'N/A' }}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="vertical-divider"></div>
+            
+            <!-- Columna Derecha: Sección de Contacto -->
+            <div class="data-column">
+                <h4 class="figma-title-green">Contacto</h4>
+                <div class="info-grid">
+                    <div>
+                        <label class="figma-label">Correo Electrónico</label>
+                        <div class="figma-box">{{ user.person.email if user.person and user.person.email else 'N/A' }}</div>
+                    </div>
+                    <div>
+                        <label class="figma-label">Teléfono Principal</label>
+                        <div class="figma-box">{{ user.formatted_phone }}</div>
+                    </div>
+                    
+                    <!-- Teléfono secundario dinámico: solo aparece si existe -->
+                    {% if user.formatted_phone_sec and user.formatted_phone_sec != 'N/A' %}
+                    <div>
+                        <label class="figma-label">Teléfono Secundario</label>
+                        <div class="figma-box">{{ user.formatted_phone_sec }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenido: Información Corporativa / Institucional -->
+    <div id="corp" class="tab-content">
+        <div class="section-header">
+            <h3>
+                {% if is_corp_role %}
+                    Información de la corporación a la que pertenece el usuario
+                {% else %}
+                    Información de la institución a la que pertenece el usuario
+                {% endif %}
+            </h3>
+        </div>
+        
+        <div class="data-grid-container">
+            <div class="data-column">
+                <h4 class="figma-title-green">
+                    {% if is_corp_role %}Datos Corporativos{% else %}Datos Institucionales{% endif %}
+                </h4>
+                <div class="info-grid">
+                    <div>
+                        <label class="figma-label">
+                            {% if is_corp_role %}Rif{% else %}Código de Plantel{% endif %}
+                        </label>
+                        <div class="figma-box">{{ corp_data.id_card if corp_data else 'N/A' }}</div>
+                    </div>
+                    <div>
+                        <label class="figma-label">
+                            {% if is_corp_role %}Nombre de Corporación{% else %}Nombre o Razón Social{% endif %}
+                        </label>
+                        <div class="figma-box">{{ corp_data.name if corp_data else 'N/A' }}</div>
+                    </div>
+
+                    <!-- Si es Admin Estadal o Super Admin NO lleva tipo, alcance ni dependencia -->
+                    {% if not is_corp_role %}
+                        <div>
+                            <label class="figma-label">Tipo de Institución</label>
+                            <div class="figma-box">{{ corp_data.type if corp_data else 'N/A' }}</div>
+                        </div>
+                        <div>
+                            <label class="figma-label">Alcance</label>
+                            <div class="figma-box">{{ corp_data.sector if corp_data else 'N/A' }}</div>
+                        </div>
+                        <div>
+                            <label class="figma-label">Dependencia</label>
+                            <div class="figma-box">{{ corp_data.dependency if corp_data else 'N/A' }}</div>
+                        </div>
+                    {% endif %}
+
+                    <div>
+                        <label class="figma-label">
+                            {% if is_corp_role %}Cargo en la Corporación{% else %}Cargo del Usuario{% endif %}
+                        </label>
+                        <div class="figma-box">{{ corp_data.position if corp_data else 'N/A' }}</div>
+                    </div>
+
+                    {% if is_corp_role %}
+                        <div>
+                            <label class="figma-label">Sede</label>
+                            <div class="figma-box">{{ corp_data.sede if corp_data and corp_data.sede else 'N/A' }}</div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="vertical-divider"></div>
+            
+            <div class="data-column">
+                <h4 class="figma-title-green">Contacto y Ubicación</h4>
+                <div class="info-grid">
+                    <div>
+                        <label class="figma-label">Teléfono Principal</label>
+                        <div class="figma-box">{{ corp_data.phone_main if corp_data else 'N/A' }}</div>
+                    </div>
+                    <div>
+                        <label class="figma-label">Estado</label>
+                        <div class="figma-box">{{ corp_data.state if corp_data else 'N/A' }}</div>
+                    </div>
+                    <div>
+                        <label class="figma-label">Municipio</label>
+                        <div class="figma-box">{{ corp_data.municipality if corp_data else 'N/A' }}</div>
+                    </div>
+                    <div>
+                        <label class="figma-label">Parroquia</label>
+                        <div class="figma-box">{{ corp_data.parish if corp_data else 'N/A' }}</div>
+                    </div>
+                    <div>
+                        <label class="figma-label">Ciudad</label>
+                        <div class="figma-box">{{ corp_data.city if corp_data else 'N/A' }}</div>
+                    </div>
+                    <div class="full-width">
+                        <label class="figma-label">
+                            {% if is_corp_role %}Dirección de Sede{% else %}Dirección{% endif %}
+                        </label>
+                        <div class="figma-box">{{ corp_data.address if corp_data else 'N/A' }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(t => {
+        t.style.display = 'none';
+        t.classList.remove('active-content');
+    });
+    
+    const activeTab = document.getElementById(tabId);
+    activeTab.style.display = 'block';
+    activeTab.classList.add('active-content');
+    
+    let btnPersonal = document.getElementById('tab-btn-personal');
+    let btnCorp = document.getElementById('tab-btn-corp');
+    
+    if(tabId === 'personal') {
+        btnPersonal.className = 'tab-btn tab-active';
+        btnCorp.className = 'tab-btn tab-inactive';
+    } else {
+        btnCorp.className = 'tab-btn tab-active';
+        btnPersonal.className = 'tab-btn tab-inactive';
+    }
+}
+</script>
+{% endblock %}
