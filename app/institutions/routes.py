@@ -19,7 +19,7 @@ def list_institutions():
     Solo accesible para super_admin y state_admin.
     
     Funcionalidades:
-    - Búsqueda por nombre de institución
+    - Búsqueda por nombre o ID de institución
     - Filtros por tipo, alcance, dependencia, estatus, estado y parroquia
     - Paginación de 10 registros por página
     - Filtrado automático por estado para administradores estadales
@@ -95,75 +95,36 @@ def view_institution(institution_id):
         flash("Error al cargar la institución", 'danger')
         return redirect(url_for('institutions.list_institutions'))
 
-@institutions_bp.route('/<int:institution_id>/toggle-status', methods=['POST'])
+@institutions_bp.route('/<int:institution_id>/users', methods=['GET'])
 @login_required
 @role_required('super_admin', 'state_admin')
-def toggle_institution_status_route(institution_id):
+def view_institution_users(institution_id):
     """
-    Ruta AJAX para alternar el estatus de una institución entre Activo e Inactivo.
+    Vista para ver los usuarios afiliados a una institución específica.
     Solo accesible para super_admin y state_admin.
     
-    Retorna JSON con:
-    - success: booleano indicando éxito/error
-    - message: mensaje descriptivo
-    - new_status: nuevo estatus ('Activo' o 'Inactivo')
-    - status_code: código del estatus en base de datos
+    Muestra una tabla con:
+    - Información personal (código, nombre, cédula)
+    - Contacto (email, móvil)
+    - Cargo en la institución
+    - Estatus de cuenta de usuario
     """
     try:
-        institution, new_status = toggle_institution_status(institution_id)
-        
-        if institution is None:
-            return jsonify({'success': False, 'message': new_status}), 404
-        
-        return jsonify({
-            'success': True,
-            'message': f'Institución cambiada a {new_status}',
-            'new_status': new_status,
-            'status_code': institution.status.status_code
-        })
-    except Exception as e:
-        print(f"Error en toggle_institution_status_route: {e}")
-        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
-
-@institutions_bp.route('/my-institution', methods=['GET'])
-@login_required
-@role_required('applicant')
-def my_institution():
-    """
-    Vista para que el usuario (applicant) vea directamente su institución afiliada.
-    Solo accesible para usuarios con rol applicant.
-    
-    Muestra el detalle de la institución a la que está afiliado el usuario actual.
-    """
-    try:
-        # Verificar que el usuario tiene persona
-        if not current_user.person:
-            print("Error: Usuario no tiene persona asociada")
-            flash("No tienes una institución afiliada. Contacta al administrador.", 'warning')
-            return redirect(url_for('home_applicant'))
-        
-        # Verificar que el usuario tiene personal institucional
-        if not current_user.person.institutional_staff or len(current_user.person.institutional_staff) == 0:
-            print("Error: Usuario no tiene personal institucional asociado")
-            flash("No tienes una institución afiliada. Contacta al administrador.", 'warning')
-            return redirect(url_for('home_applicant'))
-        
-        # Obtener la institución del usuario
-        user_staff = current_user.person.institutional_staff[0]
-        print(f"User staff institution_id: {user_staff.institution_id}")
-        
-        institution = get_institution_by_id(user_staff.institution_id)
-        
+        institution = get_institution_by_id(institution_id)
         if not institution:
-            print(f"Error: Institución no encontrada con ID {user_staff.institution_id}")
-            flash("Institución no encontrada. Contacta al administrador.", 'danger')
-            return redirect(url_for('home_applicant'))
+            abort(404)
         
-        print(f"Institución encontrada: {institution.institution_name}")
-        return render_template('institutions/detail.html', institution=institution, is_applicant=True)
+        # Obtener parámetros de paginación
+        page = request.args.get('page', 1, type=int)
+        per_page = 10  # Fijado a 10 filas por página
+        
+        pagination_data = get_institution_users(institution_id, page=page, per_page=per_page)
+        
+        return render_template('institutions/affiliates.html',
+                             institution=institution,
+                             users=pagination_data['users'],
+                             pagination=pagination_data)
     except Exception as e:
-        print(f"Error en my_institution: {e}")
-        import traceback
-        traceback.print_exc()
-        flash("Error al cargar tu institución. Contacta al administrador.", 'danger')
-        return redirect(url_for('home_applicant'))
+        print(f"Error en view_institution_users: {e}")
+        flash("Error al cargar los usuarios de la institución", 'danger')
+        return redirect(url_for('institutions.view_institution', institution_id=institution_id))

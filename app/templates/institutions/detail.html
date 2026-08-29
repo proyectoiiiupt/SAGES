@@ -28,15 +28,6 @@
     </div>
 
     <div class="page-actions" style="margin-bottom: 1rem;">
-        {% if is_applicant %}
-        <a href="{{ url_for('home_applicant') }}" class="back-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="19" y1="12" x2="5" y2="12"></line>
-                <polyline points="12 19 5 12 12 5"></polyline>
-            </svg>
-            Volver al inicio
-        </a>
-        {% else %}
         <a href="{{ url_for('institutions.list_institutions') }}" class="back-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12"></line>
@@ -44,7 +35,15 @@
             </svg>
             Volver a la lista
         </a>
-        {% endif %}
+        <a href="{{ url_for('institutions.view_institution_users', institution_id=institution.id) }}" class="btn-view-users" title="Ver usuarios afiliados">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            Ver usuarios afiliados
+        </a>
     </div>
 
     <div class="institution-detail">
@@ -68,14 +67,12 @@
                         <span class="value">{{ institution.institution_name }}</span>
                     </div>
                     <div class="detail-row">
+                        <span class="label">Dirección:</span>
+                        <span class="value">{{ institution.address }}</span>
+                    </div>
+                    <div class="detail-row">
                         <span class="label">Teléfono:</span>
-                        <span class="value" id="phone-display">
-                            {% if institution.phone %}
-                                {{ institution.phone }}
-                            {% else %}
-                                No registrado
-                            {% endif %}
-                        </span>
+                        <span class="value">{{ institution.phone or 'No registrado' }}</span>
                     </div>
                 </div>
 
