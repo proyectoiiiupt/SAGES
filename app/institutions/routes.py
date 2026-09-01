@@ -5,13 +5,18 @@ Define los endpoints para la gestión de instituciones educativas.
 from flask import render_template, flash, redirect, request, jsonify, abort, url_for
 from flask_login import login_required, current_user
 from app.institutions import institutions_bp
-from app.institutions.services import get_all_institutions, get_institution_by_id, get_filter_options, toggle_institution_status, get_institution_users, update_institution_contact_infrastructure
+from app.institutions.services import (
+    get_all_institutions, get_institution_by_id, get_filter_options,
+    toggle_institution_status, get_institution_users, update_institution_contact_infrastructure,
+    get_user_state_info
+)
 from app.decorators import role_required
 from app.models.municipality_model import Municipality
 from app.models.parish_model import Parish
 from app.models.city_model import City
 from app.models.state_model import State
-from app.forms.institution_forms import InstitutionEditForm, InstitutionEditApplicantForm
+from app.institutions.forms import InstitutionEditForm, InstitutionEditApplicantForm
+from app.extensions import db
 
 @institutions_bp.route('/', methods=['GET'])
 @login_required
@@ -26,7 +31,6 @@ def list_institutions():
     - Filtros por tipo, alcance, dependencia, estatus, estado y parroquia
     - Paginación de 10 registros por página
     - Filtrado automático por estado para administradores estadales
-    - Restricción a parroquias específicas de Distrito Capital
     """
     try:
         # Obtener filtros de la URL
@@ -40,21 +44,25 @@ def list_institutions():
             'parish_id': request.args.get('parish_id')
         }
 
-        # Convertir a enteros los filtros que no estén vacíos (excepto search_name)
+        # Convertir a enteros los filtros numéricos
         filters = {k: int(v) if v and k != 'search_name' else v for k, v in filters.items()}
 
         # Para administrador estadal, filtrar automáticamente por su estado
-        if current_user.roles_assoc and len(current_user.roles_assoc) > 0 and current_user.roles_assoc[0].role.name == 'state_admin':
-            if current_user.person and current_user.person.institutional_staff:
-                user_institution = current_user.person.institutional_staff[0].institution
-                if user_institution and user_institution.parish and user_institution.parish.municipality:
-                    filters['state_id'] = user_institution.parish.municipality.state_id
+        is_super_admin = False
+        if current_user and current_user.roles_assoc:
+            for role_assoc in current_user.roles_assoc:
+                if role_assoc.role.name == 'super_admin':
+                    is_super_admin = True
+                    break
+        
+        if not is_super_admin:
+            user_state_info = get_user_state_info(current_user)
+            if user_state_info:
+                filters['state_id'] = user_state_info['state_id']
 
-        # Obtener parámetros de paginación
         page = request.args.get('page', 1, type=int)
-        per_page = 10  # Fijado a 10 filas por página
+        per_page = 10
 
-        # Obtener datos paginados y opciones de filtros
         pagination_data = get_all_institutions(filters, current_user, page=page, per_page=per_page)
         filter_options = get_filter_options(current_user)
 
@@ -78,22 +86,12 @@ def list_institutions():
 def view_institution(institution_id):
     """
     Vista para ver detalles de una institución específica.
-    Solo accesible para super_admin y state_admin.
-    
-    Muestra información completa:
-    - Datos generales (código, nombre, dirección, teléfono)
-    - Clasificación (tipo, alcance, dependencia)
-    - Niveles educativos
-    - Ubicación (parroquia, municipio, estado)
-    - Información del sistema (fechas de creación/actualización)
-    - Control de estatus (Activo/Inactivo)
     """
     try:
         institution = get_institution_by_id(institution_id)
         if not institution:
             abort(404)
         
-        # Verificar si viene de una edición exitosa
         show_success = request.args.get('success', 'false') == 'true'
         
         return render_template('institutions/detail.html', institution=institution, is_applicant=False, show_success=show_success)
@@ -108,31 +106,23 @@ def view_institution(institution_id):
 def toggle_institution_status_route(institution_id):
     """
     Ruta AJAX para alternar el estatus de una institución entre Activo e Inactivo.
-    Solo accesible para super_admin y state_admin.
-    
-    Retorna JSON con:
-    - success: booleano indicando éxito/error
-    - message: mensaje descriptivo
-    - new_status: nuevo estatus ('Activo' o 'Inactivo')
-    - status_code: código del estatus en base de datos
-    - affected_users: número de usuarios afectados por el cambio
     """
     try:
         institution, new_status, affected_users = toggle_institution_status(institution_id)
         
         if institution is None:
-            return jsonify({'success': False, 'message': new_status}), 404
+            return jsonify({'success': False, 'message': new_status, 'affected_users': 0}), 404
         
         return jsonify({
             'success': True,
-            'message': f'Institución cambiada a {new_status}',
+            'message': f'Institución cambiada a {new_status} exitosamente',
             'new_status': new_status,
             'status_code': institution.status.status_code,
             'affected_users': affected_users
         })
     except Exception as e:
         print(f"Error en toggle_institution_status_route: {e}")
-        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Error: {str(e)}', 'affected_users': 0}), 500
 
 @institutions_bp.route('/<int:institution_id>/users', methods=['GET'])
 @login_required
@@ -140,22 +130,14 @@ def toggle_institution_status_route(institution_id):
 def view_institution_users(institution_id):
     """
     Vista para ver los usuarios afiliados a una institución específica.
-    Solo accesible para super_admin y state_admin.
-    
-    Muestra una tabla con:
-    - Información personal (código, nombre, cédula)
-    - Contacto (email, móvil)
-    - Cargo en la institución
-    - Estatus de cuenta de usuario
     """
     try:
         institution = get_institution_by_id(institution_id)
         if not institution:
             abort(404)
         
-        # Obtener parámetros de paginación
         page = request.args.get('page', 1, type=int)
-        per_page = 10  # Fijado a 10 filas por página
+        per_page = 10
         
         pagination_data = get_institution_users(institution_id, page=page, per_page=per_page)
         
@@ -173,28 +155,18 @@ def view_institution_users(institution_id):
 @role_required('applicant', 'state_admin', 'super_admin')
 def edit_institution(institution_id):
     """
-    Vista para editar los datos de contacto de una institución.
-    Accesible para applicants (solo su institución afiliada), state_admin y super_admin.
-    
-    Funcionalidades:
-    - Actualizar datos de contacto (teléfono)
-    - Para applicants: campos bloqueados (plantel_code y ubicación)
-    - Para administradores: edición completa de datos
-    - Usa Flask-WTF para validación de seguridad y reglas de inserción de datos
+    Vista para editar los datos de una institución.
     """
     try:
-        # Verificar el rol del usuario
         user_role = None
         if current_user.roles_assoc and len(current_user.roles_assoc) > 0:
             user_role = current_user.roles_assoc[0].role.name
         
-        # Para applicants, verificar que tenga persona y personal institucional
         if user_role == 'applicant':
-            if not current_user.person or not current_user.person.institutional_staff:
+            if not current_user.person or not current_user.person.institutional_staff or len(current_user.person.institutional_staff) == 0:
                 flash("No tienes una institución afiliada.", 'warning')
                 return redirect(url_for('home_applicant'))
             
-            # Verificar que la institución sea la suya
             user_staff = current_user.person.institutional_staff[0]
             if user_staff.institution_id != institution_id:
                 flash("No tienes permiso para editar esta institución.", 'danger')
@@ -204,7 +176,6 @@ def edit_institution(institution_id):
         if not institution:
             abort(404)
         
-        # Obtener opciones para los select (para el template)
         from app.models.institution_type_model import InstitutionType
         from app.models.institution_scope_model import InstitutionScope
         from app.models.institution_dependency_model import InstitutionDependency
@@ -213,52 +184,43 @@ def edit_institution(institution_id):
         institution_scopes = InstitutionScope.query.order_by(InstitutionScope.name).all()
         institution_dependencies = InstitutionDependency.query.order_by(InstitutionDependency.name).all()
         
-        # Crear lista de dependencias para el frontend
         dependencies_list = [{'id': dep.id, 'name': dep.name} for dep in institution_dependencies]
         
-        # Obtener ciudad actual de la institución
         current_city_id = None
         try:
             if institution.parish and institution.parish.locations and len(institution.parish.locations) > 0:
                 location = institution.parish.locations[0]
                 if location and hasattr(location, 'city_id'):
                     current_city_id = location.city_id
-        except:
+        except Exception:
             current_city_id = None
         
-        # Seleccionar el formulario WTForms según el rol
         if user_role == 'applicant':
             form = InstitutionEditApplicantForm()
         else:
             form = InstitutionEditForm()
         
         if request.method == 'GET':
-            # Pre-poblar el formulario con datos existentes
-            # Formatear teléfono si viene sin formato de la BD
             phone_value = institution.phone
             if phone_value and len(phone_value) == 11 and not phone_value.startswith('('):
                 phone_value = '(' + phone_value[:4] + ')-' + phone_value[4:]
-            
-            # El código de plantel ya viene con el formato correcto de la BD (DEA-U0001)
-            plantel_code_value = institution.plantel_code
             
             form.phone.data = phone_value
             form.address.data = institution.address
             
             if user_role != 'applicant':
-                form.plantel_code.data = plantel_code_value
+                form.plantel_code.data = institution.plantel_code
                 form.institution_name.data = institution.institution_name
                 form.institution_type.data = str(institution.institution_type_id) if institution.institution_type_id else ''
                 form.institution_scope.data = str(institution.institution_scope_id) if institution.institution_scope_id else ''
                 form.institution_dependency.data = str(institution.institution_dependency_id) if institution.institution_dependency_id else ''
                 
-                # Manejo seguro de relaciones que pueden ser None
                 try:
                     if institution.parish and institution.parish.municipality and institution.parish.municipality.state:
                         form.state_id.data = str(institution.parish.municipality.state_id)
                     else:
                         form.state_id.data = ''
-                except:
+                except Exception:
                     form.state_id.data = ''
                 
                 try:
@@ -266,7 +228,7 @@ def edit_institution(institution_id):
                         form.municipality_id.data = str(institution.parish.municipality_id)
                     else:
                         form.municipality_id.data = ''
-                except:
+                except Exception:
                     form.municipality_id.data = ''
                 
                 try:
@@ -274,7 +236,7 @@ def edit_institution(institution_id):
                         form.parish_id.data = str(institution.parish_id)
                     else:
                         form.parish_id.data = ''
-                except:
+                except Exception:
                     form.parish_id.data = ''
                 
                 form.city_id.data = str(current_city_id) if current_city_id else ''
@@ -285,22 +247,18 @@ def edit_institution(institution_id):
                                  current_city_id=current_city_id, form=form)
         
         elif request.method == 'POST':
-            # Validar formulario WTForms
             if not form.validate():
-                # Formulario WTForms inválido - mostrar errores
                 flash('Por favor, corrija los errores en el formulario.', 'danger')
                 return render_template('institutions/edit.html', institution=institution, is_applicant=(user_role == 'applicant'),
                                      institution_types=institution_types, institution_scopes=institution_scopes,
                                      institution_dependencies=institution_dependencies, dependencies_list=dependencies_list,
                                      current_city_id=current_city_id, form=form)
             
-            # Recopilar datos validados del formulario WTForms
             institution_data = {
                 'phone': form.phone.data,
                 'address': form.address.data
             }
             
-            # Solo agregar campos de administradores si el usuario es administrador
             if user_role != 'applicant':
                 institution_data.update({
                     'plantel_code': form.plantel_code.data,
@@ -312,17 +270,15 @@ def edit_institution(institution_id):
                     'city_id': int(form.city_id.data) if form.city_id.data else None
                 })
             
-            # Actualizar institución con datos validados por WTForms
             institution, success, message = update_institution_contact_infrastructure(
                 institution_id, institution_data, is_admin=(user_role != 'applicant')
             )
             
             if success:
-                # Redirigir según el rol
                 if user_role == 'applicant':
-                    return redirect(url_for('institutions.my_institution', success=True))
+                    return redirect(url_for('institutions.my_institution', success='true'))
                 else:
-                    return redirect(url_for('institutions.view_institution', institution_id=institution_id, success=True))
+                    return redirect(url_for('institutions.view_institution', institution_id=institution_id, success='true'))
             else:
                 flash(message, 'danger')
                 return render_template('institutions/edit.html', institution=institution, is_applicant=(user_role == 'applicant'),
@@ -332,7 +288,6 @@ def edit_institution(institution_id):
     except Exception as e:
         print(f"Error en edit_institution: {e}")
         flash("Error al procesar la solicitud", 'danger')
-        # Redirigir según el rol
         user_role = None
         if current_user.roles_assoc and len(current_user.roles_assoc) > 0:
             user_role = current_user.roles_assoc[0].role.name
@@ -348,54 +303,48 @@ def edit_institution(institution_id):
 def my_institution():
     """
     Vista para que el usuario (applicant) vea directamente su institución afiliada.
-    Solo accesible para usuarios con rol applicant.
-    
-    Muestra el detalle de la institución a la que está afiliado el usuario actual.
     """
     try:
-        # Verificar que el usuario tiene persona
-        if not current_user.person:
-            print("Error: Usuario no tiene persona asociada")
+        if not current_user.person or not current_user.person.institutional_staff or len(current_user.person.institutional_staff) == 0:
             flash("No tienes una institución afiliada. Contacta al administrador.", 'warning')
             return redirect(url_for('home_applicant'))
         
-        # Verificar que el usuario tiene personal institucional
-        if not current_user.person.institutional_staff or len(current_user.person.institutional_staff) == 0:
-            print("Error: Usuario no tiene personal institucional asociado")
-            flash("No tienes una institución afiliada. Contacta al administrador.", 'warning')
-            return redirect(url_for('home_applicant'))
-        
-        # Obtener la institución del usuario
         user_staff = current_user.person.institutional_staff[0]
-        print(f"User staff institution_id: {user_staff.institution_id}")
-        
         institution = get_institution_by_id(user_staff.institution_id)
         
         if not institution:
-            print(f"Error: Institución no encontrada con ID {user_staff.institution_id}")
             flash("Institución no encontrada. Contacta al administrador.", 'danger')
             return redirect(url_for('home_applicant'))
         
-        print(f"Institución encontrada: {institution.institution_name}")
-        
-        # Verificar si viene de una edición exitosa
         show_success = request.args.get('success', 'false') == 'true'
         
         return render_template('institutions/detail.html', institution=institution, is_applicant=True, show_success=show_success)
     except Exception as e:
         print(f"Error en my_institution: {e}")
-        import traceback
-        traceback.print_exc()
         flash("Error al cargar tu institución. Contacta al administrador.", 'danger')
         return redirect(url_for('home_applicant'))
+
+@institutions_bp.route('/api/parishes-by-state/<int:state_id>', methods=['GET'])
+@login_required
+def get_parishes_by_state(state_id):
+    """
+    API endpoint para obtener parroquias filtradas por estado.
+    """
+    try:
+        parishes = Parish.query.join(Municipality).filter(
+            Municipality.state_id == state_id
+        ).order_by(Parish.name, Parish.id).all()
+        
+        parishes_data = [{'id': parish.id, 'name': parish.name} for parish in parishes]
+        
+        return jsonify({'parishes': parishes_data})
+    except Exception as e:
+        print(f"Error en get_parishes_by_state: {e}")
+        return jsonify({'parishes': []}), 500
 
 @institutions_bp.route('/api/states', methods=['GET'])
 @login_required
 def get_states_api():
-    """
-    API para obtener todos los estados.
-    Usado para los selects dinámicos en el formulario de edición.
-    """
     try:
         states = State.query.order_by(State.name).all()
         return jsonify([{'id': s.id, 'name': s.name} for s in states])
@@ -406,22 +355,15 @@ def get_states_api():
 @institutions_bp.route('/api/cities', methods=['GET'])
 @login_required
 def get_cities_api():
-    """
-    API para obtener ciudades filtradas por parroquia.
-    Usado para los selects dinámicos en el formulario de edición.
-    Si no se proporciona parish_id, no devuelve ninguna ciudad.
-    """
     try:
         parish_id = request.args.get('parish_id', type=int)
         if parish_id:
-            # Obtener ciudades relacionadas con la parroquia a través de la tabla locations
             from app.models.location_model import Location
             locations = Location.query.filter_by(parish_id=parish_id).all()
             city_ids = [loc.city_id for loc in locations]
             cities = City.query.filter(City.id.in_(city_ids)).order_by(City.name).all()
             return jsonify([{'id': c.id, 'name': c.name} for c in cities])
         else:
-            # Si no hay parroquia seleccionada, no cargar ninguna ciudad
             return jsonify([])
     except Exception as e:
         print(f"Error en get_cities_api: {e}")
@@ -430,10 +372,6 @@ def get_cities_api():
 @institutions_bp.route('/api/municipalities/<int:state_id>', methods=['GET'])
 @login_required
 def get_municipalities_api(state_id):
-    """
-    API para obtener municipios de un estado específico.
-    Usado para los selects dinámicos en el formulario de edición.
-    """
     try:
         municipalities = Municipality.query.filter_by(state_id=state_id).order_by(Municipality.name).all()
         return jsonify([{'id': m.id, 'name': m.name} for m in municipalities])
@@ -444,10 +382,6 @@ def get_municipalities_api(state_id):
 @institutions_bp.route('/api/parishes/<int:municipality_id>', methods=['GET'])
 @login_required
 def get_parishes_api(municipality_id):
-    """
-    API para obtener parroquias de un municipio específico.
-    Usado para los selects dinámicos en el formulario de edición.
-    """
     try:
         parishes = Parish.query.filter_by(municipality_id=municipality_id).order_by(Parish.name).all()
         return jsonify([{'id': p.id, 'name': p.name} for p in parishes])

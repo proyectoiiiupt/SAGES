@@ -1,7 +1,7 @@
-{# 
-    Template: Detalle de Institución
-    Muestra información completa de una institución específica con opción de cambiar estatus.
-    Solo accesible para usuarios con roles super_admin y state_admin.
+{#
+Template: Detalle de Institución
+Muestra información completa de una institución específica con opción de cambiar estatus.
+Accesible para usuarios con roles super_admin, state_admin y applicant.
 #}
 {% extends "layouts/base.html" %}
 
@@ -17,7 +17,8 @@
             <h1>Detalle de Institución</h1>
         </div>
         <div class="page-date">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                 <line x1="16" y1="2" x2="16" y2="6"></line>
                 <line x1="8" y1="2" x2="8" y2="6"></line>
@@ -27,45 +28,58 @@
         </div>
     </div>
 
-    <div class="page-actions" style="margin-bottom: 1rem;">
+    <div class="page-actions" style="margin-bottom: 1.5rem;">
         {% if is_applicant %}
         <a href="{{ url_for('home_applicant') }}" class="back-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12"></line>
                 <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
             Volver al inicio
         </a>
+        <div class="page-actions-right">
+            <a href="{{ url_for('institutions.edit_institution', institution_id=institution.id) }}" class="btn-edit"
+                title="Editar datos de contacto">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                Editar datos
+            </a>
+        </div>
         {% else %}
         <a href="{{ url_for('institutions.list_institutions') }}" class="back-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12"></line>
                 <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
             Volver a la lista
         </a>
-        {% endif %}
-        
-        {% if is_applicant %}
-        <a href="{{ url_for('institutions.edit_institution', institution_id=institution.id) }}" class="btn-edit" title="Editar datos de contacto">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-            </svg>
-            Editar datos
-        </a>
-        {% endif %}
-        
-        {% if not is_applicant %}
-        <a href="{{ url_for('institutions.view_institution_users', institution_id=institution.id) }}" class="btn-view-users" title="Ver usuarios afiliados">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-            </svg>
-            Ver usuarios afiliados
-        </a>
+        <div class="page-actions-right">
+            <a href="{{ url_for('institutions.edit_institution', institution_id=institution.id) }}" class="btn-edit"
+                title="Editar datos de la institución">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                Editar datos
+            </a>
+            <a href="{{ url_for('institutions.view_institution_users', institution_id=institution.id) }}"
+                class="btn-view-users" title="Ver usuarios afiliados">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                Ver usuarios afiliados
+            </a>
+        </div>
         {% endif %}
     </div>
 
@@ -90,18 +104,18 @@
                         <span class="value">{{ institution.institution_name }}</span>
                     </div>
                     <div class="detail-row">
-                        <span class="label">Dirección:</span>
-                        <span class="value">{{ institution.address }}</span>
-                    </div>
-                    <div class="detail-row">
                         <span class="label">Teléfono:</span>
-                        <span class="value">
-                            {% if institution.phone and institution.phone|length == 11 %}
-                                {{ institution.phone[:4] }}-{{ institution.phone[4:] }}
+                        <span class="value" id="phone-display">
+                            {% if institution.phone %}
+                            {{ institution.phone }}
                             {% else %}
-                                {{ institution.phone or 'No registrado' }}
+                            No registrado
                             {% endif %}
                         </span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Dirección:</span>
+                        <span class="value">{{ institution.address or 'No registrada' }}</span>
                     </div>
                 </div>
 
@@ -109,27 +123,30 @@
                     <h3>Clasificación</h3>
                     <div class="detail-row">
                         <span class="label">Tipo:</span>
-                        <span class="value">{{ institution.institution_type.name }}</span>
+                        <span class="value">{{ institution.institution_type.name if institution.institution_type else
+                            'No asignado' }}</span>
                     </div>
                     <div class="detail-row">
                         <span class="label">Alcance:</span>
-                        <span class="value">{{ institution.institution_scope.name }}</span>
+                        <span class="value">{{ institution.institution_scope.name if institution.institution_scope else
+                            'No asignado' }}</span>
                     </div>
                     <div class="detail-row">
                         <span class="label">Dependencia:</span>
-                        <span class="value">{{ institution.institution_dependency.name }}</span>
+                        <span class="value">{{ institution.institution_dependency.name if
+                            institution.institution_dependency else 'No asignada' }}</span>
                     </div>
                     <div class="detail-row">
                         <span class="label">Niveles Educativos:</span>
                         <span class="value">
                             {% if institution.institution_levels %}
-                                <div class="levels-list">
-                                    {% for level in institution.institution_levels %}
-                                        <span class="level-tag">{{ level.educational_level.name }}</span>
-                                    {% endfor %}
-                                </div>
+                            <div class="levels-list">
+                                {% for level in institution.institution_levels %}
+                                <span class="level-tag">{{ level.educational_level.name }}</span>
+                                {% endfor %}
+                            </div>
                             {% else %}
-                                <span class="no-data">Sin niveles educativos asignados</span>
+                            <span class="no-data">Sin niveles educativos asignados</span>
                             {% endif %}
                         </span>
                     </div>
@@ -137,7 +154,8 @@
 
                 <div class="detail-section">
                     <h3>Ubicación</h3>
-                    {% if institution.parish and institution.parish.municipality and institution.parish.municipality.state %}
+                    {% if institution.parish and institution.parish.municipality and
+                    institution.parish.municipality.state %}
                     <div class="detail-row">
                         <span class="label">Estado:</span>
                         <span class="value">{{ institution.parish.municipality.state.name }}</span>
@@ -151,17 +169,32 @@
                     {% endif %}
                     <div class="detail-row">
                         <span class="label">Parroquia:</span>
-                        <span class="value">{{ institution.parish.name if institution.parish else 'No asignada' }}</span>
+                        <span class="value">{{ institution.parish.name if institution.parish else 'No asignada'
+                            }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Ciudad:</span>
+                        <span class="value">
+                            {% if institution.parish and institution.parish.locations and
+                            institution.parish.locations|length > 0 %}
+                            {{ institution.parish.locations[0].city.name if institution.parish.locations[0].city else
+                            'No asignada' }}
+                            {% else %}
+                            No asignada
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Dirección:</span>
+                        <span class="value">{{ institution.address or 'No registrada' }}</span>
                     </div>
                 </div>
             </div>
 
             {% if not is_applicant %}
             <div class="detail-actions">
-                <button class="toggle-status-btn" id="toggle-btn"
-                        data-institution-id="{{ institution.id }}"
-                        data-current-status="{{ institution.status.status_code }}"
-                        title="Cambiar estatus">
+                <button class="toggle-status-btn" id="toggle-btn" data-institution-id="{{ institution.id }}"
+                    data-current-status="{{ institution.status.status_code }}" title="Cambiar estatus">
                     <span class="toggle-slider"></span>
                 </button>
                 <span class="toggle-label">Cambiar estatus</span>
@@ -173,6 +206,41 @@
 {% endblock %}
 
 {% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Set dynamic date in Spanish format
+        const dateElement = document.getElementById('current-date');
+        if (dateElement) {
+            const options = { day: 'numeric', month: 'long', year: 'numeric' };
+            const today = new Date();
+            const formattedDate = today.toLocaleDateString('es-ES', options);
+            dateElement.textContent = formattedDate.replace(' de 20', ', 20');
+        }
+
+        // Formatear teléfono institucional
+        const phoneDisplay = document.getElementById('phone-display');
+        if (phoneDisplay) {
+            const phoneNumber = phoneDisplay.textContent.trim();
+
+            // Solo formatear si es un número válido de 11 dígitos y no es "No registrado"
+            if (phoneNumber && phoneNumber !== 'No registrado' && /^\d{11}$/.test(phoneNumber)) {
+                const formattedPhone = formatPhoneNumber(phoneNumber);
+                phoneDisplay.textContent = formattedPhone;
+            }
+        }
+
+        // Función para formatear número de teléfono venezolano
+        function formatPhoneNumber(phone) {
+            const cleaned = phone.replace(/\D/g, '');
+            if (cleaned.length === 11) {
+                const code = cleaned.substring(0, 4);
+                const number = cleaned.substring(4);
+                return `(${code})-${number}`;
+            }
+            return phone;
+        }
+    });
+</script>
 {% if not is_applicant %}
 <script src="{{ url_for('static', filename='JS/institution-toggle.js') }}"></script>
 {% endif %}
