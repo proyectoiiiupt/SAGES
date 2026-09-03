@@ -12,15 +12,27 @@ from app.models.institution_type_model import InstitutionType
 from app.models.institution_scope_model import InstitutionScope
 from app.models.institution_dependency_model import InstitutionDependency
 from app.models.status_model import Status
+from app.models.location_model import Location
+from app.models.city_model import City
+from app.models.institutional_staff_model import InstitutionalStaff
+from app.models.person_model import Person
+from app.models.user_model import User
+from app.models.position_model import Position
+from app.extensions import db
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_
+from datetime import datetime, timezone, timedelta
+from uuid import uuid4
+import re
+
 
 def get_user_state_info(user):
     """
     Obtiene la información del estado al que pertenece un usuario administrador.
     
     Esta función centraliza la lógica para determinar el estado de un usuario basándose
-    en su relación con la empresa a través de la ruta: User -> Person -> CompanyStaff -> Place -> Parish -> Municipality -> State.
+    en su relación con la empresa a través de la ruta: 
+    User -> Person -> CompanyStaff -> Place -> Parish -> Municipality -> State.
     Utiliza state_code en lugar de IDs numéricos para mayor robustez y mantenimiento.
     
     Parámetros:
@@ -28,8 +40,8 @@ def get_user_state_info(user):
     
     Retorna:
     - dict con información del estado:
-        - state_id: ID del estado (para queries compatibles)
-        - state_code: Código del estado (identificador robusto)
+        - state_id: ID del estado
+        - state_code: Código del estado
         - state_name: Nombre del estado
     - None si no se puede determinar el estado del usuario
     """
@@ -37,15 +49,9 @@ def get_user_state_info(user):
         return None
     
     try:
-        from app.models.user_model import User
-        from app.models.person_model import Person
         from app.models.company_staff_model import CompanyStaff
         from app.models.place_model import Place
-        from app.models.parish_model import Parish
-        from app.models.municipality_model import Municipality
-        from app.models.state_model import State
         
-        # Recargar el usuario con todas las relaciones necesarias usando joinedload
         user_with_relations = User.query.options(
             joinedload(User.person)
             .joinedload(Person.company_staff)
@@ -87,14 +93,12 @@ def get_user_state_info(user):
         }
     except Exception as e:
         print(f"Error en get_user_state_info: {e}")
-        import traceback
-        traceback.print_exc()
         return None
 
 def get_all_institutions(filters=None, user=None, page=1, per_page=10):
     """
     Obtiene todas las instituciones con sus relaciones cargadas.
-    Aplica filtros opcionales y paginación.
+    Aplica filtros opcionales y paginación según la lógica exacta de Módulo 18.
     
     Parámetros:
     - filters: dict con filtros (search_name, institution_type, institution_scope, etc.)
@@ -103,15 +107,24 @@ def get_all_institutions(filters=None, user=None, page=1, per_page=10):
     - per_page: cantidad de registros por página
     
     Retorna:
-    - dict con instituciones paginadas y metadatos de paginación
-    
-    Restricciones:
-    - Solo muestra instituciones de parroquias específicas de Distrito Capital
-    - Administradores estadales solo ven instituciones de su estado
-    - Super admin ve todas las instituciones permitidas
+    - dict con instituciones paginadas (con original_index) y metadatos de paginación
     """
     try:
-        # Cargar relaciones optimizadamente para evitar N+1 queries
+        is_super_admin = False
+        if user and user.roles_assoc:
+            for role_assoc in user.roles_assoc:
+                if role_assoc.role.name == 'super_admin':
+                    is_super_admin = True
+                    break
+        
+        user_state_info = None
+        if not is_super_admin:
+            try:
+                user_state_info = get_user_state_info(user)
+            except Exception as e:
+                print(f"Error obteniendo información del estado: {e}")
+                user_state_info = None
+        
         query = Institution.query.options(
             joinedload(Institution.institution_type),
             joinedload(Institution.institution_scope),
@@ -121,51 +134,29 @@ def get_all_institutions(filters=None, user=None, page=1, per_page=10):
             joinedload(Institution.institution_levels).joinedload(InstitutionLevel.educational_level)
         )
 
-        # Para administrador estadal, filtrar por las parroquias reales de su estado
-        if user and user.person and user.person.institutional_staff:
-            user_institution = user.person.institutional_staff[0].institution
-            if user_institution and user_institution.parish and user_institution.parish.municipality:
-                user_state_id = user_institution.parish.municipality.state_id
-                # Si es Distrito Capital, filtrar por lista oficial de parroquias Y estado
-                if user_state_id == 24:  # ID de Distrito Capital
-                    # Agregar joins necesarios para evitar duplicados
-                    query = query.join(Parish).join(Municipality).join(State).filter(
-                        Parish.name.in_(DC_PARISHES),
-                        State.state_code == DC_STATE_CODE
-                    )
-                else:
-                    # Para otros estados, filtrar por estado (se podría agregar listas similares)
-                    query = query.join(Parish).join(Municipality).filter(
-                        Municipality.state_id == user_state_id
-                    )
-            else:
-                query = query.join(Parish)
-        else:
-            # Para super admin: restringir a las parroquias reales de Distrito Capital
-            # Filtrar por lista oficial de parroquias de Caracas Y estado para evitar duplicados
-            # También incluir joins necesarios para filtros posteriores
-            query = (
-                query.join(Parish)
-                .join(Municipality)
-                .join(State)
-                .filter(
-                    Parish.name.in_(DC_PARISHES),
-                    State.state_code == DC_STATE_CODE
-                )
+        if user_state_info:
+            query = query.join(Parish).join(Municipality).join(State).filter(
+                State.state_code == user_state_info['state_code']
             )
 
-        # Ordenar por ID de institución
+        # Base query para calcular índices originales consecutivos
+        base_query = Institution.query
+        if user_state_info:
+            base_query = base_query.join(Parish).join(Municipality).join(State).filter(
+                State.state_code == user_state_info['state_code']
+            )
+        
+        all_ids_query = base_query.order_by(Institution.id.asc())
+        all_ids = [institution.id for institution in all_ids_query.all()]
+        id_to_index = {id: index + 1 for index, id in enumerate(all_ids)}
+
         query = query.order_by(Institution.id)
 
-        # Aplicar filtros si se proporcionan
         if filters:
             if filters.get('search_name'):
-                # Buscar por nombre o ID
                 search_term = filters['search_name']
-                # Intentar convertir a entero para búsqueda por ID
                 try:
                     search_id = int(search_term)
-                    # Si es un número válido, buscar por ID o nombre
                     query = query.filter(
                         or_(
                             Institution.id == search_id,
@@ -173,7 +164,6 @@ def get_all_institutions(filters=None, user=None, page=1, per_page=10):
                         )
                     )
                 except ValueError:
-                    # Si no es un número, buscar solo por nombre
                     query = query.filter(Institution.institution_name.ilike(f"%{search_term}%"))
             if filters.get('institution_type'):
                 query = query.filter(Institution.institution_type_id == filters['institution_type'])
@@ -184,35 +174,22 @@ def get_all_institutions(filters=None, user=None, page=1, per_page=10):
             if filters.get('status'):
                 query = query.filter(Institution.status_id == filters['status'])
             if filters.get('state_id'):
-                # Asegurar que los joins necesarios estén presentes
-                # Si el filtro ya fue aplicado por super admin con restricción DC, 
-                # sobrescribirlo cuando el usuario selecciona explícitamente otro estado
-                state_id = filters['state_id']
-                
-                # Para super admin, si selecciona un estado diferente a DC, remover restricción de parroquias
-                if not user or not (user.person and user.person.institutional_staff):
-                    if state_id != 24:  # Si no es Distrito Capital
-                        # Reconstruir query sin restricción de parroquias DC
-                        query = Institution.query.options(
-                            joinedload(Institution.institution_type),
-                            joinedload(Institution.institution_scope),
-                            joinedload(Institution.institution_dependency),
-                            joinedload(Institution.parish).joinedload(Parish.municipality).joinedload(Municipality.state),
-                            joinedload(Institution.status),
-                            joinedload(Institution.institution_levels).joinedload(InstitutionLevel.educational_level)
-                        ).join(Parish).join(Municipality).join(State)
-                
-                query = query.filter(Municipality.state_id == state_id)
+                if not user_state_info:
+                    query = query.join(Parish).join(Municipality).filter(
+                        Municipality.state_id == filters['state_id']
+                    )
             if filters.get('parish_id'):
-                query = query.filter(Institution.parish_id == filters['parish_id'])
+                if user_state_info:
+                    parish = db.session.get(Parish, filters['parish_id'])
+                    if parish and parish.municipality and parish.municipality.state:
+                        if parish.municipality.state.state_code == user_state_info['state_code']:
+                            query = query.filter(Institution.parish_id == filters['parish_id'])
+                else:
+                    query = query.filter(Institution.parish_id == filters['parish_id'])
 
-        # Obtener total de registros para paginación
         total = query.count()
-
-        # Aplicar paginación
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
 
-        # Calcular índices originales para los resultados paginados
         institutions_with_index = []
         for institution in pagination.items:
             original_index = id_to_index.get(institution.id, 0)
@@ -231,7 +208,7 @@ def get_all_institutions(filters=None, user=None, page=1, per_page=10):
             'has_next': pagination.has_next,
             'prev_num': pagination.prev_num,
             'next_num': pagination.next_num,
-            'total_all': len(all_ids)  # Total sin filtros
+            'total_all': len(all_ids)
         }
     except Exception as e:
         print(f"Error en get_all_institutions: {e}")
@@ -244,18 +221,13 @@ def get_all_institutions(filters=None, user=None, page=1, per_page=10):
             'has_prev': False,
             'has_next': False,
             'prev_num': None,
-            'next_num': None
+            'next_num': None,
+            'total_all': 0
         }
 
 def get_institution_by_id(institution_id):
     """
     Obtiene una institución específica por su ID con todas sus relaciones cargadas.
-    
-    Parámetros:
-    - institution_id: ID de la institución a buscar
-    
-    Retorna:
-    - objeto Institution si existe, None si no se encuentra
     """
     try:
         institution = Institution.query.options(
@@ -275,59 +247,49 @@ def get_institution_by_id(institution_id):
 def get_filter_options(user=None):
     """
     Obtiene las opciones disponibles para los filtros del listado de instituciones.
-    Si se proporciona un usuario, filtra las parroquias según su estado.
-    
-    Parámetros:
-    - user: usuario actual para filtrar parroquias según su estado
-    
-    Retorna:
-    - dict con listas de opciones para cada filtro
     """
     try:
-        # Obtener opciones de clasificación
         institution_types = InstitutionType.query.order_by(InstitutionType.name).all()
         institution_scopes = InstitutionScope.query.order_by(InstitutionScope.name).all()
         institution_dependencies = InstitutionDependency.query.order_by(InstitutionDependency.name).all()
-
-        # Solo mostrar estatus activo e inactivo para filtros
         statuses = Status.query.filter(Status.status_code.in_(['STAT-001', 'STAT-002'])).all()
 
-        # Obtener todos los estados
-        states = State.query.order_by(State.name).all()
+        is_super_admin = False
+        if user and user.roles_assoc:
+            for role_assoc in user.roles_assoc:
+                if role_assoc.role.name == 'super_admin':
+                    is_super_admin = True
+                    break
+        
+        user_state_info = None
+        if not is_super_admin:
+            try:
+                user_state_info = get_user_state_info(user)
+            except Exception as e:
+                print(f"Error obteniendo información del estado: {e}")
+                user_state_info = None
 
-        # Filtrar parroquias según el usuario
-        if user and user.person and user.person.institutional_staff:
-            # Obtener el estado del usuario a través de su institución
-            user_institution = user.person.institutional_staff[0].institution
-            if user_institution and user_institution.parish and user_institution.parish.municipality:
-                user_state_id = user_institution.parish.municipality.state_id
-                # Si es Distrito Capital, usar lista oficial de parroquias con verificación de estado
-                if user_state_id == 24:  # ID de Distrito Capital
-                    parishes = Parish.query.join(Municipality).join(State).filter(
-                        Parish.name.in_(DC_PARISHES),
-                        State.state_code == DC_STATE_CODE
-                    ).order_by(Parish.name).all()
-                else:
-                    # Para otros estados, filtrar por estado
-                    parishes = Parish.query.join(Municipality).filter(
-                        Municipality.state_id == user_state_id
-                    ).order_by(Parish.name).all()
-            else:
-                parishes = []
+        if user_state_info:
+            states = [State.query.filter_by(state_code=user_state_info['state_code']).first()]
+            all_parishes = Parish.query.join(Municipality).join(State).filter(
+                State.state_code == user_state_info['state_code']
+            ).order_by(Parish.name, Parish.id).all()
+            
+            seen_names = set()
+            parishes = []
+            for parish in all_parishes:
+                if parish.name not in seen_names:
+                    seen_names.add(parish.name)
+                    parishes.append(parish)
         else:
-            # Para super admin: parroquias reales de Distrito Capital
-            # Filtrar por lista oficial de parroquias de Caracas Y estado para evitar duplicados
-            parishes = (
-                Parish.query
-                .join(Municipality)
-                .join(State)
-                .filter(
-                    Parish.name.in_(DC_PARISHES),
-                    State.state_code == DC_STATE_CODE
-                )
-                .order_by(Parish.name)
-                .all()
-            )
+            states = State.query.order_by(State.name).all()
+            all_parishes = Parish.query.order_by(Parish.name, Parish.id).all()
+            seen_names = set()
+            parishes = []
+            for parish in all_parishes:
+                if parish.name not in seen_names:
+                    seen_names.add(parish.name)
+                    parishes.append(parish)
 
         return {
             'institution_types': institution_types,
@@ -352,36 +314,18 @@ def toggle_institution_status(institution_id):
     """
     Alterna el estatus de una institución entre Activo (STAT-001) e Inactivo (STAT-002).
     También actualiza automáticamente el estatus de los usuarios afiliados a la institución.
-    
-    Parámetros:
-    - institution_id: ID de la institución a modificar
-    
-    Retorna:
-    - tuple: (institution, new_status, affected_users_count) si éxito, (None, error_message, 0) si error
-    
-    Nota:
-    - Realiza commit de cambios en base de datos
-    - Realiza rollback en caso de error
-    - Si la institución se desactiva, también se desactivan los usuarios afiliados
-    - Si la institución se activa, también se activan los usuarios afiliados
     """
     try:
-        from app.extensions import db
-        from app.models.institutional_staff_model import InstitutionalStaff
-        from app.models.user_model import User
-        
         institution = db.session.get(Institution, institution_id)
         if not institution:
             return None, 'Institución no encontrada', 0
         
-        # Obtener los estatus Activo e Inactivo
         active_status = Status.query.filter_by(status_code='STAT-001').first()
         inactive_status = Status.query.filter_by(status_code='STAT-002').first()
         
         if not active_status or not inactive_status:
             return None, 'Estados no configurados correctamente', 0
         
-        # Determinar el nuevo estatus de la institución
         if institution.status_id == active_status.id:
             institution.status_id = inactive_status.id
             new_institution_status = inactive_status
@@ -391,75 +335,43 @@ def toggle_institution_status(institution_id):
             new_institution_status = active_status
             new_status = 'Activo'
         
-        # Actualizar el estatus de los usuarios afiliados a la institución
-        # Obtener todo el personal institucional de esta institución con relaciones cargadas
-        from app.models.institutional_staff_model import InstitutionalStaff
-        from app.models.person_model import Person
-        from app.models.user_model import User
-        
         staff_list = InstitutionalStaff.query.options(
             joinedload(InstitutionalStaff.person).joinedload(Person.user).joinedload(User.status)
         ).filter_by(institution_id=institution_id).all()
         
         affected_users_count = 0
         for staff in staff_list:
-            # Verificar si la persona tiene un usuario
             if staff.person and staff.person.user:
                 user = staff.person.user
-                # Actualizar el estatus del usuario al mismo estatus de la institución
                 user.status_id = new_institution_status.id
                 affected_users_count += 1
         
-        from app.extensions import db
         db.session.commit()
-        
-        # Recargar la institución para obtener el estatus actualizado
         db.session.refresh(institution)
         
         return institution, new_status, affected_users_count
     except Exception as e:
         print(f"Error en toggle_institution_status: {e}")
-        from app.extensions import db
         db.session.rollback()
         return None, f'Error: {str(e)}', 0
 
 def get_institution_users(institution_id, page=1, per_page=10):
     """
     Obtiene los usuarios afiliados a una institución específica con paginación.
-    
-    Parámetros:
-    - institution_id: ID de la institución
-    - page: número de página para paginación
-    - per_page: cantidad de registros por página
-    
-    Retorna:
-    - dict: con usuarios paginados y metadatos de paginación
     """
     try:
-        from app.models.institutional_staff_model import InstitutionalStaff
-        from app.models.person_model import Person
-        from app.models.user_model import User
-        from app.models.position_model import Position
-        from app.models.status_model import Status
-        from sqlalchemy.orm import joinedload
-        
-        # Primero, obtener todos los IDs ordenados sin filtros para calcular índices originales
         base_query = InstitutionalStaff.query.filter_by(institution_id=institution_id)
         all_ids_query = base_query.order_by(InstitutionalStaff.id.asc())
         all_ids = [staff.id for staff in all_ids_query.all()]
         id_to_index = {id: index + 1 for index, id in enumerate(all_ids)}
         
-        # Obtener el personal institucional con todas las relaciones cargadas
         query = InstitutionalStaff.query.options(
             joinedload(InstitutionalStaff.person).joinedload(Person.user),
             joinedload(InstitutionalStaff.position),
             joinedload(InstitutionalStaff.institution)
         ).filter_by(institution_id=institution_id)
         
-        # Obtener total de registros para paginación
         total = query.count()
-        
-        # Aplicar paginación
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
         
         users_data = []
@@ -467,7 +379,6 @@ def get_institution_users(institution_id, page=1, per_page=10):
             person = staff.person
             user = person.user if person else None
             
-            # Obtener el estatus del usuario si existe
             user_status = None
             if user and user.status:
                 user_status = {
@@ -475,7 +386,6 @@ def get_institution_users(institution_id, page=1, per_page=10):
                     'status_name': user.status.status_name
                 }
             
-            # Calcular índice original
             original_index = id_to_index.get(staff.id, 0)
             
             user_info = {
@@ -504,7 +414,7 @@ def get_institution_users(institution_id, page=1, per_page=10):
             'has_next': pagination.has_next,
             'prev_num': pagination.prev_num,
             'next_num': pagination.next_num,
-            'total_all': len(all_ids)  # Total sin filtros
+            'total_all': len(all_ids)
         }
     except Exception as e:
         print(f"Error en get_institution_users: {e}")
@@ -517,36 +427,26 @@ def get_institution_users(institution_id, page=1, per_page=10):
             'has_prev': False,
             'has_next': False,
             'prev_num': None,
-            'next_num': None
+            'next_num': None,
+            'total_all': 0
         }
 
 def validate_institution_data(institution_data, is_admin=False):
     """
     Valida los datos de una institución antes de actualizar.
-    
-    Parámetros:
-    - institution_data: dict con datos de la institución a validar
-    - is_admin: booleano que indica si el usuario es administrador
-    
-    Retorna:
-    - tuple: (is_valid, errors) donde is_valid es boolean y errors es dict con errores por campo
     """
     errors = {}
     
-    # Validar teléfono (ambos roles)
     if 'phone' in institution_data:
         phone = institution_data['phone']
         if not phone or phone.strip() == '':
             errors['phone'] = 'El teléfono es obligatorio'
         else:
-            # Limpiar paréntesis y guiones para validación
             clean_phone = phone.replace('(', '').replace(')', '').replace('-', '').strip()
-            # Validar formato: 11 dígitos numéricos
             pattern = r'^\d{11}$'
             if not re.match(pattern, clean_phone):
                 errors['phone'] = 'Formato de teléfono inválido. Debe ser (XXXX)-XXXXXXX (ej: (0414)-1234567)'
     
-    # Validar dirección (ambos roles)
     if 'address' in institution_data:
         address = institution_data['address']
         if not address or address.strip() == '':
@@ -556,20 +456,16 @@ def validate_institution_data(institution_data, is_admin=False):
         elif len(address.strip()) > 200:
             errors['address'] = 'La dirección no puede exceder 200 caracteres'
     
-    # Validaciones solo para administradores
     if is_admin:
-        # Validar código de plantel (DEA)
         if 'plantel_code' in institution_data:
             plantel_code = institution_data['plantel_code']
             if not plantel_code or plantel_code.strip() == '':
                 errors['plantel_code'] = 'El código de plantel es obligatorio'
             else:
-                # Validar formato DEA: XXX-X0000 (ej: DEA-U0001)
                 pattern = r'^[A-Z]{3}-[A-Z]{1}[0-9]{4}$'
                 if not re.match(pattern, plantel_code.upper()):
                     errors['plantel_code'] = 'Formato de código de plantel inválido. Debe ser XXX-X0000 (ej: DEA-U0001)'
         
-        # Validar nombre de institución
         if 'institution_name' in institution_data:
             institution_name = institution_data['institution_name']
             if not institution_name or institution_name.strip() == '':
@@ -579,7 +475,6 @@ def validate_institution_data(institution_data, is_admin=False):
             elif len(institution_name.strip()) > 100:
                 errors['institution_name'] = 'El nombre no puede exceder 100 caracteres'
         
-        # Validar tipo de institución
         if 'institution_type_id' in institution_data:
             institution_type_id = institution_data['institution_type_id']
             if not institution_type_id:
@@ -587,13 +482,12 @@ def validate_institution_data(institution_data, is_admin=False):
             else:
                 try:
                     institution_type_id = int(institution_type_id)
-                    type_exists = InstitutionType.query.get(institution_type_id)
+                    type_exists = db.session.get(InstitutionType, institution_type_id)
                     if not type_exists:
                         errors['institution_type'] = 'El tipo de institución seleccionado no existe'
                 except (ValueError, TypeError):
                     errors['institution_type'] = 'Tipo de institución inválido'
         
-        # Validar alcance de institución
         if 'institution_scope_id' in institution_data:
             institution_scope_id = institution_data['institution_scope_id']
             if not institution_scope_id:
@@ -601,13 +495,12 @@ def validate_institution_data(institution_data, is_admin=False):
             else:
                 try:
                     institution_scope_id = int(institution_scope_id)
-                    scope_exists = InstitutionScope.query.get(institution_scope_id)
+                    scope_exists = db.session.get(InstitutionScope, institution_scope_id)
                     if not scope_exists:
                         errors['institution_scope'] = 'El alcance de institución seleccionado no existe'
                 except (ValueError, TypeError):
                     errors['institution_scope'] = 'Alcance de institución inválido'
         
-        # Validar dependencia de institución
         if 'institution_dependency_id' in institution_data:
             institution_dependency_id = institution_data['institution_dependency_id']
             if not institution_dependency_id:
@@ -615,13 +508,12 @@ def validate_institution_data(institution_data, is_admin=False):
             else:
                 try:
                     institution_dependency_id = int(institution_dependency_id)
-                    dependency_exists = InstitutionDependency.query.get(institution_dependency_id)
+                    dependency_exists = db.session.get(InstitutionDependency, institution_dependency_id)
                     if not dependency_exists:
                         errors['institution_dependency'] = 'La dependencia de institución seleccionada no existe'
                 except (ValueError, TypeError):
                     errors['institution_dependency'] = 'Dependencia de institución inválida'
         
-        # Validar parroquia (ubicación)
         if 'parish_id' in institution_data:
             parish_id = institution_data['parish_id']
             if not parish_id:
@@ -629,13 +521,12 @@ def validate_institution_data(institution_data, is_admin=False):
             else:
                 try:
                     parish_id = int(parish_id)
-                    parish_exists = Parish.query.get(parish_id)
+                    parish_exists = db.session.get(Parish, parish_id)
                     if not parish_exists:
                         errors['parish_id'] = 'La parroquia seleccionada no existe'
                 except (ValueError, TypeError):
                     errors['parish_id'] = 'Parroquia inválida'
         
-        # Validar ciudad (ubicación)
         if 'city_id' in institution_data:
             city_id = institution_data['city_id']
             if not city_id:
@@ -643,7 +534,7 @@ def validate_institution_data(institution_data, is_admin=False):
             else:
                 try:
                     city_id = int(city_id)
-                    city_exists = City.query.get(city_id)
+                    city_exists = db.session.get(City, city_id)
                     if not city_exists:
                         errors['city_id'] = 'La ciudad seleccionada no existe'
                 except (ValueError, TypeError):
@@ -654,28 +545,11 @@ def validate_institution_data(institution_data, is_admin=False):
 def update_institution_contact_infrastructure(institution_id, institution_data, is_admin=False):
     """
     Actualiza los datos de contacto e infraestructura de una institución.
-    Para applicants: solo actualiza teléfono y dirección.
-    Para administradores: actualiza todos los campos incluyendo código de plantel y ubicación.
-    
-    Parámetros:
-    - institution_id: ID de la institución a actualizar
-    - institution_data: dict con datos de la institución
-    - is_admin: booleano que indica si el usuario es administrador
-    
-    Retorna:
-    - tuple: (institution, success, message) si éxito, (None, False, error_message) si error
-    
-    Nota:
-    - Realiza commit de cambios en base de datos
-    - Realiza rollback en caso de error
-    - Registra la acción en la bitácora
     """
     try:
-        from app.extensions import db
         from app.utils.binnacle_utils import log_action
         from flask_login import current_user
         
-        # Validar datos antes de procesar según rol
         is_valid, validation_errors = validate_institution_data(institution_data, is_admin)
         if not is_valid:
             return None, False, 'Errores de validación: ' + '; '.join(validation_errors.values())
@@ -684,14 +558,12 @@ def update_institution_contact_infrastructure(institution_id, institution_data, 
         if not institution:
             return None, False, 'Institución no encontrada'
         
-        # Guardar valores anteriores para bitácora
         old_values = {
             'phone': institution.phone,
             'address': institution.address
         }
         
         if is_admin:
-            # Para administradores, guardar todos los valores anteriores
             old_values.update({
                 'plantel_code': institution.plantel_code,
                 'institution_name': institution.institution_name,
@@ -702,20 +574,15 @@ def update_institution_contact_infrastructure(institution_id, institution_data, 
                 'city_id': None
             })
             
-            # Obtener ciudad actual
             if institution.parish and institution.parish.locations and len(institution.parish.locations) > 0:
                 old_values['city_id'] = institution.parish.locations[0].city_id
         
-        # Actualizar datos según rol
-        # Campos que ambos roles pueden editar
         if 'phone' in institution_data:
-            # Limpiar el teléfono de paréntesis y guiones antes de guardar
             clean_phone = institution_data['phone'].replace('(', '').replace(')', '').replace('-', '').strip()
             institution.phone = clean_phone
         if 'address' in institution_data:
             institution.address = institution_data['address']
         
-        # Campos que solo administradores pueden editar
         if is_admin:
             if 'plantel_code' in institution_data:
                 institution.plantel_code = institution_data['plantel_code']
@@ -730,16 +597,10 @@ def update_institution_contact_infrastructure(institution_id, institution_data, 
             if 'parish_id' in institution_data:
                 institution.parish_id = institution_data['parish_id']
             
-            # Manejo de ciudad a través de Location
             if 'city_id' in institution_data and institution_data['city_id']:
-                # Eliminar locations existentes para esta parroquia
                 Location.query.filter_by(parish_id=institution.parish_id).delete()
-                
-                # Obtener ciudad y parroquia de forma segura
-                city = City.query.get(institution_data['city_id'])
-                parish = Parish.query.get(institution.parish_id)
-                
-                # Crear nueva location solo si ambas existen
+                city = db.session.get(City, institution_data['city_id'])
+                parish = db.session.get(Parish, institution.parish_id)
                 if city and parish:
                     new_location = Location(
                         city_id=institution_data['city_id'],
@@ -749,13 +610,9 @@ def update_institution_contact_infrastructure(institution_id, institution_data, 
                     db.session.add(new_location)
         
         db.session.commit()
-        
-        # Recargar la institución para obtener los datos actualizados
         db.session.refresh(institution)
         
-        # Registrar en bitácora
         try:
-            from app.utils.binnacle_utils import log_action
             action_description = f'Actualización de datos de institución {institution.institution_code}'
             if is_admin:
                 action_description += ' (administrador)'
@@ -778,3 +635,110 @@ def update_institution_contact_infrastructure(institution_id, institution_data, 
         print(f"Error en update_institution_contact_infrastructure: {e}")
         db.session.rollback()
         return None, False, f'Error al actualizar: {str(e)}'
+
+
+def create_institution_invitation(institution_id, invited_by_user, email, identification_number, position_id):
+    """Crea una invitación para un colaborador de la institución del solicitante."""
+    # Solo un applicant afiliado a la institución puede emitir la invitación.
+    from app.models.role_model import Role
+
+    staff_members = invited_by_user.person.institutional_staff if invited_by_user.person else []
+    if not any(staff.institution_id == institution_id for staff in staff_members):
+        raise PermissionError('No perteneces a esta institución')
+
+    email = email.strip().lower()
+    identification_number = identification_number.strip()
+    if not email or not identification_number or not position_id:
+        raise ValueError('Correo, cédula y cargo son obligatorios')
+
+    # La cédula y el correo no deben pertenecer a un usuario existente.
+    existing_person = Person.query.filter(
+        or_(
+            Person.identification_number == identification_number,
+            db.func.lower(Person.email) == email
+        )
+    ).first()
+    if existing_person and existing_person.user:
+        raise ValueError('La persona ya tiene un usuario registrado')
+
+    # Validar las referencias antes de generar y enviar el enlace.
+    position = db.session.get(Position, position_id)
+    institution = db.session.get(Institution, institution_id)
+    if not position or not institution:
+        raise ValueError('Institución o cargo inválido')
+
+    from app.utils.invitation_utils import create_invitation_token
+    from flask import url_for, current_app
+    from app.utils.email_utils import send_invitation_email
+
+    token = create_invitation_token(institution_id, position_id, email, identification_number)
+    base_url = current_app.config.get('APP_BASE_URL') or os.getenv('APP_BASE_URL', 'http://127.0.0.1:5000')
+    ruta_interna = url_for('institutions.delegate_registration', token=token)
+    link = f"{base_url.rstrip('/')}{ruta_interna}"
+    # Si el correo falla, no se confirma ninguna operación de invitación.
+    try:
+        send_invitation_email(email, link, institution.institution_name)
+    except Exception:
+        db.session.rollback()
+        raise
+
+    return token
+
+
+def complete_institution_invitation(payload, data):
+    """Crea la persona, usuario, afiliación y rol applicant de una invitación válida."""
+    # La cédula y el correo deben coincidir con los datos firmados en el enlace.
+    from werkzeug.security import generate_password_hash
+    from app.models.role_model import Role
+    from app.models.role_user_model import RoleUser
+
+    # Evitar que el enlace se use para registrar otros datos de contacto.
+    if data['email'].lower() != payload['email'].lower():
+        raise ValueError('El correo no coincide con la invitación')
+    if data['identification_number'] != payload['identification_number']:
+        raise ValueError('La cédula no coincide con la invitación')
+    if Person.query.filter_by(identification_number=data['identification_number']).first():
+        raise ValueError('La cédula ya está registrada')
+    if Person.query.filter(db.func.lower(Person.email) == data['email'].lower()).first():
+        raise ValueError('El correo ya está registrado')
+
+    # El colaborador nace activo y con el rol funcional de solicitante.
+    status = Status.query.filter_by(status_code='STAT-001').first()
+    role = Role.query.filter_by(name='applicant').first()
+    if not status or not role:
+        raise ValueError('No están configurados el estado o rol de applicant')
+
+    # Crear la persona y reutilizar sus datos para la cuenta de usuario.
+    person = Person(
+        person_code=f"PERS-{uuid4().hex[:12].upper()}",
+        identification_type=data.get('identification_type', 'V'),
+        identification_number=data['identification_number'],
+        first_name=data['first_name'],
+        second_name=data.get('second_name', ''),
+        last_name=data['last_name'],
+        middle_name=data.get('middle_name', ''),
+        email=data['email'].lower(),
+        mobile=data['mobile'],
+        phone=data.get('phone') or None
+    )
+    db.session.add(person)
+    db.session.flush()
+
+    user = User(
+        user_code=f"USR-{uuid4().hex[:12].upper()}",
+        person_id=person.id,
+        user_name=person.identification_number,
+        password=generate_password_hash(data['password']),
+        status_id=status.id
+    )
+    db.session.add(user)
+    db.session.flush()
+    # Vincular la cuenta, el rol applicant y el cargo institucional.
+    db.session.add(RoleUser(user_id=user.id, role_id=role.id))
+    db.session.add(InstitutionalStaff(
+        person_id=person.id,
+        institution_id=payload['institution_id'],
+        position_id=payload['position_id']
+    ))
+    db.session.commit()
+    return user

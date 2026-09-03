@@ -17,36 +17,45 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 function debouncedSearch() {
-    // Limpiar el timeout anterior si existe
     clearTimeout(searchTimeout);
-    // Establecer un nuevo timeout de 500ms
     searchTimeout = setTimeout(updateFilters, 500);
 }
 
 function updateFilters() {
-    const searchName = document.getElementById('search_name').value;
-    const institutionType = document.getElementById('institution_type').value;
-    const institutionDependency = document.getElementById('institution_dependency').value;
-    const status = document.getElementById('status').value;
-
     let url = new URL(window.location.href);
-    url.searchParams.set('search_name', searchName);
-    url.searchParams.set('institution_type', institutionType);
-    url.searchParams.set('institution_dependency', institutionDependency);
-    url.searchParams.set('status', status);
 
-    // Verificar si existe el elemento para determinar el rol del usuario
+    const searchName = document.getElementById('search_name')?.value || '';
+    const institutionType = document.getElementById('institution_type')?.value || '';
+    const institutionScope = document.getElementById('institution_scope')?.value || '';
+    const institutionDependency = document.getElementById('institution_dependency')?.value || '';
+    const status = document.getElementById('status')?.value || '';
     const stateIdElement = document.getElementById('state_id');
     const parishIdElement = document.getElementById('parish_id');
 
-    if (stateIdElement) {
-        // Super_admin: manejar filtro state_id
+    if (searchName) url.searchParams.set('search_name', searchName);
+    else url.searchParams.delete('search_name');
+
+    if (institutionType) url.searchParams.set('institution_type', institutionType);
+    else url.searchParams.delete('institution_type');
+
+    if (institutionScope) url.searchParams.set('institution_scope', institutionScope);
+    else url.searchParams.delete('institution_scope');
+
+    if (institutionDependency) url.searchParams.set('institution_dependency', institutionDependency);
+    else url.searchParams.delete('institution_dependency');
+
+    if (status) url.searchParams.set('status', status);
+    else url.searchParams.delete('status');
+
+    if (stateIdElement && stateIdElement.value) {
         url.searchParams.set('state_id', stateIdElement.value);
         url.searchParams.delete('parish_id');
-    } else if (parishIdElement) {
-        // State_admin: solo manejar parish_id
+    } else if (parishIdElement && parishIdElement.value) {
         url.searchParams.set('parish_id', parishIdElement.value);
         url.searchParams.delete('state_id');
+    } else {
+        url.searchParams.delete('state_id');
+        url.searchParams.delete('parish_id');
     }
 
     // Resetear a página 1 cuando se cambian filtros
@@ -58,31 +67,5 @@ function updateFilters() {
 function goToPage(page) {
     let url = new URL(window.location.href);
     url.searchParams.set('page', page);
-    
-    // Mantener todos los filtros actuales
-    const searchName = document.getElementById('search_name').value;
-    const institutionType = document.getElementById('institution_type').value;
-    const institutionDependency = document.getElementById('institution_dependency').value;
-    const status = document.getElementById('status').value;
-
-    url.searchParams.set('search_name', searchName);
-    url.searchParams.set('institution_type', institutionType);
-    url.searchParams.set('institution_dependency', institutionDependency);
-    url.searchParams.set('status', status);
-
-    // Verificar si existe el elemento para determinar el rol del usuario
-    const stateIdElement = document.getElementById('state_id');
-    const parishIdElement = document.getElementById('parish_id');
-
-    if (stateIdElement) {
-        // Super_admin: manejar filtro state_id
-        url.searchParams.set('state_id', stateIdElement.value);
-        url.searchParams.delete('parish_id');
-    } else if (parishIdElement) {
-        // State_admin: solo manejar parish_id
-        url.searchParams.set('parish_id', parishIdElement.value);
-        url.searchParams.delete('state_id');
-    }
-
     window.location.href = url.toString();
 }
