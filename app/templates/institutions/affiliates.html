@@ -31,13 +31,22 @@
 
     {# Información de la institución y botón de volver #}
     <div class="page-actions">
+        {% if current_user.roles_assoc and current_user.roles_assoc[0].role.name == 'applicant' %}
+        <a href="{{ url_for('institutions.my_institution') }}" class="back-btn">
+        {% else %}
         <a href="{{ url_for('institutions.view_institution', institution_id=institution.id) }}" class="back-btn">
+        {% endif %}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12"></line>
                 <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
             Volver al detalle
         </a>
+        {% if current_user.roles_assoc and current_user.roles_assoc[0].role.name == 'applicant' %}
+        <a href="{{ url_for('institutions.invite_institution_collaborator', institution_id=institution.id) }}" class="btn-view-users">
+            Invitar colaborador
+        </a>
+        {% endif %}
     </div>
 
     {# Información de la institución #}

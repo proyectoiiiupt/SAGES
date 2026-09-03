@@ -138,7 +138,7 @@ Por favor, no responda a este correo automatizado."""
                         Hemos recibido exitosamente su solicitud de registro como Representante Institucional en el Sistema para la Gestión de Solicitudes de Formación Comunitaria de Uso Racional y Eficiente de la Energía (UREE).
                     </p>
                     <p style="font-size: 15px; color: #4b5563; margin: 0 0 15px 0; line-height: 1.6;">
-                        Actualmente, su perfil y la documentación se encuentran en fase de <strong>Revisión</strong>. Este proceso de validación institucional es estrictamente necesario para aprobar su vinculación con <strong>{institution_name}</strong>.
+                        Actualmente, su perfil y la documentación se encuentran en fase de <strong>Revisión</strong>. Este proceso de validación institucional es strictly necesario para aprobar su vinculación con <strong>{institution_name}</strong>.
                     </p>
                     <p style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.6;">
                         Le notificaremos por esta vía una vez que su cuenta sea verificada y activada. A partir de ese momento, podrá iniciar sesión en la plataforma.
@@ -150,6 +150,68 @@ Por favor, no responda a este correo automatizado."""
                     <hr style="border: 0; border-top: 1px solid #e5e7eb; margin-bottom: 25px;">
                     <p style="font-size: 12px; color: #9ca3af; line-height: 1.6; margin: 0; text-align: justify;">
                         Por favor, no responda a este correo automatizado.
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
+                    &copy; 2026 SAGES. Todos los derechos reservados.
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+    return send_email(to_email, subject, html_content, text_content)
+
+
+def send_invitation_email(to_email: str, link: str, institution_name: str) -> bool:
+    """Envía un correo con el enlace de invitación para colaborador de una institución."""
+    subject = "Invitación de Colaborador"
+    text_content = (
+        f"Hola,\n\n"
+        f"Has sido invitado a colaborar en {institution_name}.\n\n"
+        f"Para completar tu registro, haz clic en el siguiente enlace:\n{link}\n\n"
+        f"Este enlace expira en 48 horas.\n\n"
+        f"Si no solicitaste esto, ignora este mensaje."
+    )
+
+    logo_html = get_logo_html()
+    html_content = f"""<!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <title>{subject}</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9fafb; color: #1f2937;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb; overflow: hidden;">
+            <tr>
+                <td style="height: 6px; background: linear-gradient(90deg, #1c3d73 0%, #1fcab0 100%);"></td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 40px 20px 20px 20px;">
+                    {logo_html}
+                    <h1 style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.5;">Sistema de Gestión de Solicitudes</h1>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 0 40px;">
+                    <h2 style="font-size: 22px; font-weight: 700; color: #1f2937; margin: 10px 0 20px 0; text-transform: uppercase; letter-spacing: 0.5px;">INVITACIÓN DE COLABORADOR</h2>
+                    <p style="font-size: 15px; color: #4b5563; margin: 0 0 10px 0; line-height: 1.5;">Has sido invitado a colaborar en:</p>
+                    <p style="font-size: 18px; font-weight: 600; color: #1c3d73; margin: 0 0 25px 0; line-height: 1.5;">{institution_name}</p>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 0 40px;">
+                    <p style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.5;">Para completar tu registro, haz clic en el siguiente botón:</p>
+                    <a href="{link}" style="display: inline-block; background: linear-gradient(90deg, #1c3d73 0%, #1fcab0 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 10px 0;">Completar Registro</a>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 30px 40px 40px 40px;">
+                    <hr style="border: 0; border-top: 1px solid #e5e7eb; margin-bottom: 25px;">
+                    <p style="font-size: 12px; color: #9ca3af; line-height: 1.6; margin: 0; text-align: justify;">
+                        Este enlace de invitación es válido únicamente por 48 horas. Si no utilizas el enlace dentro de este período, deberás solicitar una nueva invitación.
                     </p>
                 </td>
             </tr>

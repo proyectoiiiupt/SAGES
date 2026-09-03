@@ -1,0 +1,51 @@
+{% extends "layouts/base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/institutions.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/institutions-detail.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/invitations.css') }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="institutions-container">
+    {# Formulario mínimo: cédula, correo y cargo del colaborador. #}
+    <div class="page-header">
+        <div class="page-title">
+            <h1>Invitar colaborador</h1>
+        </div>
+    </div>
+    <div class="invitation-card">
+        <h2>{{ institution.institution_name }}</h2>
+        <p class="invitation-context">La invitación será válida durante 48 horas.</p>
+        <p class="invitation-instructions">Completa la cédula, el correo electrónico y el cargo del colaborador. Luego, recibirá un enlace por correo para finalizar su registro.</p>
+        <form method="post" class="invitation-form" id="invitation-form" data-institution-id="{{ institution.id }}">
+            <div class="invitation-field">
+                <label for="identification_number">Cédula</label>
+                <input id="identification_number" name="identification_number" required inputmode="numeric" pattern="\d{7,8}" maxlength="8" autocomplete="off" />
+                <div id="identification-validation" class="validation-message"></div>
+            </div>
+            <div class="invitation-field">
+                <label for="email">Correo electrónico</label>
+                <input id="email" name="email" type="email" required maxlength="100">
+                <div id="email-validation" class="validation-message"></div>
+            </div>
+            <div class="invitation-field full-width">
+                <label for="position_id">Cargo</label>
+                <select id="position_id" name="position_id" required>
+                    <option value="">Selecciona un cargo</option>
+                    {% for position in positions %}
+                    <option value="{{ position.id }}">{{ position.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="invitation-actions">
+                <button type="button" class="cancel-btn" id="cancel-btn">Cancelar</button>
+                <button type="submit" class="invitation-submit" id="invitation-submit" disabled>Enviar invitación</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{{ url_for('static', filename='JS/invitations_validation.js') }}"></script>
+{% endblock %}

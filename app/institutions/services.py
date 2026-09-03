@@ -21,7 +21,10 @@ from app.models.position_model import Position
 from app.extensions import db
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_
+from datetime import datetime, timezone, timedelta
+from uuid import uuid4
 import re
+
 
 def get_user_state_info(user):
     """
@@ -632,3 +635,110 @@ def update_institution_contact_infrastructure(institution_id, institution_data, 
         print(f"Error en update_institution_contact_infrastructure: {e}")
         db.session.rollback()
         return None, False, f'Error al actualizar: {str(e)}'
+
+
+def create_institution_invitation(institution_id, invited_by_user, email, identification_number, position_id):
+    """Crea una invitación para un colaborador de la institución del solicitante."""
+    # Solo un applicant afiliado a la institución puede emitir la invitación.
+    from app.models.role_model import Role
+
+    staff_members = invited_by_user.person.institutional_staff if invited_by_user.person else []
+    if not any(staff.institution_id == institution_id for staff in staff_members):
+        raise PermissionError('No perteneces a esta institución')
+
+    email = email.strip().lower()
+    identification_number = identification_number.strip()
+    if not email or not identification_number or not position_id:
+        raise ValueError('Correo, cédula y cargo son obligatorios')
+
+    # La cédula y el correo no deben pertenecer a un usuario existente.
+    existing_person = Person.query.filter(
+        or_(
+            Person.identification_number == identification_number,
+            db.func.lower(Person.email) == email
+        )
+    ).first()
+    if existing_person and existing_person.user:
+        raise ValueError('La persona ya tiene un usuario registrado')
+
+    # Validar las referencias antes de generar y enviar el enlace.
+    position = db.session.get(Position, position_id)
+    institution = db.session.get(Institution, institution_id)
+    if not position or not institution:
+        raise ValueError('Institución o cargo inválido')
+
+    from app.utils.invitation_utils import create_invitation_token
+    from flask import url_for, current_app
+    from app.utils.email_utils import send_invitation_email
+
+    token = create_invitation_token(institution_id, position_id, email, identification_number)
+    base_url = current_app.config.get('APP_BASE_URL') or os.getenv('APP_BASE_URL', 'http://127.0.0.1:5000')
+    ruta_interna = url_for('institutions.delegate_registration', token=token)
+    link = f"{base_url.rstrip('/')}{ruta_interna}"
+    # Si el correo falla, no se confirma ninguna operación de invitación.
+    try:
+        send_invitation_email(email, link, institution.institution_name)
+    except Exception:
+        db.session.rollback()
+        raise
+
+    return token
+
+
+def complete_institution_invitation(payload, data):
+    """Crea la persona, usuario, afiliación y rol applicant de una invitación válida."""
+    # La cédula y el correo deben coincidir con los datos firmados en el enlace.
+    from werkzeug.security import generate_password_hash
+    from app.models.role_model import Role
+    from app.models.role_user_model import RoleUser
+
+    # Evitar que el enlace se use para registrar otros datos de contacto.
+    if data['email'].lower() != payload['email'].lower():
+        raise ValueError('El correo no coincide con la invitación')
+    if data['identification_number'] != payload['identification_number']:
+        raise ValueError('La cédula no coincide con la invitación')
+    if Person.query.filter_by(identification_number=data['identification_number']).first():
+        raise ValueError('La cédula ya está registrada')
+    if Person.query.filter(db.func.lower(Person.email) == data['email'].lower()).first():
+        raise ValueError('El correo ya está registrado')
+
+    # El colaborador nace activo y con el rol funcional de solicitante.
+    status = Status.query.filter_by(status_code='STAT-001').first()
+    role = Role.query.filter_by(name='applicant').first()
+    if not status or not role:
+        raise ValueError('No están configurados el estado o rol de applicant')
+
+    # Crear la persona y reutilizar sus datos para la cuenta de usuario.
+    person = Person(
+        person_code=f"PERS-{uuid4().hex[:12].upper()}",
+        identification_type=data.get('identification_type', 'V'),
+        identification_number=data['identification_number'],
+        first_name=data['first_name'],
+        second_name=data.get('second_name', ''),
+        last_name=data['last_name'],
+        middle_name=data.get('middle_name', ''),
+        email=data['email'].lower(),
+        mobile=data['mobile'],
+        phone=data.get('phone') or None
+    )
+    db.session.add(person)
+    db.session.flush()
+
+    user = User(
+        user_code=f"USR-{uuid4().hex[:12].upper()}",
+        person_id=person.id,
+        user_name=person.identification_number,
+        password=generate_password_hash(data['password']),
+        status_id=status.id
+    )
+    db.session.add(user)
+    db.session.flush()
+    # Vincular la cuenta, el rol applicant y el cargo institucional.
+    db.session.add(RoleUser(user_id=user.id, role_id=role.id))
+    db.session.add(InstitutionalStaff(
+        person_id=person.id,
+        institution_id=payload['institution_id'],
+        position_id=payload['position_id']
+    ))
+    db.session.commit()
+    return user

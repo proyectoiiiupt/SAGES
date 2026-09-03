@@ -2,21 +2,41 @@
 Rutas del Módulo de Instituciones
 Define los endpoints para la gestión de instituciones educativas.
 """
+import re
+
 from flask import render_template, flash, redirect, request, jsonify, abort, url_for
 from flask_login import login_required, current_user
 from app.institutions import institutions_bp
 from app.institutions.services import (
     get_all_institutions, get_institution_by_id, get_filter_options,
     toggle_institution_status, get_institution_users, update_institution_contact_infrastructure,
-    get_user_state_info
+    get_user_state_info, create_institution_invitation, complete_institution_invitation
 )
 from app.decorators import role_required
 from app.models.municipality_model import Municipality
 from app.models.parish_model import Parish
 from app.models.city_model import City
 from app.models.state_model import State
+from app.models.position_model import Position
 from app.institutions.forms import InstitutionEditForm, InstitutionEditApplicantForm
 from app.extensions import db
+from app.utils.invitation_utils import read_invitation_token
+
+EMAIL_REGEX = re.compile(r'^[A-Za-z0-9.!#$%&\'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$')
+
+
+def _has_valid_email_domain(email):
+    """Comprueba si el dominio del correo tiene registros MX.
+    Esto valida que el dominio existe, no que la casilla exacta exista.
+    """
+    domain = email.rsplit('@', 1)[1].lower()
+    try:
+        import dns.resolver
+        answers = dns.resolver.resolve(domain, 'MX')
+        return bool(answers)
+    except Exception:
+        return None
+
 
 @institutions_bp.route('/', methods=['GET'])
 @login_required
@@ -126,12 +146,21 @@ def toggle_institution_status_route(institution_id):
 
 @institutions_bp.route('/<int:institution_id>/users', methods=['GET'])
 @login_required
-@role_required('super_admin', 'state_admin')
+@role_required('super_admin', 'state_admin', 'applicant')
 def view_institution_users(institution_id):
     """
     Vista para ver los usuarios afiliados a una institución específica.
     """
     try:
+        is_applicant = any(
+            role_assoc.role.name == 'applicant'
+            for role_assoc in current_user.roles_assoc
+        )
+        if is_applicant:
+            staff_members = current_user.person.institutional_staff if current_user.person else []
+            if not staff_members or staff_members[0].institution_id != institution_id:
+                abort(403)
+
         institution = get_institution_by_id(institution_id)
         if not institution:
             abort(404)
@@ -148,6 +177,9 @@ def view_institution_users(institution_id):
     except Exception as e:
         print(f"Error en view_institution_users: {e}")
         flash("Error al cargar los usuarios de la institución", 'danger')
+        user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else None
+        if user_role == 'applicant':
+            return redirect(url_for('institutions.my_institution'))
         return redirect(url_for('institutions.view_institution', institution_id=institution_id))
 
 @institutions_bp.route('/<int:institution_id>/edit', methods=['GET', 'POST'])
@@ -388,3 +420,147 @@ def get_parishes_api(municipality_id):
     except Exception as e:
         print(f"Error en get_parishes_api: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+@institutions_bp.route('/<int:institution_id>/users/invite', methods=['GET', 'POST'])
+@login_required
+@role_required('applicant')
+def invite_institution_collaborator(institution_id):
+    # La invitación solo está disponible para applicants afiliados a la institución.
+    institution = get_institution_by_id(institution_id)
+    if not institution:
+        abort(404)
+
+    staff_members = current_user.person.institutional_staff if current_user.person else []
+    if not any(staff.institution_id == institution_id for staff in staff_members):
+        abort(403)
+
+    # Los cargos se muestran desde la tabla positions para conservar sus referencias.
+    positions = Position.query.order_by(Position.name).all()
+    if request.method == 'POST':
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json
+        try:
+            create_institution_invitation(
+                institution_id=institution_id,
+                invited_by_user=current_user,
+                email=request.form.get('email', ''),
+                identification_number=request.form.get('identification_number', ''),
+                position_id=request.form.get('position_id', type=int)
+            )
+            msg = 'La invitación fue enviada correctamente.'
+            if is_ajax:
+                return jsonify({'success': True, 'message': msg}), 200
+            flash(msg, 'success')
+            return redirect(url_for('institutions.view_institution_users', institution_id=institution_id))
+        except (PermissionError, ValueError, RuntimeError) as error:
+            from app.extensions import db
+            db.session.rollback()
+            msg = str(error)
+            if is_ajax:
+                return jsonify({'success': False, 'message': msg}), 400
+            flash(msg, 'danger')
+        except Exception as error:
+            from app.extensions import db
+            db.session.rollback()
+            msg = f'Error al enviar la invitación: {str(error)}'
+            if is_ajax:
+                return jsonify({'success': False, 'message': msg}), 500
+            flash(msg, 'danger')
+
+    return render_template('institutions/invite.html', institution=institution, positions=positions)
+
+
+@institutions_bp.route('/api/validate-identification', methods=['GET'])
+@login_required
+def validate_identification():
+    """
+    API endpoint para validar si una cédula ya está registrada en el sistema.
+    Retorna JSON indicando si la cédula existe.
+    """
+    try:
+        identification_number = request.args.get('identification_number', '').strip()
+
+        if not identification_number:
+            return jsonify({'exists': False, 'message': 'Cédula no proporcionada'}), 400
+
+        from app.models.person_model import Person
+        existing_person = Person.query.filter_by(identification_number=identification_number).first()
+
+        if existing_person:
+            return jsonify({
+                'exists': True,
+                'message': f'La cédula "{identification_number}" ya está registrada en el sistema'
+            })
+        else:
+            return jsonify({'exists': False, 'message': 'Cédula disponible'})
+
+    except Exception as e:
+        print(f"Error en validate_identification: {e}")
+        return jsonify({'exists': False, 'message': 'Error al validar cédula'}), 500
+
+
+@institutions_bp.route('/api/validate-email', methods=['GET'])
+@login_required
+def validate_email():
+    """
+    API endpoint para validar si un correo electrónico es válido y si el dominio existe.
+    Verifica también si ya está registrado en la base de datos.
+    """
+    try:
+        email = request.args.get('email', '').strip().lower()
+
+        if not email:
+            return jsonify({'exists': False, 'valid': False, 'message': 'Correo no proporcionado'}), 400
+
+        if not EMAIL_REGEX.match(email):
+            return jsonify({
+                'exists': False,
+                'valid': False,
+                'message': 'El formato del correo electrónico no es válido'
+            })
+
+        from sqlalchemy import func
+        from app.models.person_model import Person
+
+        # Búsqueda insensible a mayúsculas/minúsculas para evitar fallos por diferencias de casing
+        existing_person = Person.query.filter(func.lower(Person.email) == email).first()
+        if existing_person:
+            return jsonify({
+                'exists': True,
+                'valid': True,
+                'message': f'El correo "{email}" ya está registrado en el sistema'
+            })
+
+        domain_exists = _has_valid_email_domain(email)
+        if domain_exists is False:
+            return jsonify({
+                'exists': False,
+                'valid': False,
+                'message': 'El dominio del correo no existe o no tiene un registro MX válido'
+            })
+
+        return jsonify({
+            'exists': False,
+            'valid': True,
+            'message': 'Correo disponible y con dominio válido'
+        })
+
+    except Exception as e:
+        print(f"Error en validate_email: {e}")
+        return jsonify({'exists': False, 'valid': False, 'message': 'Error al validar correo'}), 500
+
+
+@institutions_bp.route('/pre-registration/', methods=['GET', 'POST'])
+@institutions_bp.route('/pre-registration/delegado', methods=['GET', 'POST'])
+def delegate_registration():
+    token = request.args.get('token') or request.form.get('token')
+    payload = read_invitation_token(token) if token else None
+    if not payload:
+        return jsonify({'error': 'Token de invitación inválido o expirado.'}), 400
+    return jsonify({
+        'message': 'Invitación válida. El registro del colaborador pertenece a otra rama.',
+        'institution_id': payload.get('institution_id'),
+        'position_id': payload.get('position_id'),
+        'email': payload.get('email')
+    }), 200
+

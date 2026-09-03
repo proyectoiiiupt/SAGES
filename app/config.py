@@ -16,6 +16,8 @@ class Config:
     DB_PORT = os.environ.get('DB_PORT', '5432')
     DB_NAME = os.environ.get('DB_NAME', 'postgres')
     
+    APP_BASE_URL = os.environ.get('APP_BASE_URL', 'http://127.0.0.1:5000').rstrip('/')
+    
     # Cadena de conexión a PostgreSQL
     SQLALCHEMY_DATABASE_URI = f"postgresql+pg8000://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
     
