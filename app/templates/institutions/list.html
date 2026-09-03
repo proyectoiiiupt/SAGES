@@ -9,10 +9,6 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/institutions.css') }}">
 {% endblock %}
 
-{% block extra_js %}
-<script src="{{ url_for('static', filename='JS/institutions-list.js') }}"></script>
-{% endblock %}
-
 {% block content %}
 <div class="institutions-container">
     {# Encabezado de página con título y fecha actual #}
@@ -34,71 +30,72 @@
     {# Sección de filtros para búsqueda y filtrado de instituciones #}
     <div class="filters-container">
         <div class="filters-section">
-            <div class="filter-row">
-                {# Campo de búsqueda por nombre o ID con debounce para evitar múltiples consultas #}
-                <div class="filter-group search-group">
-                    <input type="text" name="search_name" id="search_name"
-                           value="{{ current_filters.search_name if current_filters.search_name else '' }}"
-                           placeholder="Buscar por Nombre/ID"
-                           oninput="debouncedSearch()">
-                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                </div>
+            <form method="GET" action="{{ url_for('institutions.list_institutions') }}">
+                <div class="filter-row">
+                    {# Campo de búsqueda por nombre o ID con debounce para evitar múltiples consultas #}
+                    <div class="filter-group search-group">
+                        <input type="text" name="search_name" id="search_name"
+                               value="{{ current_filters.search_name if current_filters.search_name else '' }}"
+                               placeholder="Buscar por Nombre/ID"
+                               oninput="debouncedSearch()">
+                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                    </div>
 
-                {# Filtro por tipo de institución #}
-                <div class="filter-group">
-                    <select name="institution_type" id="institution_type" onchange="updateFilters()">
-                        <option value="">Tipo de Institución</option>
-                        {% for type in filter_options.institution_types %}
-                        <option value="{{ type.id }}" {% if current_filters.institution_type == type.id %}selected{% endif %}>
-                            {{ type.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
+                    {# Filtro por tipo de institución #}
+                    <div class="filter-group">
+                        <select name="institution_type" id="institution_type" onchange="this.form.submit()">
+                            <option value="">Tipo de Institución</option>
+                            {% for type in filter_options.institution_types %}
+                            <option value="{{ type.id }}" {% if current_filters.institution_type == type.id %}selected{% endif %}>
+                                {{ type.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
 
-                {# Filtro por dependencia #}
-                <div class="filter-group">
-                    <select name="institution_dependency" id="institution_dependency" onchange="updateFilters()">
-                        <option value="">Dependencia</option>
-                        {% for dependency in filter_options.institution_dependencies %}
-                        <option value="{{ dependency.id }}" {% if current_filters.institution_dependency == dependency.id %}selected{% endif %}>
-                            {{ dependency.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
+                    {# Filtro por dependencia #}
+                    <div class="filter-group">
+                        <select name="institution_dependency" id="institution_dependency" onchange="this.form.submit()">
+                            <option value="">Dependencia</option>
+                            {% for dependency in filter_options.institution_dependencies %}
+                            <option value="{{ dependency.id }}" {% if current_filters.institution_dependency == dependency.id %}selected{% endif %}>
+                                {{ dependency.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
 
-                {# Filtro geográfico según rol: Estado para super_admin, Parroquia para state_admin #}
-                {% if current_user.roles_assoc[0].role.name == 'super_admin' %}
-                <div class="filter-group">
-                    <select name="state_id" id="state_id" onchange="updateFilters()">
-                        <option value="">Estado</option>
-                        {% for state in filter_options.states %}
-                        <option value="{{ state.id }}" {% if current_filters.state_id == state.id %}selected{% endif %}>
-                            {{ state.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                {% else %}
-                <div class="filter-group">
-                    <select name="parish_id" id="parish_id" onchange="updateFilters()">
-                        <option value="">Parroquia</option>
-                        {% for parish in filter_options.parishes %}
-                        <option value="{{ parish.id }}" {% if current_filters.parish_id == parish.id %}selected{% endif %}>
-                            {{ parish.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                {% endif %}
+                    {# Filtro geográfico según rol: Estado para super_admin, Parroquia para state_admin #}
+                    {% if current_user.roles_assoc[0].role.name == 'super_admin' %}
+                    <div class="filter-group">
+                        <select name="state_id" id="state_id" onchange="this.form.submit()">
+                            <option value="">Estado</option>
+                            {% for state in filter_options.states %}
+                            <option value="{{ state.id }}" {% if current_filters.state_id == state.id %}selected{% endif %}>
+                                {{ state.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% else %}
+                    <div class="filter-group">
+                        <select name="parish_id" id="parish_id" onchange="this.form.submit()">
+                            <option value="">Parroquia</option>
+                            {% for parish in filter_options.parishes %}
+                            <option value="{{ parish.id }}" {% if current_filters.parish_id == parish.id %}selected{% endif %}>
+                                {{ parish.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
 
                 {# Filtro por estatus (Activo/Inactivo) #}
                 <div class="filter-group">
-                    <select name="status" id="status" onchange="updateFilters()">
+                    <select name="status" id="status" onchange="this.form.submit()">
                         <option value="">Estatus</option>
                         {% for status in filter_options.statuses %}
                         <option value="{{ status.id }}" {% if current_filters.status == status.id %}selected{% endif %}>
@@ -123,10 +120,9 @@
             <table class="institutions-table">
                 <thead>
                     <tr>
-                        <th>ID</th>
+                        <th>N°</th>
                         <th>Nombre</th>
                         <th>Tipo de Institución</th>
-                        <th>Dependencia</th>
                         {% if current_user.roles_assoc[0].role.name == 'super_admin' %}
                         <th>Estado</th>
                         {% else %}
@@ -138,12 +134,13 @@
                 </thead>
                 <tbody>
                     {# Filas de instituciones con datos #}
-                    {% for institution in institutions %}
+                    {% for item in institutions %}
+                    {% set institution = item.institution %}
+                    {% set original_index = item.original_index %}
                     <tr>
-                        <td>{{ institution.id }}</td>
+                        <td class="code-cell">{{ original_index }}</td>
                         <td>{{ institution.institution_name }}</td>
                         <td>{{ institution.institution_type.name if institution.institution_type else 'N/A' }}</td>
-                        <td>{{ institution.institution_dependency.name if institution.institution_dependency else 'N/A' }}</td>
                         {% if current_user.roles_assoc[0].role.name == 'super_admin' %}
                         <td>{{ institution.parish.municipality.state.name if institution.parish and institution.parish.municipality else 'N/A' }}</td>
                         {% else %}
@@ -170,7 +167,7 @@
                     {% else %}
                     {# Mensaje cuando no hay instituciones #}
                     <tr>
-                        <td colspan="{% if current_user.roles_assoc[0].role.name == 'super_admin' %}8{% else %}8{% endif %}" class="no-data">No hay planteles registrados</td>
+                        <td colspan="{% if current_user.roles_assoc[0].role.name == 'super_admin' %}7{% else %}7{% endif %}" class="no-data">No hay planteles registrados</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -214,4 +211,93 @@
         {% endif %}
     </div>
 </div>
+
+<script>
+    let searchTimeout;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Set dynamic date in Spanish format
+        const dateElement = document.getElementById('current-date');
+        if (dateElement) {
+            const options = { day: 'numeric', month: 'long', year: 'numeric' };
+            const today = new Date();
+            const formattedDate = today.toLocaleDateString('es-ES', options);
+            dateElement.textContent = formattedDate.replace(' de 20', ', 20');
+        }
+    });
+
+    function debouncedSearch() {
+        // Limpiar el timeout anterior si existe
+        clearTimeout(searchTimeout);
+        // Establecer un nuevo timeout de 500ms
+        searchTimeout = setTimeout(updateFilters, 500);
+    }
+
+    function updateFilters() {
+        const searchName = document.getElementById('search_name').value;
+        const institutionType = document.getElementById('institution_type').value;
+        const institutionDependency = document.getElementById('institution_dependency').value;
+        const status = document.getElementById('status').value;
+
+        let url = new URL(window.location.href);
+        url.searchParams.set('search_name', searchName);
+        url.searchParams.set('institution_type', institutionType);
+        url.searchParams.set('institution_dependency', institutionDependency);
+        url.searchParams.set('status', status);
+
+        {% if current_user.roles_assoc and current_user.roles_assoc[0].role.name == 'super_admin' %}
+        // Super_admin: manejar filtro state_id
+        const stateIdElement = document.getElementById('state_id');
+        if (stateIdElement) {
+            url.searchParams.set('state_id', stateIdElement.value);
+        }
+        url.searchParams.delete('parish_id');
+        {% else %}
+        // State_admin: solo manejar parish_id
+        const parishIdElement = document.getElementById('parish_id');
+        if (parishIdElement) {
+            url.searchParams.set('parish_id', parishIdElement.value);
+        }
+        url.searchParams.delete('state_id');
+        {% endif %}
+
+        // Resetear a página 1 cuando se cambian filtros
+        url.searchParams.set('page', '1');
+
+        window.location.href = url.toString();
+    }
+
+    function goToPage(page) {
+        let url = new URL(window.location.href);
+        url.searchParams.set('page', page);
+        // Mantener todos los filtros actuales
+        const searchName = document.getElementById('search_name').value;
+        const institutionType = document.getElementById('institution_type').value;
+        const institutionDependency = document.getElementById('institution_dependency').value;
+        const status = document.getElementById('status').value;
+
+        url.searchParams.set('search_name', searchName);
+        url.searchParams.set('institution_type', institutionType);
+        url.searchParams.set('institution_dependency', institutionDependency);
+        url.searchParams.set('status', status);
+
+        {% if current_user.roles_assoc and current_user.roles_assoc[0].role.name == 'super_admin' %}
+        // Super_admin: manejar filtro state_id
+        const stateIdElement = document.getElementById('state_id');
+        if (stateIdElement) {
+            url.searchParams.set('state_id', stateIdElement.value);
+        }
+        url.searchParams.delete('parish_id');
+        {% else %}
+        // State_admin: solo manejar parish_id
+        const parishIdElement = document.getElementById('parish_id');
+        if (parishIdElement) {
+            url.searchParams.set('parish_id', parishIdElement.value);
+        }
+        url.searchParams.delete('state_id');
+        {% endif %}
+
+        window.location.href = url.toString();
+    }
+</script>
 {% endblock %}

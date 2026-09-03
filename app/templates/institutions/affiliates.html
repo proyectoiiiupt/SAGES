@@ -71,12 +71,12 @@
                     {# Filas de usuarios afiliados #}
                     {% for user in users %}
                     <tr>
-                        <td>{{ user.staff_id }}</td>
+                        <td>{{ (pagination.current_page - 1) * pagination.per_page + loop.index }}</td>
+                        <td class="cedula-cell" data-type="{{ user.identification_type }}" data-number="{{ user.identification_number }}"></td>
                         <td>{{ user.full_name }}</td>
-                        <td>{{ user.identification_type }}-{{ user.identification_number }}</td>
                         <td>{{ user.position }}</td>
+                        <td class="phone-cell" data-phone="{{ user.mobile }}"></td>
                         <td>{{ user.email }}</td>
-                        <td>{{ user.mobile }}</td>
                         <td>
                             {% if user.user_status %}
                                 <span class="status-badge status-{{ user.user_status.status_code }}">
@@ -98,7 +98,7 @@
                     {% else %}
                     {# Mensaje cuando no hay usuarios afiliados #}
                     <tr>
-                        <td colspan="7" class="no-data">No hay usuarios afiliados a esta institución</td>
+                        <td colspan="8" class="no-data">No hay usuarios afiliados a esta institución</td>
                     </tr>
                     {% endfor %}
                 </tbody>
