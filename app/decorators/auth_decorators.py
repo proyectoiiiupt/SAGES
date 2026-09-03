@@ -20,8 +20,10 @@ def check_permissions(view_name=None):
             permission = Permission.query.filter_by(view=endpoint).first()
             
             if not permission:
+                import logging
+                logging.warning(f"Permiso no configurado para endpoint '{endpoint}', user_id={current_user.id}")
                 # Si la ruta no está registrada como un permiso en BD, denegamos el acceso
-                abort(403, description=f"Permiso para la ruta '{endpoint}' no configurado en el sistema.")
+                abort(403, description="No tienes permisos para acceder a esta ruta.")
                 
             has_permission = False
             # Buscar si alguno de los roles del usuario tiene el permiso

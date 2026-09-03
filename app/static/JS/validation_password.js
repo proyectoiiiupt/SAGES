@@ -27,11 +27,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const idCardWrapper = document.getElementById('wrapper-id_card_p');
         const idCardError   = document.getElementById('error-id_card_p');
 
+        const submitBtn = step1Form.querySelector('.submit-btn');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = '0.5';
+            submitBtn.style.cursor = 'not-allowed';
+        }
+
         // Solo números; el error desaparece en cuanto el usuario empieza a escribir
         idCardInput.addEventListener('input', (e) => {
             e.target.value = e.target.value.replace(/[^0-9]/g, '');
-            if (e.target.value.length > 0) {
+            const valLen = e.target.value.length;
+            if (valLen > 0) {
                 clearFieldError(idCardInput, idCardWrapper, idCardError);
+            }
+            if (submitBtn) {
+                if (valLen >= 7 && valLen <= 8) {
+                    submitBtn.disabled = false;
+                    submitBtn.style.opacity = '1';
+                    submitBtn.style.cursor = 'pointer';
+                } else {
+                    submitBtn.disabled = true;
+                    submitBtn.style.opacity = '0.5';
+                    submitBtn.style.cursor = 'not-allowed';
+                }
             }
         });
 
@@ -218,6 +237,43 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             clearFieldError(codeInput, codeWrapper, codeError);
         });
+        
+        // Manejo del botón Cancelar con SweetAlert
+        const btnCancel = document.getElementById('btnCancelReset');
+        const cancelForm = document.getElementById('cancelResetForm');
+        
+        if (btnCancel && cancelForm) {
+            btnCancel.addEventListener('click', function() {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: '¿Cancelar recuperación?',
+                        text: "Si cancelas, el código enviado quedará invalidado por seguridad y volverás al inicio de sesión.",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#e53e3e',
+                        cancelButtonColor: '#6b7280',
+                        confirmButtonText: 'Sí, cancelar proceso',
+                        cancelButtonText: 'No, continuar',
+                        reverseButtons: true,
+                        heightAuto: false,
+                        customClass: {
+                            popup: 'swal2-custom-popup',
+                            confirmButton: 'swal2-custom-button',
+                            cancelButton: 'swal2-custom-button'
+                        }
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            cancelForm.submit();
+                        }
+                    });
+                } else {
+                    // Fallback si no carga SweetAlert
+                    if (confirm("¿Estás seguro de que deseas cancelar la recuperación de contraseña? El código actual quedará invalidado.")) {
+                        cancelForm.submit();
+                    }
+                }
+            });
+        }
     }
 
     // =========================================================
@@ -242,7 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const validatePasswordCriteria = (value) => {
             const rules = {
-                length: value.length >= 6,
+                length: value.length >= 8,
                 uppercase: /[A-Z]/.test(value),
                 number: /[0-9]/.test(value),
                 special: /[$@.!%*?&]/.test(value)
