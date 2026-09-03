@@ -10,21 +10,21 @@
 </head>
 <body>
 
-        <!-- Botón volver a la página de inicio -->
+    <!-- Botón volver a la página de inicio -->
     <a href="{{ url_for('index') }}" class="back-to-home-btn">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="M19 12H5m7-7l-7 7 7 7"/>
         </svg>
         Volver al inicio
     </a>
-    
+
         <div class="circles">
         <div class="circle c1"></div>
         <div class="circle c2"></div>
     </div>
 
     <header class="header-label">
-        <p>Sistema de Gestión de Solicitudes - CORPOELEC</p>
+        <p>Sistema de Gestión de Solicitudes de Formación- CORPOELEC</p> 
     </header>
 
     <main class="login-card">
@@ -60,25 +60,12 @@
             </div>
 
             {% if is_password_success %}
-            <script>
-                document.addEventListener('DOMContentLoaded', () => {
-                    Swal.fire({
-                        title: '¡Éxito!',
-                        text: '{{ first_message }}',
-                        icon: 'success',
-                        confirmButtonText: 'Aceptar',
-                        heightAuto: false,
-                        customClass: {
-                            popup: 'swal2-custom-popup',
-                            confirmButton: 'swal2-custom-button'
-                        }
-                    });
-                });
-            </script>
+            <div id="passwordSuccessData" data-message="{{ first_message | e }}" style="display: none;"></div>
             {% endif %}
             {% endwith %}
 
             <form id="corpoelecLoginForm" action="{{ url_for('auth.login') }}" method="POST" class="auth-form" novalidate>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="form-group">
                     <label class="form-label" for="id_card">N° de Cédula</label>
                     <div class="input-wrapper" id="wrapper-id_card">
@@ -101,7 +88,13 @@
                     <span class="field-error" id="error-clave"></span>
                 </div>
 
-                <div class="forgot-password"><a href="{{ url_for('auth.password') }}">¿Olvidaste tu contraseña?</a></div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; font-size: 0.9rem;">
+                    <label style="display: flex; align-items: center; cursor: pointer; color: #4b5563;">
+                        <input type="checkbox" id="remember" name="remember" value="true" style="margin-right: 0.5rem; accent-color: var(--primary-color);">
+                        Recordar sesión
+                    </label>
+                    <div class="forgot-password" style="margin: 0;"><a href="{{ url_for('auth.password') }}">¿Olvidaste tu contraseña?</a></div>
+                </div>
 
                 <button type="submit" class="submit-btn">
                     <span>Iniciar Sesión</span>
@@ -110,6 +103,7 @@
             </form>
         </section>
     </main>
+
 
     <script src="{{ url_for('static', filename='JS/sweetalert2.all.min.js') }}"></script>
     <script src="{{ url_for('static', filename='JS/validation_login.js') }}"></script>

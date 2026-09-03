@@ -122,28 +122,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (hasError) return;
 
-        // --- Envío al servidor ---
+         // --- Envío al servidor ---
         const submitBtn      = form.querySelector('.submit-btn');
         const originalBtnHtml = submitBtn.innerHTML;
         submitBtn.innerHTML  = '<span>Ingresando...</span>';
         submitBtn.disabled   = true;
+        // 1. CAPTURAR EL TOKEN CSRF DEL HTML
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+        const rememberCheckbox = document.getElementById('remember');
+        const rememberValue = rememberCheckbox ? rememberCheckbox.checked : false;
 
         fetch(form.action, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json'
+                'Accept': 'application/json',
+                // 2. AGREGARLO A LAS CABECERAS DE LA PETICIÓN
+                'X-CSRFToken': csrfToken
             },
             body: JSON.stringify({
                 identifier: idCardValue,
-                password:   passwordValue
+                password:   passwordValue,
+                remember:   rememberValue
             })
         })
         .then(response => response.json().then(data => ({ status: response.status, body: data })))
         .then(result => {
             if (result.status === 200) {
-                const role = result.body.role || 'applicant';
-                window.location.href = `/home/${role}`;
+                if (result.body.redirect_url) {
+                    window.location.href = result.body.redirect_url;
+                } else {
+                    const role = result.body.role || 'applicant';
+                    window.location.href = `/home/${role}`;
+                }
             } else {
                 showMessage(result.body.error || 'Usuario y/o Contraseña inválidos');
                 submitBtn.innerHTML = originalBtnHtml;
@@ -171,4 +182,24 @@ document.addEventListener('DOMContentLoaded', () => {
         passwordInput.setAttribute('type', type);
         toggleIcon.innerHTML = type === 'password' ? eyeSVG : lockSVG;
     });
+
+    /* Limpiar flag del loader para que se vuelva a mostrar en el siguiente inicio de sesión */
+    sessionStorage.removeItem('systemLoaderShown');
+
+    const passwordSuccessData = document.getElementById('passwordSuccessData');
+    if (passwordSuccessData) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: '¡Éxito!',
+                text: passwordSuccessData.getAttribute('data-message'),
+                icon: 'success',
+                confirmButtonText: 'Aceptar',
+                heightAuto: false,
+                customClass: {
+                    popup: 'swal2-custom-popup',
+                    confirmButton: 'swal2-custom-button'
+                }
+            });
+        }
+    }
 });

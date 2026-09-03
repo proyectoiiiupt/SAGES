@@ -4,10 +4,22 @@ from datetime import timedelta
 class Config:
     """Configuración base de la aplicación."""
     # Seguridad
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'default-dev-key')
+    SECRET_KEY = os.environ.get('SECRET_KEY')
+    if not SECRET_KEY:
+        raise RuntimeError("SECRET_KEY no está configurada. Defínela en tu archivo .env antes de arrancar.")
     
     # CSRF Protection para Flask-WTF
     WTF_CSRF_ENABLED = True
+
+    # Cookies de sesión y recordarme más seguras
+    REMEMBER_COOKIE_HTTPONLY  = True
+    REMEMBER_COOKIE_SAMESITE  = 'Lax'
+    SESSION_COOKIE_HTTPONLY   = True
+    SESSION_COOKIE_SAMESITE   = 'Lax'
+    
+    # Asegurar cookies en HTTPS solo en producción
+    SESSION_COOKIE_SECURE = os.environ.get('FLASK_ENV') == 'production'
+    REMEMBER_COOKIE_SECURE = os.environ.get('FLASK_ENV') == 'production' 
     
     # Base de Datos
     DB_USER = os.environ.get('DB_USER', 'postgres')
