@@ -110,7 +110,7 @@
                     {% if users %}
                         {% for user in users %}
                         <tr class="{{ loop.cycle('row-even', 'row-odd') }}">
-                            <td class="text-muted font-medium">{{ loop.index }}</td>
+                            <td class="text-muted font-medium">{{ (pagination.page - 1) * 10 + loop.index }}</td>
                             
                             <td class="font-medium">
                                 {{ user.formatted_id }}

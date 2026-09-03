@@ -200,11 +200,13 @@
         const nameInputs = document.querySelectorAll('.format-name');
         nameInputs.forEach(input => {
             input.addEventListener('input', function() {
-                let val = this.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, '');
-                val = val.toLowerCase();
-                if (val.length > 0) {
-                    val = val.charAt(0).toUpperCase() + val.slice(1);
-                }
+                let val = this.value;
+                // Agregamos \s para permitir espacios
+                val = val.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+                 if (val.length > 0) {
+                    // Capitaliza la primera letra de CADA palabra
+                     val = val.toLowerCase().replace(/(^|\s)\S/g, l => l.toUpperCase());
+                 }
                 this.value = val;
             });
         });
