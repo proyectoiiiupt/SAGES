@@ -4,11 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SAGES - Inicio</title>
+    <title>{% block title %}SAGES - Inicio{% endblock %}</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/icon_corpoelec.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='CSS/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/sweetalert2.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='CSS/loader.css') }}">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
     {% block extra_css %}{% endblock %}
 </head>
@@ -73,22 +74,8 @@
         })();
     </script>
 
-        <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const menuToggle = document.getElementById('menu-toggle');
-            const sidebar = document.getElementById('sidebar');
-
-            if (menuToggle && sidebar) {
-                menuToggle.addEventListener('click', function () {
-                    if (window.innerWidth <= 768) {
-                        sidebar.classList.toggle('mobile-open');
-                    } else {
-                        sidebar.classList.toggle('collapsed');
-                    }
-                });
-            }
-        });
-    </script>
+    <script src="{{ url_for('static', filename='JS/layout.js') }}"></script>
+    <script src="{{ url_for('static', filename='JS/sweetalert2.all.min.js') }}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 

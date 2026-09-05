@@ -130,6 +130,10 @@ body {
     word-break: break-word;
 }
 
+.user-avatar-container {
+    position: relative;
+}
+
 .user-avatar {
     width: 42px;
     height: 42px;
@@ -140,11 +144,28 @@ body {
     align-items: center;
     justify-content: center;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    outline: none;
 }
 
 .user-avatar svg {
     width: 22px;
     height: 22px;
+}
+
+.avatar-dropdown-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 120%;
+    background: #ffffff;
+    min-width: 150px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    z-index: 1000;
+    overflow: hidden;
 }
 
 .dropdown-item-link,
@@ -166,9 +187,17 @@ body {
     color: #1f2937;
 }
 
+.dropdown-item-link:hover {
+    background-color: #f3f4f6;
+}
+
 .dropdown-item-logout {
     color: #ef4444;
     border-top: 1px solid #f3f4f6;
+}
+
+.dropdown-item-logout:hover {
+    background-color: #fee2e2;
 }
 
 .topbar-bell-wrapper {
@@ -348,6 +377,35 @@ body {
     width: 0;
 }
 
+.sidebar-menu {
+    position: relative;
+}
+
+.active-indicator {
+    position: absolute;
+    top: 0;
+    left: 12px;
+    width: calc(100% - 24px);
+    background: var(--text-teal);
+    box-shadow: 0 4px 15px rgba(31, 202, 176, 0.4);
+    border-radius: 10px;
+    z-index: 0;
+    pointer-events: none;
+    /* La transición se aplica por JS tras el posicionamiento inicial */
+}
+
+.sidebar.collapsed .active-indicator {
+    left: 50%;
+    width: 48px;
+    transform-origin: center;
+    margin-left: -24px;
+}
+
+.sidebar-menu a {
+    position: relative;
+    z-index: 1;
+}
+
 .sidebar-menu a:hover {
     color: var(--text-light);
     background: rgba(255, 255, 255, 0.05);
@@ -355,8 +413,6 @@ body {
 
 .sidebar-menu a.active {
     color: var(--text-dark);
-    background: var(--text-teal);
-    box-shadow: 0 4px 15px rgba(31, 202, 176, 0.4);
 }
 
 .sidebar-menu a svg {

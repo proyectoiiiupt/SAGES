@@ -25,3 +25,12 @@ class User(db.Model, UserMixin):
 
     def __repr__(self):
         return f'<User {self.user_code}: {self.user_name}>'
+
+    @property
+    def permissions(self) -> set:
+        perms = set()
+        for role_assoc in self.roles_assoc:
+            for perm_assoc in role_assoc.role.permissions_assoc:
+                if perm_assoc.permission.view:
+                    perms.add(perm_assoc.permission.view)
+        return perms

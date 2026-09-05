@@ -22,16 +22,7 @@
 </div>
 
 {# Lógica dinámica basada en permisos del usuario #}
-{% set user_permissions = [] %}
-{% if current_user.roles_assoc %}
-    {% for role_assoc in current_user.roles_assoc %}
-        {% for perm_assoc in role_assoc.role.permissions_assoc %}
-            {% if perm_assoc.permission.view not in user_permissions %}
-                {% set _ = user_permissions.append(perm_assoc.permission.view) %}
-            {% endif %}
-        {% endfor %}
-    {% endfor %}
-{% endif %}
+{% set user_permissions = current_user.permissions %}
 
 <div class="dashboard-grid">
 
@@ -261,9 +252,7 @@
     {% endif %}
 
     {# Mi Institución (Applicant) #}
-    {% if current_user.roles_assoc %}
-        {% for role_assoc in current_user.roles_assoc %}
-            {% if role_assoc.role.name == 'applicant' %}
+    {% if 'view_my_institution' in user_permissions %}
     <a href="{{ url_for('institutions.my_institution') }}" class="card card-blue">
         <div class="card-header">
             <div class="card-title">Mi Institución</div>
@@ -285,8 +274,6 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
         </span>
     </a>
-            {% endif %}
-        {% endfor %}
     {% endif %}
 
     {# Configuración #}
