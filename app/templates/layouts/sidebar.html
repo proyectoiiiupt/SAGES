@@ -47,7 +47,8 @@
         {# ── PANEL ADMINISTRATIVO ─────────────────────────────────── #}
         {% if 'view_admin_panel' in user_permissions %}
         <li>
-            <a href="#">
+            <a href="{{ url_for('dashboard.index') }}"
+               class="{{ active_if(['dashboard.index']) }}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>

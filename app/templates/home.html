@@ -28,7 +28,7 @@
 
     {# Panel Administrativo #}
     {% if 'view_admin_panel' in user_permissions %}
-    <a href="#" class="card card-blue">
+    <a href="{{ url_for('dashboard.index') }}" class="card card-blue">
         <div class="card-header">
             <div class="card-title">Panel Administrativo</div>
             <div class="card-icon">

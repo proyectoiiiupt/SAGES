@@ -66,6 +66,10 @@ def create_app(config_class=Config) -> Flask:
     from app.pre_registration import pre_registration_bp
     app.register_blueprint(pre_registration_bp, url_prefix='/pre-registration')
 
+    # Registro del blueprint del Dashboard (Panel Administrativo)
+    from app.dashboard import dashboard_bp
+    app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
+
     @app.route('/')
     def index():
         return render_template('public/index.html')

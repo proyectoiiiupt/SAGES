@@ -1,0 +1,463 @@
+/* ==========================================================================
+   DASHBOARD DE INDICADORES - PANEL ADMINISTRATIVO SAGES
+   ========================================================================== */
+
+:root {
+    --dash-blue-bg: #f0f7ff;
+    --dash-blue-border: #38bdf8;
+    --dash-blue-icon-bg: #e0f2fe;
+    --dash-blue-icon: #0284c7;
+
+    --dash-green-bg: #f0fdf4;
+    --dash-green-border: #4ade80;
+    --dash-green-icon-bg: #dcfce7;
+    --dash-green-icon: #16a34a;
+
+    --dash-amber-bg: #fffbeb;
+    --dash-amber-border: #facc15;
+    --dash-amber-icon-bg: #fef3c7;
+    --dash-amber-icon: #d97706;
+
+    --dash-red-bg: #fff1f2;
+    --dash-red-border: #fb7185;
+    --dash-red-icon-bg: #ffe4e6;
+    --dash-red-icon: #e11d48;
+}
+
+.dashboard-container {
+    padding: 1.75rem 2rem;
+    min-height: calc(100vh - var(--topbar-height, 70px));
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+}
+
+/* ── CABECERA / HEADER CARD ────────────────────────────────────────────── */
+.dashboard-header-card {
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 1.25rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    position: relative;
+    overflow: hidden;
+}
+
+.dashboard-header-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 6px;
+    background: linear-gradient(180deg, var(--btn-gradient-start, #1c3d73) 0%, var(--text-teal, #1fcab0) 100%);
+}
+
+.dashboard-title-group {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+.dashboard-main-title {
+    font-size: 1.45rem;
+    font-weight: 800;
+    font-style: italic;
+    color: #1e293b;
+    letter-spacing: -0.3px;
+    margin: 0;
+}
+
+.dashboard-jurisdiction-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.35rem 0.9rem;
+    background: #f1f5f9;
+    color: #334155;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: 1px solid #e2e8f0;
+}
+
+.dashboard-jurisdiction-badge svg {
+    width: 14px;
+    height: 14px;
+    color: #0284c7;
+}
+
+.dashboard-date-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #475569;
+    font-size: 0.92rem;
+    font-weight: 600;
+    background: #f8fafc;
+    padding: 0.5rem 1rem;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+.dashboard-date-wrapper svg {
+    width: 20px;
+    height: 20px;
+    color: #1e293b;
+}
+
+/* ── GRID DE INDICADORES PRINCIPALES (4 TARJETAS) ────────────────────────── */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.25rem;
+    width: 100%;
+}
+
+.kpi-card {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 1.25rem 1.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+    border: 2px solid transparent;
+    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.kpi-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.kpi-card-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.kpi-icon-container {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.25s ease;
+}
+
+.kpi-card:hover .kpi-icon-container {
+    transform: scale(1.08);
+}
+
+.kpi-icon-container svg {
+    width: 24px;
+    height: 24px;
+}
+
+.kpi-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.kpi-label {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #334155;
+    line-height: 1.2;
+}
+
+.kpi-sublabel {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+.kpi-value {
+    font-size: 1.85rem;
+    font-weight: 800;
+    color: #1e293b;
+    letter-spacing: -0.5px;
+    margin-left: 0.75rem;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Variantes de Color fieles a la referencia y diseño */
+.kpi-blue {
+    background: linear-gradient(135deg, #ffffff 60%, var(--dash-blue-bg) 100%);
+    border-color: #bae6fd;
+}
+.kpi-blue .kpi-icon-container {
+    background: var(--dash-blue-icon-bg);
+    color: var(--dash-blue-icon);
+}
+
+.kpi-green {
+    background: linear-gradient(135deg, #ffffff 60%, var(--dash-green-bg) 100%);
+    border-color: #bbf7d0;
+}
+.kpi-green .kpi-icon-container {
+    background: var(--dash-green-icon-bg);
+    color: var(--dash-green-icon);
+}
+
+.kpi-amber {
+    background: linear-gradient(135deg, #ffffff 60%, var(--dash-amber-bg) 100%);
+    border-color: #fde047;
+}
+.kpi-amber .kpi-icon-container {
+    background: var(--dash-amber-icon-bg);
+    color: var(--dash-amber-icon);
+}
+
+.kpi-red {
+    background: linear-gradient(135deg, #ffffff 60%, var(--dash-red-bg) 100%);
+    border-color: #fecdd3;
+}
+.kpi-red .kpi-icon-container {
+    background: var(--dash-red-icon-bg);
+    color: var(--dash-red-icon);
+}
+
+/* ── SECCIÓN DE DESGLOSE / RESUMEN DE JURISDICCIÓN ───────────────────────── */
+.dashboard-details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    width: 100%;
+}
+
+.section-card {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 1.5rem 1.75rem;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.03);
+    border: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.section-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 0.85rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.section-card-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.section-card-title svg {
+    width: 20px;
+    height: 20px;
+    color: #019577;
+}
+
+.status-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.status-stat-box {
+    background: #f8fafc;
+    border-radius: 14px;
+    padding: 1.1rem;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    transition: transform 0.2s ease;
+}
+
+.status-stat-box:hover {
+    transform: translateY(-2px);
+}
+
+.status-stat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.status-pill {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.25rem 0.65rem;
+    border-radius: 50px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.status-pill-attended {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.status-pill-pending {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.status-pill-process {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.status-pill-planned {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.status-stat-number {
+    font-size: 1.7rem;
+    font-weight: 800;
+    color: #0f172a;
+    font-variant-numeric: tabular-nums;
+}
+
+.status-stat-desc {
+    font-size: 0.78rem;
+    color: #64748b;
+    line-height: 1.3;
+}
+
+/* Tabla de Jurisdicción por Estados */
+.jurisdiction-table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.jurisdiction-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    text-align: left;
+}
+
+.jurisdiction-table th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 700;
+    padding: 0.75rem 1rem;
+    border-bottom: 2px solid #e2e8f0;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.jurisdiction-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+}
+
+.jurisdiction-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.jurisdiction-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.state-badge {
+    font-weight: 600;
+    color: #1e293b;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.state-badge svg {
+    width: 14px;
+    height: 14px;
+    color: #019577;
+}
+
+.num-badge {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 0.82rem;
+    text-align: center;
+    min-width: 28px;
+}
+
+.num-attended {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.num-pending {
+    background: #ffe4e6;
+    color: #e11d48;
+}
+
+.num-total {
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+/* ── ESTADOS VACÍOS ──────────────────────────────────────────────────────── */
+.empty-jurisdiction {
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: #94a3b8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.empty-jurisdiction svg {
+    width: 38px;
+    height: 38px;
+    color: #cbd5e1;
+}
+
+/* ── RESPONSIVE ──────────────────────────────────────────────────────────── */
+@media (max-width: 1200px) {
+    .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .dashboard-details-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .dashboard-container {
+        padding: 1rem;
+        gap: 1.2rem;
+    }
+    .dashboard-header-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 1rem 1.25rem;
+    }
+    .kpi-grid {
+        grid-template-columns: 1fr;
+    }
+    .status-summary-grid {
+        grid-template-columns: 1fr;
+    }
+}
