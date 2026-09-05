@@ -13,7 +13,8 @@ def create_app(config_class=Config) -> Flask:
     login_manager.init_app(app)
     csrf.init_app(app)          # Activa protección CSRF global; exige X-CSRFToken en POSTs
     limiter.init_app(app)       # Activa Rate Limiting global
-    
+
+
     with app.app_context():
         from app import models
 
@@ -26,13 +27,32 @@ def create_app(config_class=Config) -> Flask:
         from app.models.user_model import User
         from app.models.role_user_model import RoleUser
         from app.models.role_model import Role
-        from sqlalchemy.orm import joinedload
+        from app.models.permission_role_model import PermissionRole
+        from app.models.person_model import Person
+        from app.models.institutional_staff_model import InstitutionalStaff
+        from app.models.company_staff_model import CompanyStaff
+        from app.models.place_model import Place
+        from app.models.parish_model import Parish
+        from app.models.municipality_model import Municipality
+        from sqlalchemy.orm import joinedload, selectinload
         return User.query.options(
-            joinedload(User.roles_assoc).joinedload(RoleUser.role).joinedload(Role.permissions_assoc)
+            joinedload(User.roles_assoc).joinedload(RoleUser.role).joinedload(Role.permissions_assoc).joinedload(PermissionRole.permission),
+            joinedload(User.person).selectinload(Person.institutional_staff).joinedload(InstitutionalStaff.position),
+            joinedload(User.person).selectinload(Person.institutional_staff).joinedload(InstitutionalStaff.institution),
+            joinedload(User.person).selectinload(Person.company_staff).joinedload(CompanyStaff.place).joinedload(Place.parish).joinedload(Parish.municipality).joinedload(Municipality.state)
         ).get(int(user_id))
 
     from app.auth import auth_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')
+
+    @app.context_processor
+    def inject_user_role():
+        from flask_login import current_user
+        def get_user_role():
+            if current_user.is_authenticated and getattr(current_user, 'roles_assoc', None):
+                return current_user.roles_assoc[0].role.name
+            return 'applicant'
+        return dict(user_role=get_user_role())
 
     # Registro del blueprint de Instituciones
     from app.institutions import institutions_bp
@@ -50,7 +70,6 @@ def create_app(config_class=Config) -> Flask:
     def index():
         return render_template('public/index.html')
 
-    from flask import render_template
     from flask_login import login_required, current_user
     from app.decorators import check_permissions, role_required
 
@@ -74,14 +93,14 @@ def create_app(config_class=Config) -> Flask:
     @check_permissions('view_home')
     def home_applicant():
         return render_template('home.html')
-
+    
     @app.errorhandler(RateLimitExceeded)
     def handle_rate_limit(e):
         if request.is_json or (request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html):
             return jsonify({"error": "Demasiados intentos. Intente más tarde."}), 429
         flash("Demasiados intentos. Por favor espere antes de continuar.", 'danger')
         return render_template('auth/login.html'), 429
-    
+
     @app.route('/verify-code', methods=['GET', 'POST'])
     @limiter.limit("10 per 5 minutes", methods=["POST"])
     def verify_code():
@@ -169,7 +188,7 @@ def create_app(config_class=Config) -> Flask:
         if not email:
             flash('Sesión de recuperación inválida.', 'danger')
             return redirect(url_for('auth.password'))
-        
+
         from werkzeug.security import generate_password_hash
         from app.models.person_model import Person
         import re
