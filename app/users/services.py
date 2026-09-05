@@ -4,7 +4,6 @@ Lógica de negocio para consulta de perfil, edición de contacto y actualizació
 """
 import re
 from typing import Tuple, Dict, Any, Optional
-from werkzeug.security import check_password_hash as werkzeug_check
 from app.extensions import db, bcrypt
 from app.models.user_model import User
 from app.models.person_model import Person
@@ -246,17 +245,13 @@ def change_profile_password(user: User, current_password: str, new_password: str
     if not new_password:
         return False, "Debe ingresar la nueva contraseña."
 
-    # 1. Validar clave actual (compatible con bcrypt y werkzeug para migración transparente)
+    # 1. Validar clave actual exclusivamente con Flask-Bcrypt
     password_valid = False
     try:
         password_valid = bcrypt.check_password_hash(user.password, current_password)
     except Exception:
-        pass
-    if not password_valid:
-        try:
-            password_valid = werkzeug_check(user.password, current_password)
-        except Exception:
-            pass
+        password_valid = False
+
     if not password_valid:
         return False, "La contraseña actual es incorrecta."
 

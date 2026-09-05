@@ -190,7 +190,6 @@ def create_app(config_class=Config) -> Flask:
             flash('Sesión de recuperación inválida.', 'danger')
             return redirect(url_for('auth.password'))
 
-        from werkzeug.security import generate_password_hash
         from app.models.person_model import Person
         import re
 

@@ -1,5 +1,4 @@
-from app.extensions import db
-from werkzeug.security import generate_password_hash
+from app.extensions import db, bcrypt
 from app.models.user_model import User
 from app.models.person_model import Person
 from app.models.status_model import Status
@@ -39,7 +38,7 @@ def seed_users():
 
         data["person_id"] = person.id
         data["user_name"] = person.identification_number
-        data["password"] = generate_password_hash(f"{person.first_name}123".lower())
+        data["password"] = bcrypt.generate_password_hash(f"{person.first_name}123".lower()).decode('utf-8')
         data["status_id"] = status.id
         
         user = User(**data)

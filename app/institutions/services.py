@@ -688,7 +688,7 @@ def create_institution_invitation(institution_id, invited_by_user, email, identi
 def complete_institution_invitation(payload, data):
     """Crea la persona, usuario, afiliación y rol applicant de una invitación válida."""
     # La cédula y el correo deben coincidir con los datos firmados en el enlace.
-    from werkzeug.security import generate_password_hash
+    from app.extensions import bcrypt
     from app.models.role_model import Role
     from app.models.role_user_model import RoleUser
 
@@ -728,7 +728,7 @@ def complete_institution_invitation(payload, data):
         user_code=f"USR-{uuid4().hex[:12].upper()}",
         person_id=person.id,
         user_name=person.identification_number,
-        password=generate_password_hash(data['password']),
+        password=bcrypt.generate_password_hash(data['password']).decode('utf-8'),
         status_id=status.id
     )
     db.session.add(user)
