@@ -1,7 +1,7 @@
 from flask import Flask, redirect, url_for, request, flash, render_template, session, jsonify
 from flask_limiter.errors import RateLimitExceeded
 from app.config import Config
-from app.extensions import db, migrate, login_manager, csrf, limiter
+from app.extensions import db, migrate, login_manager, csrf, limiter, bcrypt
 
 def create_app(config_class=Config) -> Flask:
 
@@ -13,6 +13,7 @@ def create_app(config_class=Config) -> Flask:
     login_manager.init_app(app)
     csrf.init_app(app)          # Activa protección CSRF global; exige X-CSRFToken en POSTs
     limiter.init_app(app)       # Activa Rate Limiting global
+    bcrypt.init_app(app)        # Activa hashing seguro de contraseñas con Flask-Bcrypt
 
 
     with app.app_context():

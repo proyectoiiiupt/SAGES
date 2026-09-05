@@ -427,3 +427,80 @@ def toggle_status(user_id):
         flash('Ocurrió un error al intentar cambiar el estatus.', 'error')
         
     return redirect(url_for('users.view_user', user_id=user.id))
+
+
+@users_bp.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    """
+    Sección de Perfil de Usuario:
+    - Consulta de datos fijos del usuario autenticado (personales, institucionales/corporativos).
+    - Edición de datos de contacto (correo electrónico, teléfono principal y secundario).
+    - Actualización de contraseña validando la clave actual y políticas de seguridad del sistema.
+    """
+    from app.users.forms import ChangePasswordForm, ProfileContactForm
+    from app.users.services import get_user_profile_data, change_profile_password, update_user_contact
+
+    password_form = ChangePasswordForm()
+    contact_form = ProfileContactForm()
+    active_tab = request.args.get('tab', 'personal')
+
+    if request.method == 'POST':
+        form_type = request.form.get('form_type', '')
+
+        if form_type == 'contact':
+            if contact_form.validate_on_submit():
+                success, message = update_user_contact(
+                    current_user,
+                    contact_form.email.data,
+                    contact_form.mobile.data,
+                    contact_form.phone.data
+                )
+                if success:
+                    flash(message, 'success')
+                    return redirect(url_for('users.profile', tab='personal'))
+                else:
+                    flash(message, 'danger')
+                    active_tab = 'personal'
+            else:
+                active_tab = 'personal'
+                for field, errors in contact_form.errors.items():
+                    for error in errors:
+                        flash(error, 'danger')
+
+        elif form_type == 'password' or not form_type:
+            if password_form.validate_on_submit():
+                current_pw = password_form.current_password.data
+                new_pw = password_form.new_password.data
+                confirm_pw = password_form.confirm_password.data
+
+                success, message = change_profile_password(current_user, current_pw, new_pw, confirm_pw)
+
+                if success:
+                    flash(message, 'success')
+                    return redirect(url_for('users.profile', tab='security'))
+                else:
+                    flash(message, 'danger')
+                    active_tab = 'security'
+            else:
+                active_tab = 'security'
+                for field, errors in password_form.errors.items():
+                    for error in errors:
+                        flash(error, 'danger')
+
+    profile_data = get_user_profile_data(current_user)
+
+    # Pre-llenar formulario de contacto en peticiones GET
+    if request.method == 'GET':
+        contact_form.email.data = profile_data.get('raw_email', '')
+        contact_form.mobile.data = profile_data.get('raw_mobile', '')
+        contact_form.phone.data = profile_data.get('raw_phone', '')
+
+    return render_template(
+        'users/profile.html',
+        profile=profile_data,
+        form=password_form,
+        contact_form=contact_form,
+        active_tab=active_tab
+    )
+
