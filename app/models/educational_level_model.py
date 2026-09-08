@@ -11,7 +11,6 @@ class EducationalLevel(db.Model):
 
     # Relaciones
     institution_levels = db.relationship('InstitutionLevel', back_populates='educational_level', lazy=True)
-    training_levels = db.relationship('TrainingLevel', back_populates='educational_level', lazy=True)
 
     def __repr__(self):
         return f'<EducationalLevel {self.level_code}: {self.name}>'

@@ -19,7 +19,7 @@ from seeders.institution_scopes_seeder import seed_institution_scopes
 from seeders.institution_types_seeder import seed_institution_types
 from seeders.positions_seeder import seed_positions
 from seeders.reasons_seeder import seed_reasons
-from seeders.training_categories_seeder import seed_training_categories
+from seeders.training_modules_seeder import seed_training_modules
 from seeders.persons_seeder import seed_persons
 from seeders.trainings_seeder import seed_trainings
 from seeders.municipalities_seeder import seed_municipalities
@@ -52,7 +52,7 @@ def run_all_seeders():
             seed_institution_types()
             seed_positions()
             seed_reasons()
-            seed_training_categories()
+            seed_training_modules()
             seed_persons()
 
             # 2. Tablas con dependencias de nivel 1
