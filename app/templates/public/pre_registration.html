@@ -634,6 +634,13 @@
     <script>
         const CATALOGS = {{ catalogs | tojson }};
     </script>
+    
+    <!-- Datos del delegado pasados por Flask -->
+    <script>
+        window.DELEGATED_PAYLOAD = {% if delegated_payload is defined and delegated_payload %}{{ delegated_payload | tojson | safe }}{% else %}null{% endif %};
+    </script>
+
+    <!-- Main Logic -->
     <script src="{{ url_for('static', filename='JS/pre_registration.js') }}"></script>
 
 </body>

@@ -101,9 +101,13 @@ def save_evidence_file(file_obj, sub_folder: str = '', custom_name: str = None) 
     save_path = os.path.join(upload_folder, safe_name)
     file_obj.save(save_path)
 
+    # CREAR LA RUTA RELATIVA PARA LA BASE DE DATOS
+    # Usamos posixpath/replace para asegurar barras normales (/) sin importar el SO
+    ruta_relativa = f"{sub_folder}/{safe_name}" if sub_folder else safe_name
+
     return {
         'file_name':   safe_name,
-        'file_path':   save_path,
+        'file_path':   ruta_relativa,
         'format':      extension.upper(),
         'file_weight': file_size,
     }

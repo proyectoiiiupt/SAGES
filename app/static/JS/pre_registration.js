@@ -583,8 +583,8 @@
                 val = val.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\.\-\'\"°]/g, '');
                 // Evitar espacios múltiples consecutivos
                 val = val.replace(/\s{2,}/g, ' ');
-                // Title Case: Convertir a mayúscula primera letra (o después de espacio, punto, guion)
-                val = val.toLowerCase().replace(/(?:^|[\s\.\-])[a-záéíóúñ]/g, function (match) {
+                // Title Case: Convertir a mayúscula primera letra (o después de espacio, punto, guion, comillas, etc)
+                val = val.toLowerCase().replace(/(?:^|[\s\.\-\'\"°])[a-záéíóúñ]/g, function (match) {
                     return match.toUpperCase();
                 });
                 this.value = val;
@@ -886,6 +886,8 @@
                 captcha_token: captchaToken,
                 join_existing: window._joinExisting === true,
                 plantel_code_existing: validatedPlantelCode,
+                is_delegated: window._isDelegated === true,
+                invitation_token: window.DELEGATED_PAYLOAD ? window.DELEGATED_PAYLOAD.token : null,
             }));
             formData.append('evidence', window._voucherFile);
             formData.append('document_type', window._voucherDocType || '');
@@ -1264,8 +1266,62 @@
         });
     }
 
+    async function initDelegatedFlow() {
+        if (!window.DELEGATED_PAYLOAD) return;
+        
+        window._isDelegated = true;
+        
+        // Simular que nos estamos uniendo a una institución existente para que la Declaración Jurada muestre sus datos
+        if (window.DELEGATED_PAYLOAD.institution) {
+            window._joinExisting = true;
+            window._existingInstitution = window.DELEGATED_PAYLOAD.institution;
+            validatedPlantelCode = window.DELEGATED_PAYLOAD.plantel_code;
+        }
+        
+        // Es necesario cargar los catálogos primero para que el select de cargo tenga las opciones
+        await loadCatalogs();
+        
+        // Cargar los datos bloqueados en los inputs correspondientes
+        const emailInp = qs('#inp-email');
+        const cedulaInp = qs('#inp-id-number');
+        const cargoSel = qs('#sel-position');
+        
+        if (emailInp) {
+            emailInp.value = window.DELEGATED_PAYLOAD.email;
+            emailInp.setAttribute('readonly', 'readonly');
+            emailInp.classList.add('disabled-input');
+        }
+        
+        if (cedulaInp) {
+            cedulaInp.value = window.DELEGATED_PAYLOAD.identification_number;
+            cedulaInp.setAttribute('readonly', 'readonly');
+            cedulaInp.classList.add('disabled-input');
+        }
+        
+        if (cargoSel) {
+            cargoSel.value = window.DELEGATED_PAYLOAD.position_id;
+            // Para el select se usa pointer-events y opacidad en lugar de disabled 
+            // para que su valor pueda ser leído fácilmente.
+            cargoSel.style.pointerEvents = 'none';
+            cargoSel.style.opacity = '0.7';
+        }
+        
+        // Ocultar los primeros dos pasos del stepper visualmente si se desea
+        const step0 = qs('#stepper-0');
+        const step1 = qs('#stepper-1');
+        if (step0) step0.style.display = 'none';
+        if (step1) step1.style.display = 'none';
+        
+        // Ir directamente al paso de datos de persona (índice 2)
+        goToStep(2);
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
-        goToStep(0);
+        if (window.DELEGATED_PAYLOAD) {
+            initDelegatedFlow();
+        } else {
+            goToStep(0);
+        }
         initStep0();
         initDynamicSelects();
         initMasks();

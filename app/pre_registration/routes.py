@@ -90,6 +90,50 @@ def register():
     catalogs = get_all_catalogs()
     return render_template('public/pre_registration.html', catalogs=catalogs)
 
+@pre_registration_bp.route('/delegado', methods=['GET'])
+def delegated_register():
+    """
+    Renderiza el formulario de pre-registro para un delegado, saltando los pasos 1 y 2.
+    """
+    from flask import redirect, url_for, flash
+    from app.utils.invitation_utils import read_invitation_token
+    token = request.args.get('token')
+    if not token:
+        flash('Enlace de invitación inválido o ausente.', 'danger')
+        return redirect(url_for('pre_registration.register'))
+        
+    payload = read_invitation_token(token)
+    if not payload:
+        flash('El enlace de invitación ha expirado o no es válido.', 'danger')
+        return redirect(url_for('pre_registration.register'))
+        
+    # Enriquecer payload con los datos completos de la institución para la Declaración Jurada
+    from app.institutions.services import get_institution_by_id
+    inst = get_institution_by_id(payload.get('institution_id'))
+    if inst:
+        parish = inst.parish
+        muni = parish.municipality if parish else None
+        state = muni.state if muni else None
+        geo_parts = [p.name for p in [state, muni, parish] if p]
+        geo_str = ' / '.join(geo_parts)
+        address_str = f"{geo_str} - {inst.address}" if geo_str and inst.address else (inst.address or '-')
+        
+        payload['plantel_code'] = inst.plantel_code
+        payload['institution'] = {
+            'name': inst.institution_name,
+            'type': inst.institution_type.name if inst.institution_type else '-',
+            'scope': inst.institution_scope.name if inst.institution_scope else '-',
+            'dependency': inst.institution_dependency.name if inst.institution_dependency else '-',
+            'address': address_str
+        }
+        
+    # Agregamos el token original al payload para poder enviarlo al frontend
+    payload['token'] = token
+    
+    catalogs = get_all_catalogs()
+    return render_template('public/pre_registration.html', catalogs=catalogs, delegated_payload=payload)
+
+
 
 # ─────────────────────────────────────────────
 # Paso 0 — Validación del código de plantel
@@ -338,9 +382,54 @@ def complete_registration():
         return jsonify({'errors': ['Error de comunicación con el servicio de seguridad. Intente más tarde.']}), 400
 
     # ── Determinar la ruta según el flag del frontend ──────────────────────
+    is_delegated = payload.get('is_delegated', False)
     join_existing = payload.get('join_existing', False)
 
-    if join_existing:
+    if is_delegated:
+        # ── RUTA C: Unirse a una institución mediante invitación delegada ──
+        invitation_token = payload.get('invitation_token', '')
+        from app.utils.invitation_utils import read_invitation_token
+        token_payload = read_invitation_token(invitation_token)
+        
+        if not token_payload:
+            return jsonify({'errors': ['El token de invitación es inválido o ha expirado.']}), 400
+
+        person_raw  = payload.get('person', {})
+        person_form = PersonForm(data=person_raw)
+
+        person_errors: list[str] = []
+        if not person_form.validate():
+            person_errors.extend(collect_errors(person_form))
+        if person_errors:
+            return jsonify({'errors': person_errors}), 400
+
+        person_data = {
+            'identification_type':   person_form.identification_type.data,
+            'identification_number': person_form.identification_number.data.strip(),
+            'first_name':            person_form.first_name.data.strip(),
+            'second_name':           (person_form.second_name.data or '').strip(),
+            'last_name':             person_form.last_name.data.strip(),
+            'middle_name':           (person_form.middle_name.data or '').strip(),
+            'email':                 person_form.email.data.strip().lower(),
+            'mobile':                person_form.mobile.data.strip(),
+            'phone':                 (person_form.phone.data or '').strip() or None,
+            'position_id':           person_form.position_id.data,
+        }
+
+        # Validaciones de seguridad (que no hayan alterado el JS para cambiar email o cédula)
+        if person_data['email'] != token_payload['email']:
+            return jsonify({'errors': ['El correo no coincide con la invitación.']}), 400
+        if person_data['identification_number'] != token_payload['identification_number']:
+            return jsonify({'errors': ['La cédula no coincide con la invitación.']}), 400
+
+        ok, message, status_code = services.join_delegated_institution(
+            token_payload=token_payload,
+            person_data=person_data,
+            evidence_file=evidence_file,
+            document_type=document_type,
+        )
+
+    elif join_existing:
         # ── RUTA B: Unirse a una institución existente ────────────────
         plantel_code_existing = payload.get('plantel_code_existing', '').strip()
         if not plantel_code_existing:
