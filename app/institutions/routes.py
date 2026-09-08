@@ -10,7 +10,7 @@ from app.institutions import institutions_bp
 from app.institutions.services import (
     get_all_institutions, get_institution_by_id, get_filter_options,
     toggle_institution_status, get_institution_users, update_institution_contact_infrastructure,
-    get_user_state_info, create_institution_invitation, complete_institution_invitation
+    get_user_state_info, create_institution_invitation
 )
 from app.decorators import role_required
 from app.models.municipality_model import Municipality
@@ -26,9 +26,7 @@ EMAIL_REGEX = re.compile(r'^[A-Za-z0-9.!#$%&\'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.
 
 
 def _has_valid_email_domain(email):
-    """Comprueba si el dominio del correo tiene registros MX.
-    Esto valida que el dominio existe, no que la casilla exacta exista.
-    """
+    """Comprueba si el dominio del correo tiene registros MX."""
     domain = email.rsplit('@', 1)[1].lower()
     try:
         import dns.resolver
@@ -42,18 +40,8 @@ def _has_valid_email_domain(email):
 @login_required
 @role_required('super_admin', 'state_admin')
 def list_institutions():
-    """
-    Vista para listar todas las instituciones con filtros y paginación.
-    Solo accesible para super_admin y state_admin.
-    
-    Funcionalidades:
-    - Búsqueda por nombre o ID de institución
-    - Filtros por tipo, alcance, dependencia, estatus, estado y parroquia
-    - Paginación de 10 registros por página
-    - Filtrado automático por estado para administradores estadales
-    """
+    """Vista para listar todas las instituciones con filtros y paginación."""
     try:
-        # Obtener filtros de la URL
         filters = {
             'search_name': request.args.get('search_name'),
             'institution_type': request.args.get('institution_type'),
@@ -64,10 +52,8 @@ def list_institutions():
             'parish_id': request.args.get('parish_id')
         }
 
-        # Convertir a enteros los filtros numéricos
         filters = {k: int(v) if v and k != 'search_name' else v for k, v in filters.items()}
 
-        # Para administrador estadal, filtrar automáticamente por su estado
         is_super_admin = False
         if current_user and current_user.roles_assoc:
             for role_assoc in current_user.roles_assoc:
@@ -100,33 +86,30 @@ def list_institutions():
                              filter_options={'institution_types': [], 'institution_scopes': [], 'institution_dependencies': [], 'statuses': [], 'states': [], 'parishes': []},
                              current_filters={})
 
+
 @institutions_bp.route('/<int:institution_id>', methods=['GET'])
 @login_required
 @role_required('super_admin', 'state_admin')
 def view_institution(institution_id):
-    """
-    Vista para ver detalles de una institución específica.
-    """
+    """Vista para ver detalles de una institución específica."""
     try:
         institution = get_institution_by_id(institution_id)
         if not institution:
             abort(404)
         
         show_success = request.args.get('success', 'false') == 'true'
-        
         return render_template('institutions/detail.html', institution=institution, is_applicant=False, show_success=show_success)
     except Exception as e:
         print(f"Error en view_institution: {e}")
         flash("Error al cargar la institución", 'danger')
         return redirect(url_for('institutions.list_institutions'))
 
+
 @institutions_bp.route('/<int:institution_id>/toggle-status', methods=['POST'])
 @login_required
 @role_required('super_admin', 'state_admin')
 def toggle_institution_status_route(institution_id):
-    """
-    Ruta AJAX para alternar el estatus de una institución entre Activo e Inactivo.
-    """
+    """Ruta AJAX para alternar el estatus de una institución entre Activo e Inactivo."""
     try:
         institution, new_status, affected_users = toggle_institution_status(institution_id)
         
@@ -144,13 +127,12 @@ def toggle_institution_status_route(institution_id):
         print(f"Error en toggle_institution_status_route: {e}")
         return jsonify({'success': False, 'message': f'Error: {str(e)}', 'affected_users': 0}), 500
 
+
 @institutions_bp.route('/<int:institution_id>/users', methods=['GET'])
 @login_required
 @role_required('super_admin', 'state_admin', 'applicant')
 def view_institution_users(institution_id):
-    """
-    Vista para ver los usuarios afiliados a una institución específica.
-    """
+    """Vista para ver los usuarios afiliados a una institución específica."""
     try:
         is_applicant = any(
             role_assoc.role.name == 'applicant'
@@ -182,13 +164,12 @@ def view_institution_users(institution_id):
             return redirect(url_for('institutions.my_institution'))
         return redirect(url_for('institutions.view_institution', institution_id=institution_id))
 
+
 @institutions_bp.route('/<int:institution_id>/edit', methods=['GET', 'POST'])
 @login_required
 @role_required('applicant', 'state_admin', 'super_admin')
 def edit_institution(institution_id):
-    """
-    Vista para editar los datos de una institución.
-    """
+    """Vista para editar los datos de una institución."""
     try:
         user_role = None
         if current_user.roles_assoc and len(current_user.roles_assoc) > 0:
@@ -329,13 +310,12 @@ def edit_institution(institution_id):
         else:
             return redirect(url_for('institutions.view_institution', institution_id=institution_id))
 
+
 @institutions_bp.route('/my-institution', methods=['GET'])
 @login_required
 @role_required('applicant')
 def my_institution():
-    """
-    Vista para que el usuario (applicant) vea directamente su institución afiliada.
-    """
+    """Vista para que el usuario (applicant) vea directamente su institución afiliada."""
     try:
         if not current_user.person or not current_user.person.institutional_staff or len(current_user.person.institutional_staff) == 0:
             flash("No tienes una institución afiliada. Contacta al administrador.", 'warning')
@@ -349,30 +329,28 @@ def my_institution():
             return redirect(url_for('home_applicant'))
         
         show_success = request.args.get('success', 'false') == 'true'
-        
         return render_template('institutions/detail.html', institution=institution, is_applicant=True, show_success=show_success)
     except Exception as e:
         print(f"Error en my_institution: {e}")
         flash("Error al cargar tu institución. Contacta al administrador.", 'danger')
         return redirect(url_for('home_applicant'))
 
+
 @institutions_bp.route('/api/parishes-by-state/<int:state_id>', methods=['GET'])
 @login_required
 def get_parishes_by_state(state_id):
-    """
-    API endpoint para obtener parroquias filtradas por estado.
-    """
+    """API endpoint para obtener parroquias filtradas por estado."""
     try:
         parishes = Parish.query.join(Municipality).filter(
             Municipality.state_id == state_id
         ).order_by(Parish.name, Parish.id).all()
         
         parishes_data = [{'id': parish.id, 'name': parish.name} for parish in parishes]
-        
         return jsonify({'parishes': parishes_data})
     except Exception as e:
         print(f"Error en get_parishes_by_state: {e}")
         return jsonify({'parishes': []}), 500
+
 
 @institutions_bp.route('/api/states', methods=['GET'])
 @login_required
@@ -383,6 +361,7 @@ def get_states_api():
     except Exception as e:
         print(f"Error en get_states_api: {e}")
         return jsonify({'error': str(e)}), 500
+
 
 @institutions_bp.route('/api/cities', methods=['GET'])
 @login_required
@@ -401,6 +380,7 @@ def get_cities_api():
         print(f"Error en get_cities_api: {e}")
         return jsonify({'error': str(e)}), 500
 
+
 @institutions_bp.route('/api/municipalities/<int:state_id>', methods=['GET'])
 @login_required
 def get_municipalities_api(state_id):
@@ -410,6 +390,7 @@ def get_municipalities_api(state_id):
     except Exception as e:
         print(f"Error en get_municipalities_api: {e}")
         return jsonify({'error': str(e)}), 500
+
 
 @institutions_bp.route('/api/parishes/<int:municipality_id>', methods=['GET'])
 @login_required
@@ -426,7 +407,6 @@ def get_parishes_api(municipality_id):
 @login_required
 @role_required('applicant')
 def invite_institution_collaborator(institution_id):
-    # La invitación solo está disponible para applicants afiliados a la institución.
     institution = get_institution_by_id(institution_id)
     if not institution:
         abort(404)
@@ -435,7 +415,6 @@ def invite_institution_collaborator(institution_id):
     if not any(staff.institution_id == institution_id for staff in staff_members):
         abort(403)
 
-    # Los cargos se muestran desde la tabla positions para conservar sus referencias.
     positions = Position.query.order_by(Position.name).all()
     if request.method == 'POST':
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json
@@ -473,10 +452,7 @@ def invite_institution_collaborator(institution_id):
 @institutions_bp.route('/api/validate-identification', methods=['GET'])
 @login_required
 def validate_identification():
-    """
-    API endpoint para validar si una cédula ya está registrada en el sistema.
-    Retorna JSON indicando si la cédula existe.
-    """
+    """API endpoint para validar si una cédula ya está registrada con un usuario activo."""
     try:
         identification_number = request.args.get('identification_number', '').strip()
 
@@ -486,10 +462,11 @@ def validate_identification():
         from app.models.person_model import Person
         existing_person = Person.query.filter_by(identification_number=identification_number).first()
 
-        if existing_person:
+        # Solo marcamos como existente si ya tiene cuenta de usuario activa
+        if existing_person and existing_person.user:
             return jsonify({
                 'exists': True,
-                'message': f'La cédula "{identification_number}" ya está registrada en el sistema'
+                'message': f'La cédula "{identification_number}" ya está registrada con un usuario en el sistema'
             })
         else:
             return jsonify({'exists': False, 'message': 'Cédula disponible'})
@@ -502,10 +479,7 @@ def validate_identification():
 @institutions_bp.route('/api/validate-email', methods=['GET'])
 @login_required
 def validate_email():
-    """
-    API endpoint para validar si un correo electrónico es válido y si el dominio existe.
-    Verifica también si ya está registrado en la base de datos.
-    """
+    """API endpoint para validar si un correo electrónico es válido y está disponible."""
     try:
         email = request.args.get('email', '').strip().lower()
 
@@ -522,13 +496,12 @@ def validate_email():
         from sqlalchemy import func
         from app.models.person_model import Person
 
-        # Búsqueda insensible a mayúsculas/minúsculas para evitar fallos por diferencias de casing
         existing_person = Person.query.filter(func.lower(Person.email) == email).first()
-        if existing_person:
+        if existing_person and existing_person.user:
             return jsonify({
                 'exists': True,
-                'valid': True,
-                'message': f'El correo "{email}" ya está registrado en el sistema'
+                'valid': False,
+                'message': f'El correo "{email}" ya tiene un usuario registrado en el sistema'
             })
 
         domain_exists = _has_valid_email_domain(email)
@@ -551,16 +524,6 @@ def validate_email():
 
 
 @institutions_bp.route('/pre-registration/', methods=['GET', 'POST'])
-@institutions_bp.route('/pre-registration/delegado', methods=['GET', 'POST'])
-def delegate_registration():
-    token = request.args.get('token') or request.form.get('token')
-    payload = read_invitation_token(token) if token else None
-    if not payload:
-        return jsonify({'error': 'Token de invitación inválido o expirado.'}), 400
-    return jsonify({
-        'message': 'Invitación válida. El registro del colaborador pertenece a otra rama.',
-        'institution_id': payload.get('institution_id'),
-        'position_id': payload.get('position_id'),
-        'email': payload.get('email')
-    }), 200
-
+def dummy_pre_registration():
+    from flask import redirect, url_for
+    return redirect(url_for('pre_registration.register'))

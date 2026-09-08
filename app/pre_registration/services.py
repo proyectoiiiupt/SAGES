@@ -645,3 +645,96 @@ def join_existing_institution(
                 pass
         logger.error("Error en join_existing_institution", exc_info=True)
         return False, 'Ocurrió un error interno. Por favor intente nuevamente o contacte al administrador.', 500
+
+
+def join_delegated_institution(
+    token_payload: dict,
+    person_data: dict,
+    evidence_file,
+    document_type: str,
+) -> tuple[bool, str, int]:
+    """
+    Registra un nuevo representante delegado a través de una invitación.
+
+    Establece su vinculación (InstitutionalStaff) e inserta el comprobante físico,
+    dejándolo en estado PENDIENTE para su verificación.
+
+    Args:
+        token_payload (dict): Datos extraídos del token de invitación.
+        person_data (dict): Datos personales del nuevo solicitante.
+        evidence_file: Objeto binario del comprobante adjunto.
+        document_type (str): Tipo de comprobante.
+
+    Returns:
+        tuple: (éxito: bool, mensaje: str, código_http: int)
+    """
+    from app.models.institution_model import Institution
+    from app.models.status_model      import Status
+
+    evidence_path = None
+    try:
+        institution_id = token_payload.get('institution_id')
+        institution = db.session.get(Institution, institution_id)
+        if not institution:
+            return False, 'La institución vinculada a la invitación no existe o fue eliminada.', 404
+
+        pending_status = Status.query.filter_by(status_code=PENDING_STATUS_CODE).first()
+        if not pending_status:
+            return False, 'No fue posible procesar la solicitud en este momento. Por favor, intente más tarde.', 500
+
+        if not is_identification_available(person_data['identification_number']):
+            return False, 'Este número de identificación ya está registrado.', 409
+
+        if not is_email_available(person_data['email']):
+            return False, 'Este correo ya está registrado.', 409
+
+        staff = _create_person_and_staff(
+            person_data       = person_data,
+            institution_id    = institution.id,
+            pending_status_id = pending_status.id,
+        )
+
+        evidence_path = _save_staff_evidence(
+            staff_id              = staff.id,
+            evidence_file         = evidence_file,
+            document_type         = document_type,
+            identification_number = person_data.get('identification_number', '00000000'),
+        )
+
+        db.session.commit()
+
+        try:
+            full_name = f"{person_data.get('first_name', '')} {person_data.get('last_name', '')}".strip()
+            inst_name = institution.institution_name
+            app = current_app._get_current_object()
+            
+            _send_registration_email_async(app, person_data.get('email'), full_name, inst_name)
+        except Exception as e:
+            logger.error(f"Error al iniciar el hilo de correo: {e}", exc_info=True)
+
+        return True, 'Su solicitud ha sido recibida. Verificaremos los datos de la institución y le notificaremos por correo electrónico.', 201
+
+    except IntegrityError as e:
+        db.session.rollback()
+        if evidence_path:
+            import os
+            try:
+                os.remove(evidence_path)
+            except OSError:
+                pass
+        err_str = str(e.orig).lower()
+        if 'identification_number' in err_str:
+            return False, 'Este número de identificación ya está registrado.', 409
+        if 'email' in err_str:
+            return False, 'Este correo ya está registrado.', 409
+        return False, 'Datos duplicados. Verifique la información e intente nuevamente.', 409
+    except Exception:
+        db.session.rollback()
+        if evidence_path:
+            import os
+            try:
+                os.remove(evidence_path)
+            except OSError:
+                pass
+        logger.error("Error en join_delegated_institution", exc_info=True)
+        return False, 'Ocurrió un error interno. Por favor intente nuevamente o contacte al administrador.', 500

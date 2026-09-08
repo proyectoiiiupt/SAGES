@@ -22,7 +22,7 @@ class Request(db.Model):
     status = db.relationship('Status', back_populates='requests')
     plannings = db.relationship('RequestPlanning', back_populates='request', cascade='all, delete-orphan', lazy=True)
     justifications = db.relationship('RequestJustification', back_populates='request', cascade='all, delete-orphan', lazy=True)
-    evidences = db.relationship('Evidence', back_populates='request', cascade='all, delete-orphan', lazy=True)
+    evidences = db.relationship('RequestEvidence', back_populates='request', cascade='all, delete-orphan', lazy=True)
     tracking_steps = db.relationship('RequestTracking', back_populates='request', cascade='all, delete-orphan', lazy=True)
     ratings = db.relationship('Rating', back_populates='request', cascade='all, delete-orphan', lazy=True)
 

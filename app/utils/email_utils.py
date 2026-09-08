@@ -1,15 +1,20 @@
 import os
 import smtplib
+import logging
 from email.message import EmailMessage
+
+logger = logging.getLogger(__name__)
+
 
 def send_email(to_email: str, subject: str, html_content: str, text_content: str) -> bool:
     """Utilidad global para el envío de correos con formato HTML y texto."""
-    import logging
     smtp_user = os.getenv('SMTP_USER') or os.getenv('EMAIL_USER')
     smtp_pass = os.getenv('SMTP_PASS')
     
     if not smtp_user or not smtp_pass:
-        logging.error('SMTP no configurado correctamente (SMTP_USER o SMTP_PASS ausente).')
+        error_msg = "SMTP no configurado: falta SMTP_USER o SMTP_PASS en el archivo .env"
+        logger.error(error_msg)
+        print(f"\n[ERROR SMTP]: {error_msg}\n")
         return False
 
     msg = EmailMessage()
@@ -29,28 +34,28 @@ def send_email(to_email: str, subject: str, html_content: str, text_content: str
                 with open(logo_path, 'rb') as f:
                     msg.get_payload()[1].add_related(f.read(), 'image', 'png', cid='logo_corpoelec')
             except Exception as e:
-                logging.warning(f"Error al adjuntar imagen inline: {e}")
+                logger.warning(f"Error al adjuntar imagen inline: {e}")
 
-    import ssl
-    import logging
-    context = ssl.create_default_context()
-    
     try:
-        with smtplib.SMTP('smtp.gmail.com', 587) as smtp:
+        with smtplib.SMTP('smtp.gmail.com', 587, timeout=15) as smtp:
             smtp.ehlo()
-            smtp.starttls(context=context)
+            smtp.starttls()
             smtp.login(smtp_user, smtp_pass)
             smtp.send_message(msg)
+        print(f"[SMTP ÉXITO]: Correo '{subject}' enviado exitosamente a {to_email}")
         return True
     except Exception as e:
-        logging.error(f"Error enviando correo [destinatario enmascarado]: {type(e).__name__}")
+        logger.error(f"Error enviando correo a {to_email}: {e}")
+        print(f"\n[ERROR SMTP]: Falló el envío a {to_email}. Causa: {e}\n")
         return False
+
 
 def get_logo_html() -> str:
     logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'img', 'logo_corpoelec.png')
     if os.path.exists(logo_path):
         return '<img src="cid:logo_corpoelec" alt="CORPOELEC" style="max-width: 220px; height: auto; display: block; border: 0;">'
     return '<span style="font-size: 24px; font-weight: 800; color: #1c3d73; letter-spacing: 1px;">(⚡) CORPOELEC</span>'
+
 
 def send_recovery_email(to_email: str, code: str) -> bool:
     import html
@@ -109,6 +114,7 @@ def send_recovery_email(to_email: str, code: str) -> bool:
     """
     
     return send_email(to_email, subject, html_content, text_content)
+
 
 def send_preregistration_email(to_email: str, full_name: str, institution_name: str) -> bool:
     import html
@@ -180,6 +186,9 @@ Por favor, no responda a este correo automatizado."""
 
 def send_invitation_email(to_email: str, link: str, institution_name: str) -> bool:
     """Envía un correo con el enlace de invitación para colaborador de una institución."""
+    import html
+    safe_institution = html.escape(institution_name)
+    
     subject = "Invitación de Colaborador"
     text_content = (
         f"Hola,\n\n"
@@ -211,7 +220,7 @@ def send_invitation_email(to_email: str, link: str, institution_name: str) -> bo
                 <td align="center" style="padding: 0 40px;">
                     <h2 style="font-size: 22px; font-weight: 700; color: #1f2937; margin: 10px 0 20px 0; text-transform: uppercase; letter-spacing: 0.5px;">INVITACIÓN DE COLABORADOR</h2>
                     <p style="font-size: 15px; color: #4b5563; margin: 0 0 10px 0; line-height: 1.5;">Has sido invitado a colaborar en:</p>
-                    <p style="font-size: 18px; font-weight: 600; color: #1c3d73; margin: 0 0 25px 0; line-height: 1.5;">{institution_name}</p>
+                    <p style="font-size: 18px; font-weight: 600; color: #1c3d73; margin: 0 0 25px 0; line-height: 1.5;">{safe_institution}</p>
                 </td>
             </tr>
             <tr>

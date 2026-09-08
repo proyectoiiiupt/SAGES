@@ -1,8 +1,8 @@
 from app.extensions import db
 from datetime import datetime, timezone
 
-class Evidence(db.Model):
-    __tablename__ = 'evidences'
+class RequestEvidence(db.Model):
+    __tablename__ = 'request_evidences'
     __table_args__ = {'schema': 'sages'}
 
     id = db.Column(db.BigInteger, primary_key=True)
@@ -17,4 +17,4 @@ class Evidence(db.Model):
     request = db.relationship('Request', back_populates='evidences')
 
     def __repr__(self):
-        return f'<Evidence {self.file_name}>'
+        return f'<RequestEvidence {self.file_name}>'
