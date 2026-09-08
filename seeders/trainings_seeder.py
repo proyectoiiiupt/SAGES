@@ -1,6 +1,6 @@
 from app.extensions import db
 from app.models.training_model import Training
-from app.models.training_category_model import TrainingCategory
+from app.models.training_module_model import TrainingModule
 from app.models.status_model import Status
 
 def seed_trainings():
@@ -9,100 +9,149 @@ def seed_trainings():
         return
 
     trainings_data = [
+        # MOD-001: Uso Racional y Eficiente de la Energía (UREE)
         {
             "training_code": "TRN-001",
-            "category_code": "TCAT-001", # Taller
-            "name": "Reparación de Bombillos LED y Ahorradores",
-            "description": "Taller práctico para la comunidad enfocado en técnicas básicas para el diagnóstico y reparación de bombillos, fomentando el reciclaje y la autogestión.",
+            "module_code": "MOD-001",
+            "name": "El Sistema Eléctrico Nacional (SEN)",
+            "description": "Estructura básica (Generación, Transmisión, Distribución y Comercialización) y la importancia de su preservación.",
             "status_code": "STAT-001"
         },
         {
             "training_code": "TRN-002",
-            "category_code": "TCAT-003", # Charla
-            "name": "Uso Racional y Eficiente de la Energía (Ahorro Energético)",
-            "description": "Charla de concientización sobre hábitos de consumo eléctrico en el hogar para disminuir la demanda y proteger el medio ambiente.",
+            "module_code": "MOD-001",
+            "name": "Cultura del Ahorro Energético: Hábitos de Consumo en el Hogar y la Oficina",
+            "description": "Buenas prácticas para el uso de equipos de alto consumo (aires acondicionados, refrigeración e iluminación).",
             "status_code": "STAT-001"
         },
         {
             "training_code": "TRN-003",
-            "category_code": "TCAT-007", # Foro
-            "name": "Prevención de Riesgos Eléctricos en el Hogar",
-            "description": "Foro comunitario para identificar vulnerabilidades eléctricas residenciales, prevención de cortocircuitos y medidas de seguridad familiar.",
+            "module_code": "MOD-001",
+            "name": "Vampiros Energéticos",
+            "description": "Identificación y control del consumo en espera (standby) de los electrodomésticos y cargadores conectados que no se están usando. *Brigadas Escolares e Integrales de Energía: Capacitación para la conformación de grupos comunitarios y estudiantiles que promuevan el uso eficiente.",
             "status_code": "STAT-001"
         },
         {
             "training_code": "TRN-004",
-            "category_code": "TCAT-001", # Taller
-            "name": "Mantenimiento Preventivo de Electrodomésticos",
-            "description": "Formación práctica para el cuidado, limpieza y extensión de la vida útil de los equipos electrodomésticos de mayor consumo.",
+            "module_code": "MOD-001",
+            "name": "El Cambio Climático, Fenómeno Climatológico el Niño y la Niña, Calentamiento Global",
+            "description": "La relación directa entre el derroche de energía, las emisiones de gases de efecto invernadero y los fenómenos climáticos locales.",
             "status_code": "STAT-001"
         },
         {
             "training_code": "TRN-005",
-            "category_code": "TCAT-005", # Asamblea
-            "name": "Conformación de Mesas Técnicas de Energía",
-            "description": "Asamblea participativa para orientar a los consejos comunales en la creación y gestión de mesas técnicas de energía en sus sectores.",
+            "module_code": "MOD-001",
+            "name": "Efemérides Ambientales como Motor de Cambio",
+            "description": "Aprovechamiento de fechas clave (como el Día Mundial del Ahorro de Energía) para lanzar campañas de alto impacto visual y comunitario.",
             "status_code": "STAT-001"
         },
+        
+        # MOD-002: Sustitución Tecnológica
         {
             "training_code": "TRN-006",
-            "category_code": "TCAT-006", # Seminario
-            "name": "Energías Alternativas y Sistemas Fotovoltaicos Básicos",
-            "description": "Seminario introductorio sobre el funcionamiento de paneles solares y alternativas de respaldo energético para comunidades organizadas.",
+            "module_code": "MOD-002",
+            "name": "Evolución de la Tecnología de Iluminación",
+            "description": "Comparativa técnica entre la iluminación incandescente/fluorescente y la tecnología LED (eficiencia, lúmenes por vatio, vida útil).",
             "status_code": "STAT-001"
         },
         {
             "training_code": "TRN-007",
-            "category_code": "TCAT-003", # Charla
-            "name": "Lectura de Medidores y Comprensión del Consumo",
-            "description": "Orientación para que los usuarios aprendan a leer sus medidores eléctricos y comprendan cómo se estructura su consumo mensual.",
+            "module_code": "MOD-002",
+            "name": "Protocolos de Sustitución Tecnológica masiva",
+            "description": "Metodología para el despliegue de planes de iluminación (ej. Plan José Gregorio Hernández) en centros de salud, educación y comunidades.",
             "status_code": "STAT-001"
         },
         {
             "training_code": "TRN-008",
-            "category_code": "TCAT-001", # Taller
-            "name": "Primeros Auxilios ante Accidentes Eléctricos",
-            "description": "Taller vital de primeros auxilios y protocolos de acción rápida frente a situaciones de choque eléctrico o quemaduras.",
+            "module_code": "MOD-002",
+            "name": "Diagnóstico y Diagnósticos Energéticos Rápidos",
+            "description": "Cómo evaluar los sistemas de iluminación existentes y calcular el potencial de ahorro antes y después de la sustitución.",
             "status_code": "STAT-001"
         },
+        
+        # MOD-003: Eficiencia Energética Institucional y productiva
         {
             "training_code": "TRN-009",
-            "category_code": "TCAT-002", # Conversatorio
-            "name": "Poda Preventiva y Resguardo del Tendido Eléctrico",
-            "description": "Conversatorio sobre la importancia de reportar y despejar la vegetación cercana a las líneas de tensión para evitar interrupciones del servicio.",
+            "module_code": "MOD-003",
+            "name": "Etiquetado de Eficiencia Energética",
+            "description": "Lectura e interpretación de las etiquetas de rendimiento en electrodomésticos y equipos industriales.",
             "status_code": "STAT-001"
         },
         {
             "training_code": "TRN-010",
-            "category_code": "TCAT-002", # Conversatorio
-            "name": "Sensibilización y Resguardo del Sistema Eléctrico",
-            "description": "Espacio de diálogo para fomentar el sentido de pertenencia y la denuncia comunitaria ante actos de sabotaje a la infraestructura eléctrica.",
+            "module_code": "MOD-003",
+            "name": "Optimización de Sistemas de Climatización",
+            "description": "Buenas prácticas para el uso, mantenimiento y regulación de aires acondicionados en oficinas y centros asistenciales (regulación de temperaturas óptimas).",
             "status_code": "STAT-001"
         },
         {
             "training_code": "TRN-011",
-            "category_code": "TCAT-004", # Congreso
-            "name": "Innovación Tecnológica en la Distribución Eléctrica",
-            "description": "Congreso dirigido a estudiantes y profesionales sobre los nuevos avances y tecnologías aplicadas a la red de distribución eléctrica nacional.",
+            "module_code": "MOD-003",
+            "name": "Marco Legal del Uso Racional",
+            "description": "Socialización de la Ley Orgánica del Sistema y Servicio Eléctrico (LOSSE) y la Ley de Uso Racional y Eficiente de la Energía.",
+            "status_code": "STAT-001"
+        },
+        {
+            "training_code": "TRN-012",
+            "module_code": "MOD-003",
+            "name": "Mantenimiento Preventivo como Factor de Ahorro",
+            "description": "Mantenimiento Preventivo como Factor de Ahorro",
+            "status_code": "STAT-001"
+        },
+        
+        # MOD-004: Fuentes Alternativas
+        {
+            "training_code": "TRN-013",
+            "module_code": "MOD-004",
+            "name": "Energía Solar Fotovoltaica",
+            "description": "Fundamentos de la Energía Solar Fotovoltaica: Cómo funcionan los paneles solares, medición de voltaje, y su aplicación en zonas aisladas o instituciones públicas.",
+            "status_code": "STAT-001"
+        },
+        {
+            "training_code": "TRN-014",
+            "module_code": "MOD-004",
+            "name": "Protocolos de Almacenamiento y Mantenimiento Solar",
+            "description": "Criterios técnicos para el traslado, limpieza, medición de voltaje y resguardo seguro de componentes fotovoltaicos.",
+            "status_code": "STAT-001"
+        },
+        {
+            "training_code": "TRN-015",
+            "module_code": "MOD-004",
+            "name": "Mantenimiento y Almacenamiento de Sistemas Solares",
+            "description": "Protocolos críticos para el traslado, limpieza, revisión técnica y almacenamiento seguro de paneles y bancos de baterías para prolongar su vida útil.",
+            "status_code": "STAT-001"
+        },
+        {
+            "training_code": "TRN-016",
+            "module_code": "MOD-004",
+            "name": "Energía Eólica y Otras Alternativas",
+            "description": "Potencial de la energía del viento, la biomasa o la micro-hidroeléctrica según las condiciones geográficas de la región.",
+            "status_code": "STAT-001"
+        },
+        {
+            "training_code": "TRN-017",
+            "module_code": "MOD-004",
+            "name": "Sistemas Híbridos",
+            "description": "Combinación de la red eléctrica convencional con fuentes alternas para garantizar la continuidad del servicio en sectores priorizados (como centros de salud).",
             "status_code": "STAT-001"
         }
     ]
 
     for data in trainings_data:
-        category_code = data.pop("category_code")
+        module_code = data.pop("module_code")
         status_code = data.pop("status_code")
 
-        category = TrainingCategory.query.filter_by(category_code=category_code).first()
+        module = TrainingModule.query.filter_by(module_code=module_code).first()
         status = Status.query.filter_by(status_code=status_code).first()
 
-        if not category:
-            print(f"Error: Categoría '{category_code}' no encontrada. Ejecuta seed_training_categories primero.")
+        if not module:
+            print(f"Error: Módulo '{module_code}' no encontrado. Ejecuta seed_training_modules primero.")
             return
         if not status:
             print(f"Error: Estatus '{status_code}' no encontrado. Ejecuta seed_status primero.")
             return
 
-        data["training_category_id"] = category.id
+        data["training_module_id"] = module.id
         data["status_id"] = status.id
 
         training = Training(**data)
