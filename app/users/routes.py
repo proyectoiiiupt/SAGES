@@ -14,7 +14,7 @@ from app.models.institution_model import Institution
 from app.models.place_model import Place
 from app.models.parish_model import Parish
 from app.models.municipality_model import Municipality
-from app.models.evidence_model import Evidence
+from app.models.staff_evidence_model import StaffEvidence
 from app.models.position_model import Position  
 from app.users.forms import UserUpdateForm
 
@@ -546,22 +546,26 @@ def serve_evidence(filename):
         print("ERROR: No se encontró el archivo en la ruta combinada.")
         abort(404)
 
+import os
+from app.models.staff_evidence_model import StaffEvidence
+
 @users_bp.route('/requests/<int:staff_id>/evidence', methods=['GET'])
 @login_required
 def get_evidence(staff_id):
-    # Usamos la relación directa del modelo para evitar problemas de importación
-    staff = InstitutionalStaff.query.get_or_404(staff_id)
-    evidence = staff.evidences[0] if staff.evidences else None
+    # Buscamos la evidencia del usuario usando el modelo correcto
+    evidence = StaffEvidence.query.filter_by(institutional_staff_id=staff_id).first()
 
     if not evidence or not evidence.file_path:
         return jsonify({"status": "error", "message": "No se encontró un archivo adjunto."}), 404
 
-    # Normalizamos las barras y limpiamos rutas absolutas locales (ej: C:\Users\...)
+    # Normalizamos separadores de carpetas Windows / Linux
     raw_path = evidence.file_path.replace('\\', '/')
-    
-    if 'staff_evidences/' in raw_path:
-        # Extrae desde la subcarpeta (ej: "13/carnet_3030723_20260827_042817.pdf")
-        clean_path = raw_path.split('staff_evidences/')[-1]
+
+    # Conservamos la subcarpeta dentro de uploads/ para que send_from_directory no se pierda
+    if 'uploads/' in raw_path:
+        clean_path = raw_path.split('uploads/')[-1]
+    elif 'staff_evidences/' in raw_path:
+        clean_path = 'staff_evidences/' + raw_path.split('staff_evidences/')[-1]
     else:
         clean_path = os.path.basename(raw_path)
 
