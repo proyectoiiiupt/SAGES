@@ -71,6 +71,10 @@ def create_app(config_class=Config) -> Flask:
     from app.dashboard import dashboard_bp
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
 
+    # Registro del blueprint de Formación (Módulos Rectores y Temas)
+    from app.trainings import trainings_bp
+    app.register_blueprint(trainings_bp, url_prefix='/training')
+
     @app.route('/')
     def index():
         return render_template('public/index.html')
