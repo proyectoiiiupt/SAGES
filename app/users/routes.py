@@ -1,5 +1,5 @@
 import datetime
-from flask import Blueprint, render_template, request, abort, redirect, url_for, flash
+from flask import Blueprint, render_template, request, abort, redirect, url_for, flash, jsonify, current_app, send_from_directory
 from flask_login import login_required, current_user
 from sqlalchemy import or_
 from app.extensions import db
@@ -14,7 +14,7 @@ from app.models.institution_model import Institution
 from app.models.place_model import Place
 from app.models.parish_model import Parish
 from app.models.municipality_model import Municipality
-
+from app.models.staff_evidence_model import StaffEvidence
 from app.models.position_model import Position  
 from app.users.forms import UserUpdateForm
 
@@ -428,7 +428,6 @@ def toggle_status(user_id):
         
     return redirect(url_for('users.view_user', user_id=user.id))
 
-
 @users_bp.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
@@ -504,3 +503,76 @@ def profile():
         active_tab=active_tab
     )
 
+
+# ==========================================
+# BANDEJA DE SOLICITUDES (US-10)
+# ==========================================
+
+@users_bp.route('/requests', methods=['GET'])
+@login_required
+def list_requests():
+    user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
+    if user_role != 'state_admin':
+        abort(403)
+
+    target_state_id = None
+    if current_user.person:
+        admin_inst = InstitutionalStaff.query.filter_by(person_id=current_user.person.id).first()
+        if admin_inst and admin_inst.institution and admin_inst.institution.parish:
+            target_state_id = admin_inst.institution.parish.municipality.state_id
+            
+    # Filtro simplificado basado estrictamente en las instrucciones del líder técnico
+    pending_requests = InstitutionalStaff.query.filter_by(status_id=4).all()
+
+    return render_template(
+        'users/requests_list.html', 
+        requests=pending_requests,
+        current_role=user_role
+    )
+
+@users_bp.route('/descargar_evidencia/<path:filename>')
+def serve_evidence(filename):
+    directorio_base = current_app.config.get('UPLOAD_FOLDER', 'uploads')
+    
+    # Agregamos estos prints para ver la ruta exacta en la terminal
+    print(f"\n--- DEBUG EVIDENCIA ---")
+    print(f"Directorio Base: {directorio_base}")
+    print(f"Nombre del archivo (BD): {filename}")
+    print(f"-----------------------\n")
+    
+    try:
+        return send_from_directory(directorio_base, filename)
+    except FileNotFoundError:
+        print("ERROR: No se encontró el archivo en la ruta combinada.")
+        abort(404)
+
+import os
+from app.models.staff_evidence_model import StaffEvidence
+
+@users_bp.route('/requests/<int:staff_id>/evidence', methods=['GET'])
+@login_required
+def get_evidence(staff_id):
+    # Buscamos la evidencia del usuario usando el modelo correcto
+    evidence = StaffEvidence.query.filter_by(institutional_staff_id=staff_id).first()
+
+    if not evidence or not evidence.file_path:
+        return jsonify({"status": "error", "message": "No se encontró un archivo adjunto."}), 404
+
+    # Normalizamos separadores de carpetas Windows / Linux
+    raw_path = evidence.file_path.replace('\\', '/')
+
+    # Conservamos la subcarpeta dentro de uploads/ para que send_from_directory no se pierda
+    if 'uploads/' in raw_path:
+        clean_path = raw_path.split('uploads/')[-1]
+    elif 'staff_evidences/' in raw_path:
+        clean_path = 'staff_evidences/' + raw_path.split('staff_evidences/')[-1]
+    else:
+        clean_path = os.path.basename(raw_path)
+
+    file_url = url_for('users.serve_evidence', filename=clean_path)
+
+    return jsonify({
+        "status": "success", 
+        "file_url": file_url,
+        "file_type": clean_path.split('.')[-1].lower() 
+    })

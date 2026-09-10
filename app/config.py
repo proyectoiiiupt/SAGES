@@ -1,6 +1,7 @@
 import os
 from datetime import timedelta
 
+
 class Config:
     """Configuración base de la aplicación."""
     # Seguridad
