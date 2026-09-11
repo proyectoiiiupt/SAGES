@@ -225,3 +225,17 @@ def get_dashboard_indicators(user):
             'user_state': user_state_info,
             'jurisdiction_summary': []
         }
+
+def get_audit_logs(limit=None):
+    """
+    Estructura de datos simulada para maquetar la vista de bitácora (US-25).
+    Pendiente conectar con la BD en la historia de backend.
+    """
+    mock_logs = [
+        {'date': '2026-09-10 10:00 AM', 'user': 'Usuario Ejemplo 1', 'action': 'ACTUALIZAR', 'module': 'Usuarios', 'desc': 'Actualización de estatus de perfil', 'status': 'Modificado'},
+        {'date': '2026-09-10 11:30 AM', 'user': 'Usuario Ejemplo 2', 'action': 'CREAR', 'module': 'Solicitudes', 'desc': 'Registro de nueva solicitud de servicio', 'status': 'Completado'},
+        {'date': '2026-09-10 02:15 PM', 'user': 'Usuario Ejemplo 3', 'action': 'ELIMINAR', 'module': 'Roles', 'desc': 'Eliminación de rol asignado', 'status': 'Procesado'},
+        {'date': '2026-09-10 03:00 PM', 'user': 'Usuario Ejemplo 4', 'action': 'CAMBIO_ESTATUS', 'module': 'Solicitudes', 'desc': 'Aprobación de requerimiento', 'status': 'En Proceso'}
+    ]
+    
+    return mock_logs[:limit] if limit else mock_logs
