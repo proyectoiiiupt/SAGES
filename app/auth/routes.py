@@ -10,6 +10,14 @@ import time
 from app.utils.email_utils import send_recovery_email
 from app.models.person_model import Person
 from app.auth.token_store import set_token, get_remaining_seconds, invalidate_token
+from app.auth.forms import ActivationPasswordForm
+from app.utils.activation_utils import verify_activation_token
+from app.models.institutional_staff_model import InstitutionalStaff
+from app.models.user_model import User
+from app.models.role_user_model import RoleUser  # Cambiado a RoleUser
+from app.models.role_model import Role
+from app.extensions import db
+from werkzeug.security import generate_password_hash # Para encriptar la clave
 
 def is_safe_url(target: str) -> bool:
     """Verifica que la URL de redirección sea del mismo host."""
@@ -220,3 +228,56 @@ def cancel_reset():
     
     flash('El proceso de recuperación de contraseña ha sido cancelado por su seguridad.', 'info')
     return redirect(url_for('auth.login'))
+
+
+
+@auth_bp.route('/activate/<token>', methods=['GET', 'POST'])
+def activate_account(token):
+    # 1. Validar la firma y expiración del token
+    payload = verify_activation_token(token)
+    if not payload:
+        flash('El enlace de activación es inválido o ha expirado.', 'danger')
+        return redirect(url_for('auth.login'))
+
+    person = Person.query.get_or_404(payload['person_id'])
+    staff = InstitutionalStaff.query.get_or_404(payload['staff_id'])
+
+    # Evitar reactivaciones si la persona ya posee usuario
+    if person.user:
+        flash('Esta cuenta ya fue activada previamente. Por favor inicie sesión.', 'info')
+        return redirect(url_for('auth.login'))
+
+    form = ActivationPasswordForm()
+
+    if form.validate_on_submit():
+        try:
+            # 2. Crear la cuenta de usuario vinculada
+            new_user = User(
+                user_code=f"USR-{person.identification_number}",
+                user_name=person.email,
+                person_id=person.id,
+                status_id=1,
+                password=generate_password_hash(form.password.data)
+            )
+            db.session.add(new_user)
+            db.session.flush()
+
+            # 3. Asignar rol por defecto (applicant)
+            applicant_role = Role.query.filter_by(name='applicant').first()
+            if applicant_role:
+                user_role = RoleUser(user_id=new_user.id, role_id=applicant_role.id)
+                db.session.add(user_role)
+
+            # 4. Actualizar el estatus institucional a Activo/Aprobado
+            staff.status_id = 1
+            db.session.commit()
+
+            flash('¡Tu cuenta ha sido activada exitosamente! Ya puedes iniciar sesión.', 'success')
+            return redirect(url_for('auth.login'))
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"[ERROR ACTIVATION]: {e}")
+            flash('Ocurrió un error al intentar crear la cuenta.', 'danger')
+
+    return render_template('auth/activate.html', form=form, email=person.email)
