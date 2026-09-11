@@ -1,6 +1,7 @@
 {% extends "layouts/base.html" %}
 
 {% block extra_css %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <!-- Llamamos al CSS correcto de listas -->
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/users_list.css') }}">
 {% endblock %}
@@ -103,6 +104,9 @@
 
 <script>
     function abrirModalEvidencia(requestId) {
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
         Swal.fire({
             title: 'Cargando documento...',
             didOpen: () => { Swal.showLoading(); },
@@ -152,6 +156,9 @@
 
     // 2. Nueva función para procesar la aprobación vía AJAX
     function confirmarAprobacion(requestId) {
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        
         Swal.fire({
             title: '¿Aprobar solicitud?',
             text: 'Se generará el token y enlace de activación para el usuario.',
@@ -165,7 +172,11 @@
             if (result.isConfirmed) {
                 fetch(`/users/requests/${requestId}/approve`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken 
+                    }
+                                
                 })
                 .then(res => res.json())
                 .then(data => {
