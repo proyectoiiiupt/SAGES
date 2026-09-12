@@ -280,4 +280,4 @@ def activate_account(token):
             print(f"[ERROR ACTIVATION]: {e}")
             flash('Ocurrió un error al intentar crear la cuenta.', 'danger')
 
-    return render_template('auth/activate.html', form=form, email=person.email)
+    return render_template('auth/activate.html', form=form, person=person)
