@@ -1,0 +1,298 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Catálogo de Formación – SAGES{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/trainings.css') }}">
+{% endblock %}
+
+{% block content %}
+{# ──────────────────────────────────────────────────────────────────────
+   HUB DE NAVEGACIÓN POR MÓDULOS RECTORES
+   Propósito: Landing de Formación con tarjetas de alto impacto visual
+   ────────────────────────────────────────────────────────────────────── #}
+
+<div class="hub-page">
+
+    {# ╔══════════════════════════════════════════════════════════════╗
+       ║  CABECERA DE PÁGINA (estándar instituciones)                 ║
+       ╚══════════════════════════════════════════════════════════════╝ #}
+    <div class="page-header">
+        <div class="page-title">
+            <h1>Catálogo de Formación</h1>
+        </div>
+        <div class="page-date">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span id="hub-current-date"></span>
+        </div>
+    </div>
+
+    {# ╔══════════════════════════════════════════════════════════════╗
+       ║  BANDA DE INFO: descripción + badge + botones              ║
+       ╚══════════════════════════════════════════════════════════════╝ #}
+    <div class="hub-info-band">
+
+        {# Izquierda: descripción #}
+        <div class="hub-info-left">
+            <p class="hub-subtitle">Módulos Rectores del Programa de Uso Racional y Eficiente de la Energía. Selecciona un módulo para explorar los temas disponibles.</p>
+        </div>
+
+        {# Derecha: botones de acción (administradores) #}
+        {% if is_admin %}
+        <div class="hub-actions-bar" role="toolbar" aria-label="Acciones de administración">
+
+            {# Alternar a Vista Tabular #}
+            <a href="{{ url_for('trainings.list_all') }}"
+               id="btn-toggle-view"
+               class="hub-btn hub-btn-view"
+               title="Cambiar a Vista Tabular"
+               aria-label="Alternar a Vista Tabular">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="3" y1="9" x2="21" y2="9"/>
+                    <line x1="3" y1="15" x2="21" y2="15"/>
+                    <line x1="9" y1="9" x2="9" y2="21"/>
+                    <line x1="15" y1="9" x2="15" y2="21"/>
+                </svg>
+                Vista Tabular
+            </a>
+
+            {% if is_super_admin %}
+            <div class="hub-actions-separator" aria-hidden="true"></div>
+
+            {# Importación Masiva #}
+            <button type="button"
+                    id="btn-bulk-import"
+                    class="hub-btn hub-btn-import"
+                    title="Importación Masiva desde CSV/Excel"
+                    aria-label="Importación Masiva de Temas Formativos"
+                    disabled
+                    style="cursor: not-allowed; opacity: 0.65;"
+                    data-coming-soon="Disponible en próxima versión">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="16 16 12 12 8 16"/>
+                    <line x1="12" y1="12" x2="12" y2="21"/>
+                    <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+                </svg>
+                Importación Masiva
+            </button>
+
+            {# Nuevo Módulo Rector #}
+            <button type="button"
+                    id="btn-new-module"
+                    class="hub-btn hub-btn-secondary"
+                    title="Crear un nuevo Módulo Rector"
+                    aria-label="Agregar Nuevo Módulo Rector"
+                    disabled
+                    style="cursor: not-allowed; opacity: 0.65;"
+                    data-coming-soon="Disponible en próxima versión">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="16"/>
+                    <line x1="8" y1="12" x2="16" y2="12"/>
+                </svg>
+                Módulo Rector
+            </button>
+
+            {# Nuevo Tema (acción primaria) #}
+            <button type="button"
+                    id="btn-new-topic"
+                    class="hub-btn hub-btn-primary"
+                    title="Crear un nuevo Tema Formativo"
+                    aria-label="Agregar Nuevo Tema Formativo"
+                    disabled
+                    style="cursor: not-allowed; opacity: 0.65;"
+                    data-coming-soon="Disponible en próxima versión">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nuevo Tema
+            </button>
+            {% endif %}
+
+        </div>
+        {% endif %}
+
+    </div>{# /hub-info-band #}
+
+
+    {# Badge de estado suelto, encima de las tarjetas #}
+    <div class="hub-grid-header">
+        <span class="hub-status-badge" role="status" aria-label="Estado del catálogo">
+            <span class="status-dot" aria-hidden="true"></span>
+            {{ modules | length }} Módulo{% if modules | length != 1 %}s{% endif %} Rector{% if modules | length != 1 %}es{% endif %} Operativo{% if modules | length != 1 %}s{% endif %}
+        </span>
+    </div>
+
+    {# ╔══════════════════════════════════════════════════════════════╗
+       ║  CUADRÍCULA DE MÓDULOS RECTORES                             ║
+       ╚══════════════════════════════════════════════════════════════╝ #}
+    <section class="hub-modules-grid" aria-label="Módulos Rectores de la UREE">
+
+        {% if modules %}
+            {% for module in modules %}
+
+            {# Calcular clase de color por posición (order_index o code) #}
+            {% set mod_class = 'mod-00' ~ loop.index %}
+            {% if loop.index > 4 %}{% set mod_class = 'mod-004' %}{% endif %}
+
+            {# Icono SVG único por módulo #}
+            {% if loop.index == 1 %}
+                {# MOD-001: Bombilla / Energía #}
+                {% set icon_svg %}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="12" y1="2" x2="12" y2="3"/>
+                    <path d="M12 6a6 6 0 0 1 6 6c0 2.4-1.4 4.5-3.5 5.5V19a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1v-1.5C7.4 16.5 6 14.4 6 12a6 6 0 0 1 6-6z"/>
+                    <line x1="10" y1="21" x2="14" y2="21"/>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    <line x1="1" y1="12" x2="3" y2="12"/>
+                    <line x1="21" y1="12" x2="23" y2="12"/>
+                </svg>
+                {% endset %}
+
+            {% elif loop.index == 2 %}
+                {# MOD-002: Chip / Tecnología #}
+                {% set icon_svg %}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="9" y="9" width="6" height="6"/>
+                    <path d="M9 1v2M15 1v2M9 21v2M15 21v2M1 9h2M21 9h2M1 15h2M21 15h2"/>
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                </svg>
+                {% endset %}
+
+            {% elif loop.index == 3 %}
+                {# MOD-003: Edificio / Institución #}
+                {% set icon_svg %}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="3" y1="22" x2="21" y2="22"/>
+                    <line x1="6" y1="18" x2="6" y2="11"/>
+                    <line x1="10" y1="18" x2="10" y2="11"/>
+                    <line x1="14" y1="18" x2="14" y2="11"/>
+                    <line x1="18" y1="18" x2="18" y2="11"/>
+                    <polygon points="12 2 2 7 22 7"/>
+                </svg>
+                {% endset %}
+
+            {% else %}
+                {# MOD-004: Sol / Fuentes Alternativas #}
+                {% set icon_svg %}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="5"/>
+                    <line x1="12" y1="1" x2="12" y2="3"/>
+                    <line x1="12" y1="21" x2="12" y2="23"/>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                    <line x1="1" y1="12" x2="3" y2="12"/>
+                    <line x1="21" y1="12" x2="23" y2="12"/>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                </svg>
+                {% endset %}
+            {% endif %}
+
+            {# ──────────────────────────────────────────────────────────
+               TARJETA DE MÓDULO RECTOR
+               ────────────────────────────────────────────────────────── #}
+            <article class="module-card {{ mod_class }}"
+                     id="card-module-{{ module.id }}"
+                     role="article"
+                     aria-labelledby="module-name-{{ module.id }}">
+
+                {# ── Cabecera de tarjeta ─────────────────────────────── #}
+                <div class="module-card-header">
+                    <div class="module-icon-wrap" aria-hidden="true">
+                        {{ icon_svg }}
+                    </div>
+                    <div class="module-badges">
+                        <span class="badge-status active" aria-label="Estado: Activo">Rector</span>
+                    </div>
+                </div>
+
+                {# ── Cuerpo de tarjeta ───────────────────────────────── #}
+                <div class="module-card-body">
+                    <h2 class="module-name" id="module-name-{{ module.id }}">{{ module.name }}</h2>
+                    <p class="module-description">{{ module.description }}</p>
+                </div>
+
+                {# ── Contador de Temas (cargado asincrónamente) ─────────
+                   data-module-id es el selector clave para trainings_hub.js
+                ──────────────────────────────────────────────────────── #}
+                <div class="module-counter-wrap"
+                     role="status"
+                     aria-live="polite"
+                     aria-label="Cargando contador de temas para {{ module.name }}">
+                    <div data-module-id="{{ module.id }}"
+                         style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+                        {# Skeleton loader – reemplazado por trainings_hub.js #}
+                        <div class="skeleton-line" style="width: 55%;" aria-hidden="true"></div>
+                    </div>
+                </div>
+
+                {# ── Pie de tarjeta: Botón Explorar ─────────────────── #}
+                <div class="module-card-footer">
+                    <a href="#"
+                       id="btn-explore-{{ module.id }}"
+                       class="btn-explore"
+                       role="button"
+                       aria-label="Explorar temas de {{ module.name }}">
+                        Explorar Temas
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                            <polyline points="12 5 19 12 12 19"/>
+                        </svg>
+                    </a>
+                </div>
+
+            </article>
+
+            {% endfor %}
+
+        {% else %}
+
+            {# Estado vacío: sin módulos registrados o inactivos #}
+            <div class="hub-empty-state" role="alert" aria-live="polite">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                </svg>
+                <p>No hay Módulos Rectores activos disponibles en este momento.<br>
+                   Contacte al administrador del sistema.</p>
+            </div>
+
+        {% endif %}
+
+    </section>{# /hub-modules-grid #}
+
+</div>{# /hub-page #}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='JS/trainings_hub.js') }}"></script>
+<script>
+    (function () {
+        const el = document.getElementById('hub-current-date');
+        if (!el) return;
+        const options = { day: 'numeric', month: 'long', year: 'numeric' };
+        const today = new Date();
+        const formattedDate = today.toLocaleDateString('es-ES', options);
+        el.textContent = formattedDate.replace(' de 20', ', 20');
+    })();
+</script>
+{% endblock %}
