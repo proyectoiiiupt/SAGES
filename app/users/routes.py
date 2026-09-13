@@ -17,7 +17,8 @@ from app.models.municipality_model import Municipality
 from app.models.staff_evidence_model import StaffEvidence
 from app.models.position_model import Position  
 from app.users.forms import UserUpdateForm
-
+from app.utils.activation_utils import generate_activation_token
+from app.utils.email_utils import send_applicant_activation_email
 
 
 users_bp = Blueprint('users', __name__)
@@ -576,3 +577,48 @@ def get_evidence(staff_id):
         "file_url": file_url,
         "file_type": clean_path.split('.')[-1].lower() 
     })
+
+@users_bp.route('/requests/<int:staff_id>/approve', methods=['POST'])
+@login_required
+def approve_request(staff_id):
+    user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
+    if user_role not in ['state_admin', 'super_admin']:
+        return jsonify({'status': 'error', 'message': 'No tiene permisos para realizar esta acción.'}), 403
+
+    staff = InstitutionalStaff.query.get_or_404(staff_id)
+    person = staff.person
+
+    if not person:
+        return jsonify({'status': 'error', 'message': 'El registro no posee información de persona asociada.'}), 400
+
+    # Comprobar que no posea ya una cuenta de usuario activa
+    if person.user:
+        return jsonify({'status': 'error', 'message': 'Esta persona ya posee un usuario registrado en el sistema.'}), 400
+
+    try:  # CORREGIDO: ttry -> try
+        # Generación del token seguro con vigencia de 48h
+        payload = {
+            'person_id': person.id,
+            'staff_id': staff.id,
+            'flow': 'applicant',
+            'email': person.email
+        }
+        token = generate_activation_token(payload)
+
+        # 1. Llamada a la función de correo en hilo independiente
+        send_applicant_activation_email(person.email, token)
+        
+        # 2. Actualizar el estatus del InstitutionalStaff a STAT-006 (En Proceso)
+        # DESCOMENTADO para cumplir con la Sección 3.2 del documento de especificaciones
+        staff.status_id = 6 
+        db.session.commit()
+
+        return jsonify({
+            'status': 'success',
+            'message': f'Solicitud aprobada exitosamente. Se ha generado el enlace de activación para {person.first_name} {person.last_name}.'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"[ERROR APPROVE REQUEST]: {e}")
+        return jsonify({'status': 'error', 'message': 'Ocurrió un error interno al procesar la aprobación.'}), 500

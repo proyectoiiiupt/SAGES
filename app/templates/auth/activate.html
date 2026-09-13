@@ -1,0 +1,80 @@
+{% extends "public/base_public.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/public.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/auth.css') }}">
+{% endblock %}
+
+{% block content %}
+<div style="background: #ffffff; padding: 35px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2); width: 100%; max-width: 480px; margin: auto; box-sizing: border-box;">
+    
+    <div style="text-align: center; margin-bottom: 24px;">
+        <img src="{{ url_for('static', filename='img/logo_corpoelec.png') }}" alt="CORPOELEC" style="width: 220px; max-width: 100%; height: auto; display: block; margin: 0 auto 16px auto;">
+        
+        <h2 style="color: #1e293b; font-size: 22px; font-weight: 700; margin-bottom: 8px; margin-top: 0;">Activar Cuenta</h2>
+        <p style="color: #64748b; font-size: 14px; line-height: 1.5; margin: 0;">
+            Hola <strong>{{ person.first_name }} {{ person.last_name }}</strong>,<br>
+            establece tu contraseña para activar tu acceso al sistema.
+        </p>
+    </div>
+
+    <form method="POST">
+        {{ form.hidden_tag() }}
+        
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; font-weight: 600; color: #334155; margin-bottom: 6px; font-size: 14px;">Nueva Contraseña</label>
+            <!-- Aseguramos de que el id sea 'new_password' para que el JS lo reconozca -->
+            {{ form.password(id="new_password", style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none;") }}
+        </div>
+
+        <!-- Requisitos de contraseña integrados visualmente -->
+        <div id="password-requirements" style="background: #f8fafc; padding: 12px; border-radius: 6px; margin-bottom: 16px; font-size: 12px; color: #64748b;">
+            <p style="margin: 0 0 6px 0; font-weight: 600; color: #475569;">La contraseña debe cumplir con:</p>
+            <ul style="margin: 0; padding-left: 18px; list-style-type: disc;">
+                <li id="req-length" style="color: #ef4444; margin-bottom: 3px;">Mínimo 8 caracteres</li>
+                <li id="req-uppercase" style="color: #ef4444; margin-bottom: 3px;">Al menos una letra mayúscula</li>
+                <li id="req-number" style="color: #ef4444; margin-bottom: 3px;">Al menos un número</li>
+                <li id="req-special" style="color: #ef4444;">Al menos un carácter especial (@, $, !, %, *, ?, &)</li>
+            </ul>
+        </div>
+
+        <div style="margin-bottom: 24px;">
+            <label style="display: block; font-weight: 600; color: #334155; margin-bottom: 6px; font-size: 14px;">Confirmar Contraseña</label>
+            {{ form.confirm_password(style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none;") }}
+        </div>
+
+        <button type="submit" id="submit-btn" style="width: 100%; background-color: #0284c7; color: white; border: none; padding: 12px; border-radius: 6px; font-weight: 600; font-size: 15px; cursor: pointer; transition: background 0.2s;">
+            Activar Cuenta
+        </button>
+    </form>
+</div>
+
+<!-- Lógica de validación en tiempo real (idéntica a la recuperación de clave) -->
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const passwordInput = document.getElementById('new_password');
+        const reqLength = document.getElementById('req-length');
+        const reqUppercase = document.getElementById('req-uppercase');
+        const reqNumber = document.getElementById('req-number');
+        const reqSpecial = document.getElementById('req-special');
+
+        if (passwordInput) {
+            passwordInput.addEventListener('input', function() {
+                const val = passwordInput.value;
+                
+                // Validar longitud (8 caracteres)
+                reqLength.style.color = (val.length >= 8) ? '#10b981' : '#ef4444';
+                
+                // Validar mayúscula
+                reqUppercase.style.color = (/[A-Z]/.test(val)) ? '#10b981' : '#ef4444';
+                
+                // Validar número
+                reqNumber.style.color = (/\d/.test(val)) ? '#10b981' : '#ef4444';
+                
+                // Validar carácter especial
+                reqSpecial.style.color = (/[@$!%*?&]/.test(val)) ? '#10b981' : '#ef4444';
+            });
+        }
+    });
+</script>
+{% endblock %}
