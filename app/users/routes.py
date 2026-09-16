@@ -21,6 +21,9 @@ from app.users.forms import UserUpdateForm, AdminUserRegisterForm
 from app.utils.activation_utils import generate_activation_token
 from app.utils.email_utils import send_applicant_activation_email, send_administrative_activation_email
 from app.users.services import get_corpoelec_places_by_state, get_administrative_positions, create_administrative_user
+from app.binnacle.decorators import audit_activity
+from app.binnacle.services import BinnacleService
+from app.binnacle.types import AuditModule, AuditAction, AuditStatus
 
 
 users_bp = Blueprint('users', __name__)
@@ -222,6 +225,7 @@ def list_users():
 
 @users_bp.route('/view/<int:user_id>', methods=['GET'])
 @login_required
+@audit_activity(module=AuditModule.USERS.value, action_type=AuditAction.CONSULTA_DETALLE.value, description="Consulta del perfil detallado de un usuario")
 def view_user(user_id):
     user = User.query.get_or_404(user_id)
     person = user.person
@@ -422,6 +426,16 @@ def toggle_status(user_id):
         db.session.commit()
         
         estado_str = "activado" if new_status == 1 else "desactivado"
+        
+        BinnacleService.create_log_entry(
+            module=AuditModule.USERS.value,
+            action_type=AuditAction.CAMBIO_ESTATUS_USUARIO.value,
+            description=f'El perfil del usuario ha sido {estado_str} exitosamente.',
+            target_table='sages.users',
+            record_id=user.id,
+            status=AuditStatus.MODIFICADO.value
+        )
+        
         flash(f'El perfil del usuario ha sido {estado_str} exitosamente.', 'success')
         
     except Exception as e:
@@ -575,6 +589,15 @@ def get_evidence(staff_id):
 
     file_url = url_for('users.serve_evidence', filename=clean_path)
 
+    BinnacleService.create_log_entry(
+        module=AuditModule.USERS.value,
+        action_type=AuditAction.CONSULTA_EVIDENCIA.value,
+        description=f'Consulta de evidencia para solicitante staff_id: {staff_id}',
+        target_table='sages.staff_evidences',
+        record_id=evidence.id,
+        status=AuditStatus.COMPLETADO.value
+    )
+
     return jsonify({
         "status": "success", 
         "file_url": file_url,
@@ -614,6 +637,15 @@ def approve_request(staff_id):
         if status_in_progress:
             staff.status_id = status_in_progress.id 
         db.session.commit()
+
+        BinnacleService.create_log_entry(
+            module=AuditModule.USERS.value,
+            action_type=AuditAction.APROBACION_SOLICITUD_REGISTRO.value,
+            description=f'Solicitud aprobada exitosamente para {person.first_name} {person.last_name}',
+            target_table='sages.institutional_staff',
+            record_id=staff.id,
+            status=AuditStatus.COMPLETADO.value
+        )
 
         # 2. Llamada a la función de correo en hilo independiente DESPUÉS del commit
         send_applicant_activation_email(person.email, token)
@@ -734,6 +766,15 @@ def register_admin():
                 role_display=result_data['role_display'],
                 place_name=result_data['place_name'],
                 full_name=result_data['full_name']
+            )
+            
+            BinnacleService.create_log_entry(
+                module=AuditModule.USERS.value,
+                action_type=AuditAction.REGISTRO_ADMIN_INTERNO.value,
+                description=f'Alta corporativa de {result_data["role_display"]}: {result_data["full_name"]} asignado a sede {result_data["place_name"]}',
+                target_table='sages.users',
+                record_id=result_data['user_id'],
+                status=AuditStatus.COMPLETADO.value
             )
             
             flash(message, 'success')

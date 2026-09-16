@@ -21,6 +21,8 @@ from app.utils.password_utils import hash_password
 from app.models.status_model import Status
 from app.models.company_staff_model import CompanyStaff
 from app.pre_registration.services import _generate_short_code
+from app.binnacle.services import BinnacleService
+from app.binnacle.types import AuditAction, AuditStatus, AuditModule
 
 def is_safe_url(target: str) -> bool:
     """Verifica que la URL de redirección sea del mismo host."""
@@ -58,6 +60,12 @@ def login():
             is_api = False
 
         if not identifier or not password:
+            BinnacleService.log_security_event(
+                action_type=AuditAction.LOGIN_FALLIDO.value,
+                description=f'Intento de autenticación fallido (credenciales vacías) para: {identifier}',
+                user_identifier=identifier,
+                status=AuditStatus.FALLIDO.value
+            )
             error_msg = "Usuario y/o Contraseña inválidos."
             if is_api:
                 return jsonify({"error": error_msg}), 400
@@ -68,6 +76,12 @@ def login():
         success, user, msg = authenticate_user(identifier, password)
 
         if success and user:
+            BinnacleService.log_security_event(
+                action_type=AuditAction.LOGIN_EXITOSO.value,
+                description='Inicio de sesión satisfactorio en la plataforma',
+                user=user,
+                status=AuditStatus.COMPLETADO.value
+            )
             remember_me = False
             if is_api:
                 remember_me = data.get('remember', False)
@@ -94,6 +108,12 @@ def login():
                     next_page = None
                 return redirect(next_page or url_for(f'home_{role_name}'))
         else:
+            BinnacleService.log_security_event(
+                action_type=AuditAction.LOGIN_FALLIDO.value,
+                description=f'Intento de autenticación fallido para: {identifier}',
+                user_identifier=identifier,
+                status=AuditStatus.FALLIDO.value
+            )
             if is_api:
                 return jsonify({"error": msg}), 401
             else:
@@ -105,6 +125,12 @@ def login():
 @auth_bp.route('/logout', methods=['GET', 'POST'])
 @login_required
 def logout():
+    BinnacleService.log_security_event(
+        action_type=AuditAction.LOGOUT.value,
+        description='Cierre de sesión manual',
+        user=current_user,
+        status=AuditStatus.COMPLETADO.value
+    )
     logout_user()
     if request.is_json or (request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html):
         return jsonify({"message": "Sesión cerrada correctamente."}), 200
@@ -169,6 +195,13 @@ def password():
                 session['pw_reset_pending_email'] = person.email
                 session['pw_reset_initiated_at'] = time.time()
 
+                BinnacleService.log_security_event(
+                    action_type=AuditAction.RECUPERACION_SOLICITADA.value,
+                    description='Solicitud de recuperación de contraseña enviada al correo',
+                    user_identifier=id_card,
+                    status=AuditStatus.COMPLETADO.value
+                )
+
             elapsed = time.monotonic() - start
             time.sleep(max(0, 0.5 - elapsed))
             
@@ -222,6 +255,13 @@ def cancel_reset():
         return redirect(url_for('auth.login'))
         
     invalidate_token(email)
+
+    BinnacleService.log_security_event(
+        action_type=AuditAction.CANCELACION_RECUPERACION.value,
+        description='Proceso de recuperación de contraseña cancelado',
+        user_identifier=email,
+        status=AuditStatus.COMPLETADO.value
+    )
     
     # Limpiamos todas las variables de sesión asociadas a la recuperación
     session.pop('pw_reset_id_card', None)
@@ -239,6 +279,11 @@ def activate_account(token):
     # 1. Validar la firma y expiración del token
     payload = verify_activation_token(token)
     if not payload:
+        BinnacleService.log_security_event(
+            action_type=AuditAction.ACTIVACION_TOKEN_INVALIDO.value,
+            description='Intento de activación con token inválido o expirado',
+            status=AuditStatus.FALLIDO.value
+        )
         flash('El enlace de activación es inválido o ha expirado.', 'danger')
         return redirect(url_for('auth.login'))
 
@@ -305,6 +350,22 @@ def activate_account(token):
                     staff.status_id = active_status.id
 
             db.session.commit()
+
+            if flow == 'applicant':
+                BinnacleService.log_security_event(
+                    action_type=AuditAction.ACTIVACION_CUENTA.value,
+                    description=f'Activación de cuenta y creación de credenciales para solicitante {person.first_name} {person.last_name}',
+                    user=new_user,
+                    status=AuditStatus.COMPLETADO.value
+                )
+            elif flow == 'administrative':
+                sede_name = staff.place.name if hasattr(staff, 'place') else staff.institution.institution_name
+                BinnacleService.log_security_event(
+                    action_type=AuditAction.ACTIVACION_CUENTA.value,
+                    description=f'Activación de cuenta administrativa para {person.first_name} {person.last_name} (Sede: {sede_name})',
+                    user=user,
+                    status=AuditStatus.COMPLETADO.value
+                )
 
             flash('¡Tu cuenta ha sido activada exitosamente! Ya puedes iniciar sesión.', 'success')
             return redirect(url_for('auth.login'))

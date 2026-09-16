@@ -1,9 +1,12 @@
 from app.extensions import db
 from datetime import datetime, timezone
+from app.binnacle.mixins import AuditableMixin
+from app.binnacle.types import AuditModule
 
-class Institution(db.Model):
+class Institution(db.Model, AuditableMixin):
     __tablename__ = 'institutions'
     __table_args__ = {'schema': 'sages'}
+    __audit_module__ = AuditModule.INSTITUTIONS.value
 
     id = db.Column(db.BigInteger, primary_key=True)
     institution_code = db.Column(db.String(50), unique=True, nullable=False)
