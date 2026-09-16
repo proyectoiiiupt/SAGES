@@ -2,6 +2,8 @@ from flask import Flask, redirect, url_for, request, flash, render_template, ses
 from flask_limiter.errors import RateLimitExceeded
 from app.config import Config
 from app.extensions import db, migrate, login_manager, csrf, limiter, bcrypt
+from app.binnacle.services import BinnacleService
+from app.binnacle.types import AuditAction, AuditStatus, AuditModule
 
 def create_app(config_class=Config) -> Flask:
 
@@ -18,6 +20,8 @@ def create_app(config_class=Config) -> Flask:
 
     with app.app_context():
         from app import models
+        from app.binnacle.listeners import register_audit_listeners
+        register_audit_listeners(db)
 
     @app.before_request
     def make_session_permanent():
@@ -139,6 +143,13 @@ def create_app(config_class=Config) -> Flask:
             if status == 'VALID':
                 # El token ya fue consumido de forma atómica en validate_token_attempt
 
+                BinnacleService.log_security_event(
+                    action_type=AuditAction.CODIGO_VERIFICADO_EXITOSO.value,
+                    description='Código de recuperación verificado con éxito',
+                    user_identifier=email,
+                    status=AuditStatus.COMPLETADO.value
+                )
+
                 # Prevenir Session Fixation regenerando la sesión antes de elevar privilegios
                 old_email = email
                 session.clear()
@@ -152,10 +163,28 @@ def create_app(config_class=Config) -> Flask:
                 flash('Código verificado exitosamente. Ingrese su nueva contraseña.', 'success')
                 return redirect(url_for('new_password'))
             elif status == 'BLOCKED':
+                BinnacleService.log_security_event(
+                    action_type=AuditAction.CODIGO_VERIFICADO_FALLIDO.value,
+                    description='Fallo al verificar código de recuperación (bloqueado por demasiados intentos)',
+                    user_identifier=email,
+                    status=AuditStatus.FALLIDO.value
+                )
                 flash('Demasiados intentos incorrectos. El código ha sido invalidado. Solicite un reenvío.', 'danger')
             elif status == 'EXPIRED':
+                BinnacleService.log_security_event(
+                    action_type=AuditAction.CODIGO_VERIFICADO_FALLIDO.value,
+                    description='Fallo al verificar código de recuperación (token expirado)',
+                    user_identifier=email,
+                    status=AuditStatus.FALLIDO.value
+                )
                 flash('El código ha expirado (validez de 5 min). Solicite un reenvío.', 'warning')
             else:
+                BinnacleService.log_security_event(
+                    action_type=AuditAction.CODIGO_VERIFICADO_FALLIDO.value,
+                    description='Fallo al verificar código de recuperación (código incorrecto)',
+                    user_identifier=email,
+                    status=AuditStatus.FALLIDO.value
+                )
                 flash('El código es incorrecto. Verifique e intente nuevamente.', 'danger')
 
         from app.auth.token_store import get_remaining_seconds
@@ -221,6 +250,13 @@ def create_app(config_class=Config) -> Flask:
             user = person.user
             from app.utils.password_utils import change_user_password
             change_user_password(user, password)
+
+            BinnacleService.log_security_event(
+                action_type=AuditAction.CAMBIO_CONTRASENA_RECUPERACION.value,
+                description='Contraseña cambiada exitosamente vía recuperación OTP',
+                user=user,
+                status=AuditStatus.COMPLETADO.value
+            )
 
             # Limpiar sesión
             session.pop('pw_reset_verified', None)

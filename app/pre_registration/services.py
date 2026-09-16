@@ -19,6 +19,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select
 from app.extensions import db
 from app.utils.email_utils import send_preregistration_email
+from app.binnacle.services import BinnacleService
+from app.binnacle.types import AuditAction, AuditModule, AuditStatus
 
 logger = logging.getLogger(__name__)
 
@@ -516,6 +518,16 @@ def create_pre_registration(
 
         db.session.commit()
 
+        BinnacleService.create_log_entry(
+            module=AuditModule.PRE_REGISTRATION.value,
+            action_type=AuditAction.SOLICITUD_NUEVA_INSTITUCION.value,
+            description=f'Solicitud pública de registro para institución {institution.institution_name} (Plantel: {institution.plantel_code}) por {person_data.get("first_name", "")} {person_data.get("last_name", "")}',
+            target_table='sages.institutions',
+            record_id=institution.id,
+            user_identifier=person_data.get('identification_number'),
+            status=AuditStatus.RECIBIDO.value
+        )
+
         # Desencadenar notificaciones
         try:
             full_name = f"{person_data.get('first_name', '')} {person_data.get('last_name', '')}".strip()
@@ -610,6 +622,16 @@ def join_existing_institution(
 
         db.session.commit()
 
+        BinnacleService.create_log_entry(
+            module=AuditModule.PRE_REGISTRATION.value,
+            action_type=AuditAction.SOLICITUD_VINCULACION_EXISTENTE.value,
+            description=f'Solicitud de vinculación a la institución {institution.institution_name} (Plantel: {institution.plantel_code}) por {person_data.get("first_name", "")} {person_data.get("last_name", "")}',
+            target_table='sages.institutional_staff',
+            record_id=staff.id,
+            user_identifier=person_data.get('identification_number'),
+            status=AuditStatus.RECIBIDO.value
+        )
+
         try:
             full_name = f"{person_data.get('first_name', '')} {person_data.get('last_name', '')}".strip()
             inst_name = institution.institution_name
@@ -702,6 +724,16 @@ def join_delegated_institution(
         )
 
         db.session.commit()
+
+        BinnacleService.create_log_entry(
+            module=AuditModule.PRE_REGISTRATION.value,
+            action_type=AuditAction.SOLICITUD_DELEGADA_INVITACION.value,
+            description=f'Registro de colaborador delegado completado para {institution.institution_name} vía token de invitación por {person_data.get("first_name", "")} {person_data.get("last_name", "")}',
+            target_table='sages.institutional_staff',
+            record_id=staff.id,
+            user_identifier=person_data.get('identification_number'),
+            status=AuditStatus.RECIBIDO.value
+        )
 
         try:
             full_name = f"{person_data.get('first_name', '')} {person_data.get('last_name', '')}".strip()

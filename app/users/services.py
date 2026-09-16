@@ -19,7 +19,8 @@ from app.models.parish_model import Parish
 from app.models.municipality_model import Municipality
 from app.models.status_model import Status
 from app.utils.password_utils import change_user_password
-from app.utils.binnacle_utils import log_action
+from app.binnacle.services import BinnacleService
+from app.binnacle.types import AuditAction, AuditModule, AuditStatus
 from app.pre_registration.services import _generate_short_code
 import secrets
 import json
@@ -232,11 +233,11 @@ def update_user_contact(user: User, email: str, mobile: str, phone: str) -> Tupl
         db.session.add(person)
         db.session.commit()
 
-        log_action(
-            user_id=user.id,
-            module='users',
-            action_type='UPDATE',
-            description='Actualización de datos de contacto realizada por el usuario en su perfil'
+        BinnacleService.create_log_entry(
+            module=AuditModule.USERS.value,
+            action_type=AuditAction.ACTUALIZAR_CONTACTO_PROPIO.value,
+            description='Actualización de datos de contacto realizada por el usuario en su perfil',
+            status=AuditStatus.MODIFICADO.value
         )
 
         return True, "Los datos de contacto han sido actualizados exitosamente."
@@ -288,11 +289,11 @@ def change_profile_password(user: User, current_password: str, new_password: str
         change_user_password(user, new_password)
 
         # 7. Registrar acción en bitácora para auditoría
-        log_action(
-            user_id=user.id,
-            module='users',
-            action_type='UPDATE',
-            description='Actualización de contraseña realizada por el usuario en su perfil'
+        BinnacleService.create_log_entry(
+            module=AuditModule.USERS.value,
+            action_type=AuditAction.CAMBIO_PASSWORD_PERFIL.value,
+            description='Actualización de contraseña realizada por el usuario en su perfil',
+            status=AuditStatus.MODIFICADO.value
         )
 
         return True, "Tu contraseña ha sido actualizada exitosamente."
@@ -435,7 +436,8 @@ def create_administrative_user(data: dict, creator_user: User) -> Tuple[bool, st
             'place_name': place.name,
             'full_name': f"{person.first_name} {person.last_name}",
             'staff_id': company_staff.id,
-            'role_id': role.id
+            'role_id': role.id,
+            'user_id': user.id
         }
 
     except IntegrityError as e:

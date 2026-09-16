@@ -1,9 +1,12 @@
 from app.extensions import db
 from datetime import datetime, timezone
+from app.binnacle.mixins import AuditableMixin
+from app.binnacle.types import AuditModule
 
-class CompanyStaff(db.Model):
+class CompanyStaff(db.Model, AuditableMixin):
     __tablename__ = 'company_staff'
     __table_args__ = {'schema': 'sages'}
+    __audit_module__ = AuditModule.USERS.value
 
     id = db.Column(db.BigInteger, primary_key=True)
     person_id = db.Column(db.BigInteger, db.ForeignKey('sages.persons.id'), nullable=False)
