@@ -1,80 +1,173 @@
-{% extends "public/base_public.html" %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAGES - Activar Cuenta</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/icon_corpoelec.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/activate.css') }}">
 
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='CSS/public.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='CSS/auth.css') }}">
-{% endblock %}
+</head>
+<body class="activate-body">
 
-{% block content %}
-<div style="background: #ffffff; padding: 35px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2); width: 100%; max-width: 480px; margin: auto; box-sizing: border-box;">
-    
-    <div style="text-align: center; margin-bottom: 24px;">
-        <img src="{{ url_for('static', filename='img/logo_corpoelec.png') }}" alt="CORPOELEC" style="width: 220px; max-width: 100%; height: auto; display: block; margin: 0 auto 16px auto;">
-        
-        <h2 style="color: #1e293b; font-size: 22px; font-weight: 700; margin-bottom: 8px; margin-top: 0;">Activar Cuenta</h2>
-        <p style="color: #64748b; font-size: 14px; line-height: 1.5; margin: 0;">
-            Hola <strong>{{ person.first_name }} {{ person.last_name }}</strong>,<br>
-            establece tu contraseña para activar tu acceso al sistema.
-        </p>
-    </div>
+    <!-- Header superior -->
+    <header class="ac-header-label">
+        <p>Sistema de Gestión de Solicitudes de Formación - CORPOELEC</p>
+    </header>
 
-    <form method="POST">
-        {{ form.hidden_tag() }}
-        
-        <div style="margin-bottom: 16px;">
-            <label style="display: block; font-weight: 600; color: #334155; margin-bottom: 6px; font-size: 14px;">Nueva Contraseña</label>
-            <!-- Aseguramos de que el id sea 'new_password' para que el JS lo reconozca -->
-            {{ form.password(id="new_password", style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none;") }}
-        </div>
+    <!-- Tarjeta principal (2 columnas) -->
+    <main class="ac-card">
 
-        <!-- Requisitos de contraseña integrados visualmente -->
-        <div id="password-requirements" style="background: #f8fafc; padding: 12px; border-radius: 6px; margin-bottom: 16px; font-size: 12px; color: #64748b;">
-            <p style="margin: 0 0 6px 0; font-weight: 600; color: #475569;">La contraseña debe cumplir con:</p>
-            <ul style="margin: 0; padding-left: 18px; list-style-type: disc;">
-                <li id="req-length" style="color: #ef4444; margin-bottom: 3px;">Mínimo 8 caracteres</li>
-                <li id="req-uppercase" style="color: #ef4444; margin-bottom: 3px;">Al menos una letra mayúscula</li>
-                <li id="req-number" style="color: #ef4444; margin-bottom: 3px;">Al menos un número</li>
-                <li id="req-special" style="color: #ef4444;">Al menos un carácter especial (@, $, !, %, *, ?, &)</li>
-            </ul>
-        </div>
+        <!-- ============================================================
+             PANEL IZQUIERDO — Datos del usuario + parámetros de seguridad
+             ============================================================ -->
+        <section class="ac-info-section">
+            <h2 class="ac-info-title">
+                Activar <span>Cuenta</span>
+            </h2>
+            <p class="ac-info-subtitle">
+                Establece tu contraseña de acceso para activar tu cuenta en SAGES.
+            </p>
 
-        <div style="margin-bottom: 24px;">
-            <label style="display: block; font-weight: 600; color: #334155; margin-bottom: 6px; font-size: 14px;">Confirmar Contraseña</label>
-            {{ form.confirm_password(style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box; outline: none;") }}
-        </div>
+            <!-- Datos del usuario -->
+            <div class="ac-user-card">
+                <div class="ac-user-card-title">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    Datos del Titular
+                </div>
 
-        <button type="submit" id="submit-btn" style="width: 100%; background-color: #0284c7; color: white; border: none; padding: 12px; border-radius: 6px; font-weight: 600; font-size: 15px; cursor: pointer; transition: background 0.2s;">
-            Activar Cuenta
-        </button>
-    </form>
-</div>
+                <div class="ac-data-row">
+                    <div class="ac-data-label">Cédula de Identidad</div>
+                    <span class="ac-data-value">{{ person.identification_type }}-{{ person.identification_number }}</span>
+                </div>
 
-<!-- Lógica de validación en tiempo real (idéntica a la recuperación de clave) -->
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        const passwordInput = document.getElementById('new_password');
-        const reqLength = document.getElementById('req-length');
-        const reqUppercase = document.getElementById('req-uppercase');
-        const reqNumber = document.getElementById('req-number');
-        const reqSpecial = document.getElementById('req-special');
+                <div class="ac-data-row">
+                    <div class="ac-data-label">Nombre Completo</div>
+                    <span class="ac-data-value">{{ person.first_name }} {{ person.last_name }}</span>
+                </div>
 
-        if (passwordInput) {
-            passwordInput.addEventListener('input', function() {
-                const val = passwordInput.value;
-                
-                // Validar longitud (8 caracteres)
-                reqLength.style.color = (val.length >= 8) ? '#10b981' : '#ef4444';
-                
-                // Validar mayúscula
-                reqUppercase.style.color = (/[A-Z]/.test(val)) ? '#10b981' : '#ef4444';
-                
-                // Validar número
-                reqNumber.style.color = (/\d/.test(val)) ? '#10b981' : '#ef4444';
-                
-                // Validar carácter especial
-                reqSpecial.style.color = (/[@$!%*?&]/.test(val)) ? '#10b981' : '#ef4444';
-            });
-        }
-    });
-</script>
-{% endblock %}
+                <div class="ac-data-row">
+                    {% if flow == 'administrative' %}
+                        <div class="ac-data-label">Sede CORPOELEC</div>
+                        <span class="ac-data-value">{{ staff.place.name if staff and staff.place else 'N/A' }}</span>
+                    {% else %}
+                        <div class="ac-data-label">Institución</div>
+                        <span class="ac-data-value">{{ staff.institution.institution_name if staff and staff.institution else 'N/A' }}</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Panel de parámetros de seguridad -->
+            <div class="ac-security-panel">
+                <div class="ac-panel-header">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                    Parámetros de seguridad
+                </div>
+                <ul class="ac-param-list">
+                    <li id="ac-param-length" class="ac-param-item">
+                        <span class="ac-param-icon">❌</span>
+                        Debe tener al menos 8 caracteres
+                    </li>
+                    <li id="ac-param-uppercase" class="ac-param-item">
+                        <span class="ac-param-icon">❌</span>
+                        Debe tener al menos 1 mayúscula
+                    </li>
+                    <li id="ac-param-number" class="ac-param-item">
+                        <span class="ac-param-icon">❌</span>
+                        Debe tener al menos 1 número
+                    </li>
+                    <li id="ac-param-special" class="ac-param-item">
+                        <span class="ac-param-icon">❌</span>
+                        Debe tener al menos 1 carácter especial ($@.!%*?&amp;)
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- ============================================================
+             PANEL DERECHO — Logo + Formulario
+             ============================================================ -->
+        <section class="ac-form-section">
+            <header class="ac-form-header">
+                <div class="ac-logo-container">
+                    <img src="{{ url_for('static', filename='img/logo_corpoelec.png') }}" alt="CORPOELEC">
+                </div>
+                <h1>Crear Contraseña</h1>
+                <p>Ingresa y confirma tu nueva contraseña de acceso</p>
+            </header>
+
+            <!-- Mensajes flash del servidor -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="ac-flash-msg {% if category == 'success' %}success{% endif %}">
+                            {{ message | e }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form id="activateForm" method="POST" class="ac-form" novalidate>
+                {{ form.hidden_tag() }}
+
+                <!-- Campo: Nueva Contraseña -->
+                <div class="ac-form-group">
+                    <label class="ac-form-label" for="ac-password">Nueva Contraseña</label>
+                    <div class="ac-input-wrapper" id="ac-wrapper-password">
+                        {{ form.password(
+                            id="ac-password",
+                            class="ac-form-input",
+                            placeholder="••••••••",
+                            minlength="8",
+                            maxlength="128",
+                            autocomplete="new-password"
+                        ) }}
+                        <button type="button" id="ac-togglePassword1" class="ac-toggle-password" aria-label="Mostrar contraseña">
+                            <svg id="ac-toggleIcon1" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <span class="ac-field-error" id="ac-error-password" role="alert"></span>
+                </div>
+
+                <!-- Campo: Confirmar Contraseña -->
+                <div class="ac-form-group">
+                    <label class="ac-form-label" for="ac-password2">Confirmar Contraseña</label>
+                    <div class="ac-input-wrapper" id="ac-wrapper-password2">
+                        {{ form.confirm_password(
+                            id="ac-password2",
+                            class="ac-form-input",
+                            placeholder="••••••••",
+                            minlength="8",
+                            maxlength="128",
+                            autocomplete="new-password"
+                        ) }}
+                        <button type="button" id="ac-togglePassword2" class="ac-toggle-password" aria-label="Mostrar contraseña">
+                            <svg id="ac-toggleIcon2" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <span class="ac-field-error" id="ac-error-password2" role="alert"></span>
+                </div>
+
+                <!-- Botón de envío -->
+                <button type="submit" id="ac-submit-btn" class="ac-submit-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                    <span>Activar Cuenta</span>
+                </button>
+            </form>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='JS/validation_activate.js') }}"></script>
+</body>
+</html>

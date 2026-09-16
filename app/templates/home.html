@@ -205,7 +205,7 @@
 
     {# Registrar Usuario #}
     {% if 'register_users' in user_permissions %}
-    <a href="#" class="card card-green">
+    <a href="{{ url_for('users.register_admin') }}" class="card card-green">
         <div class="card-header">
             <div class="card-title">Registrar Usuario</div>
             <div class="card-icon">

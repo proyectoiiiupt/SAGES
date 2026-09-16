@@ -81,7 +81,7 @@ def send_recovery_email(to_email: str, code: str) -> bool:
             <tr>
                 <td align="center" style="padding: 40px 20px 20px 20px;">
                     {logo_html}
-                    <h1 style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.5;">Sistema de Gestión de Solicitudes</h1>
+                    <h1 style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.5;">Sistema de Gestión de Solicitudes de Formación</h1>
                 </td>
             </tr>
             <tr>
@@ -149,7 +149,7 @@ Por favor, no responda a este correo automatizado."""
             <tr>
                 <td align="center" style="padding: 40px 20px 20px 20px;">
                     {logo_html}
-                    <h1 style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.5;">Sistema de Gestión de Solicitudes</h1>
+                    <h1 style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.5;">Sistema de Gestión de Solicitudes de Formación</h1>
                 </td>
             </tr>
             <tr>
@@ -215,7 +215,7 @@ def send_invitation_email(to_email: str, link: str, institution_name: str) -> bo
             <tr>
                 <td align="center" style="padding: 40px 20px 20px 20px;">
                     {logo_html}
-                    <h1 style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.5;">Sistema de Gestión de Solicitudes</h1>
+                    <h1 style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.5;">Sistema de Gestión de Solicitudes de Formación</h1>
                 </td>
             </tr>
             <tr>
@@ -272,7 +272,7 @@ def send_applicant_activation_email(to_email: str, token: str) -> bool:
             <tr>
                 <td align="center" style="padding: 40px 20px 20px 20px;">
                     {logo_html}
-                    <h1 style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.5;">Sistema de Gestión de Solicitudes</h1>
+                    <h1 style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.5;">Sistema de Gestión de Solicitudes de Formación</h1>
                 </td>
             </tr>
             <tr>
@@ -309,4 +309,73 @@ def send_applicant_activation_email(to_email: str, token: str) -> bool:
     thread.start()
     return True
 
+
+def send_administrative_activation_email(to_email: str, token: str, role_display: str, place_name: str, full_name: str) -> bool:
+    """Envía el enlace de activación a personal administrativo tras su registro (US-13)."""
+    import html
+    safe_role = html.escape(role_display)
+    safe_name = html.escape(full_name)
+    safe_place = html.escape(place_name)
+    
+    activation_url = url_for('auth.activate_account', token=token, _external=True)
+    subject = "Credenciales de Acceso Administrativo — SAGES CORPOELEC"
+    
+    text_content = (
+        f"Alta Corporativa Exitosa\n\n"
+        f"Estimado {safe_name}, usted ha sido registrado en el Sistema de Gestión de Solicitudes de Formación de La Corporación Eléctrica Nacional (CORPOELEC) con un perfil administrativo.\n\n"
+        f"Para activar su cuenta, haga clic en el siguiente enlace:\n{activation_url}\n\n"
+        f"Este enlace tiene una caducidad estricta de 48 horas.\n"
+    )
+
+    logo_html = get_logo_html()
+    html_content = f"""<!DOCTYPE html>
+    <html lang="es">
+    <head><meta charset="UTF-8"><title>{subject}</title></head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9fafb; color: #1f2937;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb; overflow: hidden;">
+            <tr><td style="height: 6px; background: linear-gradient(90deg, #1c3d73 0%, #1fcab0 100%);"></td></tr>
+            <tr>
+                <td align="center" style="padding: 40px 20px 20px 20px;">
+                    {logo_html}
+                    <h1 style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.5;">Sistema de Gestión de Solicitudes de Formación</h1>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 0 40px;">
+                    <h2 style="font-size: 22px; font-weight: 700; color: #1f2937; margin: 10px 0 20px 0; text-transform: uppercase; letter-spacing: 0.5px;">REGISTRO CORPORATIVO CORPOELEC</h2>
+                    <p style="font-size: 15px; color: #4b5563; margin: 0 0 15px 0; line-height: 1.6; text-align: left;">
+                        Estimado <strong>{safe_name}</strong>, usted ha sido registrado en el Sistema de Gestión de Solicitudes de Formación de La Corporación Eléctrica Nacional (CORPOELEC) con un perfil administrativo.
+                    </p>
+                    <div style="background-color: #f3f4f6; border-radius: 8px; padding: 15px; margin-bottom: 20px; text-align: left;">
+                        <p style="margin: 0 0 10px 0; font-size: 14px;"><strong>Tipo de Usuario:</strong> <span style="color: #1c3d73;">{safe_role}</span></p>
+                        <p style="margin: 0; font-size: 14px;"><strong>Sede de Adscripción:</strong> <span style="color: #1c3d73;">{safe_place}</span></p>
+                    </div>
+                    <p style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.6; text-align: left;">
+                        Para habilitar su acceso al panel de control, defina su contraseña haciendo clic en el siguiente botón:
+                    </p>
+                    <a href="{activation_url}" style="display: inline-block; background: linear-gradient(90deg, #1c3d73 0%, #1fcab0 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 10px 0;">Establecer Contraseña</a>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 30px 40px 40px 40px;">
+                    <hr style="border: 0; border-top: 1px solid #e5e7eb; margin-bottom: 25px;">
+                    <p style="font-size: 12px; color: #9ca3af; line-height: 1.6; margin: 0; text-align: justify;">
+                        * Este enlace es personal e intransferible, con caducidad estricta de 48 horas. Si usted no es el destinatario de este mensaje, por favor notifique al administrador del sistema.
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
+                    &copy; 2026 SAGES. Todos los derechos reservados.
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+    
+    # Despacho en hilo independiente
+    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content))
+    thread.start()
+    return True
 

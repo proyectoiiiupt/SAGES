@@ -17,7 +17,10 @@ from app.models.user_model import User
 from app.models.role_user_model import RoleUser  # Cambiado a RoleUser
 from app.models.role_model import Role
 from app.extensions import db
-from werkzeug.security import generate_password_hash # Para encriptar la clave
+from app.utils.password_utils import hash_password
+from app.models.status_model import Status
+from app.models.company_staff_model import CompanyStaff
+from app.pre_registration.services import _generate_short_code
 
 def is_safe_url(target: str) -> bool:
     """Verifica que la URL de redirección sea del mismo host."""
@@ -240,36 +243,67 @@ def activate_account(token):
         return redirect(url_for('auth.login'))
 
     person = Person.query.get_or_404(payload['person_id'])
-    staff = InstitutionalStaff.query.get_or_404(payload['staff_id'])
+    
+    flow = payload.get('flow', 'applicant')
 
-    # Evitar reactivaciones si la persona ya posee usuario
-    if person.user:
+    # Para el flujo de solicitantes, si ya tiene usuario, significa que ya se activó
+    if flow == 'applicant' and person.user:
         flash('Esta cuenta ya fue activada previamente. Por favor inicie sesión.', 'info')
         return redirect(url_for('auth.login'))
+
+    # Guard de un solo uso para el flujo administrative
+    if flow == 'administrative':
+        admin_user = person.user
+        if not admin_user:
+            flash('El usuario administrativo no fue encontrado. Contacte a soporte.', 'danger')
+            return redirect(url_for('auth.login'))
+        _active_check = Status.query.filter_by(status_code='STAT-001').first()
+        if _active_check and admin_user.status_id == _active_check.id:
+            flash('Esta cuenta ya fue activada previamente. Por favor inicie sesión.', 'info')
+            return redirect(url_for('auth.login'))
+
+    if flow == 'applicant':
+        staff = InstitutionalStaff.query.get_or_404(payload['staff_id'])
+    else:
+        staff = CompanyStaff.query.get_or_404(payload['staff_id'])
 
     form = ActivationPasswordForm()
 
     if form.validate_on_submit():
         try:
-            # 2. Crear la cuenta de usuario vinculada
-            new_user = User(
-                user_code=f"USR-{person.identification_number}",
-                user_name=person.email,
-                person_id=person.id,
-                status_id=1,
-                password=generate_password_hash(form.password.data)
-            )
-            db.session.add(new_user)
-            db.session.flush()
+            if flow == 'applicant':
+                # 2. Crear la cuenta de usuario vinculada
+                new_user = User(
+                    user_code=_generate_short_code('USR', User, 'user_code'),
+                    user_name=person.identification_number,
+                    person_id=person.id,
+                    status_id=1,
+                    password=hash_password(form.password.data)
+                )
+                db.session.add(new_user)
+                db.session.flush()
 
-            # 3. Asignar rol por defecto (applicant)
-            applicant_role = Role.query.filter_by(name='applicant').first()
-            if applicant_role:
-                user_role = RoleUser(user_id=new_user.id, role_id=applicant_role.id)
-                db.session.add(user_role)
+                # 3. Asignar rol por defecto (applicant)
+                applicant_role = Role.query.filter_by(name='applicant').first()
+                if applicant_role:
+                    user_role = RoleUser(user_id=new_user.id, role_id=applicant_role.id)
+                    db.session.add(user_role)
 
-            # 4. Actualizar el estatus institucional a Activo/Aprobado
-            staff.status_id = 1
+                # 4. Actualizar el estatus institucional a Activo/Aprobado
+                staff.status_id = 1
+            elif flow == 'administrative':
+                # El User fue pre-creado en services.py con STAT-006 (En proceso).
+                # El guard anterior garantiza que person.user existe y está en STAT-006.
+                user = person.user
+                # 1. Contraseña definitiva con bcrypt (utilitario centralizado)
+                user.password = hash_password(form.password.data)
+                # 2. Activar User: STAT-006 -> STAT-001
+                active_status = Status.query.filter_by(status_code='STAT-001').first()
+                if active_status:
+                    user.status_id = active_status.id
+                    # 3. Activar CompanyStaff: STAT-006 -> STAT-001
+                    staff.status_id = active_status.id
+
             db.session.commit()
 
             flash('¡Tu cuenta ha sido activada exitosamente! Ya puedes iniciar sesión.', 'success')
@@ -278,6 +312,7 @@ def activate_account(token):
         except Exception as e:
             db.session.rollback()
             print(f"[ERROR ACTIVATION]: {e}")
-            flash('Ocurrió un error al intentar crear la cuenta.', 'danger')
+            flash('Ocurrió un error al intentar activar la cuenta.', 'danger')
 
-    return render_template('auth/activate.html', form=form, person=person)
+    return render_template('auth/activate.html', form=form, person=person, staff=staff, flow=flow)
+
