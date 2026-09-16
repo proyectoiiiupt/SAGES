@@ -16,8 +16,11 @@ from app.models.parish_model import Parish
 from app.models.municipality_model import Municipality
 from app.models.staff_evidence_model import StaffEvidence
 from app.models.position_model import Position  
-from app.users.forms import UserUpdateForm
-
+from app.models.status_model import Status
+from app.users.forms import UserUpdateForm, AdminUserRegisterForm
+from app.utils.activation_utils import generate_activation_token
+from app.utils.email_utils import send_applicant_activation_email, send_administrative_activation_email
+from app.users.services import get_corpoelec_places_by_state, get_administrative_positions, create_administrative_user
 
 
 users_bp = Blueprint('users', __name__)
@@ -522,7 +525,8 @@ def list_requests():
             target_state_id = admin_inst.institution.parish.municipality.state_id
             
     # Filtro simplificado basado estrictamente en las instrucciones del líder técnico
-    pending_requests = InstitutionalStaff.query.filter_by(status_id=4).all()
+    status_pending = Status.query.filter_by(status_code='STAT-004').first()
+    pending_requests = InstitutionalStaff.query.filter_by(status_id=status_pending.id).all() if status_pending else []
 
     return render_template(
         'users/requests_list.html', 
@@ -576,3 +580,167 @@ def get_evidence(staff_id):
         "file_url": file_url,
         "file_type": clean_path.split('.')[-1].lower() 
     })
+
+@users_bp.route('/requests/<int:staff_id>/approve', methods=['POST'])
+@login_required
+def approve_request(staff_id):
+    user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
+    if user_role not in ['state_admin', 'super_admin']:
+        return jsonify({'status': 'error', 'message': 'No tiene permisos para realizar esta acción.'}), 403
+
+    staff = InstitutionalStaff.query.get_or_404(staff_id)
+    person = staff.person
+
+    if not person:
+        return jsonify({'status': 'error', 'message': 'El registro no posee información de persona asociada.'}), 400
+
+    # Comprobar que no posea ya una cuenta de usuario activa
+    if person.user:
+        return jsonify({'status': 'error', 'message': 'Esta persona ya posee un usuario registrado en el sistema.'}), 400
+
+    try:  # CORREGIDO: ttry -> try
+        # Generación del token seguro con vigencia de 48h
+        payload = {
+            'person_id': person.id,
+            'staff_id': staff.id,
+            'flow': 'applicant',
+            'email': person.email
+        }
+        token = generate_activation_token(payload)
+
+        # 1. Actualizar el estatus del InstitutionalStaff a STAT-006 (En Proceso)
+        # DESCOMENTADO para cumplir con la Sección 3.2 del documento de especificaciones
+        status_in_progress = Status.query.filter_by(status_code='STAT-006').first()
+        if status_in_progress:
+            staff.status_id = status_in_progress.id 
+        db.session.commit()
+
+        # 2. Llamada a la función de correo en hilo independiente DESPUÉS del commit
+        send_applicant_activation_email(person.email, token)
+
+        return jsonify({
+            'status': 'success',
+            'message': f'Solicitud aprobada exitosamente. Se ha generado el enlace de activación para {person.first_name} {person.last_name}.'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"[ERROR APPROVE REQUEST]: {e}")
+        return jsonify({'status': 'error', 'message': 'Ocurrió un error interno al procesar la aprobación.'}), 500
+
+
+# ==========================================
+# REGISTRO ADMINISTRATIVO INTERNO (US-13)
+# ==========================================
+
+@users_bp.route('/api/validate-identification', methods=['GET'])
+@login_required
+def validate_identification():
+    id_number = request.args.get('id', '').strip()
+    if not id_number:
+        return jsonify({'valid': False, 'message': 'Cédula requerida'})
+    
+    person = Person.query.filter_by(identification_number=id_number).first()
+    if person:
+        return jsonify({'valid': False, 'message': 'Esta cédula ya está registrada'})
+    
+    return jsonify({'valid': True})
+
+@users_bp.route('/api/validate-email', methods=['GET'])
+@login_required
+def validate_email():
+    email = request.args.get('email', '').strip().lower()
+    if not email:
+        return jsonify({'valid': False, 'message': 'Correo requerido'})
+        
+    person = Person.query.filter(db.func.lower(Person.email) == email).first()
+    if person:
+        return jsonify({'valid': False, 'message': 'Este correo ya está registrado'})
+        
+    return jsonify({'valid': True})
+
+@users_bp.route('/api/places-by-state/<int:state_id>', methods=['GET'])
+@login_required
+def api_places_by_state(state_id):
+    places = get_corpoelec_places_by_state(state_id)
+    return jsonify(places)
+
+@users_bp.route('/register', methods=['GET', 'POST'])
+@login_required
+def register_admin():
+    user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
+    if user_role not in ['super_admin']:
+        abort(403)
+        
+    form = AdminUserRegisterForm()
+    
+    # Cargar roles permitidos
+    _role_names = {'super_admin': 'Super Administrador', 'state_admin': 'Administrador Estadal'}
+    form.role_id.choices = [('', 'Seleccione un rol...')] + [
+        (str(r.id), _role_names.get(r.name, r.name.title())) 
+        for r in Role.query.filter(Role.role_code.in_(['ROL-001', 'ROL-002'])).all()
+    ]
+    
+    # Cargar estados
+    form.state_id.choices = [('', 'Seleccione un estado...')] + [(str(s.id), s.name) for s in State.query.order_by(State.name).all()]
+    
+    # Cargar cargos administrativos
+    form.position_id.choices = [('', 'Seleccione un cargo...')] + [(str(p['id']), p['name']) for p in get_administrative_positions()]
+    
+    # Las sedes se cargan dinámicamente, pero para POST validación agregamos la seleccionada
+    if request.method == 'POST' and form.state_id.data:
+        try:
+            state_id = int(form.state_id.data)
+            places = get_corpoelec_places_by_state(state_id)
+            form.place_id.choices = [('', 'Seleccione una sede...')] + [(str(p['id']), p['name']) for p in places]
+        except ValueError:
+            form.place_id.choices = [('', 'Seleccione una sede...')]
+    else:
+        form.place_id.choices = [('', 'Seleccione una sede...')]
+
+    if form.validate_on_submit():
+        data = {
+            'identification_type': form.identification_type.data,
+            'identification_number': form.identification_number.data,
+            'first_name': form.first_name.data.title(),
+            'second_name': form.second_name.data.title() if form.second_name.data else None,
+            'last_name': form.last_name.data.title(),
+            'middle_name': form.middle_name.data.title() if form.middle_name.data else None,
+            'email': form.email.data.lower(),
+            'mobile': form.mobile.data,
+            'phone': form.phone.data if form.phone.data else None,
+            'role_id': int(form.role_id.data),
+            'state_id': int(form.state_id.data),
+            'place_id': int(form.place_id.data),
+            'position_id': int(form.position_id.data),
+            'is_active': False
+        }
+        
+        success, message, result_data = create_administrative_user(data, current_user)
+        
+        if success:
+            # Generar token y enviar correo
+            payload = {
+                'person_id': result_data['person_id'],
+                'staff_id': result_data['staff_id'],
+                'flow': 'administrative',
+                'role_id': result_data['role_id'],
+                'email': result_data['email']
+            }
+            token = generate_activation_token(payload)
+            send_administrative_activation_email(
+                to_email=result_data['email'],
+                token=token,
+                role_display=result_data['role_display'],
+                place_name=result_data['place_name'],
+                full_name=result_data['full_name']
+            )
+            
+            flash(message, 'success')
+            return redirect(url_for('users.list_users'))
+        else:
+            flash(message, 'danger')
+            
+
+
+    return render_template('users/register_admin.html', form=form, current_role=user_role)

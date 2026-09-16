@@ -15,6 +15,7 @@ class Status(db.Model):
     places = db.relationship('Place', back_populates='status', lazy=True)
     users = db.relationship('User', back_populates='status', lazy=True)
     institutional_staff = db.relationship('InstitutionalStaff', back_populates='status', lazy=True)
+    company_staff = db.relationship('CompanyStaff', back_populates='status', lazy=True)
     trainings = db.relationship('Training', back_populates='status', lazy=True)
     requests = db.relationship('Request', back_populates='status', lazy=True)
 
