@@ -3,12 +3,115 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/dashboard.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/users_list.css') }}">
+<style>
+    /* Layout de cuadrícula ajustado a 70% / 30% */
+    .dashboard-bottom-grid {
+        display: grid;
+        grid-template-columns: 70% 30%;
+        gap: 1.5rem;
+        margin-top: 2rem;
+    }
+
+    /* Evita que los elementos hijos del grid rompan el contenedor */
+    .dashboard-bottom-grid > div {
+        min-width: 0;
+    }
+
+    /* Estilos del widget de bitácora */
+    .figma-table-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        overflow: hidden;
+    }
+
+    .figma-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.25rem 1.25rem 0.75rem 1.25rem;
+    }
+
+    .figma-card-title {
+        margin: 0;
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Colores estrictos de estatus */
+    .badge-pill {
+        display: inline-block;
+        padding: 0.2rem 0.6rem;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        text-align: center;
+        white-space: nowrap;
+    }
+    
+    .badge-completed { background: #d1fae5; color: #065f46; }
+    .badge-modified { background: #fef3c7; color: #92400e; }
+    .badge-process { background: #e0f2fe; color: #0369a1; }
+    .badge-failed { background: #fee2e2; color: #991b1b; }
+    .badge-action { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+
+    /* Tabla optimizada para ahorrar espacio horizontal */
+    .figma-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+    }
+    
+    .figma-table th {
+        background: #e2e8f0;
+        color: #0f172a;
+        font-weight: 700;
+        text-align: left;
+        padding: 0.6rem 0.75rem;
+        white-space: nowrap;
+    }
+
+    .figma-table td {
+        padding: 0.6rem 0.75rem;
+        color: #334155;
+        vertical-align: middle;
+    }
+
+    .figma-table tbody tr:nth-child(even) { background: #f1f5f9; }
+
+    .table-footer {
+        padding: 1rem 1.25rem;
+        background: #f8fafc;
+        text-align: right;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .btn-ver-mas {
+        color: #0f3669;
+        font-weight: 700;
+        text-decoration: none;
+        font-size: 0.9rem;
+    }
+
+    /* Punto de quiebre para laptops con sidebar */
+    @media (max-width: 1024px) {
+        .dashboard-bottom-grid { 
+            grid-template-columns: 1fr; 
+        }
+    }
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="dashboard-container">
 
-    <!-- ── CABECERA PRINCIPAL ── -->
+    <!-- ── CABECERA PRINCIPAL (Intacta) ── -->
     <div class="dashboard-header-card">
         <div class="dashboard-title-group">
             <h1 class="dashboard-main-title">Panel Administrativo</h1>
@@ -33,7 +136,7 @@
         </div>
     </div>
 
-    <!-- ── INDICADORES SUPERIORES AUTOMATIZADOS (KPIS) ── -->
+    <!-- ── INDICADORES SUPERIORES AUTOMATIZADOS (KPIS) (Intactos) ── -->
     <div class="kpi-grid">
         
         <!-- 1. TOTAL DE SOLICITUDES -->
@@ -107,79 +210,76 @@
 
     </div>
 
-   <!-- ── TABLA DE REGISTRO DE ACTIVIDAD (VISTA RESUMEN) ── -->
-   <div class="table-card" style="margin-top: 2rem;">
+    <!-- ── SECCIÓN INFERIOR: BITÁCORA Y FUTURO MAPA ── -->
+    <div class="dashboard-bottom-grid">
         
-    <!-- Cabecera y Botón -->
-    <div style="padding: 1.5rem 1.5rem 0 1.5rem;">
-        <div class="actions-toolbar" style="margin-bottom: 1rem; align-items: center;">
-            <h3 style="margin: 0; font-size: 1.25rem; font-weight: bold; color: #1e293b;">Registro de Actividad (Bitácora)</h3>
-            <a href="{{ url_for('dashboard.audit_view') }}" class="btn-filter" style="text-decoration: none;">
-                Ver registro completo &rarr;
-            </a>
-        </div>
+        <!-- Columna Izquierda: Widget de Actividad (Nivel 1) -->
+        <div class="figma-table-card">
+            
+            <div class="figma-card-header">
+                <h3 class="figma-card-title">
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    Registro de Actividad
+                </h3>
+            </div>
 
-        <!-- Filtros visuales (Maquetación usando tu CSS de usuarios) -->
-        <div class="actions-toolbar" style="margin-bottom: 1rem;">
-            <div class="filter-form">
-                <select class="filter-select"><option>Filtrar por Fecha</option></select>
-                <span class="separator">|</span>
-                <select class="filter-select"><option>Filtrar por Usuario</option></select>
-                <span class="separator">|</span>
-                <select class="filter-select"><option>Filtrar por Módulo</option></select>
-                <span class="separator">|</span>
-                <select class="filter-select"><option>Filtrar por Acción</option></select>
+            <div class="table-responsive">
+                <table class="figma-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 140px;">Fecha/Hora</th>
+                            <th style="width: 160px;">Usuario</th>
+                            <th style="width: 110px;">Módulo</th>
+                            <th style="width: 130px;">Acción</th>
+                            <th style="width: 110px;">Estatus</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs[:8] %}
+                        <tr>
+                            <td style="font-family: monospace; font-weight: 500;">
+                                {% set parts = log.date.split(' ') %}
+                                {{ parts[0] }}<br><span style="font-size: 0.75rem; color: #64748b;">{{ parts[1:]|join(' ') }}</span>
+                            </td>
+                            <td>{{ log.user | e }}</td>
+                            <td style="text-transform: uppercase;">{{ log.module }}</td>
+                            <td>
+                                <span class="badge-pill badge-action">{{ log.action }}</span>
+                            </td>
+                            <td>
+                                <span class="badge-pill 
+                                    {% if log.status == 'Completado' %}badge-completed
+                                    {% elif log.status == 'Modificado' %}badge-modified
+                                    {% elif log.status == 'En Proceso' or log.status == 'Recibido' %}badge-process
+                                    {% elif log.status == 'Fallido' or log.status == 'Rechazado' %}badge-failed
+                                    {% else %}badge-action{% endif %}">
+                                    {{ log.status }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 1rem; color: #64748b;">
+                                No hay registros recientes.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="table-footer">
+                <a href="{{ url_for('dashboard.audit_view') }}" class="btn-ver-mas">Ver registro completo ➜</a>
             </div>
         </div>
-    </div>
 
-    <!-- Contenedor Responsivo y Tabla -->
-    <div class="table-responsive">
-        <table class="users-table">
-            <thead>
-                <tr>
-                    <th>Fecha/Hora</th>
-                    <th>Usuario</th>
-                    <th>Acción</th>
-                    <th>Módulo</th>
-                    <th>Descripción</th>
-                    <th>Estatus</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for log in logs %}
-                <!-- Filas intercaladas (Zebra striping) -->
-                <tr class="{% if loop.index0 % 2 == 0 %}row-odd{% else %}row-even{% endif %}">
-                    <td class="text-dark font-medium">{{ log.date }}</td>
-                    <td class="text-dark">{{ log.user }}</td>
-                    <td>
-                        <span class="status-badge" style="background: #64748b; color: white;">{{ log.action }}</span>
-                    </td>
-                    <td class="text-dark">{{ log.module }}</td>
-                    <td class="text-muted">{{ log.desc }}</td>
-                    <td>
-                        <!-- Reutilizamos status-active para Completado y aplicamos colores suaves para el resto -->
-                        <span class="status-badge {% if log.status == 'Completado' %}status-active{% endif %}"
-                              {% if log.status == 'Modificado' %}style="background: #fef08a; color: #854d0e;"
-                              {% elif log.status == 'Procesado' %}style="background: #e0f2fe; color: #0284c7;"
-                              {% elif log.status == 'En Proceso' %}style="background: #dbeafe; color: #1e40af;"{% endif %}>
-                            {{ log.status }}
-                        </span>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="6" class="empty-state">
-                        <span class="empty-icon">📂</span>
-                        No hay registros de actividad recientes en el sistema.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <!-- Columna Derecha: Espacio reservado para el Mapa -->
+        <div class="map-placeholder" style="border: 2px dashed #cbd5e1; border-radius: 12px; display: flex; align-items: center; justify-content: center; min-height: 300px; background: #f8fafc;">
+            <span style="color: #94a3b8; font-weight: 500; text-align: center; padding: 1rem;">Espacio reservado para el Mapa (Futura Iteración)</span>
+        </div>
     </div>
-
-</div>
 
 </div>
 {% endblock %}

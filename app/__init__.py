@@ -71,6 +71,10 @@ def create_app(config_class=Config) -> Flask:
     from app.dashboard import dashboard_bp
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
 
+    # Registro del blueprint de Auditoría / Bitácora
+    from app.binnacle.routes import binnacle_bp
+    app.register_blueprint(binnacle_bp, url_prefix='/binnacle')
+
     @app.route('/')
     def index():
         return render_template('public/index.html')
@@ -244,14 +248,13 @@ def create_app(config_class=Config) -> Flask:
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; "
+            "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://cdn.jsdelivr.net; "
             "frame-src 'self' https://challenges.cloudflare.com; "
             "connect-src 'self' https://challenges.cloudflare.com; "
-            "style-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
             "img-src 'self' data: cid:; "
             "font-src 'self'; "
             "frame-ancestors 'self';"
         )
         return response
-
-    return app 
+    return app
