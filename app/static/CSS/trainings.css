@@ -1176,30 +1176,18 @@
     border-radius: 20px;
     display: inline-block;
     white-space: nowrap;
-}
-
-.module-pill-mod-001 {
     background: rgba(31, 202, 176, 0.12);
     color: #017a62;
     border: 1px solid rgba(31, 202, 176, 0.35);
 }
 
-.module-pill-mod-002 {
-    background: rgba(56, 189, 248, 0.12);
-    color: #0284c7;
-    border: 1px solid rgba(56, 189, 248, 0.35);
-}
-
-.module-pill-mod-003 {
-    background: rgba(52, 211, 153, 0.12);
-    color: #059669;
-    border: 1px solid rgba(52, 211, 153, 0.35);
-}
-
+.module-pill-mod-001,
+.module-pill-mod-002,
+.module-pill-mod-003,
 .module-pill-mod-004 {
-    background: rgba(251, 191, 36, 0.15);
-    color: #b45309;
-    border: 1px solid rgba(251, 191, 36, 0.35);
+    background: rgba(31, 202, 176, 0.12);
+    color: #017a62;
+    border: 1px solid rgba(31, 202, 176, 0.35);
 }
 
 /* Badges de Estatus */

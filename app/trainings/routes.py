@@ -9,7 +9,7 @@ Endpoints:
 
 import re
 from datetime import datetime, time
-from flask import render_template, jsonify, abort, request
+from flask import render_template, jsonify, abort, request, redirect, url_for
 from flask_login import login_required, current_user
 from sqlalchemy import func
 
@@ -53,6 +53,9 @@ def index():
     Vista de entrada al catálogo de Formación.
     Renderiza los 4 Módulos Rectores de la UREE en una cuadrícula responsiva.
     """
+    if request.args.get('view') == 'table' and _is_admin():
+        return redirect(url_for('trainings.list_all'))
+
     modules = (
         TrainingModule.query
         .filter_by(is_active=True)
