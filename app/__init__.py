@@ -75,6 +75,10 @@ def create_app(config_class=Config) -> Flask:
     from app.dashboard import dashboard_bp
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
 
+    # Registro del blueprint de Auditoría / Bitácora
+    from app.binnacle.routes import binnacle_bp
+    app.register_blueprint(binnacle_bp, url_prefix='/binnacle')
+
     @app.route('/')
     def index():
         return render_template('public/index.html')
@@ -289,5 +293,4 @@ def create_app(config_class=Config) -> Flask:
             "frame-ancestors 'self';"
         )
         return response
-
-    return app 
+    return app
