@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SAGES - Inicio{% endblock %}</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/icon_corpoelec.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/sweetalert2.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/loader.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/notifications-dropdown.css') }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+
+    <!-- ===== PANTALLA DE CARGA ===== -->
+    <script>
+        if (sessionStorage.getItem('systemLoaderShown')) {
+            document.write('<style>#system-loader { display: none !important; }</style>');
+        }
+    </script>
+    <div id="system-loader" role="status" aria-label="Cargando sistema">
+        <div class="loader-content">
+            <img
+                class="loader-icon"
+                src="{{ url_for('static', filename='img/icon_corpoelec.png') }}"
+                alt="CORPOELEC"
+            >
+            <p class="loader-title">Iniciando Sistema...</p>
+            <p class="loader-subtitle">Conectando comunidades a trav&eacute;s de la eficiencia</p>
+            <div class="loader-progress-track">
+                <div class="loader-progress-fill" id="loader-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    {% include 'layouts/sidebar.html' %}
+
+    <div class="main-wrapper">
+
+        {% include 'layouts/topbar.html' %}
+
+        <main class="content-area">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <script>
+        (function () {
+            var loader = document.getElementById('system-loader');
+            if (!loader) return;
+
+            if (sessionStorage.getItem('systemLoaderShown')) {
+                loader.remove();
+                return;
+            }
+
+            sessionStorage.setItem('systemLoaderShown', 'true');
+
+            function hideLoader() {
+                var bar = document.getElementById('loader-bar');
+                if (bar) { bar.style.width = '100%'; }
+
+                setTimeout(function () {
+                    loader.classList.add('loader-hidden');
+                    setTimeout(function () { loader.remove(); }, 600);
+                }, 200);
+            }
+
+            setTimeout(hideLoader, 2500);
+        })();
+    </script>
+
+    <script src="{{ url_for('static', filename='JS/layout.js') }}"></script>
+    <script src="{{ url_for('static', filename='JS/sweetalert2.all.min.js') }}"></script>
+    <!-- Time Formatter (Manejo de Zonas Horarias) -->
+    <script src="{{ url_for('static', filename='JS/time-formatter.js') }}?v=3"></script>
+    <script src="{{ url_for('static', filename='JS/notifications.js') }}?v=2"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

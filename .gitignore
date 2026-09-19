@@ -8,7 +8,9 @@ env/
 # Ignora archivos basura de Python
 __pycache__/
 *.pyc
+.cache/
 
 # Ignora archivos del sistema operativo
 .DS_Store
 Thumbs.db
+desktop.ini

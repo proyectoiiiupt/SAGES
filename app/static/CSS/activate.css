@@ -1,0 +1,510 @@
+/* =========================================
+   ACTIVATE.CSS — Estilo de Activación de Cuenta
+   Replica el diseño de auth.css (nueva contraseña)
+   ========================================= */
+
+:root {
+    --text-teal: #1fcab0;
+    --btn-gradient-start: #1c3d73;
+    --btn-gradient-end: #1fcab0;
+    --bg-main-start: #0a1128;
+    --bg-main-mid: #0b2238;
+    --bg-main-end: #034b46;
+
+    --text-dark: #1f2937;
+    --text-muted: #6b7280;
+    --input-bg: #f3f4f6;
+    --input-border: #e5e7eb;
+    --error-color: #ef4444;
+    --success-color: #10b981;
+}
+
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* =========================================
+   FONDO GENERAL
+   ========================================= */
+.activate-body {
+    background: linear-gradient(135deg, var(--bg-main-start) 0%, var(--bg-main-mid) 50%, var(--bg-main-end) 100%);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.activate-body::before,
+.activate-body::after {
+    content: "";
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    z-index: 1;
+    opacity: 0.4;
+    animation: acFloat 20s infinite alternate ease-in-out;
+    pointer-events: none;
+}
+
+.activate-body::before {
+    width: 400px;
+    height: 400px;
+    background: var(--text-teal);
+    top: -100px;
+    right: -50px;
+}
+
+.activate-body::after {
+    width: 500px;
+    height: 500px;
+    background: #1c3d73;
+    bottom: -150px;
+    left: -100px;
+    animation-delay: -5s;
+}
+
+@keyframes acFloat {
+    0%   { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(100px, 50px) scale(1.2); }
+}
+
+/* =========================================
+   HEADER SUPERIOR
+   ========================================= */
+.ac-header-label {
+    margin-bottom: 1.5rem;
+    width: 100%;
+    text-align: center;
+    z-index: 10;
+    position: relative;
+}
+
+.ac-header-label p {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 1rem;
+    font-weight: 300;
+    letter-spacing: 0.5px;
+}
+
+/* =========================================
+   TARJETA PRINCIPAL (2 columnas)
+   ========================================= */
+.ac-card {
+    display: flex;
+    width: 100%;
+    max-width: 950px;
+    min-height: 560px;
+    box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.7);
+    border-radius: 20px;
+    animation: acFadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 5;
+    position: relative;
+    overflow: hidden;
+}
+
+@keyframes acFadeIn {
+    from { opacity: 0; transform: translateY(30px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* =========================================
+   PANEL IZQUIERDO — Datos del Usuario
+   ========================================= */
+.ac-info-section {
+    flex: 1;
+    background: rgba(15, 23, 42, 0.78);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 20px 0 0 20px;
+    padding: 3rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-left:   1px solid rgba(255, 255, 255, 0.1);
+    border-top:    1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+}
+
+.ac-info-section::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at top left, rgba(31, 202, 176, 0.15), transparent 70%);
+    pointer-events: none;
+}
+
+/* Título grande izquierdo */
+.ac-info-title {
+    color: #ffffff;
+    font-size: 2.2rem;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 0.5rem;
+    letter-spacing: -1px;
+    z-index: 2;
+    position: relative;
+}
+
+.ac-info-title span {
+    color: var(--text-teal);
+    text-shadow: 0 0 20px rgba(31, 202, 176, 0.4);
+}
+
+.ac-info-subtitle {
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    font-weight: 300;
+    margin-bottom: 1.8rem;
+    z-index: 2;
+    position: relative;
+}
+
+/* ---- Tarjeta de datos del usuario ---- */
+.ac-user-card {
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 12px;
+    padding: 1.1rem 1.3rem;
+    margin-bottom: 1.4rem;
+    z-index: 2;
+    position: relative;
+}
+
+.ac-user-card-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-teal);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ac-data-row {
+    margin-bottom: 0.8rem;
+}
+
+.ac-data-row:last-child {
+    margin-bottom: 0;
+}
+
+.ac-data-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.42);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.25rem;
+}
+
+.ac-data-value {
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 0.45rem 0.75rem;
+    display: block;
+}
+
+/* ---- Panel de parámetros de seguridad ---- */
+.ac-security-panel {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    padding: 0.9rem 1.1rem;
+    z-index: 2;
+    position: relative;
+}
+
+.ac-panel-header {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ac-panel-header svg {
+    color: var(--text-teal);
+    flex-shrink: 0;
+}
+
+.ac-param-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.ac-param-item {
+    font-size: 0.78rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.55);
+    transition: color 0.3s ease;
+}
+
+.ac-param-item.valid {
+    color: var(--text-teal);
+}
+
+.ac-param-icon {
+    font-size: 0.8rem;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+/* =========================================
+   PANEL DERECHO — Formulario
+   ========================================= */
+.ac-form-section {
+    flex: 1;
+    background: #ffffff;
+    border-radius: 0 20px 20px 0;
+    padding: 3rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.ac-form-header {
+    text-align: center;
+    margin-bottom: 1.8rem;
+}
+
+.ac-logo-container {
+    margin-bottom: 0.75rem;
+}
+
+.ac-logo-container img {
+    max-width: 250px;
+    height: auto;
+}
+
+.ac-form-header h1 {
+    color: var(--text-dark);
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+}
+
+.ac-form-header p {
+    color: var(--text-muted);
+    font-size: 0.86rem;
+}
+
+/* =========================================
+   CAMPOS DEL FORMULARIO
+   ========================================= */
+.ac-form {
+    width: 100%;
+    max-width: 340px;
+    margin: 0 auto;
+}
+
+.ac-form-group {
+    margin-bottom: 1.3rem;
+}
+
+.ac-form-label {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.84rem;
+    margin-bottom: 0.4rem;
+    font-weight: 500;
+}
+
+.ac-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: var(--input-bg);
+    border: 1.5px solid var(--input-border);
+    border-radius: 30px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.ac-input-wrapper:focus-within {
+    border-color: var(--text-teal);
+    box-shadow: 0 0 0 3px rgba(31, 202, 176, 0.1);
+    background: #ffffff;
+}
+
+.ac-input-wrapper.input-error {
+    border-color: var(--error-color) !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12) !important;
+}
+
+.ac-form-input {
+    width: 100%;
+    padding: 0.82rem 1.2rem;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 1rem;
+    color: var(--text-dark);
+}
+
+.ac-form-input::placeholder {
+    color: #9ca3af;
+}
+
+.ac-toggle-password {
+    background: transparent;
+    border: none;
+    padding: 0 1.1rem;
+    color: #9ca3af;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: color 0.3s ease;
+    flex-shrink: 0;
+}
+
+.ac-toggle-password:hover {
+    color: var(--text-dark);
+}
+
+/* Mensaje de error por campo */
+.ac-field-error {
+    display: block;
+    color: var(--error-color);
+    font-size: 0.76rem;
+    font-weight: 500;
+    padding-left: 0.5rem;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: max-height 0.2s ease, opacity 0.2s ease, transform 0.2s ease, margin-top 0.2s ease;
+    margin-top: 0;
+}
+
+.ac-field-error.visible {
+    max-height: 2.5rem;
+    opacity: 1;
+    transform: translateY(0);
+    margin-top: 0.35rem;
+}
+
+/* Mensaje flash de error/éxito servidor */
+.ac-flash-msg {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid var(--error-color);
+    color: var(--error-color);
+    padding: 0.75rem;
+    border-radius: 12px;
+    font-size: 0.875rem;
+    margin-bottom: 1.2rem;
+    text-align: center;
+}
+
+.ac-flash-msg.success {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: var(--success-color);
+    color: var(--success-color);
+}
+
+/* =========================================
+   BOTÓN PRINCIPAL
+   ========================================= */
+.ac-submit-btn {
+    width: 100%;
+    padding: 0.9rem;
+    background: linear-gradient(90deg, var(--btn-gradient-start), var(--btn-gradient-end));
+    border: none;
+    border-radius: 30px;
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+    margin-top: 0.5rem;
+}
+
+.ac-submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(31, 202, 176, 0.4);
+}
+
+.ac-submit-btn:active {
+    transform: translateY(0);
+}
+
+/* =========================================
+   RESPONSIVE
+   ========================================= */
+@media (max-width: 900px) {
+    .ac-card {
+        flex-direction: column;
+        max-width: 520px;
+        min-height: auto;
+    }
+
+    .ac-info-section {
+        border-radius: 20px 20px 0 0;
+        padding: 2.5rem 2rem;
+        border-right: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .ac-form-section {
+        border-radius: 0 0 20px 20px;
+        padding: 2.5rem 2rem;
+    }
+
+    .ac-info-title {
+        font-size: 1.8rem;
+        margin-bottom: 0.4rem;
+    }
+
+    .activate-body {
+        justify-content: flex-start;
+        overflow-y: auto;
+        padding: 1.5rem 1rem;
+    }
+}
+
+@media (max-height: 700px) and (min-width: 901px) {
+    .ac-card {
+        min-height: auto;
+    }
+
+    .ac-info-section,
+    .ac-form-section {
+        padding: 2rem;
+    }
+
+    .ac-info-title {
+        font-size: 1.8rem;
+        margin-bottom: 0.3rem;
+    }
+
+    .ac-logo-container img {
+        max-width: 200px;
+    }
+}
+

@@ -1,0 +1,67 @@
+{# app/templates/notifications/components/card_alert.html #}
+{% macro render_alert_card(notif) %}
+<div class="notification-card notification-card-danger {% if not notif.is_read %}is-unread{% endif %} trigger-modal" data-notif-id="{{ notif.id }}" data-notif-title="{{ notif.title | forceescape }}" data-notif-message="{{ notif.message | forceescape }}" data-notif-date="{{ notif.created_at.isoformat() ~ 'Z' }}" data-notif-extra="{{ (notif.extra_data or {}) | tojson | forceescape }}">
+    <div class="alert-icon-wrapper">
+        <div class="alert-icon-circle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+        </div>
+    </div>
+
+    <div class="alert-main-content">
+        <div class="alert-header-row">
+            <h3 class="alert-entity-title">{{ notif.extra_data.get('institution_name', 'Notificación Crítica') if notif.extra_data and notif.extra_data is mapping else 'Alerta' }}</h3>
+            <span class="alert-pill-badge">{{ notif.title }}</span>
+        </div>
+
+        <p class="alert-text-body">{{ notif.message }}</p>
+
+        {% if notif.extra_data %}
+        <div class="alert-meta-grid">
+            {% if notif.extra_data is mapping and notif.extra_data.get('request_code') %}
+            <div class="meta-item">
+                <span class="meta-label">ID Solicitud</span>
+                <strong class="meta-value">{{ notif.extra_data.request_code }}</strong>
+            </div>
+            {% endif %}
+            
+            <div class="meta-item">
+                <span class="meta-label">Fecha del evento</span>
+                <span class="meta-value local-datetime text-danger" data-utc="{{ notif.created_at.isoformat() ~ 'Z' }}" data-format="standard">{{ notif.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+            </div>
+            
+            {% if notif.extra_data is mapping and notif.extra_data.get('days_elapsed') %}
+            <div class="meta-item">
+                <span class="meta-label">Días Transcurridos</span>
+                <strong class="meta-value text-danger">{{ notif.extra_data.days_elapsed }} días</strong>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="alert-side-actions">
+        {% if notif.redirect_url %}
+        <a href="{{ notif.redirect_url }}" class="btn-alert-action history-action-link" data-notif-id="{{ notif.id }}">
+            {{ notif.action_text or 'Acción Requerida' }}
+        </a>
+        {% else %}
+        <button class="btn-alert-action history-mark-read" data-notif-id="{{ notif.id }}" {% if notif.is_read %}disabled style="opacity: 0.5;"{% endif %}>
+            {{ 'Leído' if notif.is_read else 'Marcar como leído' }}
+        </button>
+        {% endif %}
+        
+        <div class="alert-action-warning">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" width="16" height="16">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+            <small>Acción obligatoria.</small>
+        </div>
+    </div>
+</div>
+{% endmacro %}

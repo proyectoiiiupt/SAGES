@@ -1,0 +1,144 @@
+:root {
+    --loader-bg-start: #0a1128;
+    --loader-bg-mid:   #0b2238;
+    --loader-bg-end:   #034b46;
+    --loader-cyan:     #1fcab0;   
+}
+
+#system-loader {
+    position: fixed;
+    inset: 0;                    
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(
+        135deg,
+        var(--loader-bg-start) 0%,
+        var(--loader-bg-mid) 50%,
+        var(--loader-bg-end) 100%
+    );
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    overflow: hidden;
+    transition: opacity 0.55s ease-out, visibility 0.55s ease-out;
+}
+
+#system-loader::before,
+#system-loader::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    z-index: 0;
+    opacity: 0.4;
+    animation: float-bg 20s infinite alternate ease-in-out;
+    pointer-events: none;
+}
+
+#system-loader::before {
+    width: 420px;
+    height: 420px;
+    background: var(--loader-cyan);
+    top: -100px;
+    right: -60px;
+}
+
+#system-loader::after {
+    width: 520px;
+    height: 520px;
+    background: #1c3d73;
+    bottom: -160px;
+    left: -100px;
+    animation-delay: -5s;
+}
+
+@keyframes float-bg {
+    0%   { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(100px, 50px) scale(1.2); }
+}
+
+.loader-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0;
+}
+
+.loader-icon {
+    width: 88px;
+    height: auto;
+    margin-bottom: 28px;
+    animation: pulse-glow 2.4s infinite ease-in-out;
+}
+
+@keyframes pulse-glow {
+    0% {
+        transform: scale(0.94);
+        filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.15));
+    }
+    50% {
+        transform: scale(1.06);
+        filter: drop-shadow(0 0 22px rgba(239, 68, 68, 0.65));
+    }
+    100% {
+        transform: scale(0.94);
+        filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.15));
+    }
+}
+
+.loader-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #ffffff;
+    letter-spacing: 0.4px;
+    margin-bottom: 8px;
+}
+
+.loader-subtitle {
+    font-size: 13px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.55);
+    letter-spacing: 0.3px;
+    margin-bottom: 32px;
+    max-width: 300px;
+    line-height: 1.5;
+}
+
+.loader-progress-track {
+    width: 220px;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.10);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+}
+
+.loader-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--loader-cyan);
+    box-shadow: 0 0 10px var(--loader-cyan);
+    border-radius: 2px;
+    animation: fill-progress 4.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes fill-progress {
+    0%   { width:  0%; }
+    20%  { width: 35%; }
+    50%  { width: 60%; }
+    75%  { width: 82%; }
+    90%  { width: 95%; }
+    100% { width: 100%; }
+}
+
+.loader-hidden {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none;
+}
