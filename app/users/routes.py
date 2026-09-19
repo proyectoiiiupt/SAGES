@@ -361,20 +361,62 @@ def edit_user(user_id):
     if form.validate_on_submit():
         try:
             # Quitamos los puntos de la cédula antes de guardar en base de datos
-        
             raw_cedula = form.identification_number.data.replace('.', '').strip()
             
+            changed_fields = {}
+            if person.identification_number != raw_cedula:
+                changed_fields["Cédula"] = raw_cedula
             person.identification_number = raw_cedula
-            person.first_name = form.first_name.data.strip().title()
-            person.second_name = form.second_name.data.strip().title() if form.second_name.data else None
-            person.last_name = form.last_name.data.strip().title()
-            person.middle_name = form.middle_name.data.strip().title() if form.middle_name.data else None
+            
+            new_first_name = form.first_name.data.strip().title()
+            if person.first_name != new_first_name:
+                changed_fields["Primer Nombre"] = new_first_name
+            person.first_name = new_first_name
+            
+            new_second_name = form.second_name.data.strip().title() if form.second_name.data else None
+            if person.second_name != new_second_name:
+                changed_fields["Segundo Nombre"] = new_second_name if new_second_name else "S/D"
+            person.second_name = new_second_name
+            
+            new_last_name = form.last_name.data.strip().title()
+            if person.last_name != new_last_name:
+                changed_fields["Primer Apellido"] = new_last_name
+            person.last_name = new_last_name
+            
+            new_middle_name = form.middle_name.data.strip().title() if form.middle_name.data else None
+            if person.middle_name != new_middle_name:
+                changed_fields["Segundo Apellido"] = new_middle_name if new_middle_name else "S/D"
+            person.middle_name = new_middle_name
             
             # Guardamos el nuevo cargo
-            if staff_record:
+            if staff_record and staff_record.position_id != form.position.data:
+                pos_name = dict(form.position.choices).get(form.position.data, "Actualizado")
+                changed_fields["Cargo"] = pos_name
                 staff_record.position_id = form.position.data
                     
             db.session.commit()
+            
+            try:
+                from app.notifications.services import NotificationService
+                from app.notifications.enums import NotificationEvent
+                
+                # Agregar Modificado Por
+                if current_user and hasattr(current_user, 'person') and current_user.person:
+                    changed_fields["Modificado Por"] = f"{current_user.person.first_name} {current_user.person.last_name}".strip()
+                else:
+                    changed_fields["Modificado Por"] = "Administración Central"
+                    
+                # Solo notificar si realmente hubo un cambio
+                if len(changed_fields) > 1:
+                    NotificationService.notify_user(
+                        user_id=user.id,
+                        event=NotificationEvent.USER_PROFILE_UPDATED,
+                        context={"_display": changed_fields},
+                        redirect_url="/users/profile",
+                        action_text="Revisar Perfil"
+                    )
+            except Exception as e:
+                print(f"Error enviando notificacion de edicion de perfil: {e}")
             
             flash('Datos del usuario actualizados exitosamente.', 'success')
             return redirect(url_for('users.view_user', user_id=user.id))
@@ -637,6 +679,38 @@ def approve_request(staff_id):
         if status_in_progress:
             staff.status_id = status_in_progress.id 
         db.session.commit()
+
+        try:
+            from app.notifications.services import NotificationService
+            from app.notifications.enums import NotificationEvent
+            user_name = f"{person.first_name} {person.last_name}".strip()
+            inst_name = staff.institution.institution_name if hasattr(staff, 'institution') and staff.institution else "Plantel Asignado"
+            state_name = "su jurisdicción"
+            if hasattr(staff, 'institution') and staff.institution and staff.institution.parish and hasattr(staff.institution.parish, 'municipality') and staff.institution.parish.municipality and hasattr(staff.institution.parish.municipality, 'state'):
+                state_name = staff.institution.parish.municipality.state.name
+            
+            admin_name = f"{current_user.person.first_name} {current_user.person.last_name}".strip() if current_user and hasattr(current_user, 'person') and current_user.person else "Administrador"
+            
+            context = {
+                "user_name": user_name,
+                "institution_name": inst_name,
+                "state_name": state_name,
+                "admin_name": admin_name,
+                "_display": [
+                    ("Estado", state_name),
+                    ("Código de Plantel", staff.institution.plantel_code if hasattr(staff, 'institution') and staff.institution else "S/D"),
+                    ("Institución", inst_name),
+                    ("Representante", user_name),
+                    ("Cargo", staff.position.name if hasattr(staff, 'position') and staff.position else "Directivo/Encargado")
+                ]
+            }
+            NotificationService.notify_role(
+                role_name='super_admin',
+                event=NotificationEvent.REGISTRATION_APPROVED,
+                context=context
+            )
+        except Exception as e:
+            print(f"Error enviando notificacion de aprobacion: {e}")
 
         BinnacleService.create_log_entry(
             module=AuditModule.USERS.value,
