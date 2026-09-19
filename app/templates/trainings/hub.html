@@ -85,14 +85,11 @@
             </button>
 
             {# Nuevo Módulo Rector #}
-            <button type="button"
-                    id="btn-new-module"
-                    class="hub-btn hub-btn-secondary"
-                    title="Crear un nuevo Módulo Rector"
-                    aria-label="Agregar Nuevo Módulo Rector"
-                    disabled
-                    style="cursor: not-allowed; opacity: 0.65;"
-                    data-coming-soon="Disponible en próxima versión">
+            <a href="{{ url_for('trainings.new_module') }}"
+               id="btn-new-module"
+               class="hub-btn hub-btn-secondary"
+               title="Crear un nuevo Módulo Rector"
+               aria-label="Agregar Nuevo Módulo Rector">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <circle cx="12" cy="12" r="10"/>
@@ -100,7 +97,7 @@
                     <line x1="8" y1="12" x2="16" y2="12"/>
                 </svg>
                 Módulo Rector
-            </button>
+            </a>
 
             {# Nuevo Tema (acción primaria) #}
             <button type="button"
@@ -243,5 +240,36 @@
         const formattedDate = today.toLocaleDateString('es-ES', options);
         el.textContent = formattedDate.replace(' de 20', ', 20');
     })();
+
+    // Captura de mensajes Flash de Flask con SweetAlert2
+    document.addEventListener('DOMContentLoaded', function() {
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    let iconType = {{ category | tojson }};
+                    let titleText = 'Notificación';
+
+                    if (iconType === 'success') {
+                        titleText = '¡Éxito!';
+                    } else if (iconType === 'error' || iconType === 'danger') {
+                        iconType = 'error';
+                        titleText = '¡Atención!';
+                    } else if (iconType === 'warning') {
+                        titleText = 'Advertencia';
+                    } else {
+                        iconType = 'info';
+                    }
+
+                    Swal.fire({
+                        title: titleText,
+                        text: {{ message | tojson }},
+                        icon: iconType,
+                        confirmButtonColor: '#0d9488',
+                        confirmButtonText: 'Aceptar'
+                    });
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    });
 </script>
 {% endblock %}

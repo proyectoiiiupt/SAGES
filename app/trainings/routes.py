@@ -9,15 +9,17 @@ Endpoints:
 
 import re
 from datetime import datetime, time
-from flask import render_template, jsonify, abort, request, redirect, url_for
+from flask import render_template, jsonify, abort, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from sqlalchemy import func
 
 from app.trainings import trainings_bp
+from app.trainings.forms import TrainingModuleForm
 from app.models.training_module_model import TrainingModule
 from app.models.training_model import Training
 from app.models.status_model import Status
 from app.decorators import check_permissions, role_required
+from app.utils.binnacle_utils import log_action
 from app.extensions import db
 
 
@@ -53,9 +55,6 @@ def index():
     Vista de entrada al catálogo de Formación.
     Renderiza los 4 Módulos Rectores de la UREE en una cuadrícula responsiva.
     """
-    if request.args.get('view') == 'table' and _is_admin():
-        return redirect(url_for('trainings.list_all'))
-
     modules = (
         TrainingModule.query
         .filter_by(is_active=True)
@@ -299,4 +298,102 @@ def list_all():
             user_role=_get_user_role(),
             error_message="No se pudo cargar el listado de formaciones en este momento."
         )
+
+
+# ---------------------------------------------------------------------------
+# Registro de Nuevo Módulo Rector
+# ---------------------------------------------------------------------------
+
+def _generate_next_module_code() -> str:
+    """
+    Genera el siguiente código correlativo MOD-XXX en backend.
+    Extrae la secuencia numérica de códigos existentes con prefijo 'MOD-' y genera el próximo (ej. MOD-005).
+    """
+    all_codes = db.session.query(TrainingModule.module_code).all()
+    max_num = 0
+    for (code,) in all_codes:
+        if code and code.startswith('MOD-'):
+            suffix = code[4:]
+            if suffix.isdigit():
+                max_num = max(max_num, int(suffix))
+    next_num = max_num + 1
+    return f"MOD-{next_num:03d}"
+
+
+def _get_next_order_index() -> int:
+    """Calcula el siguiente índice de orden disponible."""
+    max_order = db.session.query(func.max(TrainingModule.order_index)).scalar()
+    return (max_order or 0) + 1
+
+
+@trainings_bp.route('/module/new', methods=['GET', 'POST'])
+@login_required
+@role_required('super_admin')
+def new_module():
+    """
+    Ruta para registrar un nuevo Módulo Rector.
+    - Captura: nombre, descripción y orden de visualización.
+    - El código MOD-XXX es generado internamente por la base de datos/backend.
+    - Solo accesible para usuarios con rol 'super_admin'.
+    """
+    form = TrainingModuleForm()
+
+    # Pre-calcular sugerencia de código para el formulario
+    suggested_code = _generate_next_module_code()
+
+    if request.method == 'GET':
+        form.module_code.data = suggested_code
+
+    if form.validate_on_submit():
+        try:
+            # Siempre se autogenera el código en backend para evitar manipulación manual
+            final_code = _generate_next_module_code()
+
+            new_mod = TrainingModule(
+                module_code=final_code,
+                name=form.name.data.strip(),
+                description=form.description.data.strip(),
+                order_index=_get_next_order_index(),
+                is_active=True
+            )
+            db.session.add(new_mod)
+            db.session.commit()
+
+            # Registro en bitácora del sistema
+            try:
+                log_action(
+                    user_id=current_user.id,
+                    module='trainings',
+                    action_type='CREATE',
+                    description=f"Registro de nuevo Módulo Rector: {new_mod.name} ({new_mod.module_code})",
+                    new_values={
+                        'module_code': new_mod.module_code,
+                        'name': new_mod.name,
+                        'description': new_mod.description,
+                        'order_index': new_mod.order_index
+                    }
+                )
+            except Exception as log_err:
+                import logging
+                logging.warning(f"[trainings.new_module] No se pudo registrar en bitácora: {log_err}")
+
+            flash(f'Módulo Rector "{new_mod.name}" registrado exitosamente.', "success")
+            return redirect(url_for('trainings.index'))
+
+        except Exception as e:
+            db.session.rollback()
+            import logging
+            logging.error(f"[trainings.new_module] Error al registrar módulo: {e}")
+            flash("Ocurrió un error inesperado al registrar el Módulo Rector. Intente nuevamente.", "danger")
+    elif request.method == 'POST':
+        flash("Por favor, verifica los campos obligatorios del formulario.", "warning")
+
+    return render_template(
+        'trainings/module_new.html',
+        form=form,
+        suggested_code=suggested_code,
+        is_super_admin=_is_super_admin(),
+        is_admin=_is_admin(),
+        user_role=_get_user_role()
+    )
 
