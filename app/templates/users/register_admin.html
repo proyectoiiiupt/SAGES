@@ -1,0 +1,207 @@
+{% extends "layouts/base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/users_register.css') }}?v=8">
+{% endblock %}
+
+{% block content %}
+<div class="view-container">
+    <div class="page-header">
+        <div class="page-title">
+            Registro Interno Administrativo
+        </div>
+        <div class="page-date">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span id="current-date"></span>
+        </div>
+    </div>
+    
+    <div class="page-actions" style="margin-bottom: 2rem;">
+        <a href="#" class="back-btn" id="btnCancelRegistro">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Cancelar
+        </a>
+    </div>
+
+    <!-- Mensajes Flash Server-side -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages" style="max-width: 800px; margin: 0 auto;">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}" style="padding: 1rem; margin-bottom: 1rem; border-radius: 8px; background-color: {% if category == 'success' %}#d1fae5{% else %}#fee2e2{% endif %}; color: {% if category == 'success' %}#065f46{% else %}#991b1b{% endif %}; border: 1px solid {% if category == 'success' %}#a7f3d0{% else %}#fecaca{% endif %};">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <div class="wizard-container">
+        <div class="wizard-header">
+            <h2>Alta de Usuario Administrativo</h2>
+            <p style="color: #64748b; font-size: 0.95rem;">Complete el formulario para dar de alta a un nuevo administrador de CORPOELEC.</p>
+        </div>
+
+        <div class="stepper">
+            <div class="step active" id="step-1">
+                <div class="step-circle">1</div>
+                <div class="step-label">Identidad</div>
+            </div>
+            <div class="step" id="step-2">
+                <div class="step-circle">2</div>
+                <div class="step-label">Datos & Sede</div>
+            </div>
+            <div class="step" id="step-3">
+                <div class="step-circle">3</div>
+                <div class="step-label">Confirmación</div>
+            </div>
+        </div>
+
+        <form id="registerAdminForm" method="POST" action="{{ url_for('users.register_admin') }}">
+            {{ form.hidden_tag() }}
+            
+            <!-- PASO 1: Identidad Básica -->
+            <div class="wizard-panel active" id="panel-1">
+                <h4 class="form-section-title">DATOS PERSONALES</h4>
+                <div class="form-group">
+                    <label class="form-label">Cédula de Identidad <span class="required-mark">*</span></label>
+                    <div class="input-group">
+                        {{ form.identification_type(class="form-select", id="identification_type") }}
+                        {{ form.identification_number(class="form-control", id="identification_number", placeholder="Ej: 12345678", maxlength="10") }}
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 1rem;">
+                    <div class="form-group" style="flex: 1;">
+                        <label class="form-label">Primer Nombre <span class="required-mark">*</span></label>
+                        {{ form.first_name(class="form-control", id="first_name") }}
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label class="form-label">Segundo Nombre</label>
+                        {{ form.second_name(class="form-control", id="second_name") }}
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 1rem;">
+                    <div class="form-group" style="flex: 1;">
+                        <label class="form-label">Primer Apellido <span class="required-mark">*</span></label>
+                        {{ form.last_name(class="form-control", id="last_name") }}
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label class="form-label">Segundo Apellido</label>
+                        {{ form.middle_name(class="form-control", id="middle_name") }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- PASO 2: Contacto e Institución (CORPOELEC) -->
+            <div class="wizard-panel" id="panel-2">
+                <h4 class="form-section-title">DETALLES DE CONTACTO</h4>
+                <div style="display: flex; gap: 1rem;">
+                    <div class="form-group" style="flex: 1;">
+                        <label class="form-label">Correo Electrónico Institucional <span class="required-mark">*</span></label>
+                        {{ form.email(class="form-control", id="email", type="email") }}
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 1rem;">
+                    <div class="form-group" style="flex: 1;">
+                        <label class="form-label">Teléfono Móvil <span class="required-mark">*</span></label>
+                        {{ form.mobile(class="form-control", id="mobile", placeholder="Ej: 04141234567") }}
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label class="form-label">Teléfono Local (Opcional)</label>
+                        {{ form.phone(class="form-control", id="phone", placeholder="Ej: 02121234567") }}
+                    </div>
+                </div>
+
+                <hr style="border: 0; height: 1px; background: #e2e8f0; margin: 1.5rem 0;">
+                <h4 class="form-section-title">Asignación Corporativa</h4>
+
+                <div style="display: flex; gap: 1rem;">
+                    <div class="form-group" style="flex: 1;">
+                        <label class="form-label">Rol en el Sistema <span class="required-mark">*</span></label>
+                        {{ form.role_id(class="form-select", id="role") }}
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label class="form-label">Cargo Administrativo <span class="required-mark">*</span></label>
+                        {{ form.position_id(class="form-select", id="position") }}
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 1rem;">
+                    <div class="form-group" style="flex: 1;">
+                        <label class="form-label">Estado <span class="required-mark">*</span></label>
+                        {{ form.state_id(class="form-select", id="state") }}
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label class="form-label">Sede CORPOELEC <span class="required-mark">*</span></label>
+                        {{ form.place_id(class="form-select", id="place") }}
+                        <small style="color: #64748b;">Seleccione el estado para cargar las sedes.</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PASO 3: Confirmación -->
+            <div class="wizard-panel" id="panel-3">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <div style="width: 60px; height: 60px; background: #e0f2fe; color: #0284c7; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;">
+                        <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <h3 style="color: #0f172a; font-weight: 600;">Verifique los datos</h3>
+                    <p style="color: #64748b; font-size: 0.95rem;">Confirme que la información ingresada es correcta antes de registrar.</p>
+                </div>
+
+                <div class="summary-box">
+                    <div class="summary-row">
+                        <span class="summary-label">Cédula:</span>
+                        <span class="summary-value" id="sum-cedula"></span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Nombre Completo:</span>
+                        <span class="summary-value" id="sum-name"></span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Correo:</span>
+                        <span class="summary-value" id="sum-email"></span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Rol de Sistema:</span>
+                        <span class="summary-value" id="sum-role"></span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Estado:</span>
+                        <span class="summary-value" id="sum-state"></span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Sede Asignada:</span>
+                        <span class="summary-value" id="sum-place"></span>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 1.5rem; padding: 1rem; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; color: #92400e; font-size: 0.9rem;">
+                    <strong>Atención:</strong> Al completar el registro, se enviará un correo electrónico a la dirección proporcionada con un enlace único (válido por 48 horas) para que el administrador active su cuenta y defina su contraseña.
+                </div>
+            </div>
+
+            <div class="wizard-footer">
+                <button type="button" class="btn btn-prev" id="btnPrev">Anterior</button>
+                <button type="button" class="btn btn-next" id="btnNext">Siguiente</button>
+                <button type="button" class="btn btn-submit" id="btnSubmit" style="display: none;">Registrar Usuario Administrativo</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='JS/users_register.js') }}?v=6"></script>
+{% endblock %}

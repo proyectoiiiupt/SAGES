@@ -1,0 +1,510 @@
+/* ==========================================================================
+   app/static/CSS/notifications-history.css
+   Identidad visual corporativa SAGES - Notificaciones
+   ========================================================================== */
+
+:root {
+    --sages-blue: #1c3d73;
+    --sages-green: #019577;
+    --sages-green-hover: #017a61;
+    --sages-amber: #d97706;
+    --sages-red: #dc2626;
+    --sages-gray-bg: #f8fafc;
+    --sages-border: #e2e8f0;
+    --sages-text-main: #1e293b;
+    --sages-text-muted: #64748b;
+}
+
+.notifications-history-container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem;
+}
+
+/* Cabecera y Filtros */
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.75rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--sages-border);
+}
+
+.history-header h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--sages-blue);
+    margin: 0;
+}
+
+.history-filters {
+    display: flex;
+    gap: 0.5rem;
+    background-color: #f1f5f9;
+    padding: 4px;
+    border-radius: 8px;
+}
+
+.history-filters .filter-btn {
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--sages-text-muted);
+    padding: 6px 14px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.history-filters .filter-btn:hover {
+    color: var(--sages-blue);
+}
+
+.history-filters .filter-btn.active {
+    background-color: #ffffff;
+    color: var(--sages-blue);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Lista y Tarjetas Modulares */
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.notification-card {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 1.25rem;
+    padding: 1.25rem;
+    border-radius: 10px;
+    border: 1px solid var(--sages-border);
+    background-color: #ffffff;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    cursor: pointer;
+}
+
+.notification-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(28, 61, 115, 0.08);
+    border-color: #cbd5e1;
+}
+
+/* Estado No Leído */
+.notification-card.is-unread {
+    background-color: #ffffff;
+    border-left: 5px solid var(--sages-blue);
+    box-shadow: 0 2px 6px rgba(28, 61, 115, 0.05);
+}
+
+.notification-card.is-unread::after {
+    content: '';
+    position: absolute;
+    top: 1.25rem;
+    right: 1.25rem;
+    width: 8px;
+    height: 8px;
+    background-color: var(--sages-green);
+    border-radius: 50%;
+    box-shadow: 0 0 0 3px rgba(1, 149, 119, 0.2);
+}
+
+/* Estado Leído */
+.notification-card:not(.is-unread) {
+    background-color: var(--sages-gray-bg);
+    border-left: 5px solid #cbd5e1;
+    opacity: 0.92;
+}
+
+/* Bordes laterales por tipo */
+.notification-card-danger.is-unread { border-left-color: var(--sages-red); }
+.notification-card-warning.is-unread, .notification-card-action.is-unread { border-left-color: var(--sages-amber); }
+.notification-card-status.is-unread { border-left-color: var(--sages-green); }
+.notification-card-simple.is-unread { border-left-color: var(--sages-blue); }
+
+/* Icono del Tipo */
+.alert-icon-circle, .action-icon, .simple-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.notification-card-danger .alert-icon-circle { background-color: #fee2e2; color: var(--sages-red); }
+.notification-card-action .action-icon { background-color: #fef3c7; color: var(--sages-amber); }
+.notification-card-status .action-icon { background-color: #d1fae5; color: var(--sages-green); }
+.notification-card-simple .simple-icon { background-color: #e0f2fe; color: #0284c7; }
+
+/* Contenido Principal */
+.action-content, .alert-main-content, .simple-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.action-title, .status-title, .simple-title, .alert-pill-badge {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--sages-text-main);
+    margin: 0 0 0.35rem 0;
+}
+
+.action-message, .status-message, .simple-message, .alert-text-body {
+    font-size: 0.925rem;
+    color: #334155;
+    line-height: 1.5;
+    margin: 0 0 0.5rem 0;
+    word-break: break-word;
+}
+
+.action-time, .status-time, .simple-time {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--sages-text-muted);
+    font-weight: 500;
+}
+
+/* Botones de Acción */
+.action-buttons-container, .alert-side-actions, .simple-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-end;
+    margin-left: 0.75rem;
+}
+
+.btn-primary-action, .btn-alert-action {
+    display: inline-block;
+    padding: 6px 14px;
+    background-color: var(--sages-blue);
+    color: #ffffff;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+}
+
+.btn-primary-action:hover, .btn-alert-action:hover {
+    background-color: #152e56;
+}
+
+.btn-secondary-action, .history-mark-read {
+    padding: 6px 12px;
+    background-color: transparent;
+    color: var(--sages-text-muted);
+    border: 1px solid var(--sages-border);
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-secondary-action:hover:not(:disabled), .history-mark-read:hover:not(:disabled) {
+    background-color: #f1f5f9;
+    color: var(--sages-text-main);
+    border-color: #cbd5e1;
+}
+
+.btn-secondary-action:disabled, .history-mark-read:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+/* ==========================================================================
+   MODAL DE DETALLE DE NOTIFICACIÓN
+   ========================================================================== */
+.notification-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(15, 23, 42, 0.6); /* Backdrop oscuro */
+    backdrop-filter: blur(4px);
+    z-index: 9999; /* Asegurar que esté por encima de todo */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    animation: fadeInModal 0.2s ease-out;
+}
+
+.notification-modal-content {
+    background: #ffffff;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    animation: slideUpModal 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.notification-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--sages-border);
+}
+
+.notification-modal-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--sages-text-main);
+    line-height: 1.4;
+}
+
+.notification-modal-header .close-modal-btn {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: var(--sages-text-muted);
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.2s;
+}
+
+.notification-modal-header .close-modal-btn:hover {
+    color: var(--sages-text-main);
+}
+
+.notification-modal-meta {
+    padding: 0.75rem 1.5rem;
+    background-color: #f8fafc;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    color: var(--sages-text-muted);
+    border-bottom: 1px solid var(--sages-border);
+}
+
+.meta-sender {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+}
+
+.notification-modal-body {
+    padding: 1.5rem;
+    font-size: 0.95rem;
+    color: var(--sages-text-main);
+    line-height: 1.6;
+}
+
+.notification-modal-body p {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+}
+
+.extra-data-container {
+    background-color: #f1f5f9;
+    border-radius: 8px;
+    padding: 1.25rem;
+    border: 1px solid #e2e8f0;
+}
+
+.extra-data-container h4 {
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--sages-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.extra-data-container ul {
+    margin: 0;
+}
+
+.extra-data-container li {
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.extra-data-container li:last-child {
+    margin-bottom: 0;
+}
+
+.extra-data-container li strong {
+    color: var(--sages-text-main);
+    font-weight: 600;
+}
+
+.notification-modal-footer {
+    padding: 1.25rem 1.5rem;
+    border-top: 1px solid var(--sages-border);
+    display: flex;
+    justify-content: flex-end;
+    background-color: #f8fafc;
+}
+
+/* Animaciones del Modal */
+@keyframes fadeInModal {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUpModal {
+    from { 
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* =========================================
+   BANNER DE BIENVENIDA (Desde Home)
+   ========================================= */
+.welcome-banner {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 14px 24px;                 
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.05);
+    margin-bottom: 18px;                
+    border-left: 4px solid var(--sages-green);
+    max-width: 960px;
+    margin: 1.5rem auto 1rem;
+}
+
+.welcome-text {
+    font-size: 1.25rem;                
+    font-weight: 700;
+    color: var(--sages-text-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: -0.3px;
+}
+
+.welcome-text i {
+    font-style: normal;
+    color: var(--sages-text-main);
+}
+
+.date-text {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--sages-text-muted);
+    font-weight: 500;
+    background: #F1F5F9;
+    padding: 10px 18px;
+    border-radius: 30px;
+    font-size: 0.875rem;
+    letter-spacing: 0.2px;
+}
+
+.date-text svg {
+    width: 17px;
+    height: 17px;
+    color: var(--sages-green);
+    flex-shrink: 0;
+}
+
+/* =========================================
+   ESTADO VACÍO (EMPTY STATE)
+   ========================================= */
+.empty-history-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    text-align: center;
+    background-color: #ffffff;
+    border-radius: 12px;
+    border: 2px dashed var(--sages-border);
+    margin-top: 1rem;
+    color: var(--sages-text-muted);
+}
+
+.empty-history-state svg {
+    color: #cbd5e1;
+    margin-bottom: 1rem;
+    width: 64px;
+    height: 64px;
+}
+
+.empty-history-state p {
+    font-size: 1.05rem;
+    margin: 0;
+    font-weight: 500;
+}
+
+/* =========================================
+   PAGINACIÓN (PAGINATION)
+   ========================================= */
+.pagination-info {
+    text-align: center;
+    color: var(--sages-text-muted);
+    font-size: 0.875rem;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.history-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+}
+
+.history-pagination .page-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background-color: #ffffff;
+    border: 1px solid var(--sages-border);
+    color: var(--sages-text-main);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+}
+
+.history-pagination .page-link:hover {
+    border-color: var(--sages-green);
+    color: var(--sages-green);
+    background-color: #f0fdf4;
+}
+
+.history-pagination .page-link.active {
+    background-color: var(--sages-green);
+    border-color: var(--sages-green);
+    color: #ffffff;
+    box-shadow: 0 2px 4px rgba(22, 163, 74, 0.2);
+}
+
+.history-pagination .page-ellipsis {
+    color: var(--sages-text-muted);
+    padding: 0 0.25rem;
+    font-weight: 600;
+}

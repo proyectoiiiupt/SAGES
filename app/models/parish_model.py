@@ -1,8 +1,11 @@
 from app.extensions import db
+from app.binnacle.mixins import AuditableMixin
+from app.binnacle.types import AuditModule
 
-class Parish(db.Model):
+class Parish(db.Model, AuditableMixin):
     __tablename__ = 'parishes'
     __table_args__ = {'schema': 'sages'}
+    __audit_module__ = AuditModule.CONFIGURATIONS.value
 
     id = db.Column(db.BigInteger, primary_key=True)
     municipality_id = db.Column(db.BigInteger, db.ForeignKey('sages.municipalities.id'), nullable=False)

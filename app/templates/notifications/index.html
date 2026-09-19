@@ -1,0 +1,120 @@
+{% extends "layouts/base.html" %}
+{% from "notifications/components/card_alert.html" import render_alert_card %}
+{% from "notifications/components/card_action.html" import render_action_card %}
+{% from "notifications/components/card_status.html" import render_status_card %}
+{% from "notifications/components/card_simple.html" import render_simple_card %}
+
+{% block title %}Historial de Notificaciones - SAGES{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/notifications-history.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="welcome-banner">
+    <div class="welcome-text">
+        <i>Historial de Notificaciones</i> 🔔
+    </div>
+    <div class="date-text">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+        <span id="current-date"></span>
+    </div>
+</div>
+
+<div class="notifications-history-container">
+    {% set user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant' %}
+    {% set default_home = url_for('home_' ~ user_role) %}
+    {% set final_back_url = back_url if back_url else default_home %}
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <a href="{{ final_back_url }}" class="btn-secondary-action" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; height: fit-content; background: white; text-decoration: none;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            Volver
+        </a>
+
+        <div class="history-filters" style="margin: 0;">
+            <a href="{{ url_for('notifications.history', filter='all') }}" class="filter-btn {% if current_filter == 'all' %}active{% endif %}">Todas</a>
+            <a href="{{ url_for('notifications.history', filter='unread') }}" class="filter-btn {% if current_filter == 'unread' %}active{% endif %}">No Leídas</a>
+            <a href="{{ url_for('notifications.history', filter='critical') }}" class="filter-btn {% if current_filter == 'critical' %}active{% endif %}">Críticas</a>
+        </div>
+    </div>
+
+    <div class="history-list">
+        {% if pagination.items %}
+            {% for notif in pagination.items %}
+                {% if notif.type == 'DANGER' %}
+                    {{ render_alert_card(notif) }}
+                {% elif notif.type == 'WARNING' %}
+                    {{ render_action_card(notif) }}
+                {% elif notif.type == 'SUCCESS' %}
+                    {{ render_status_card(notif) }}
+                {% else %}
+                    {{ render_simple_card(notif) }}
+                {% endif %}
+            {% endfor %}
+        {% else %}
+            <div class="empty-history-state">
+                <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                <p>No se encontraron notificaciones en esta categoría.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    {% if pagination.pages > 1 %}
+    <div class="pagination-info">
+        Mostrando página <strong>{{ pagination.page }}</strong> de <strong>{{ pagination.pages }}</strong>
+    </div>
+    <div class="history-pagination">
+        {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if page_num %}
+                <a href="{{ url_for('notifications.history', page=page_num, filter=current_filter) }}" class="page-link {% if page_num == pagination.page %}active{% endif %}">{{ page_num }}</a>
+            {% else %}
+                <span class="page-ellipsis">...</span>
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Modal de Lectura de Notificación -->
+    <div id="notificationDetailModal" class="notification-modal-overlay" style="display: none;">
+        <div class="notification-modal-content">
+            <div class="notification-modal-header">
+                <h3 id="modalNotifTitle">Título de la notificación</h3>
+                <button type="button" class="close-modal-btn" aria-label="Cerrar">&times;</button>
+            </div>
+            <div class="notification-modal-meta">
+                <span class="meta-sender"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg> Sistema SAGES</span>
+                <span id="modalNotifDate" class="meta-date"></span>
+            </div>
+            <div class="notification-modal-body">
+                <p id="modalNotifMessage"></p>
+                <div id="modalNotifExtra" class="extra-data-container" style="display: none;"></div>
+            </div>
+            <div class="notification-modal-footer">
+                <button type="button" class="btn-secondary-action close-modal-btn">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='JS/notifications-history.js') }}?v=4"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const dateElement = document.getElementById('current-date');
+        if (dateElement) {
+            const options = { day: 'numeric', month: 'long', year: 'numeric' };
+            const today = new Date();
+            const formattedDate = today.toLocaleDateString('es-ES', options);
+            dateElement.textContent = formattedDate.replace(' de 20', ', 20');
+        }
+    });
+</script>
+{% endblock %}

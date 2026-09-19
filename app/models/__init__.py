@@ -32,3 +32,4 @@ from .request_evidence_model import RequestEvidence
 from .request_tracking_model import RequestTracking  
 from .binnacle_model import Binnacle            
 from .rating_model import Rating    
+from .notification_model import Notification
