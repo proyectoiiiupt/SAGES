@@ -42,12 +42,12 @@
             <p class="hub-subtitle">Módulos Rectores del Programa de Uso Racional y Eficiente de la Energía. Selecciona un módulo para explorar los temas disponibles.</p>
         </div>
 
-        {# Derecha: botones de acción (solo super_admin) #}
-        {% if is_super_admin %}
+        {# Derecha: botones de acción (administradores) #}
+        {% if is_admin %}
         <div class="hub-actions-bar" role="toolbar" aria-label="Acciones de administración">
 
             {# Alternar a Vista Tabular #}
-            <a href="{{ url_for('trainings.index') }}?view=table"
+            <a href="{{ url_for('trainings.list_all') }}"
                id="btn-toggle-view"
                class="hub-btn hub-btn-view"
                title="Cambiar a Vista Tabular"
@@ -63,6 +63,7 @@
                 Vista Tabular
             </a>
 
+            {% if is_super_admin %}
             <div class="hub-actions-separator" aria-hidden="true"></div>
 
             {# Importación Masiva #}
@@ -117,6 +118,7 @@
                 </svg>
                 Nuevo Tema
             </button>
+            {% endif %}
 
         </div>
         {% endif %}

@@ -825,3 +825,744 @@
         height: 1px;
     }
 }
+
+/* ==========================================================================
+   VISTA TABULAR MAESTRA DE FORMACIONES (GESTIÓN ADMINISTRATIVA)
+   SAGES | Módulo de Formación – Bloque 3: Listado Tabular Centralizado
+   ========================================================================== */
+
+/* ── CONTENEDOR PRINCIPAL TABULAR ─────────────────────────────────────── */
+.trainings-container {
+    padding: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    overflow-x: hidden;
+    overflow-y: visible;
+}
+
+/* Cabecera institucional */
+.trainings-container .page-header {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 14px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.05);
+    margin-bottom: 1.25rem;
+    border-left: 4px solid #007865;
+}
+
+.trainings-container .page-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.trainings-container .header-icon {
+    width: 24px;
+    height: 24px;
+    color: #007865;
+    flex-shrink: 0;
+}
+
+.trainings-container .page-title h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+    letter-spacing: -0.3px;
+}
+
+.trainings-container .header-right-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* ── BARRA DE ACCIONES FUERA DE CABECERA (Alineada a la izquierda) ──── */
+.trainings-container .table-actions-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin-bottom: 1.25rem;
+}
+
+/* Botón alternar a Vista en Tarjetas (Estilo idéntico al botón Vista Tabular del hub) */
+.btn-hub-view {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.68rem 1.4rem;
+    border-radius: 10px;
+    font-size: 1.0rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid #e2e8f0;
+    text-decoration: none;
+    background: #f1f5f9;
+    color: #475569;
+    white-space: nowrap;
+    transition:
+        background var(--hub-transition, 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)),
+        box-shadow var(--hub-transition, 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)),
+        transform 0.2s ease,
+        color var(--hub-transition, 0.3s cubic-bezier(0.2, 0.8, 0.2, 1));
+}
+
+.btn-hub-view svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    transition: transform 0.25s ease;
+}
+
+.btn-hub-view:hover {
+    background: #e2e8f0;
+    color: #1c3d73;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+    text-decoration: none;
+}
+
+.btn-hub-view:hover svg {
+    transform: scale(1.15);
+}
+
+.btn-hub-view:active {
+    transform: scale(0.97);
+}
+
+.trainings-container .page-date {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #6b7280;
+    font-weight: 500;
+    background: #f1f5f9;
+    padding: 9px 18px;
+    border-radius: 30px;
+    font-size: 0.875rem;
+    letter-spacing: 0.2px;
+}
+
+.trainings-container .page-date svg {
+    width: 16px;
+    height: 16px;
+    color: #007865;
+    flex-shrink: 0;
+}
+
+/* ── BARRA DE FILTROS INSTITUCIONAL ─────────────────────────────────── */
+.trainings-container .filters-container {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    margin-bottom: 1.75rem;
+    border: 1px solid #dee2e6;
+}
+
+.trainings-container .filters-section {
+    padding: 1.25rem 1.5rem;
+    background-color: #ffffff;
+}
+
+.trainings-container .filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+}
+
+.trainings-container .filter-group {
+    flex: 1 1 180px;
+    min-width: 160px;
+}
+
+.trainings-container .search-group {
+    position: relative;
+    flex: 2 1 280px;
+    min-width: 240px;
+}
+
+.trainings-container .search-group input {
+    width: 100%;
+    padding: 0.6rem 2.5rem 0.6rem 1.2rem;
+    border: 2px solid #e9ecef;
+    border-radius: 25px;
+    font-size: 0.9rem;
+    color: #334155;
+    background: #ffffff;
+    box-sizing: border-box;
+    transition: all 0.25s ease;
+}
+
+.trainings-container .search-group input:focus {
+    border-color: #007865;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 120, 101, 0.12);
+}
+
+.trainings-container .search-icon {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    color: #94a3b8;
+    pointer-events: none;
+}
+
+.trainings-container .filter-group select,
+.trainings-container .date-group input {
+    width: 100%;
+    padding: 0.6rem 1.2rem;
+    border: 2px solid #e9ecef;
+    border-radius: 25px;
+    background: #ffffff;
+    font-size: 0.88rem;
+    color: #334155;
+    box-sizing: border-box;
+    transition: all 0.25s ease;
+    cursor: pointer;
+}
+
+.trainings-container .filter-group select:focus,
+.trainings-container .date-group input:focus {
+    border-color: #007865;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 120, 101, 0.12);
+}
+
+.trainings-container .filter-actions {
+    flex: 0 0 auto;
+}
+
+.trainings-container .btn-clear {
+    background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+    color: #ffffff;
+    padding: 0.6rem 1.5rem;
+    border-radius: 25px;
+    text-decoration: none;
+    font-size: 0.88rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+}
+
+.trainings-container .btn-clear:hover {
+    background: linear-gradient(135deg, #219653 0%, #27ae60 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+    color: #ffffff;
+}
+
+/* ── TABLA INSTITUCIONAL ─────────────────────────────────────────────── */
+.trainings-container .table-container {
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+}
+
+.trainings-container .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.trainings-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 0.9rem;
+}
+
+.trainings-table thead tr {
+    background: #f8fafc;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.trainings-table th {
+    padding: 1rem 1.25rem;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: #475569;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    white-space: nowrap;
+}
+
+.trainings-table tbody tr {
+    border-bottom: 1px solid #e2e8f0;
+    transition: background-color 0.2s ease;
+}
+
+.trainings-table tbody tr:nth-child(odd),
+.trainings-table tbody tr.row-odd {
+    background-color: #ffffff;
+}
+
+.trainings-table tbody tr:nth-child(even),
+.trainings-table tbody tr.row-even {
+    background-color: #eaeded;
+}
+
+.trainings-table tbody tr:hover {
+    background-color: #dbe2e6;
+}
+
+.trainings-table td {
+    padding: 1rem 1.25rem;
+    vertical-align: middle;
+    color: #334155;
+}
+
+.trainings-table .text-center {
+    text-align: center;
+}
+
+/* Celdas específicas */
+.trainings-table .code-cell {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.training-code-badge {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.78rem;
+    font-weight: 700;
+    background: #f1f5f9;
+    color: #007865;
+    border: 1px solid #cbd5e1;
+    padding: 3px 8px;
+    border-radius: 6px;
+    display: inline-block;
+    letter-spacing: 0.5px;
+}
+
+.training-name {
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 2px;
+    font-size: 0.92rem;
+}
+
+.training-description {
+    font-size: 0.8rem;
+    color: #64748b;
+    line-height: 1.4;
+    max-width: 480px;
+}
+
+.date-cell {
+    font-size: 0.85rem;
+    color: #475569;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* Píldoras de Módulos Rectores */
+.module-pill {
+    font-size: 0.76rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    display: inline-block;
+    white-space: nowrap;
+    background: rgba(31, 202, 176, 0.12);
+    color: #017a62;
+    border: 1px solid rgba(31, 202, 176, 0.35);
+}
+
+.module-pill-mod-001,
+.module-pill-mod-002,
+.module-pill-mod-003,
+.module-pill-mod-004 {
+    background: rgba(31, 202, 176, 0.12);
+    color: #017a62;
+    border: 1px solid rgba(31, 202, 176, 0.35);
+}
+
+/* Badges de Estatus */
+.status-badge {
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+    display: inline-block;
+    white-space: nowrap;
+}
+
+.status-STAT-001 {
+    background: #dcfce7;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+}
+
+.status-STAT-002 {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+.no-data {
+    color: #94a3b8;
+    font-size: 0.85rem;
+    font-style: italic;
+}
+
+/* Botones de acción */
+.trainings-table .action-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.trainings-table .view-btn {
+    background: #e0f2fe;
+    color: #0284c7;
+    border: 1px solid #bae6fd;
+}
+
+.trainings-table .view-btn:hover {
+    background: #0284c7;
+    color: #ffffff;
+    box-shadow: 0 4px 8px rgba(2, 132, 199, 0.25);
+    transform: translateY(-1px);
+}
+
+.trainings-table .view-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Estado Vacío */
+.empty-state {
+    padding: 4.5rem 1.5rem !important;
+    text-align: center;
+}
+
+.empty-state-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.empty-icon {
+    width: 48px;
+    height: 48px;
+    color: #94a3b8;
+    margin-bottom: 12px;
+}
+
+.empty-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #334155;
+    margin-bottom: 4px;
+}
+
+.empty-subtitle {
+    font-size: 0.88rem;
+    color: #64748b;
+    margin: 0;
+}
+
+/* ── CONTROLES DE PAGINACIÓN ─────────────────────────────────────────── */
+.trainings-container .pagination-container {
+    padding: 1.25rem 1.5rem;
+    background: #ffffff;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.trainings-container .pagination-info {
+    font-size: 0.85rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.trainings-container .pagination-controls {
+    display: flex;
+    align-items: center;
+}
+
+.trainings-container .pagination-buttons {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.trainings-container .pagination-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.45rem 0.85rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #334155;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.trainings-container .pagination-btn svg {
+    width: 15px;
+    height: 15px;
+}
+
+.trainings-container .pagination-btn:hover:not(:disabled) {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #007865;
+}
+
+.trainings-container .pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.trainings-container .page-numbers {
+    display: flex;
+    gap: 0.3rem;
+    align-items: center;
+}
+
+.trainings-container .page-number {
+    min-width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #334155;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.trainings-container .page-number:hover:not(.active) {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.trainings-container .page-number.active {
+    background: #007865;
+    color: #ffffff;
+    border-color: #007865;
+    box-shadow: 0 2px 6px rgba(0, 120, 101, 0.25);
+}
+
+.trainings-container .page-ellipsis {
+    color: #94a3b8;
+    padding: 0 4px;
+    font-weight: bold;
+}
+
+/* ── MODAL INSTITUCIONAL ─────────────────────────────────────────────── */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 1rem;
+    box-sizing: border-box;
+    animation: modal-fade-in 0.2s ease-out;
+}
+
+.modal-card {
+    background: #ffffff;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 560px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    animation: modal-scale-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8fafc;
+}
+
+.modal-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.modal-title-wrap h2 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+}
+
+.modal-close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #94a3b8;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px;
+    border-radius: 6px;
+    transition: color 0.15s ease;
+}
+
+.modal-close-btn:hover {
+    color: #0f172a;
+}
+
+.modal-body {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.modal-field {
+    display: flex;
+    gap: 8px;
+    font-size: 0.9rem;
+}
+
+.modal-label {
+    font-weight: 600;
+    color: #475569;
+    min-width: 130px;
+}
+
+.modal-value {
+    color: #1e293b;
+}
+
+.modal-description-box {
+    margin-top: 6px;
+    padding: 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: flex-end;
+    background: #f8fafc;
+}
+
+.modal-footer .btn-clear {
+    background: #64748b;
+    color: #ffffff;
+    padding: 0.55rem 1.3rem;
+    border-radius: 20px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.modal-footer .btn-clear:hover {
+    background: #475569;
+    transform: translateY(-1px);
+}
+
+@keyframes modal-fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes modal-scale-in {
+    from {
+        opacity: 0;
+        transform: scale(0.96) translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* ── RESPONSIVE PARA VISTA TABULAR ───────────────────────────────────── */
+@media (max-width: 768px) {
+    .trainings-container {
+        padding: 1.25rem 1rem;
+    }
+
+    .trainings-container .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 1.2rem;
+    }
+
+    .trainings-container .header-right-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .trainings-container .filter-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .trainings-container .search-group,
+    .trainings-container .filter-group {
+        width: 100%;
+        min-width: 100%;
+    }
+
+    .trainings-container .pagination-container {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+    }
+}
