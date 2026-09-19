@@ -25,6 +25,8 @@ from app.models.user_model import User
 from app.models.position_model import Position
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_
+from app.binnacle.services import BinnacleService
+from app.binnacle.types import AuditModule, AuditAction, AuditStatus
 
 
 def get_user_state_info(user):
@@ -324,10 +326,52 @@ def toggle_institution_status(institution_id):
                 user = staff.person.user
                 user.status_id = new_institution_status.id
                 affected_users_count += 1
-        
+
+        BinnacleService.create_log_entry(
+            module=AuditModule.INSTITUTIONS.value,
+            action_type=AuditAction.CAMBIO_ESTATUS.value,
+            description=f'Institución {institution.institution_code} cambiada a {new_status}. {affected_users_count} usuarios afiliados actualizados en cascada.',
+            target_table='institutions',
+            record_id=institution.id,
+            status=AuditStatus.MODIFICADO.value
+        )
+
         db.session.commit()
         db.session.refresh(institution)
         
+        try:
+            from app.notifications.services import NotificationService
+            from app.notifications.enums import NotificationEvent
+            event_type = NotificationEvent.INSTITUTION_ACTIVATED if new_status == 'Activo' else NotificationEvent.INSTITUTION_INACTIVATED
+            
+            from flask_login import current_user
+            modificado_por = "Administración Central"
+            if current_user and hasattr(current_user, 'person') and current_user.person:
+                modificado_por = f"{current_user.person.first_name} {current_user.person.last_name}".strip()
+
+            context = {"institution_name": institution.institution_name}
+            
+            if new_status != 'Activo':
+                context["_display"] = {
+                    "Institución": institution.institution_name,
+                    "Suspendido Por": modificado_por
+                }
+            else:
+                context["_display"] = {
+                    "Institución": institution.institution_name,
+                    "Reactivado Por": modificado_por
+                }
+
+            NotificationService.notify_institution_affiliates(
+                institution_id=institution.id,
+                event=event_type,
+                context=context,
+                redirect_url="/institutions/profile",
+                action_text="Ver Detalles"
+            )
+        except Exception as e:
+            print(f"Error enviando notificacion de estatus: {e}")
+            
         return institution, new_status, affected_users_count
     except Exception as e:
         print(f"Error en toggle_institution_status: {e}")
@@ -523,7 +567,6 @@ def validate_institution_data(institution_data, is_admin=False):
 def update_institution_contact_infrastructure(institution_id, institution_data, is_admin=False):
     """Actualiza los datos de contacto e infraestructura de una institución."""
     try:
-        from app.utils.binnacle_utils import log_action
         from flask_login import current_user
         
         is_valid, validation_errors = validate_institution_data(institution_data, is_admin)
@@ -586,25 +629,64 @@ def update_institution_contact_infrastructure(institution_id, institution_data, 
                     db.session.add(new_location)
         
         db.session.commit()
-        db.session.refresh(institution)
+        
+        changed_fields = {}
+        if old_values['address'] != institution.address:
+            changed_fields["Dirección"] = institution.address
+            
+        if is_admin:
+            if old_values['plantel_code'] != institution.plantel_code:
+                changed_fields["Código de Plantel"] = institution.plantel_code
+            if old_values['institution_name'] != institution.institution_name:
+                changed_fields["Nombre"] = institution.institution_name
+            if old_values['institution_type_id'] != institution.institution_type_id:
+                changed_fields["Tipo de Institución"] = institution.institution_type.name if institution.institution_type else "Actualizado"
+            if old_values['institution_scope_id'] != institution.institution_scope_id:
+                changed_fields["Alcance"] = institution.institution_scope.name if institution.institution_scope else "Actualizado"
+            if old_values['institution_dependency_id'] != institution.institution_dependency_id:
+                changed_fields["Dependencia"] = institution.institution_dependency.name if institution.institution_dependency else "Actualizado"
+            if old_values['parish_id'] != institution.parish_id:
+                changed_fields["Parroquia"] = institution.parish.name if institution.parish else "Actualizado"
+                if institution.parish and institution.parish.municipality:
+                    changed_fields["Municipio"] = institution.parish.municipality.name
+                    if hasattr(institution.parish.municipality, 'state') and institution.parish.municipality.state:
+                        changed_fields["Estado"] = institution.parish.municipality.state.name
+        
+        # Modificado por
+        if current_user and hasattr(current_user, 'person') and current_user.person:
+            modificado_por = f"{current_user.person.first_name} {current_user.person.last_name}".strip()
+        else:
+            modificado_por = "Administración Central"
+            
+        changed_fields["Modificado Por"] = modificado_por
+        
+        BinnacleService.create_log_entry(
+            module=AuditModule.INSTITUTIONS.value,
+            action_type=AuditAction.ACTUALIZAR_INFRAESTRUCTURA.value,
+            description=f'Actualización de datos y localización del plantel {institution.plantel_code} efectuada por {modificado_por}',
+            target_table='sages.institutions',
+            record_id=institution.id,
+            status=AuditStatus.MODIFICADO.value
+        )
         
         try:
-            action_description = f'Actualización de datos de institución {institution.institution_code}'
-            if is_admin:
-                action_description += ' (administrador)'
-            else:
-                action_description += ' (applicant)'
-                
-            log_action(
-                user_id=current_user.id if current_user.is_authenticated else None,
-                module='institutions',
-                action_type='UPDATE',
-                description=action_description,
-                old_values=old_values,
-                new_values=institution_data
-            )
-        except Exception as log_error:
-            print(f"Error al registrar en bitácora: {log_error}")
+            if is_admin and len(changed_fields) > 1: # > 1 para que solo se dispare si aparte del Modificado Por, algo mas cambió
+                from app.notifications.services import NotificationService
+                from app.notifications.enums import NotificationEvent
+                NotificationService.notify_institution_affiliates(
+                    institution_id=institution.id,
+                    event=NotificationEvent.INSTITUTION_DATA_UPDATED,
+                    context={
+                        "institution_name": institution.institution_name,
+                        "_display": changed_fields
+                    },
+                    redirect_url="/institutions/profile",
+                    action_text="Ver Detalles"
+                )
+        except Exception as e:
+            print(f"Error enviando notificacion de edicion institucional: {e}")
+        
+        db.session.refresh(institution)
         
         return institution, True, 'Datos actualizados exitosamente'
     except Exception as e:

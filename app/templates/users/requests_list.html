@@ -1,0 +1,267 @@
+{% extends "layouts/base.html" %}
+
+{% block extra_css %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<!-- Llamamos al CSS correcto de listas -->
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/users_list.css') }}">
+<!-- FontAwesome para los iconos (si no lo tienes en base.html) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="users-container">
+    
+    <!-- Encabezado -->
+    <div class="header-card">
+        <div class="welcome-text">
+            Bandeja de Solicitudes Pendientes 📥
+        </div>
+    </div>
+    
+    <!-- Botón Volver -->
+    <div style="margin-top: 20px; margin-bottom: 20px; margin-left: 5px;">
+        <a href="{{ url_for('users.list_users') }}" class="btn-clear" style="text-decoration: none;">
+        &larr; Volver a Gestión de Usuarios
+        </a>
+    </div>
+
+    <!-- 1. NUEVO: Cartel Informativo -->
+    <div style="background-color: #f0fdf4; color: #166534; padding: 16px 20px; border-radius: 8px; margin-bottom: 24px; font-size: 14px; border-left: 5px solid #16a34a; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 12px;">
+        <i class="fas fa-info-circle" style="font-size: 20px;"></i>
+        <span><strong>Atención:</strong> Por favor, visualice la evidencia adjunta de cada solicitud antes de habilitar las opciones para aprobar o rechazar.</span>
+    </div>
+    
+    <div class="table-card">
+        <div class="table-responsive">
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>N°</th>
+                        <th>Nombre</th>
+                        <th>Cargo Institucional</th>
+                        <th>Municipio</th>
+                        <th>Parroquia</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if requests %}
+                        {% for req in requests %}
+                        <tr class="{{ loop.cycle('row-even', 'row-odd') }}">
+                            <td class="text-muted font-medium">{{ loop.index }}</td>
+                            
+                            <!-- Nombre y Apellido (Unificados) -->
+                            <td class="font-medium">
+                                {{ req.person.first_name if req.person else 'N/A' }} {{ req.person.last_name if req.person and req.person.last_name else '' }}
+                            </td>
+
+                            <!-- Cargo Institucional -->
+                            <td class="text-dark truncate">
+                                {{ req.position.name if req.position else 'N/A' }}
+                            </td>
+                            
+                            <!-- Municipio -->
+                            <td>
+                                {{ req.institution.parish.municipality.name if req.institution and req.institution.parish else 'N/A' }}
+                            </td>
+
+                            <!-- Parroquia -->
+                            <td>
+                                {{ req.institution.parish.name if req.institution and req.institution.parish else 'N/A' }}
+                            </td>
+                            <td class="text-center">
+                                <div style="display: flex; justify-content: center; align-items: center; gap: 8px;">
+                                    
+                                    <!-- BOTÓN VER -->
+                                    <button type="button" class="btn-clear" style="padding: 6px 12px; font-size: 13px; border: 1px solid #94a3b8; border-radius: 6px; cursor: pointer; background-color: white; color: #334155; display: flex; align-items: center; gap: 6px;" 
+                                            onclick="abrirModalEvidencia('{{ req.id }}')">
+                                        <i class="fas fa-eye"></i> Ver
+                                    </button>
+                            
+                                    <!-- 2. BOTÓN APROBAR: Bloqueado por defecto -->
+                                    <button type="button" id="btn-aprobar-{{ req.id }}" class="btn-register" 
+                                            style="padding: 6px 12px; font-size: 13px; border: none; border-radius: 6px; cursor: not-allowed; opacity: 0.5; background-color: #10b981; color: white; display: flex; align-items: center; gap: 6px;" disabled>
+                                        <i class="fas fa-check"></i> Aprobar
+                                    </button>
+                                
+                                    <!-- 3. BOTÓN RECHAZAR: Modificado para bloquear por defecto con ícono de prohibido -->
+                                    <button type="button" id="btn-rechazar-{{ req.id }}" class="btn-clear" 
+                                            style="padding: 6px 12px; font-size: 13px; border: none; border-radius: 6px; cursor: not-allowed; opacity: 0.5; background-color: #ef4444; color: white; display: flex; align-items: center; gap: 6px;" disabled>
+                                        <i class="fas fa-ban"></i> Rechazar
+                                    </button>
+
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="empty-state">
+                                <span class="empty-icon">📂</span>
+                                <strong>No hay solicitudes pendientes.</strong>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- CDN de SweetAlert2 para el Modal -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+    // Al cargar la página, revisamos el localStorage para desbloquear los botones de las evidencias ya vistas
+    document.addEventListener("DOMContentLoaded", function() {
+        const botonesAprobar = document.querySelectorAll('[id^="btn-aprobar-"]');
+        botonesAprobar.forEach(btn => {
+            const requestId = btn.id.split('-')[2];
+            if (localStorage.getItem(`evidencia_vista_${requestId}`) === 'true') {
+                desbloquearBotones(requestId, true); // true = carga silenciosa (sin mensaje)
+            }
+        });
+    });
+
+    function abrirModalEvidencia(requestId) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+        Swal.fire({
+            title: 'Cargando documento...',
+            didOpen: () => { Swal.showLoading(); },
+            allowOutsideClick: false
+        });
+
+        fetch(`/users/requests/${requestId}/evidence`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    let contenidoHtml = data.file_type === 'pdf' 
+                        ? `<iframe src="${data.file_url}" width="100%" height="400px" style="border: none;"></iframe>`
+                        : `<img src="${data.file_url}" style="max-width: 100%; max-height: 400px; border-radius: 5px;" alt="Evidencia">`;
+
+                    Swal.fire({
+                        title: 'Vista Previa del Documento',
+                        html: contenidoHtml,
+                        width: '800px',
+                        showCloseButton: true,
+                        confirmButtonText: 'Cerrar y Habilitar Acciones',
+                        confirmButtonColor: '#0f766e'
+                    }).then(() => desbloquearBotones(requestId, false)); // false = mostrar mensaje si es nuevo
+                } else {
+                    Swal.fire('Error', data.message, 'error');
+                }
+            })
+            .catch(() => Swal.fire('Error', 'No se pudo conectar con el servidor.', 'error'));
+    }
+
+    function desbloquearBotones(requestId, cargaSilenciosa = false) {
+        const btnAprobar = document.getElementById(`btn-aprobar-${requestId}`);
+        const btnRechazar = document.getElementById(`btn-rechazar-${requestId}`);
+        
+        if (btnAprobar && btnRechazar) {
+            // Habilitar botón Aprobar
+            btnAprobar.disabled = false;
+            btnAprobar.style.cursor = 'pointer';
+            btnAprobar.style.opacity = '1';
+            btnAprobar.setAttribute('onclick', `confirmarAprobacion(${requestId})`);
+            
+            // Habilitar botón Rechazar
+            btnRechazar.disabled = false;
+            btnRechazar.style.cursor = 'pointer';
+            btnRechazar.style.opacity = '1';
+            btnRechazar.setAttribute('onclick', `confirmarRechazo(${requestId})`);
+            
+            // Mostrar la alerta SOLO si no es una carga silenciosa y no estaba guardado antes
+            if (!cargaSilenciosa && !localStorage.getItem(`evidencia_vista_${requestId}`)) {
+                Swal.fire({
+                    toast: true, position: 'top-end', icon: 'info',
+                    title: 'Opciones de aprobación y rechazo habilitadas',
+                    showConfirmButton: false, timer: 3000
+                });
+            }
+            
+            // Guardar permanentemente en el navegador
+            localStorage.setItem(`evidencia_vista_${requestId}`, 'true');
+        }
+    }
+
+    function confirmarAprobacion(requestId) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        
+        Swal.fire({
+            title: '¿Aprobar solicitud?',
+            text: 'Se generará el token y enlace de activación para el usuario.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#10b981',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Sí, aprobar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch(`/users/requests/${requestId}/approve`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken 
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Limpiar el registro al aprobar exitosamente
+                        localStorage.removeItem(`evidencia_vista_${requestId}`);
+                        Swal.fire('¡Aprobado!', data.message, 'success').then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire('Error', data.message, 'error');
+                    }
+                })
+                .catch(() => Swal.fire('Error', 'No se pudo procesar la solicitud.', 'error'));
+            }
+        });
+    }
+
+    function confirmarRechazo(requestId) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        
+        Swal.fire({
+            title: '¿Rechazar solicitud?',
+            text: 'El registro será denegado. Esta acción no se puede deshacer.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Sí, rechazar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch(`/users/requests/${requestId}/reject`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken 
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Limpiar el registro al rechazar exitosamente
+                        localStorage.removeItem(`evidencia_vista_${requestId}`);
+                        Swal.fire('¡Rechazado!', 'La solicitud ha sido rechazada exitosamente.', 'success').then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire('Error', data.message || 'Hubo un problema al rechazar la solicitud.', 'error');
+                    }
+                })
+                .catch(() => Swal.fire('Error', 'No se pudo procesar la solicitud.', 'error'));
+            }
+        });
+    }
+</script>
+{% endblock %}

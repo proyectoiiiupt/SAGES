@@ -1,0 +1,207 @@
+/* notificaciones-dropdown.css */
+
+.topbar-bell-wrapper {
+    position: relative;
+}
+
+.notifications-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    background-color: #ef4444; /* DANGER / Rojo */
+    color: white;
+    font-size: 0.65rem;
+    font-weight: bold;
+    padding: 2px 5px;
+    border-radius: 10px;
+    border: 2px solid #ef4444; /* Rojo igual al fondo */
+    min-width: 18px;
+    text-align: center;
+    line-height: 1;
+    pointer-events: none;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.notifications-dropdown {
+    position: absolute;
+    top: 120%;
+    right: 0;
+    width: 340px;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.notifications-dropdown.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.notifications-dropdown-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f8fafc;
+}
+
+.notifications-dropdown-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.mark-all-read-btn {
+    background: transparent;
+    border: none;
+    color: #3b82f6;
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 0;
+    font-weight: 500;
+}
+
+.mark-all-read-btn:hover {
+    text-decoration: underline;
+}
+
+.notifications-list {
+    max-height: 350px;
+    overflow-y: auto;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+}
+
+.notification-item {
+    padding: 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    gap: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+    position: relative;
+}
+
+.notification-item:hover {
+    background: #f8fafc;
+}
+
+.notification-item.unread {
+    background: #eff6ff;
+}
+.notification-item.unread:hover {
+    background: #e0f2fe;
+}
+
+.notif-icon {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.notif-icon.INFO { background: #e0f2fe; color: #0284c7; }
+.notif-icon.SUCCESS { background: #d1fae5; color: #10b981; }
+.notif-icon.WARNING { background: #fef3c7; color: #d97706; }
+.notif-icon.DANGER { background: #fee2e2; color: #ef4444; }
+
+.notif-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.notif-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #334155;
+    margin: 0;
+}
+.notif-message {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin: 0;
+    line-height: 1.4;
+}
+.notif-time {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+
+.notif-dot {
+    width: 8px;
+    height: 8px;
+    background: #3b82f6;
+    border-radius: 50%;
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+}
+
+.notifications-dropdown-footer {
+    padding: 0.75rem;
+    text-align: center;
+    border-top: 1px solid #e5e7eb;
+    background: #ffffff;
+}
+
+.view-all-history-link {
+    color: #1e293b;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.view-all-history-link:hover {
+    color: #3b82f6;
+}
+
+.notifications-empty {
+    padding: 2rem;
+    text-align: center;
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+/* ----------------------------------
+   TIEMPO REAL: ANIMACIÓN DE VIBRACIÓN
+----------------------------------- */
+@keyframes bellRing {
+  0% { transform: rotate(0); }
+  10% { transform: rotate(25deg); }
+  20% { transform: rotate(-25deg); }
+  30% { transform: rotate(20deg); }
+  40% { transform: rotate(-20deg); }
+  50% { transform: rotate(15deg); }
+  60% { transform: rotate(-15deg); }
+  70% { transform: rotate(10deg); }
+  80% { transform: rotate(-10deg); }
+  90% { transform: rotate(5deg); }
+  100% { transform: rotate(0); }
+}
+
+.ring-animation svg {
+    animation: bellRing 0.8s ease-in-out;
+    color: #3b82f6 !important; /* Brillo de atención */
+    filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.5));
+}

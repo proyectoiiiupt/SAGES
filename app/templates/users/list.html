@@ -80,8 +80,12 @@
         </form>
 
         {% if current_role == 'super_admin' %}
-        <a href="#" class="btn-register">
+        <a href="{{ url_for('users.register_admin') }}" class="btn-register">
             Registrar Nuevo <span class="plus-icon">+</span>
+        </a>
+        {% elif current_role == 'state_admin' %}
+        <a href="{{ url_for('users.list_requests') }}" class="btn-register" style="background-color: #0f766e; border-color: #0f766e; text-decoration: none;">
+            Solicitudes de Registro 📥
         </a>
         {% endif %}
     </div>
@@ -204,4 +208,32 @@
 {% block extra_js %}
 <!-- Enlace al nuevo archivo JS local -->
 <script src="{{ url_for('static', filename='JS/users_list.js') }}"></script>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                if (typeof Swal !== 'undefined') {
+                    {% for category, message in messages %}
+                        {% if category == 'success' %}
+                            Swal.fire({
+                                title: '¡Éxito!',
+                                text: "{{ message }}",
+                                icon: 'success',
+                                confirmButtonColor: '#10b981'
+                            });
+                        {% elif category == 'danger' or category == 'error' %}
+                            Swal.fire({
+                                title: 'Error',
+                                text: "{{ message }}",
+                                icon: 'error',
+                                confirmButtonColor: '#ef4444'
+                            });
+                        {% endif %}
+                    {% endfor %}
+                }
+            });
+        </script>
+    {% endif %}
+{% endwith %}
 {% endblock %}

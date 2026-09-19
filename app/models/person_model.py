@@ -1,19 +1,22 @@
 from app.extensions import db
 from datetime import datetime, timezone
+from app.binnacle.mixins import AuditableMixin
+from app.binnacle.types import AuditModule
 
-class Person(db.Model):
+class Person(db.Model, AuditableMixin):
     __tablename__ = 'persons'
     __table_args__ = {'schema': 'sages'}
+    __audit_module__ = AuditModule.USERS.value
 
     id = db.Column(db.BigInteger, primary_key=True)
     person_code = db.Column(db.String(50), unique=True, nullable=False)
     identification_type = db.Column(db.String(50), nullable=False)
     identification_number = db.Column(db.String(50), unique=True, nullable=False)
     first_name = db.Column(db.String(100), nullable=False)
-    second_name = db.Column(db.String(100), nullable=False)
+    second_name = db.Column(db.String(100), nullable=True)
     last_name = db.Column(db.String(100), nullable=False)
-    middle_name = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(100), nullable=False)
+    middle_name = db.Column(db.String(100), nullable=True)
+    email = db.Column(db.String(100), unique=True, nullable=False)
     mobile = db.Column(db.String(50), nullable=False)
     phone = db.Column(db.String(50), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)

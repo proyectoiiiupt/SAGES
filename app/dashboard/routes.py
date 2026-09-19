@@ -5,7 +5,7 @@ Controla la visualización de los indicadores y métricas del sistema.
 from flask import render_template, flash
 from flask_login import login_required, current_user
 from app.dashboard import dashboard_bp
-from app.dashboard.services import get_dashboard_indicators
+from app.dashboard.services import get_dashboard_indicators, get_audit_logs
 from app.decorators import role_required, check_permissions
 
 
@@ -21,7 +21,9 @@ def index():
     """
     try:
         metrics = get_dashboard_indicators(current_user)
-        return render_template('dashboard/dashboard.html', metrics=metrics)
+        recent_logs = get_audit_logs(limit=5)
+        
+        return render_template('dashboard/dashboard.html', metrics=metrics, logs=recent_logs)
     except Exception as e:
         print(f"Error al cargar el dashboard: {e}")
         flash("Ocurrió un error al calcular los indicadores del panel.", "danger")
@@ -37,4 +39,16 @@ def index():
             'is_super_admin': False,
             'user_state': None,
             'jurisdiction_summary': []
-        })
+        }, logs=[])
+
+
+@dashboard_bp.route('/registro-auditoria', methods=['GET'])
+@login_required
+@role_required('super_admin', 'state_admin')
+@check_permissions('view_admin_panel')
+def audit_view():
+    """
+    Vista ampliada de la tabla de bitácora/auditoría (US-25-binnacle-table).
+    """
+    logs = get_audit_logs()
+    return render_template('dashboard/audit_log.html', logs=logs)

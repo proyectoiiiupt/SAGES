@@ -1,0 +1,31 @@
+{# app/templates/notifications/components/card_status.html #}
+{% macro render_status_card(notif) %}
+<div class="notification-card notification-card-status {% if not notif.is_read %}is-unread{% endif %} trigger-modal" data-notif-id="{{ notif.id }}" data-notif-title="{{ notif.title | forceescape }}" data-notif-message="{{ notif.message | forceescape }}" data-notif-date="{{ notif.created_at.isoformat() ~ 'Z' }}" data-notif-extra="{{ (notif.extra_data or {}) | tojson | forceescape }}">
+    <div class="action-icon">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+    </div>
+    <div class="status-content">
+        <div class="status-top">
+            <h4 class="status-title">{{ notif.title }}</h4>
+            <span class="status-time local-datetime" data-utc="{{ notif.created_at.isoformat() ~ 'Z' }}" data-format="friendly">{{ notif.created_at.strftime('%d de %b, %I:%M %p') }}</span>
+        </div>
+        <p class="status-message">{{ notif.message }}</p>
+        {% if notif.extra_data and notif.extra_data is mapping and notif.extra_data.get('details') %}
+        <div class="status-extra-box">
+            <small>{{ notif.extra_data.details }}</small>
+        </div>
+        {% endif %}
+    </div>
+    <div class="action-buttons-container">
+        {% if notif.redirect_url %}
+        <a href="{{ notif.redirect_url }}" class="btn-primary-action history-action-link" data-notif-id="{{ notif.id }}">
+            {{ notif.action_text or 'Ver detalles' }}
+        </a>
+        {% else %}
+        <button class="btn-secondary-action history-mark-read" data-notif-id="{{ notif.id }}" {% if notif.is_read %}disabled{% endif %}>
+            {{ 'Leído' if notif.is_read else 'Marcar como leído' }}
+        </button>
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}

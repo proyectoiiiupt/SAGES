@@ -21,6 +21,8 @@ from app.models.position_model import Position
 from app.institutions.forms import InstitutionEditForm, InstitutionEditApplicantForm
 from app.extensions import db
 from app.utils.invitation_utils import read_invitation_token
+from app.binnacle.services import BinnacleService
+from app.binnacle.types import AuditModule, AuditAction, AuditStatus
 
 EMAIL_REGEX = re.compile(r'^[A-Za-z0-9.!#$%&\'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$')
 
@@ -115,6 +117,15 @@ def toggle_institution_status_route(institution_id):
         
         if institution is None:
             return jsonify({'success': False, 'message': new_status, 'affected_users': 0}), 404
+
+        BinnacleService.create_log_entry(
+            module=AuditModule.INSTITUTIONS.value,
+            action_type=AuditAction.CAMBIO_ESTATUS_INSTITUCION.value,
+            description=f'Institución {institution.institution_code} cambiada a {new_status}. {affected_users} usuarios afiliados afectados en cascada.',
+            target_table='sages.institutions',
+            record_id=institution.id,
+            status=AuditStatus.MODIFICADO.value
+        )
         
         return jsonify({
             'success': True,
@@ -426,6 +437,14 @@ def invite_institution_collaborator(institution_id):
                 identification_number=request.form.get('identification_number', ''),
                 position_id=request.form.get('position_id', type=int)
             )
+
+            BinnacleService.create_log_entry(
+                module=AuditModule.INSTITUTIONS.value,
+                action_type=AuditAction.INVITACION_COLABORADOR.value,
+                description=f"Invitación de colaborador emitida para el correo {request.form.get('email', '')} con cargo ID {request.form.get('position_id', '')} en plantel ID {institution_id}",
+                status=AuditStatus.COMPLETADO.value
+            )
+
             msg = 'La invitación fue enviada correctamente.'
             if is_ajax:
                 return jsonify({'success': True, 'message': msg}), 200

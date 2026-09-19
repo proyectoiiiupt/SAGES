@@ -1,5 +1,5 @@
 import datetime
-from flask import Blueprint, render_template, request, abort, redirect, url_for, flash
+from flask import Blueprint, render_template, request, abort, redirect, url_for, flash, jsonify, current_app, send_from_directory
 from flask_login import login_required, current_user
 from sqlalchemy import or_
 from app.extensions import db
@@ -14,10 +14,16 @@ from app.models.institution_model import Institution
 from app.models.place_model import Place
 from app.models.parish_model import Parish
 from app.models.municipality_model import Municipality
-
+from app.models.staff_evidence_model import StaffEvidence
 from app.models.position_model import Position  
-from app.users.forms import UserUpdateForm
-
+from app.models.status_model import Status
+from app.users.forms import UserUpdateForm, AdminUserRegisterForm
+from app.utils.activation_utils import generate_activation_token
+from app.utils.email_utils import send_applicant_activation_email, send_administrative_activation_email
+from app.users.services import get_corpoelec_places_by_state, get_administrative_positions, create_administrative_user
+from app.binnacle.decorators import audit_activity
+from app.binnacle.services import BinnacleService
+from app.binnacle.types import AuditModule, AuditAction, AuditStatus
 
 
 users_bp = Blueprint('users', __name__)
@@ -219,6 +225,7 @@ def list_users():
 
 @users_bp.route('/view/<int:user_id>', methods=['GET'])
 @login_required
+@audit_activity(module=AuditModule.USERS.value, action_type=AuditAction.CONSULTA_DETALLE.value, description="Consulta del perfil detallado de un usuario")
 def view_user(user_id):
     user = User.query.get_or_404(user_id)
     person = user.person
@@ -354,20 +361,62 @@ def edit_user(user_id):
     if form.validate_on_submit():
         try:
             # Quitamos los puntos de la cédula antes de guardar en base de datos
-        
             raw_cedula = form.identification_number.data.replace('.', '').strip()
             
+            changed_fields = {}
+            if person.identification_number != raw_cedula:
+                changed_fields["Cédula"] = raw_cedula
             person.identification_number = raw_cedula
-            person.first_name = form.first_name.data.strip().title()
-            person.second_name = form.second_name.data.strip().title() if form.second_name.data else None
-            person.last_name = form.last_name.data.strip().title()
-            person.middle_name = form.middle_name.data.strip().title() if form.middle_name.data else None
+            
+            new_first_name = form.first_name.data.strip().title()
+            if person.first_name != new_first_name:
+                changed_fields["Primer Nombre"] = new_first_name
+            person.first_name = new_first_name
+            
+            new_second_name = form.second_name.data.strip().title() if form.second_name.data else None
+            if person.second_name != new_second_name:
+                changed_fields["Segundo Nombre"] = new_second_name if new_second_name else "S/D"
+            person.second_name = new_second_name
+            
+            new_last_name = form.last_name.data.strip().title()
+            if person.last_name != new_last_name:
+                changed_fields["Primer Apellido"] = new_last_name
+            person.last_name = new_last_name
+            
+            new_middle_name = form.middle_name.data.strip().title() if form.middle_name.data else None
+            if person.middle_name != new_middle_name:
+                changed_fields["Segundo Apellido"] = new_middle_name if new_middle_name else "S/D"
+            person.middle_name = new_middle_name
             
             # Guardamos el nuevo cargo
-            if staff_record:
+            if staff_record and staff_record.position_id != form.position.data:
+                pos_name = dict(form.position.choices).get(form.position.data, "Actualizado")
+                changed_fields["Cargo"] = pos_name
                 staff_record.position_id = form.position.data
                     
             db.session.commit()
+            
+            try:
+                from app.notifications.services import NotificationService
+                from app.notifications.enums import NotificationEvent
+                
+                # Agregar Modificado Por
+                if current_user and hasattr(current_user, 'person') and current_user.person:
+                    changed_fields["Modificado Por"] = f"{current_user.person.first_name} {current_user.person.last_name}".strip()
+                else:
+                    changed_fields["Modificado Por"] = "Administración Central"
+                    
+                # Solo notificar si realmente hubo un cambio
+                if len(changed_fields) > 1:
+                    NotificationService.notify_user(
+                        user_id=user.id,
+                        event=NotificationEvent.USER_PROFILE_UPDATED,
+                        context={"_display": changed_fields},
+                        redirect_url="/users/profile",
+                        action_text="Revisar Perfil"
+                    )
+            except Exception as e:
+                print(f"Error enviando notificacion de edicion de perfil: {e}")
             
             flash('Datos del usuario actualizados exitosamente.', 'success')
             return redirect(url_for('users.view_user', user_id=user.id))
@@ -419,6 +468,16 @@ def toggle_status(user_id):
         db.session.commit()
         
         estado_str = "activado" if new_status == 1 else "desactivado"
+        
+        BinnacleService.create_log_entry(
+            module=AuditModule.USERS.value,
+            action_type=AuditAction.CAMBIO_ESTATUS_USUARIO.value,
+            description=f'El perfil del usuario ha sido {estado_str} exitosamente.',
+            target_table='sages.users',
+            record_id=user.id,
+            status=AuditStatus.MODIFICADO.value
+        )
+        
         flash(f'El perfil del usuario ha sido {estado_str} exitosamente.', 'success')
         
     except Exception as e:
@@ -427,7 +486,6 @@ def toggle_status(user_id):
         flash('Ocurrió un error al intentar cambiar el estatus.', 'error')
         
     return redirect(url_for('users.view_user', user_id=user.id))
-
 
 @users_bp.route('/profile', methods=['GET', 'POST'])
 @login_required
@@ -504,3 +562,300 @@ def profile():
         active_tab=active_tab
     )
 
+
+# ==========================================
+# BANDEJA DE SOLICITUDES (US-10)
+# ==========================================
+
+@users_bp.route('/requests', methods=['GET'])
+@login_required
+def list_requests():
+    user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
+    if user_role != 'state_admin':
+        abort(403)
+
+    target_state_id = None
+    if current_user.person:
+        admin_inst = InstitutionalStaff.query.filter_by(person_id=current_user.person.id).first()
+        if admin_inst and admin_inst.institution and admin_inst.institution.parish:
+            target_state_id = admin_inst.institution.parish.municipality.state_id
+            
+    # Filtro simplificado basado estrictamente en las instrucciones del líder técnico
+    status_pending = Status.query.filter_by(status_code='STAT-004').first()
+    pending_requests = InstitutionalStaff.query.filter_by(status_id=status_pending.id).all() if status_pending else []
+
+    return render_template(
+        'users/requests_list.html', 
+        requests=pending_requests,
+        current_role=user_role
+    )
+
+@users_bp.route('/descargar_evidencia/<path:filename>')
+def serve_evidence(filename):
+    directorio_base = current_app.config.get('UPLOAD_FOLDER', 'uploads')
+    
+    # Agregamos estos prints para ver la ruta exacta en la terminal
+    print(f"\n--- DEBUG EVIDENCIA ---")
+    print(f"Directorio Base: {directorio_base}")
+    print(f"Nombre del archivo (BD): {filename}")
+    print(f"-----------------------\n")
+    
+    try:
+        return send_from_directory(directorio_base, filename)
+    except FileNotFoundError:
+        print("ERROR: No se encontró el archivo en la ruta combinada.")
+        abort(404)
+
+import os
+from app.models.staff_evidence_model import StaffEvidence
+
+@users_bp.route('/requests/<int:staff_id>/evidence', methods=['GET'])
+@login_required
+def get_evidence(staff_id):
+    # Buscamos la evidencia del usuario usando el modelo correcto
+    evidence = StaffEvidence.query.filter_by(institutional_staff_id=staff_id).first()
+
+    if not evidence or not evidence.file_path:
+        return jsonify({"status": "error", "message": "No se encontró un archivo adjunto."}), 404
+
+    # Normalizamos separadores de carpetas Windows / Linux
+    raw_path = evidence.file_path.replace('\\', '/')
+
+    # Conservamos la subcarpeta dentro de uploads/ para que send_from_directory no se pierda
+    if 'uploads/' in raw_path:
+        clean_path = raw_path.split('uploads/')[-1]
+    elif 'staff_evidences/' in raw_path:
+        clean_path = 'staff_evidences/' + raw_path.split('staff_evidences/')[-1]
+    else:
+        clean_path = os.path.basename(raw_path)
+
+    file_url = url_for('users.serve_evidence', filename=clean_path)
+
+    BinnacleService.create_log_entry(
+        module=AuditModule.USERS.value,
+        action_type=AuditAction.CONSULTA_EVIDENCIA.value,
+        description=f'Consulta de evidencia para solicitante staff_id: {staff_id}',
+        target_table='sages.staff_evidences',
+        record_id=evidence.id,
+        status=AuditStatus.COMPLETADO.value
+    )
+
+    return jsonify({
+        "status": "success", 
+        "file_url": file_url,
+        "file_type": clean_path.split('.')[-1].lower() 
+    })
+
+@users_bp.route('/requests/<int:staff_id>/approve', methods=['POST'])
+@login_required
+def approve_request(staff_id):
+    user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
+    if user_role not in ['state_admin', 'super_admin']:
+        return jsonify({'status': 'error', 'message': 'No tiene permisos para realizar esta acción.'}), 403
+
+    staff = InstitutionalStaff.query.get_or_404(staff_id)
+    person = staff.person
+
+    if not person:
+        return jsonify({'status': 'error', 'message': 'El registro no posee información de persona asociada.'}), 400
+
+    # Comprobar que no posea ya una cuenta de usuario activa
+    if person.user:
+        return jsonify({'status': 'error', 'message': 'Esta persona ya posee un usuario registrado en el sistema.'}), 400
+
+    try:  # CORREGIDO: ttry -> try
+        # Generación del token seguro con vigencia de 48h
+        payload = {
+            'person_id': person.id,
+            'staff_id': staff.id,
+            'flow': 'applicant',
+            'email': person.email
+        }
+        token = generate_activation_token(payload)
+
+        # 1. Actualizar el estatus del InstitutionalStaff a STAT-006 (En Proceso)
+        # DESCOMENTADO para cumplir con la Sección 3.2 del documento de especificaciones
+        status_in_progress = Status.query.filter_by(status_code='STAT-006').first()
+        if status_in_progress:
+            staff.status_id = status_in_progress.id 
+        db.session.commit()
+
+        try:
+            from app.notifications.services import NotificationService
+            from app.notifications.enums import NotificationEvent
+            user_name = f"{person.first_name} {person.last_name}".strip()
+            inst_name = staff.institution.institution_name if hasattr(staff, 'institution') and staff.institution else "Plantel Asignado"
+            state_name = "su jurisdicción"
+            if hasattr(staff, 'institution') and staff.institution and staff.institution.parish and hasattr(staff.institution.parish, 'municipality') and staff.institution.parish.municipality and hasattr(staff.institution.parish.municipality, 'state'):
+                state_name = staff.institution.parish.municipality.state.name
+            
+            admin_name = f"{current_user.person.first_name} {current_user.person.last_name}".strip() if current_user and hasattr(current_user, 'person') and current_user.person else "Administrador"
+            
+            context = {
+                "user_name": user_name,
+                "institution_name": inst_name,
+                "state_name": state_name,
+                "admin_name": admin_name,
+                "_display": [
+                    ("Estado", state_name),
+                    ("Código de Plantel", staff.institution.plantel_code if hasattr(staff, 'institution') and staff.institution else "S/D"),
+                    ("Institución", inst_name),
+                    ("Representante", user_name),
+                    ("Cargo", staff.position.name if hasattr(staff, 'position') and staff.position else "Directivo/Encargado")
+                ]
+            }
+            NotificationService.notify_role(
+                role_name='super_admin',
+                event=NotificationEvent.REGISTRATION_APPROVED,
+                context=context
+            )
+        except Exception as e:
+            print(f"Error enviando notificacion de aprobacion: {e}")
+
+        BinnacleService.create_log_entry(
+            module=AuditModule.USERS.value,
+            action_type=AuditAction.APROBACION_SOLICITUD_REGISTRO.value,
+            description=f'Solicitud aprobada exitosamente para {person.first_name} {person.last_name}',
+            target_table='sages.institutional_staff',
+            record_id=staff.id,
+            status=AuditStatus.COMPLETADO.value
+        )
+
+        # 2. Llamada a la función de correo en hilo independiente DESPUÉS del commit
+        send_applicant_activation_email(person.email, token)
+
+        return jsonify({
+            'status': 'success',
+            'message': f'Solicitud aprobada exitosamente. Se ha generado el enlace de activación para {person.first_name} {person.last_name}.'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"[ERROR APPROVE REQUEST]: {e}")
+        return jsonify({'status': 'error', 'message': 'Ocurrió un error interno al procesar la aprobación.'}), 500
+
+
+# ==========================================
+# REGISTRO ADMINISTRATIVO INTERNO (US-13)
+# ==========================================
+
+@users_bp.route('/api/validate-identification', methods=['GET'])
+@login_required
+def validate_identification():
+    id_number = request.args.get('id', '').strip()
+    if not id_number:
+        return jsonify({'valid': False, 'message': 'Cédula requerida'})
+    
+    person = Person.query.filter_by(identification_number=id_number).first()
+    if person:
+        return jsonify({'valid': False, 'message': 'Esta cédula ya está registrada'})
+    
+    return jsonify({'valid': True})
+
+@users_bp.route('/api/validate-email', methods=['GET'])
+@login_required
+def validate_email():
+    email = request.args.get('email', '').strip().lower()
+    if not email:
+        return jsonify({'valid': False, 'message': 'Correo requerido'})
+        
+    person = Person.query.filter(db.func.lower(Person.email) == email).first()
+    if person:
+        return jsonify({'valid': False, 'message': 'Este correo ya está registrado'})
+        
+    return jsonify({'valid': True})
+
+@users_bp.route('/api/places-by-state/<int:state_id>', methods=['GET'])
+@login_required
+def api_places_by_state(state_id):
+    places = get_corpoelec_places_by_state(state_id)
+    return jsonify(places)
+
+@users_bp.route('/register', methods=['GET', 'POST'])
+@login_required
+def register_admin():
+    user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
+    if user_role not in ['super_admin']:
+        abort(403)
+        
+    form = AdminUserRegisterForm()
+    
+    # Cargar roles permitidos
+    _role_names = {'super_admin': 'Super Administrador', 'state_admin': 'Administrador Estadal'}
+    form.role_id.choices = [('', 'Seleccione un rol...')] + [
+        (str(r.id), _role_names.get(r.name, r.name.title())) 
+        for r in Role.query.filter(Role.role_code.in_(['ROL-001', 'ROL-002'])).all()
+    ]
+    
+    # Cargar estados
+    form.state_id.choices = [('', 'Seleccione un estado...')] + [(str(s.id), s.name) for s in State.query.order_by(State.name).all()]
+    
+    # Cargar cargos administrativos
+    form.position_id.choices = [('', 'Seleccione un cargo...')] + [(str(p['id']), p['name']) for p in get_administrative_positions()]
+    
+    # Las sedes se cargan dinámicamente, pero para POST validación agregamos la seleccionada
+    if request.method == 'POST' and form.state_id.data:
+        try:
+            state_id = int(form.state_id.data)
+            places = get_corpoelec_places_by_state(state_id)
+            form.place_id.choices = [('', 'Seleccione una sede...')] + [(str(p['id']), p['name']) for p in places]
+        except ValueError:
+            form.place_id.choices = [('', 'Seleccione una sede...')]
+    else:
+        form.place_id.choices = [('', 'Seleccione una sede...')]
+
+    if form.validate_on_submit():
+        data = {
+            'identification_type': form.identification_type.data,
+            'identification_number': form.identification_number.data,
+            'first_name': form.first_name.data.title(),
+            'second_name': form.second_name.data.title() if form.second_name.data else None,
+            'last_name': form.last_name.data.title(),
+            'middle_name': form.middle_name.data.title() if form.middle_name.data else None,
+            'email': form.email.data.lower(),
+            'mobile': form.mobile.data,
+            'phone': form.phone.data if form.phone.data else None,
+            'role_id': int(form.role_id.data),
+            'state_id': int(form.state_id.data),
+            'place_id': int(form.place_id.data),
+            'position_id': int(form.position_id.data),
+            'is_active': False
+        }
+        
+        success, message, result_data = create_administrative_user(data, current_user)
+        
+        if success:
+            # Generar token y enviar correo
+            payload = {
+                'person_id': result_data['person_id'],
+                'staff_id': result_data['staff_id'],
+                'flow': 'administrative',
+                'role_id': result_data['role_id'],
+                'email': result_data['email']
+            }
+            token = generate_activation_token(payload)
+            send_administrative_activation_email(
+                to_email=result_data['email'],
+                token=token,
+                role_display=result_data['role_display'],
+                place_name=result_data['place_name'],
+                full_name=result_data['full_name']
+            )
+            
+            BinnacleService.create_log_entry(
+                module=AuditModule.USERS.value,
+                action_type=AuditAction.REGISTRO_ADMIN_INTERNO.value,
+                description=f'Alta corporativa de {result_data["role_display"]}: {result_data["full_name"]} asignado a sede {result_data["place_name"]}',
+                target_table='sages.users',
+                record_id=result_data['user_id'],
+                status=AuditStatus.COMPLETADO.value
+            )
+            
+            flash(message, 'success')
+            return redirect(url_for('users.list_users'))
+        else:
+            flash(message, 'danger')
+            
+
+
+    return render_template('users/register_admin.html', form=form, current_role=user_role)

@@ -3,6 +3,7 @@ from app.models.company_staff_model import CompanyStaff
 from app.models.person_model import Person
 from app.models.place_model import Place
 from app.models.position_model import Position
+from app.models.status_model import Status
 
 def seed_company_staff():
     if CompanyStaff.query.count() > 0:
@@ -41,9 +42,12 @@ def seed_company_staff():
             print(f"Error: Cargo con código '{position_code}' no encontrado. Ejecuta seed_positions primero.")
             return
 
+        status_active = Status.query.filter_by(status_code='STAT-001').first()
+
         data["person_id"] = person.id
         data["place_id"] = place.id
         data["position_id"] = position.id
+        data["status_id"] = status_active.id if status_active else 1
 
         staff = CompanyStaff(**data)
         db.session.add(staff)
