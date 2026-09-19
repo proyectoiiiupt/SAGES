@@ -9,7 +9,7 @@ Endpoints:
 
 import re
 from datetime import datetime, time
-from flask import render_template, jsonify, abort, request, redirect, url_for
+from flask import render_template, jsonify, abort, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from sqlalchemy import func
 
@@ -17,6 +17,8 @@ from app.trainings import trainings_bp
 from app.models.training_module_model import TrainingModule
 from app.models.training_model import Training
 from app.models.status_model import Status
+from app.trainings.forms import ModuleEditForm
+from app.trainings.services import get_module_by_id, update_training_module
 from app.decorators import check_permissions, role_required
 from app.extensions import db
 
@@ -163,6 +165,52 @@ def get_module_counts():
             'message': 'No se pudieron cargar los contadores en este momento.',
             'counts': {}
         }), 500
+
+
+# ---------------------------------------------------------------------------
+# Bloque 2: Edición de Módulo Rector (Exclusivo Super Administrador)
+# ---------------------------------------------------------------------------
+
+@trainings_bp.route('/module/edit/<int:module_id>', methods=['GET', 'POST'])
+@login_required
+@role_required('super_admin')
+def edit_module(module_id: int):
+    """
+    Vista exclusiva para Super Administrador.
+    Permite actualizar nombre, descripción u orden de visualización del módulo rector.
+    Ruta canónica: /training/module/edit/<id> (con alias en /module/edit/<id>).
+    """
+    module = get_module_by_id(module_id)
+    if not module:
+        abort(404)
+
+    form = ModuleEditForm(module_id=module.id)
+
+    if request.method == 'GET':
+        form.name.data = module.name
+        form.description.data = module.description
+
+    elif form.validate_on_submit():
+        success, message = update_training_module(
+            module=module,
+            name=form.name.data,
+            description=form.description.data,
+            user_id=current_user.id
+        )
+        if success:
+            flash(f'Módulo rector "{module.name}" actualizado correctamente.', 'success')
+            return redirect(url_for('trainings.index'))
+        else:
+            flash(message, 'danger')
+
+    return render_template(
+        'trainings/edit_module.html',
+        form=form,
+        module=module,
+        is_super_admin=_is_super_admin(),
+        is_admin=_is_admin(),
+        user_role=_get_user_role()
+    )
 
 
 # ---------------------------------------------------------------------------

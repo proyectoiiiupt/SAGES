@@ -169,6 +169,19 @@
                     </div>
                     <div class="module-badges">
                         <span class="badge-status active" aria-label="Estado: Activo">Rector</span>
+                        {% if is_super_admin %}
+                        <a href="{{ url_for('trainings.edit_module', module_id=module.id) }}"
+                           class="btn-module-edit"
+                           id="btn-edit-module-{{ module.id }}"
+                           title="Editar Módulo Rector"
+                           aria-label="Editar Módulo {{ module.name }}">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                            <span>Editar</span>
+                        </a>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -243,5 +256,38 @@
         const formattedDate = today.toLocaleDateString('es-ES', options);
         el.textContent = formattedDate.replace(' de 20', ', 20');
     })();
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                (function () {
+                    let iconType = {{ category | tojson }};
+                    let titleText = 'Notificación';
+
+                    if (iconType === 'success') {
+                        titleText = '¡Éxito!';
+                    } else if (iconType === 'error' || iconType === 'danger') {
+                        iconType = 'error';
+                        titleText = '¡Atención!';
+                    } else if (iconType === 'warning') {
+                        titleText = 'Advertencia';
+                    } else {
+                        iconType = 'info';
+                    }
+
+                    Swal.fire({
+                        title: titleText,
+                        text: {{ message | tojson }},
+                        icon: iconType,
+                        confirmButtonColor: '#0d9488',
+                        confirmButtonText: 'Aceptar'
+                    });
+                })();
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+});
 </script>
 {% endblock %}
