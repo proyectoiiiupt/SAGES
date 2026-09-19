@@ -1,0 +1,827 @@
+/* ==========================================================================
+   TRAININGS.CSS – Hub de Navegación por Módulos Rectores
+   SAGES | Módulo de Formación – Bloque 1: Vista Principal / Landing
+   ========================================================================== */
+
+/* ── TOKENS DE DISEÑO POR MÓDULO ──────────────────────────────────────── */
+:root {
+    /* MOD-001 · UREE – Teal / Aqua */
+    --mod-001-accent: #1fcab0;
+    --mod-001-glow: rgba(31, 202, 176, 0.18);
+    --mod-001-bg: rgba(31, 202, 176, 0.07);
+    --mod-001-border: rgba(31, 202, 176, 0.35);
+    --mod-001-icon-bg: rgba(31, 202, 176, 0.15);
+    --mod-001-gradient: linear-gradient(135deg, #019577 0%, #1fcab0 100%);
+
+    /* MOD-002 · Sustitución Tecnológica – Azul Eléctrico / Cyan */
+    --mod-002-accent: #38bdf8;
+    --mod-002-glow: rgba(56, 189, 248, 0.18);
+    --mod-002-bg: rgba(56, 189, 248, 0.07);
+    --mod-002-border: rgba(56, 189, 248, 0.35);
+    --mod-002-icon-bg: rgba(56, 189, 248, 0.15);
+    --mod-002-gradient: linear-gradient(135deg, #0369a1 0%, #38bdf8 100%);
+
+    /* MOD-003 · Eficiencia Institucional – Esmeralda / Verde */
+    --mod-003-accent: #34d399;
+    --mod-003-glow: rgba(52, 211, 153, 0.18);
+    --mod-003-bg: rgba(52, 211, 153, 0.07);
+    --mod-003-border: rgba(52, 211, 153, 0.35);
+    --mod-003-icon-bg: rgba(52, 211, 153, 0.15);
+    --mod-003-gradient: linear-gradient(135deg, #065f46 0%, #34d399 100%);
+
+    /* MOD-004 · Fuentes Alternativas – Ámbar Solar / Dorado */
+    --mod-004-accent: #fbbf24;
+    --mod-004-glow: rgba(251, 191, 36, 0.18);
+    --mod-004-bg: rgba(251, 191, 36, 0.07);
+    --mod-004-border: rgba(251, 191, 36, 0.35);
+    --mod-004-icon-bg: rgba(251, 191, 36, 0.15);
+    --mod-004-gradient: linear-gradient(135deg, #92400e 0%, #fbbf24 100%);
+
+    /* Generales del módulo */
+    --hub-page-bg: #f4f7f6;
+    --hub-card-bg: #ffffff;
+    --hub-card-radius: 20px;
+    --hub-card-shadow: 0 4px 16px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
+    --hub-card-shadow-hover: 0 16px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
+    --hub-transition: 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+
+    --text-heading: #111827;
+    --text-body: #374151;
+    --text-muted: #6b7280;
+    --badge-bg: #f1f5f9;
+    --badge-border: #e2e8f0;
+    --badge-text: #334155;
+}
+
+/* ── CONTENEDOR GENERAL DE LA PÁGINA ──────────────────────────────────── */
+.hub-page {
+    padding: 2rem 2.25rem;
+    min-height: calc(100vh - var(--topbar-height, 70px));
+    background-color: var(--hub-page-bg);
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+    box-sizing: border-box;
+}
+
+/* ── CABECERA DE P\u00c1GINA (est\u00e1ndar instituciones) ────────────────────────── */
+.hub-page .page-header {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 14px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.05);
+    border-left: 4px solid #007865;
+}
+
+.hub-page .page-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #111827;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: -0.3px;
+}
+
+.hub-page .page-title h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+    letter-spacing: -0.3px;
+}
+
+.hub-page .page-date {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #6B7280;
+    font-weight: 500;
+    background: #F1F5F9;
+    padding: 10px 18px;
+    border-radius: 30px;
+    font-size: 0.875rem;
+    letter-spacing: 0.2px;
+}
+
+.hub-page .page-date svg {
+    width: 17px;
+    height: 17px;
+    color: #007865;
+    flex-shrink: 0;
+}
+
+/* ── BANDA DE INFO: descripci\u00f3n + badge + botones ──────────────────────── */
+.hub-info-band {
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    box-shadow: none;
+    border: none;
+    flex-wrap: wrap;
+}
+
+.hub-info-left {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.hub-subtitle {
+    font-size: 0.92rem;
+    color: var(--text-muted);
+    margin: 0;
+    line-height: 1.55;
+}
+
+/* Badge de estado del catálogo */
+.hub-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.4rem 1.1rem;
+    border-radius: 50px;
+    background: rgba(31, 202, 176, 0.10);
+    border: 1px solid rgba(31, 202, 176, 0.30);
+    color: #019577;
+    font-size: 0.92rem;
+    font-weight: 600;
+    width: fit-content;
+}
+
+.hub-status-badge .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #1fcab0;
+    animation: pulse-dot 2.2s ease-in-out infinite;
+    flex-shrink: 0;
+}
+
+@keyframes pulse-dot {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.5;
+        transform: scale(0.75);
+    }
+}
+
+/* ── BARRA DE ACCIONES ADMINISTRATIVAS ────────────────────────────────── */
+.hub-actions-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+
+/* Botón base de acciones */
+.hub-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.68rem 1.4rem;
+    border-radius: 10px;
+    font-size: 1.0rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    text-decoration: none;
+    transition:
+        background var(--hub-transition),
+        box-shadow var(--hub-transition),
+        transform 0.2s ease,
+        color var(--hub-transition);
+    white-space: nowrap;
+}
+
+.hub-btn svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    transition: transform 0.25s ease;
+}
+
+.hub-btn:hover svg {
+    transform: scale(1.15);
+}
+
+.hub-btn:active {
+    transform: scale(0.97);
+}
+
+/* Variante: toggle de vista */
+.hub-btn-view {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+
+.hub-btn-view:hover {
+    background: #e2e8f0;
+    color: var(--btn-gradient-start, #1c3d73);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+}
+
+/* Variante: importar */
+.hub-btn-import {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+
+.hub-btn-import:hover {
+    background: #fde68a;
+    box-shadow: 0 2px 8px rgba(251, 191, 36, 0.25);
+}
+
+/* Variante: nuevo módulo (secundario) */
+.hub-btn-secondary {
+    background: #f0f7ff;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+}
+
+.hub-btn-secondary:hover {
+    background: #e0f2fe;
+    box-shadow: 0 2px 8px rgba(56, 189, 248, 0.25);
+}
+
+/* Variante: nuevo tema (primario, gradiente) */
+.hub-btn-primary {
+    background: linear-gradient(135deg, var(--btn-gradient-start, #1c3d73) 0%, var(--btn-gradient-end, #1fcab0) 100%);
+    color: #ffffff;
+    box-shadow: 0 3px 12px rgba(31, 202, 176, 0.30);
+}
+
+.hub-btn-primary:hover {
+    box-shadow: 0 6px 18px rgba(31, 202, 176, 0.40);
+    filter: brightness(1.06);
+}
+
+/* Separador vertical en la barra */
+.hub-actions-separator {
+    width: 1px;
+    height: 28px;
+    background: #e2e8f0;
+    flex-shrink: 0;
+}
+
+/* ── CABECERA DE LA CUADRÍCULA (Badge de estado libre) ──────────────────── */
+.hub-grid-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin-top: -0.25rem;
+    margin-bottom: -0.5rem;
+}
+
+/* ── CUADRÍCULA DE MÓDULOS ──────────────────────────────────────────────── */
+.hub-modules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+    align-items: stretch;
+    /* Todas las tarjetas del mismo alto */
+}
+
+/* ── TARJETA DE MÓDULO RECTOR ──────────────────────────────────────────── */
+.module-card {
+    background: var(--hub-card-bg);
+    border-radius: var(--hub-card-radius);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    box-shadow: var(--hub-card-shadow);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    transition:
+        transform var(--hub-transition),
+        box-shadow var(--hub-transition),
+        border-color var(--hub-transition);
+    cursor: pointer;
+}
+
+.module-card:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--hub-card-shadow-hover);
+}
+
+/* Franja de color superior (6px) específica por módulo */
+.module-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 5px;
+    border-radius: var(--hub-card-radius) var(--hub-card-radius) 0 0;
+    transition: height var(--hub-transition);
+}
+
+.module-card:hover::before {
+    height: 7px;
+}
+
+.module-card.mod-001::before {
+    background: var(--mod-001-gradient);
+}
+
+.module-card.mod-002::before {
+    background: var(--mod-002-gradient);
+}
+
+.module-card.mod-003::before {
+    background: var(--mod-003-gradient);
+}
+
+.module-card.mod-004::before {
+    background: var(--mod-004-gradient);
+}
+
+/* Efecto de borde coloreado en hover */
+.module-card.mod-001:hover {
+    border-color: var(--mod-001-border);
+    box-shadow: var(--hub-card-shadow-hover), 0 0 0 1px var(--mod-001-border);
+}
+
+.module-card.mod-002:hover {
+    border-color: var(--mod-002-border);
+    box-shadow: var(--hub-card-shadow-hover), 0 0 0 1px var(--mod-002-border);
+}
+
+.module-card.mod-003:hover {
+    border-color: var(--mod-003-border);
+    box-shadow: var(--hub-card-shadow-hover), 0 0 0 1px var(--mod-003-border);
+}
+
+.module-card.mod-004:hover {
+    border-color: var(--mod-004-border);
+    box-shadow: var(--hub-card-shadow-hover), 0 0 0 1px var(--mod-004-border);
+}
+
+/* ── CABECERA DE TARJETA ──────────────────────────────────────────────── */
+.module-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.4rem 1.4rem 0.75rem;
+}
+
+/* Icono del módulo */
+.module-icon-wrap {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.module-card:hover .module-icon-wrap {
+    transform: scale(1.1) rotate(-4deg);
+}
+
+.module-icon-wrap svg {
+    width: 26px;
+    height: 26px;
+}
+
+.module-card.mod-001 .module-icon-wrap {
+    background: var(--mod-001-icon-bg);
+    color: var(--mod-001-accent);
+    box-shadow: 0 2px 8px var(--mod-001-glow);
+}
+
+.module-card.mod-002 .module-icon-wrap {
+    background: var(--mod-002-icon-bg);
+    color: var(--mod-002-accent);
+    box-shadow: 0 2px 8px var(--mod-002-glow);
+}
+
+.module-card.mod-003 .module-icon-wrap {
+    background: var(--mod-003-icon-bg);
+    color: var(--mod-003-accent);
+    box-shadow: 0 2px 8px var(--mod-003-glow);
+}
+
+.module-card.mod-004 .module-icon-wrap {
+    background: var(--mod-004-icon-bg);
+    color: var(--mod-004-accent);
+    box-shadow: 0 2px 8px var(--mod-004-glow);
+}
+
+.module-card:hover.mod-001 .module-icon-wrap {
+    box-shadow: 0 6px 20px var(--mod-001-glow);
+}
+
+.module-card:hover.mod-002 .module-icon-wrap {
+    box-shadow: 0 6px 20px var(--mod-002-glow);
+}
+
+.module-card:hover.mod-003 .module-icon-wrap {
+    box-shadow: 0 6px 20px var(--mod-003-glow);
+}
+
+.module-card:hover.mod-004 .module-icon-wrap {
+    box-shadow: 0 6px 20px var(--mod-004-glow);
+}
+
+/* Insignias de código y estado */
+.module-badges {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 5px;
+}
+
+.badge-code {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.3rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    font-family: 'Roboto Mono', monospace;
+    background: var(--badge-bg);
+    color: var(--badge-text);
+    border: 1px solid var(--badge-border);
+}
+
+.badge-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0.3rem 0.8rem;
+    border-radius: 50px;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.badge-status.active {
+    background: rgba(52, 211, 153, 0.12);
+    color: #065f46;
+    border: 1px solid rgba(52, 211, 153, 0.3);
+}
+
+.badge-status.active::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #34d399;
+    display: inline-block;
+}
+
+/* ── CUERPO DE TARJETA ────────────────────────────────────────────────── */
+.module-card-body {
+    padding: 0.5rem 1.4rem 1rem;
+    flex: 1;
+}
+
+.module-name {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text-heading);
+    margin: 0 0 0.5rem;
+    line-height: 1.3;
+    letter-spacing: -0.2px;
+}
+
+.module-description {
+    font-size: 1.0rem;
+    color: var(--text-muted);
+    line-height: 1.65;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* ── CONTENEDOR DE CONTADOR DE TEMAS ───────────────────────────────── */
+.module-counter-wrap {
+    margin: 0 1.4rem 0.8rem;
+    padding: 0.55rem 1.1rem;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    transition: background 0.3s ease;
+}
+
+.module-card.mod-001 .module-counter-wrap {
+    background: var(--mod-001-bg);
+    border: 1px solid var(--mod-001-border);
+}
+
+.module-card.mod-002 .module-counter-wrap {
+    background: var(--mod-002-bg);
+    border: 1px solid var(--mod-002-border);
+}
+
+.module-card.mod-003 .module-counter-wrap {
+    background: var(--mod-003-bg);
+    border: 1px solid var(--mod-003-border);
+}
+
+.module-card.mod-004 .module-counter-wrap {
+    background: var(--mod-004-bg);
+    border: 1px solid var(--mod-004-border);
+}
+
+.counter-label {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-body);
+    letter-spacing: 0.02em;
+    line-height: 1.4;
+}
+
+.counter-values {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+}
+
+/* Número principal (temas activos) */
+.counter-active {
+    font-size: 1.6rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.5px;
+    transition: color 0.3s ease;
+}
+
+.module-card.mod-001 .counter-active {
+    color: var(--mod-001-accent);
+}
+
+.module-card.mod-002 .counter-active {
+    color: var(--mod-002-accent);
+}
+
+.module-card.mod-003 .counter-active {
+    color: var(--mod-003-accent);
+}
+
+.module-card.mod-004 .counter-active {
+    color: var(--mod-004-accent);
+}
+
+/* Separador y total (solo admin) */
+.counter-separator {
+    color: var(--text-muted);
+    font-size: 1.0rem;
+    font-weight: 400;
+}
+
+.counter-total {
+    font-size: 1.0rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.counter-label-suffix {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    align-self: flex-end;
+    padding-bottom: 2px;
+}
+
+/* ── SKELETON / EFECTO DE CARGA ─────────────────────────────────────── */
+.skeleton-line {
+    height: 1.5rem;
+    width: 60%;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite linear;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* ── PIE DE TARJETA: Botón Explorar ──────────────────────────────────── */
+.module-card-footer {
+    padding: 0 1.4rem 1.3rem;
+}
+
+.btn-explore {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 1.0rem;
+    font-weight: 700;
+    text-decoration: none;
+    padding: 0.65rem 1.1rem;
+    border-radius: 10px;
+    border: 2px solid transparent;
+    width: 100%;
+    justify-content: center;
+    transition:
+        background var(--hub-transition),
+        color var(--hub-transition),
+        border-color var(--hub-transition),
+        box-shadow var(--hub-transition);
+}
+
+.btn-explore svg {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.btn-explore:hover svg {
+    transform: translateX(5px);
+}
+
+.module-card.mod-001 .btn-explore {
+    color: var(--mod-001-accent);
+    border-color: var(--mod-001-border);
+    background: var(--mod-001-bg);
+}
+
+.module-card.mod-002 .btn-explore {
+    color: var(--mod-002-accent);
+    border-color: var(--mod-002-border);
+    background: var(--mod-002-bg);
+}
+
+.module-card.mod-003 .btn-explore {
+    color: var(--mod-003-accent);
+    border-color: var(--mod-003-border);
+    background: var(--mod-003-bg);
+}
+
+.module-card.mod-004 .btn-explore {
+    color: var(--mod-004-accent);
+    border-color: var(--mod-004-border);
+    background: var(--mod-004-bg);
+}
+
+.module-card.mod-001:hover .btn-explore {
+    background: var(--mod-001-gradient);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 4px 14px var(--mod-001-glow);
+}
+
+.module-card.mod-002:hover .btn-explore {
+    background: var(--mod-002-gradient);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 4px 14px var(--mod-002-glow);
+}
+
+.module-card.mod-003:hover .btn-explore {
+    background: var(--mod-003-gradient);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 4px 14px var(--mod-003-glow);
+}
+
+.module-card.mod-004:hover .btn-explore {
+    background: var(--mod-004-gradient);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 4px 14px var(--mod-004-glow);
+}
+
+/* ── ESTADO VACÍO ─────────────────────────────────────────────────────── */
+.hub-empty-state {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.85rem;
+    padding: 4rem 2rem;
+    background: #ffffff;
+    border-radius: var(--hub-card-radius);
+    border: 2px dashed #e2e8f0;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.hub-empty-state svg {
+    width: 52px;
+    height: 52px;
+    opacity: 0.35;
+}
+
+.hub-empty-state p {
+    font-size: 0.95rem;
+    max-width: 360px;
+    line-height: 1.6;
+}
+
+/* ── ANIMACIÓN DE ENTRADA ─────────────────────────────────────────────── */
+.module-card {
+    animation: card-in 0.45s ease both;
+}
+
+.module-card:nth-child(1) {
+    animation-delay: 0.05s;
+}
+
+.module-card:nth-child(2) {
+    animation-delay: 0.12s;
+}
+
+.module-card:nth-child(3) {
+    animation-delay: 0.19s;
+}
+
+.module-card:nth-child(4) {
+    animation-delay: 0.26s;
+}
+
+@keyframes card-in {
+    from {
+        opacity: 0;
+        transform: translateY(18px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ── RESPONSIVE ──────────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+    .hub-modules-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .hub-page {
+        padding: 1.25rem 1rem;
+        gap: 1.25rem;
+    }
+
+    .hub-header-card {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 1.2rem 1.25rem;
+    }
+
+    .hub-main-title {
+        font-size: 1.25rem;
+    }
+
+    .hub-actions-bar {
+        width: 100%;
+    }
+
+    .hub-actions-bar .hub-btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .hub-modules-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .hub-actions-bar {
+        flex-direction: column;
+    }
+
+    .hub-actions-separator {
+        width: 100%;
+        height: 1px;
+    }
+}

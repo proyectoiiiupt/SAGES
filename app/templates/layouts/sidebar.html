@@ -97,7 +97,8 @@
         {# ── FORMACIÓN ────────────────────────────────────────────── #}
         {% if 'view_training_catalog' in user_permissions %}
         <li>
-            <a href="#">
+            <a href="{{ url_for('trainings.index') }}"
+               class="{{ active_if(['trainings.index']) }}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round">
                     <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
