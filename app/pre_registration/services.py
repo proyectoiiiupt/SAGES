@@ -518,6 +518,29 @@ def create_pre_registration(
 
         db.session.commit()
 
+        try:
+            from app.notifications.services import NotificationService
+            from app.notifications.enums import NotificationEvent
+            context = {
+                "institution_name": institution.institution_name,
+                "_display": [
+                    ("Código de Plantel", institution.plantel_code),
+                    ("Institución", institution.institution_name),
+                    ("Parroquia", institution.parish.name if institution.parish else "S/D"),
+                    ("Representante", f"{person_data.get('first_name', '')} {person_data.get('last_name', '')}".strip()),
+                    ("Cargo", staff.position.name if staff and hasattr(staff, 'position') and staff.position else "Directivo/Encargado")
+                ]
+            }
+            NotificationService.notify_role(
+                role_name='state_admin',
+                event=NotificationEvent.REGISTRATION_NEW_INSTITUTION,
+                context=context,
+                redirect_url="/users/requests",
+                action_text="Revisar Solicitud"
+            )
+        except Exception as e:
+            logger.error(f"Error al enviar notificacion de nuevo registro: {e}")
+
         BinnacleService.create_log_entry(
             module=AuditModule.PRE_REGISTRATION.value,
             action_type=AuditAction.SOLICITUD_NUEVA_INSTITUCION.value,
@@ -622,6 +645,30 @@ def join_existing_institution(
 
         db.session.commit()
 
+        try:
+            from app.notifications.services import NotificationService
+            from app.notifications.enums import NotificationEvent
+            context = {
+                "user_name": f"{person_data.get('first_name', '')} {person_data.get('last_name', '')}".strip(),
+                "institution_name": institution.institution_name,
+                "_display": [
+                    ("Código de Plantel", institution.plantel_code),
+                    ("Institución", institution.institution_name),
+                    ("Parroquia", institution.parish.name if institution.parish else "S/D"),
+                    ("Representante", f"{person_data.get('first_name', '')} {person_data.get('last_name', '')}".strip()),
+                    ("Cargo", staff.position.name if staff and hasattr(staff, 'position') and staff.position else "Directivo/Encargado")
+                ]
+            }
+            NotificationService.notify_role(
+                role_name='state_admin',
+                event=NotificationEvent.REGISTRATION_JOIN_INSTITUTION,
+                context=context,
+                redirect_url="/users/requests",
+                action_text="Ver Solicitud"
+            )
+        except Exception as e:
+            logger.error(f"Error al enviar notificacion de afiliacion: {e}")
+
         BinnacleService.create_log_entry(
             module=AuditModule.PRE_REGISTRATION.value,
             action_type=AuditAction.SOLICITUD_VINCULACION_EXISTENTE.value,
@@ -724,6 +771,30 @@ def join_delegated_institution(
         )
 
         db.session.commit()
+
+        try:
+            from app.notifications.services import NotificationService
+            from app.notifications.enums import NotificationEvent
+            context = {
+                "staff_name": f"{person_data.get('first_name', '')} {person_data.get('last_name', '')}".strip(),
+                "institution_name": institution.institution_name,
+                "_display": [
+                    ("Código de Plantel", institution.plantel_code),
+                    ("Institución", institution.institution_name),
+                    ("Parroquia", institution.parish.name if institution.parish else "S/D"),
+                    ("Representante", f"{person_data.get('first_name', '')} {person_data.get('last_name', '')}".strip()),
+                    ("Cargo", staff.position.name if staff and hasattr(staff, 'position') and staff.position else "Directivo/Encargado")
+                ]
+            }
+            NotificationService.notify_role(
+                role_name='state_admin',
+                event=NotificationEvent.REGISTRATION_INVITED_STAFF,
+                context=context,
+                redirect_url="/users/requests",
+                action_text="Revisar Solicitud"
+            )
+        except Exception as e:
+            logger.error(f"Error al enviar notificacion de personal invitado: {e}")
 
         BinnacleService.create_log_entry(
             module=AuditModule.PRE_REGISTRATION.value,

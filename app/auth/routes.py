@@ -90,9 +90,50 @@ def login():
 
             login_user(user, remember=remember_me)
             
-            role_name = 'applicant'
-            if user.roles_assoc and len(user.roles_assoc) > 0:
-                role_name = user.roles_assoc[0].role.name
+            try:
+                from app.notifications.services import NotificationService
+                from app.notifications.enums import NotificationEvent
+                from app.models.notification_model import Notification
+                
+                # Evitar SPAM: Verificar si ya se le envió la bienvenida previamente
+                has_welcomed = Notification.query.filter_by(
+                    user_id=user.id, 
+                    event_code=NotificationEvent.USER_WELCOME_FIRST_LOGIN.value
+                ).first()
+                
+                # Extraer rol tempranamente para la notificacion
+                role_name = 'applicant'
+                if user.roles_assoc and len(user.roles_assoc) > 0:
+                    role_name = user.roles_assoc[0].role.name
+                    
+                role_instructions = {
+                    'super_admin': 'Como Super Administrador tienes acceso total a la configuración del sistema, gestión de planteles, y auditoría general.',
+                    'state_admin': 'Como Administrador Estadal podrás validar registros de tu estado, ver planteles y consultar estadísticas regionales.',
+                    'applicant': 'Como Solicitante puedes hacer seguimiento al estado de tu registro y consignar recaudos faltantes.'
+                }
+                
+                role_translations = {
+                    'super_admin': 'Super Administrador',
+                    'state_admin': 'Administrador Estadal',
+                    'applicant': 'Solicitante'
+                }
+                
+                user_name_str = f"{user.person.first_name} {user.person.last_name}".strip() if hasattr(user, 'person') and user.person else "Usuario"
+                
+                if not has_welcomed:
+                    NotificationService.notify_user(
+                        user_id=user.id,
+                        event=NotificationEvent.USER_WELCOME_FIRST_LOGIN,
+                        context={
+                            "user_name": user_name_str,
+                            "_display": {
+                                "Nivel de Acceso": role_translations.get(role_name, role_name.title()),
+                                "Instrucciones": role_instructions.get(role_name, "Explora los módulos disponibles en tu panel de control.")
+                            }
+                        }
+                    )
+            except Exception as e:
+                print(f"Error enviando notificacion de bienvenida: {e}")
             
             if is_api:
                 return jsonify({
