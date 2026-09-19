@@ -248,10 +248,10 @@ def create_app(config_class=Config) -> Flask:
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://cdn.jsdelivr.net; "
+            "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; "
             "frame-src 'self' https://challenges.cloudflare.com; "
             "connect-src 'self' https://challenges.cloudflare.com; "
-            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data: cid:; "
             "font-src 'self'; "
             "frame-ancestors 'self';"
