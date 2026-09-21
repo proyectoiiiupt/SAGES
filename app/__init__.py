@@ -103,12 +103,7 @@ def create_app(config_class=Config) -> Flask:
     def home_applicant():
         return render_template('home.html')
 
-    @app.route('/module/edit/<int:module_id>', methods=['GET', 'POST'])
-    @login_required
-    @role_required('super_admin')
-    def module_edit_alias(module_id):
-        from app.trainings.routes import edit_module
-        return edit_module(module_id)
+
     
     @app.errorhandler(RateLimitExceeded)
     def handle_rate_limit(e):
