@@ -10,6 +10,19 @@ import time
 from app.utils.email_utils import send_recovery_email
 from app.models.person_model import Person
 from app.auth.token_store import set_token, get_remaining_seconds, invalidate_token
+from app.auth.forms import ActivationPasswordForm
+from app.utils.activation_utils import verify_activation_token
+from app.models.institutional_staff_model import InstitutionalStaff
+from app.models.user_model import User
+from app.models.role_user_model import RoleUser  # Cambiado a RoleUser
+from app.models.role_model import Role
+from app.extensions import db
+from app.utils.password_utils import hash_password
+from app.models.status_model import Status
+from app.models.company_staff_model import CompanyStaff
+from app.pre_registration.services import _generate_short_code
+from app.binnacle.services import BinnacleService
+from app.binnacle.types import AuditAction, AuditStatus, AuditModule
 
 def is_safe_url(target: str) -> bool:
     """Verifica que la URL de redirección sea del mismo host."""
@@ -47,6 +60,12 @@ def login():
             is_api = False
 
         if not identifier or not password:
+            BinnacleService.log_security_event(
+                action_type=AuditAction.LOGIN_FALLIDO.value,
+                description=f'Intento de autenticación fallido (credenciales vacías) para: {identifier}',
+                user_identifier=identifier,
+                status=AuditStatus.FALLIDO.value
+            )
             error_msg = "Usuario y/o Contraseña inválidos."
             if is_api:
                 return jsonify({"error": error_msg}), 400
@@ -57,6 +76,12 @@ def login():
         success, user, msg = authenticate_user(identifier, password)
 
         if success and user:
+            BinnacleService.log_security_event(
+                action_type=AuditAction.LOGIN_EXITOSO.value,
+                description='Inicio de sesión satisfactorio en la plataforma',
+                user=user,
+                status=AuditStatus.COMPLETADO.value
+            )
             remember_me = False
             if is_api:
                 remember_me = data.get('remember', False)
@@ -65,9 +90,50 @@ def login():
 
             login_user(user, remember=remember_me)
             
-            role_name = 'applicant'
-            if user.roles_assoc and len(user.roles_assoc) > 0:
-                role_name = user.roles_assoc[0].role.name
+            try:
+                from app.notifications.services import NotificationService
+                from app.notifications.enums import NotificationEvent
+                from app.models.notification_model import Notification
+                
+                # Evitar SPAM: Verificar si ya se le envió la bienvenida previamente
+                has_welcomed = Notification.query.filter_by(
+                    user_id=user.id, 
+                    event_code=NotificationEvent.USER_WELCOME_FIRST_LOGIN.value
+                ).first()
+                
+                # Extraer rol tempranamente para la notificacion
+                role_name = 'applicant'
+                if user.roles_assoc and len(user.roles_assoc) > 0:
+                    role_name = user.roles_assoc[0].role.name
+                    
+                role_instructions = {
+                    'super_admin': 'Como Super Administrador tienes acceso total a la configuración del sistema, gestión de planteles, y auditoría general.',
+                    'state_admin': 'Como Administrador Estadal podrás validar registros de tu estado, ver planteles y consultar estadísticas regionales.',
+                    'applicant': 'Como Solicitante puedes hacer seguimiento al estado de tu registro y consignar recaudos faltantes.'
+                }
+                
+                role_translations = {
+                    'super_admin': 'Super Administrador',
+                    'state_admin': 'Administrador Estadal',
+                    'applicant': 'Solicitante'
+                }
+                
+                user_name_str = f"{user.person.first_name} {user.person.last_name}".strip() if hasattr(user, 'person') and user.person else "Usuario"
+                
+                if not has_welcomed:
+                    NotificationService.notify_user(
+                        user_id=user.id,
+                        event=NotificationEvent.USER_WELCOME_FIRST_LOGIN,
+                        context={
+                            "user_name": user_name_str,
+                            "_display": {
+                                "Nivel de Acceso": role_translations.get(role_name, role_name.title()),
+                                "Instrucciones": role_instructions.get(role_name, "Explora los módulos disponibles en tu panel de control.")
+                            }
+                        }
+                    )
+            except Exception as e:
+                print(f"Error enviando notificacion de bienvenida: {e}")
             
             if is_api:
                 return jsonify({
@@ -83,6 +149,12 @@ def login():
                     next_page = None
                 return redirect(next_page or url_for(f'home_{role_name}'))
         else:
+            BinnacleService.log_security_event(
+                action_type=AuditAction.LOGIN_FALLIDO.value,
+                description=f'Intento de autenticación fallido para: {identifier}',
+                user_identifier=identifier,
+                status=AuditStatus.FALLIDO.value
+            )
             if is_api:
                 return jsonify({"error": msg}), 401
             else:
@@ -94,6 +166,12 @@ def login():
 @auth_bp.route('/logout', methods=['GET', 'POST'])
 @login_required
 def logout():
+    BinnacleService.log_security_event(
+        action_type=AuditAction.LOGOUT.value,
+        description='Cierre de sesión manual',
+        user=current_user,
+        status=AuditStatus.COMPLETADO.value
+    )
     logout_user()
     if request.is_json or (request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html):
         return jsonify({"message": "Sesión cerrada correctamente."}), 200
@@ -158,6 +236,13 @@ def password():
                 session['pw_reset_pending_email'] = person.email
                 session['pw_reset_initiated_at'] = time.time()
 
+                BinnacleService.log_security_event(
+                    action_type=AuditAction.RECUPERACION_SOLICITADA.value,
+                    description='Solicitud de recuperación de contraseña enviada al correo',
+                    user_identifier=id_card,
+                    status=AuditStatus.COMPLETADO.value
+                )
+
             elapsed = time.monotonic() - start
             time.sleep(max(0, 0.5 - elapsed))
             
@@ -211,6 +296,13 @@ def cancel_reset():
         return redirect(url_for('auth.login'))
         
     invalidate_token(email)
+
+    BinnacleService.log_security_event(
+        action_type=AuditAction.CANCELACION_RECUPERACION.value,
+        description='Proceso de recuperación de contraseña cancelado',
+        user_identifier=email,
+        status=AuditStatus.COMPLETADO.value
+    )
     
     # Limpiamos todas las variables de sesión asociadas a la recuperación
     session.pop('pw_reset_id_card', None)
@@ -220,3 +312,109 @@ def cancel_reset():
     
     flash('El proceso de recuperación de contraseña ha sido cancelado por su seguridad.', 'info')
     return redirect(url_for('auth.login'))
+
+
+
+@auth_bp.route('/activate/<token>', methods=['GET', 'POST'])
+def activate_account(token):
+    # 1. Validar la firma y expiración del token
+    payload = verify_activation_token(token)
+    if not payload:
+        BinnacleService.log_security_event(
+            action_type=AuditAction.ACTIVACION_TOKEN_INVALIDO.value,
+            description='Intento de activación con token inválido o expirado',
+            status=AuditStatus.FALLIDO.value
+        )
+        flash('El enlace de activación es inválido o ha expirado.', 'danger')
+        return redirect(url_for('auth.login'))
+
+    person = Person.query.get_or_404(payload['person_id'])
+    
+    flow = payload.get('flow', 'applicant')
+
+    # Para el flujo de solicitantes, si ya tiene usuario, significa que ya se activó
+    if flow == 'applicant' and person.user:
+        flash('Esta cuenta ya fue activada previamente. Por favor inicie sesión.', 'info')
+        return redirect(url_for('auth.login'))
+
+    # Guard de un solo uso para el flujo administrative
+    if flow == 'administrative':
+        admin_user = person.user
+        if not admin_user:
+            flash('El usuario administrativo no fue encontrado. Contacte a soporte.', 'danger')
+            return redirect(url_for('auth.login'))
+        _active_check = Status.query.filter_by(status_code='STAT-001').first()
+        if _active_check and admin_user.status_id == _active_check.id:
+            flash('Esta cuenta ya fue activada previamente. Por favor inicie sesión.', 'info')
+            return redirect(url_for('auth.login'))
+
+    if flow == 'applicant':
+        staff = InstitutionalStaff.query.get_or_404(payload['staff_id'])
+    else:
+        staff = CompanyStaff.query.get_or_404(payload['staff_id'])
+
+    form = ActivationPasswordForm()
+
+    if form.validate_on_submit():
+        try:
+            if flow == 'applicant':
+                # 2. Crear la cuenta de usuario vinculada
+                new_user = User(
+                    user_code=_generate_short_code('USR', User, 'user_code'),
+                    user_name=person.identification_number,
+                    person_id=person.id,
+                    status_id=1,
+                    password=hash_password(form.password.data)
+                )
+                db.session.add(new_user)
+                db.session.flush()
+
+                # 3. Asignar rol por defecto (applicant)
+                applicant_role = Role.query.filter_by(name='applicant').first()
+                if applicant_role:
+                    user_role = RoleUser(user_id=new_user.id, role_id=applicant_role.id)
+                    db.session.add(user_role)
+
+                # 4. Actualizar el estatus institucional a Activo/Aprobado
+                staff.status_id = 1
+            elif flow == 'administrative':
+                # El User fue pre-creado en services.py con STAT-006 (En proceso).
+                # El guard anterior garantiza que person.user existe y está en STAT-006.
+                user = person.user
+                # 1. Contraseña definitiva con bcrypt (utilitario centralizado)
+                user.password = hash_password(form.password.data)
+                # 2. Activar User: STAT-006 -> STAT-001
+                active_status = Status.query.filter_by(status_code='STAT-001').first()
+                if active_status:
+                    user.status_id = active_status.id
+                    # 3. Activar CompanyStaff: STAT-006 -> STAT-001
+                    staff.status_id = active_status.id
+
+            db.session.commit()
+
+            if flow == 'applicant':
+                BinnacleService.log_security_event(
+                    action_type=AuditAction.ACTIVACION_CUENTA.value,
+                    description=f'Activación de cuenta y creación de credenciales para solicitante {person.first_name} {person.last_name}',
+                    user=new_user,
+                    status=AuditStatus.COMPLETADO.value
+                )
+            elif flow == 'administrative':
+                sede_name = staff.place.name if hasattr(staff, 'place') else staff.institution.institution_name
+                BinnacleService.log_security_event(
+                    action_type=AuditAction.ACTIVACION_CUENTA.value,
+                    description=f'Activación de cuenta administrativa para {person.first_name} {person.last_name} (Sede: {sede_name})',
+                    user=user,
+                    status=AuditStatus.COMPLETADO.value
+                )
+
+            flash('¡Tu cuenta ha sido activada exitosamente! Ya puedes iniciar sesión.', 'success')
+            return redirect(url_for('auth.login'))
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"[ERROR ACTIVATION]: {e}")
+            flash('Ocurrió un error al intentar activar la cuenta.', 'danger')
+
+    return render_template('auth/activate.html', form=form, person=person, staff=staff, flow=flow)
+

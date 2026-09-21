@@ -1,10 +1,13 @@
 from flask_login import UserMixin
 from app.extensions import db
 from datetime import datetime, timezone
+from app.binnacle.mixins import AuditableMixin
+from app.binnacle.types import AuditModule
 
-class User(db.Model, UserMixin):
+class User(db.Model, UserMixin, AuditableMixin):
     __tablename__ = 'users'
     __table_args__ = {'schema': 'sages'}
+    __audit_module__ = AuditModule.USERS.value
 
     id = db.Column(db.BigInteger, primary_key=True)
     user_code = db.Column(db.String(50), unique=True, nullable=False)

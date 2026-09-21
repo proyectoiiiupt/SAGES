@@ -1,0 +1,544 @@
+{% extends "layouts/base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/users_list.css') }}">
+<style>
+    /* Colores estrictos de estatus */
+    .badge-completed { background: #d1fae5; color: #065f46; padding: 0.2rem 0.6rem; border-radius: 20px; font-weight: 700; font-size: 0.7rem; text-transform: uppercase; }
+    .badge-modified { background: #fef3c7; color: #92400e; padding: 0.2rem 0.6rem; border-radius: 20px; font-weight: 700; font-size: 0.7rem; text-transform: uppercase; }
+    .badge-process { background: #e0f2fe; color: #0369a1; padding: 0.2rem 0.6rem; border-radius: 20px; font-weight: 700; font-size: 0.7rem; text-transform: uppercase; }
+    .badge-failed { background: #fee2e2; color: #991b1b; padding: 0.2rem 0.6rem; border-radius: 20px; font-weight: 700; font-size: 0.7rem; text-transform: uppercase; }
+    .badge-action { background: #f3f4f6; color: #374151; padding: 0.2rem 0.6rem; border-radius: 20px; font-weight: 700; font-size: 0.7rem; text-transform: uppercase; border: 1px solid #d1d5db; }
+
+    /* Estructura Modal Forense */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(15, 23, 42, 0.6);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .forensic-modal {
+        background: #ffffff;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 850px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+
+    .forensic-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e2e8f0;
+        background: #f8fafc;
+        border-radius: 12px 12px 0 0;
+    }
+
+    .forensic-section {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .section-title {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #475569;
+        text-transform: uppercase;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Tabla Diff */
+    .diff-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+        border: 1px solid #e2e8f0;
+    }
+    .diff-table th { background: #f1f5f9; padding: 0.5rem; text-align: left; font-weight: 600; }
+    .diff-table td { padding: 0.5rem; border-top: 1px solid #e2e8f0; }
+    .diff-old { background: rgba(220, 53, 69, 0.08); color: #991b1b; text-decoration: line-through; }
+    .diff-new { background: rgba(40, 167, 69, 0.08); color: #166534; font-weight: bold; }
+
+    .btn-inspect { background: none; border: none; cursor: pointer; font-size: 1.2rem; }
+    
+    /* Paginación y Filtros */
+    .filter-group { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+    .filter-label { font-size: 0.75rem; font-weight: 600; color: #64748b; margin-left: 2px; }
+    
+    .btn-page {
+        background: #ffffff; border: 1px solid #cbd5e1; color: #475569;
+        padding: 0.3rem 0.7rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;
+    }
+    .btn-page:hover:not(:disabled) { background: #f1f5f9; }
+    .btn-page.active { background: #0f3669; color: white; border-color: #0f3669; }
+    .btn-page:disabled { opacity: 0.5; cursor: not-allowed; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="users-container">
+
+    <div class="header-card">
+        <h1 class="welcome-text" style="font-size: 1.3rem; margin: 0;">Registro de Auditoría Completo</h1>
+    </div>
+
+    <!-- ── BARRA DE FILTROS MAESTRA (Nivel 2) ── -->
+    <div class="actions-toolbar" style="display: flex; flex-direction: column; gap: 15px; padding-bottom: 15px;">
+        
+        <!-- Fila Superior: Navegación y Acciones -->
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <a href="{{ url_for('dashboard.index') }}" class="btn-register" style="background: #64748b; text-decoration: none; padding: 0.45rem 1rem;">
+                &larr; Volver
+            </a>
+            <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn-clear">Limpiar</button>
+                <button type="button" id="btn-download" class="btn-register" style="background: #0f3669;">Descargar 📥</button>
+            </div>
+        </div>
+        
+        <!-- Fila Inferior: Filtros -->
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;">
+            <div class="filter-group">
+                <label for="fecha-desde" class="filter-label">Desde:</label>
+                <input type="date" id="fecha-desde" class="filter-select">
+            </div>
+            <div class="filter-group">
+                <label for="fecha-hasta" class="filter-label">Hasta:</label>
+                <input type="date" id="fecha-hasta" class="filter-select">
+            </div>
+            
+            <div class="filter-group">
+                <label for="filtro-usuario" class="filter-label">Usuario:</label>
+                <input type="text" id="filtro-usuario" class="filter-select" placeholder="Nombre o cédula..." style="width: 140px; padding: 0.4rem;">
+            </div>
+            
+            <div class="filter-group">
+                <label for="filtro-modulo" class="filter-label">Módulo:</label>
+                <select id="filtro-modulo" class="filter-select">
+                    <option value="">Todos</option>
+                    <option value="Auth">Autenticación</option>
+                    <option value="Usuarios">Usuarios</option>
+                    <option value="Instituciones">Instituciones</option>
+                    <option value="Servicios">Servicios</option>
+                    <option value="Solicitudes">Solicitudes</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="filtro-accion" class="filter-label">Acción:</label>
+                <select id="filtro-accion" class="filter-select">
+                    <option value="">Todas</option>
+                    <option value="LOGIN_EXITOSO">LOGIN_EXITOSO</option>
+                    <option value="LOGIN_FALLIDO">LOGIN_FALLIDO</option>
+                    <option value="ACTUALIZAR">ACTUALIZAR</option>
+                    <option value="CREAR">CREAR</option>
+                    <option value="CAMBIO_ESTATUS">CAMBIO_ESTATUS</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="filtro-estatus" class="filter-label">Estatus:</label>
+                <select id="filtro-estatus" class="filter-select">
+                    <option value="">Todos</option>
+                    <option value="Completado">Completado</option>
+                    <option value="Modificado">Modificado</option>
+                    <option value="Recibido">Recibido</option>
+                    <option value="Fallido">Fallido</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="filtro-estado" class="filter-label">Estado:</label>
+                <select id="filtro-estado" class="filter-select">
+                    <option value="">Todos</option>
+                    <option value="Dtto. Capital">Dtto. Capital</option>
+                    <option value="Miranda">Miranda</option>
+                    <option value="Guárico">Guárico</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── TABLA MAESTRA ── -->
+    <div class="table-card">
+        <div class="table-responsive">
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>Fecha/Hora</th>
+                        <th>Usuario</th>
+                        <th>Módulo</th>
+                        <th>Acción</th>
+                        <th>Descripción</th>
+                        <th>Estatus</th>
+                        <th style="text-align: center;">Ver</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr class="{% if loop.index0 % 2 == 0 %}row-odd{% else %}row-even{% endif %}">
+                        <td style="font-family: monospace; font-size: 0.85rem;">{{ log.date }}</td>
+                        <td>
+                            {{ log.user | e }}
+                            {% if "No registrado" in log.user %}
+                                <br><span style="font-size:0.7rem; color: #991b1b; font-weight: bold;">(No registrado)</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-transform: uppercase; font-size: 0.8rem;">{{ log.module }}</td>
+                        <td><span class="badge-action">{{ log.action }}</span></td>
+                        <td style="color: #475569; max-width: 200px;">{{ log.desc | e }}</td>
+                        <td>
+                            <span class="{% if log.status == 'Completado' %}badge-completed
+                                {% elif log.status == 'Modificado' %}badge-modified
+                                {% elif log.status == 'Fallido' %}badge-failed
+                                {% else %}badge-process{% endif %}">
+                                {{ log.status }}
+                            </span>
+                        </td>
+                        <td style="text-align: center;">
+                            <button type="button" class="btn-inspect btn-ver-detalles" data-log-id="{{ log.id }}">👁</button>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 2.5rem; color: #64748b; font-size: 0.95rem;">
+                            No hay registros de auditoría disponibles bajo estos criterios.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Controles de Paginación -->
+        <div class="pagination-container" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border-top: 1px solid #e2e8f0; background: #f8fafc;">
+            <span style="font-size: 0.85rem; color: #64748b;">Mostrando <span id="page-start">0</span> a <span id="page-end">0</span> de <span id="page-total">0</span> registros</span>
+            <div style="display: flex; gap: 5px;">
+                <button class="btn-page" id="btn-prev" disabled>&laquo; Ant</button>
+                <button class="btn-page" id="btn-next">Sig &raquo;</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── MODAL FORENSE (Nivel 3) ── -->
+<div id="forensicModal" class="modal-overlay">
+    <div class="forensic-modal">
+        <div class="forensic-header">
+            <h4 style="margin: 0; color: #1e293b;">DETALLE DE AUDITORÍA — REGISTRO <span id="m-id"></span></h4>
+            <button type="button" onclick="cerrarModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+        </div>
+        
+        <div class="forensic-section" style="background: #f8fafc;">
+            <span id="m-status" class="badge-modified"></span>
+            <span class="badge-action" style="margin: 0 10px;">Módulo: <span id="m-module"></span></span>
+            <span class="badge-action">Acción: <span id="m-action"></span></span>
+            <p style="margin: 10px 0 0 0; font-size: 0.85rem; color: #64748b;">Fecha y Hora: <span id="m-date"></span> UTC</p>
+        </div>
+
+        <div class="forensic-section">
+            <div class="section-title">👤 Actor y Contexto</div>
+            <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.9rem; color: #334155; line-height: 1.6;">
+                <li><strong>Usuario Responsable:</strong> <span id="m-user"></span></li>
+                <li><strong>Dirección IP:</strong> <span id="m-ip"></span></li>
+                <li><strong>Cliente:</strong> <span id="m-client"></span></li>
+            </ul>
+        </div>
+
+        <div class="forensic-section">
+            <div class="section-title">📌 Entidad Afectada</div>
+            <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.9rem; color: #334155;">
+                <li><strong>Tabla:</strong> <span id="m-table"></span></li>
+                <li><strong>Descripción:</strong> <span id="m-desc"></span></li>
+            </ul>
+        </div>
+
+        <div class="forensic-section" id="diff-section">
+            <div class="section-title">🔄 Inspección de Cambios (Diff Viewer)</div>
+            <div id="diff-content"></div>
+        </div>
+        
+        <div style="padding: 1rem 1.5rem; text-align: right; background: #f8fafc; border-radius: 0 0 12px 12px;">
+            <button type="button" onclick="cerrarModal()" class="btn-clear">Cerrar Inspección</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Añadimos SweetAlert2 para el manejo elegante de errores -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+    // ─── 1. LÓGICA DEL MODAL FORENSE CON FETCH API ───
+    const modal = document.getElementById('forensicModal');
+    const diffContent = document.getElementById('diff-content');
+
+    // Delegación de eventos para los botones "Ver" (funciona incluso si se recarga la tabla)
+    document.querySelector('.users-table tbody').addEventListener('click', function(e) {
+        const btn = e.target.closest('.btn-inspect');
+        if (btn) {
+            const logId = btn.getAttribute('data-log-id');
+            cargarDatosForense(logId);
+        }
+    });
+
+    function cerrarModal() {
+        modal.style.display = 'none';
+    }
+
+    function cargarDatosForense(logId) {
+        // Mostrar un estado de carga temporal
+        diffContent.innerHTML = '<div style="text-align: center; padding: 2rem; color: #64748b;">Consultando expediente de auditoría...</div>';
+        modal.style.display = 'flex';
+
+        // Endpoint real especificado en la guía técnica
+        fetch(`/binnacle/api/logs/${logId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('No se pudo establecer conexión con el servidor.');
+                }
+                return response.json();
+            })
+            .then(json => {
+                if (json.success && json.data) {
+                    renderizarModal(json.data);
+                } else {
+                    cerrarModal();
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Datos no encontrados',
+                        text: 'No se pudieron recuperar los detalles de este registro.',
+                        confirmButtonColor: '#0f3669'
+                    });
+                    console.error('Error del servidor:', json.message);
+                }
+            })
+            .catch(error => {
+                cerrarModal();
+                console.error("Error al obtener los datos:", error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error de Conexión',
+                    text: 'Ocurrió un problema de red al intentar consultar el servidor.',
+                    confirmButtonColor: '#0f3669'
+                });
+            });
+    }
+
+    function renderizarModal(data) {
+        // Mapeo de la respuesta JSON hacia el HTML
+        document.getElementById('m-id').textContent = String(data.id).padStart(5, '0');
+        document.getElementById('m-date').textContent = data.created_at_formatted;
+        document.getElementById('m-module').textContent = data.operation.module;
+        document.getElementById('m-action').textContent = data.operation.action_type;
+        
+        const statusBadge = document.getElementById('m-status');
+        statusBadge.textContent = data.operation.status;
+        statusBadge.className = ''; 
+        if(data.operation.status === 'Completado') statusBadge.classList.add('badge-completed');
+        else if(data.operation.status === 'Fallido') statusBadge.classList.add('badge-failed');
+        else statusBadge.classList.add('badge-modified');
+
+        document.getElementById('m-user').textContent = `${data.user.full_name} (${data.user.role}) - ${data.user.identifier}`;
+        document.getElementById('m-ip').textContent = data.network.ip_address;
+        document.getElementById('m-client').textContent = data.network.user_agent;
+        document.getElementById('m-table').textContent = `${data.operation.target_table} (ID: #${data.operation.record_id || 'N/A'})`;
+        document.getElementById('m-desc').textContent = data.operation.description;
+
+        diffContent.innerHTML = ''; 
+        
+        // Lógica de Diff según si es CREAR, ACTUALIZAR o CONSULTA
+        if (data.operation.action_type === 'CREAR') {
+            let html = `<p style="font-size: 0.85rem; color: #475569; margin-bottom: 10px;">Nuevo registro insertado con los siguientes parámetros:</p>`;
+            html += `<table class="diff-table"><thead><tr><th>Campo</th><th>Valor Asignado</th></tr></thead><tbody>`;
+            data.diff.forEach(item => {
+                const newVal = item.new_value === '[PROTEGIDO]' ? '🔒 Protegido' : (item.new_value || '<span style="color:#6c757d;">(Vacío)</span>');
+                html += `<tr><td>${item.field_label}</td><td class="diff-new">${newVal}</td></tr>`;
+            });
+            html += `</tbody></table>`;
+            diffContent.innerHTML = html;
+
+        } else if (['ACTUALIZAR', 'MODIFICAR', 'CAMBIO_ESTATUS'].includes(data.operation.action_type) && data.diff && data.diff.length > 0) {
+            let html = `<table class="diff-table"><thead><tr><th>Campo Modificado</th><th>Valor Anterior</th><th>Valor Nuevo</th></tr></thead><tbody>`;
+            data.diff.forEach(item => {
+                const oldVal = item.old_value === '[PROTEGIDO]' ? '🔒 Protegido' : (item.old_value || '<span style="color:#6c757d;">(Vacío)</span>');
+                const newVal = item.new_value === '[PROTEGIDO]' ? '🔒 Protegido' : (item.new_value || '<span style="color:#6c757d;">(Vacío)</span>');
+                html += `<tr><td>${item.field_label}</td><td class="diff-old">${oldVal}</td><td class="diff-new">${newVal}</td></tr>`;
+            });
+            html += `</tbody></table>`;
+            diffContent.innerHTML = html;
+
+        } else {
+            diffContent.innerHTML = `
+                <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px dashed #cbd5e1; text-align: center;">
+                    <p style="margin: 0; font-size: 0.9rem; color: #64748b;">Esta acción no produjo modificaciones estructurales en la base de datos (Operación de Consulta/Seguridad).</p>
+                </div>`;
+        }
+    }
+
+    // Variable global para rastrear la página actual
+    let paginaActual = 1;
+
+    // ─── 2. RECARGA DINÁMICA DE TABLA CON FILTROS LIMPIOS Y COMPLETOS ───
+    function recargarTablaMaestra(pagina = 1) {
+        paginaActual = pagina; // Actualizamos la página global
+        
+        const params = new URLSearchParams();
+        params.append('page', pagina);
+
+        // Agrupamos todos los campos del formulario
+        const filtros = {
+            fecha_desde: document.getElementById('fecha-desde').value,
+            fecha_hasta: document.getElementById('fecha-hasta').value,
+            modulo: document.getElementById('filtro-modulo').value,
+            accion: document.getElementById('filtro-accion').value,
+            usuario: document.getElementById('filtro-usuario').value,
+            estatus: document.getElementById('filtro-estatus').value
+        };
+
+        // Filtramos solo las propiedades que tengan texto/fecha real
+        Object.keys(filtros).forEach(key => {
+            if (filtros[key] && filtros[key].trim() !== '') {
+                params.append(key, filtros[key]);
+            }
+        });
+
+        const tbody = document.querySelector('.users-table tbody');
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2.5rem; color: #64748b;">Consultando registros...</td></tr>';
+
+        fetch(`/binnacle/api/logs?${params.toString()}`)
+            .then(response => {
+                if (!response.ok) throw new Error('Error en la red');
+                return response.json();
+            })
+            .then(json => {
+                if (json.success) {
+                    tbody.innerHTML = '';
+
+                    if (json.data.length === 0) {
+                        tbody.innerHTML = `<tr>
+                            <td colspan="7" style="text-align: center; padding: 2.5rem; color: #64748b; font-size: 0.95rem;">
+                                No hay registros de auditoría disponibles bajo estos criterios.
+                            </td>
+                        </tr>`;
+                        return;
+                    }
+
+                    json.data.forEach((log, index) => {
+                        const tr = document.createElement('tr');
+                        tr.className = index % 2 === 0 ? 'row-even' : 'row-odd';
+                        
+                        let statusBadgeClass = 'badge-process';
+                        if (log.status === 'Completado') statusBadgeClass = 'badge-completed';
+                        else if (log.status === 'Modificado') statusBadgeClass = 'badge-modified';
+                        else if (log.status === 'Fallido') statusBadgeClass = 'badge-failed';
+
+                        let userHtml = log.user;
+                        if (log.user && log.user.includes('No registrado')) {
+                            userHtml = `No registrado <br><span style="font-size:0.7rem; color: #991b1b; font-weight: bold;">(No registrado)</span>`;
+                        }
+
+                        tr.innerHTML = `
+                            <td style="font-family: monospace; font-size: 0.85rem;">${log.date}</td>
+                            <td>${userHtml}</td>
+                            <td style="text-transform: uppercase; font-size: 0.8rem;">${log.module}</td>
+                            <td><span class="badge-action">${log.action}</span></td>
+                            <td style="color: #475569; max-width: 200px;">${log.desc}</td>
+                            <td><span class="${statusBadgeClass}">${log.status}</span></td>
+                            <td style="text-align: center;">
+                                <button type="button" class="btn-inspect btn-ver-detalles" data-log-id="${log.id}">👁</button>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+
+                    // Actualizar los textos de la paginación
+                    document.getElementById('page-total').textContent = json.pagination.total;
+                    document.getElementById('page-start').textContent = (json.pagination.current_page - 1) * 15 + (json.data.length > 0 ? 1 : 0);
+                    document.getElementById('page-end').textContent = (json.pagination.current_page - 1) * 15 + json.data.length;
+
+                    // Habilitar o deshabilitar botones según la página
+                    const totalPages = Math.ceil(json.pagination.total / 15);
+                    const btnPrev = document.getElementById('btn-prev');
+                    const btnNext = document.getElementById('btn-next');
+                    
+                    if(btnPrev && btnNext) {
+                        btnPrev.disabled = (json.pagination.current_page <= 1);
+                        btnNext.disabled = (json.pagination.current_page >= totalPages);
+                    }
+                }
+            })
+            .catch(error => {
+                console.error("Error al filtrar la tabla:", error);
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #991b1b; padding: 2.5rem;">Ocurrió un error al cargar los datos.</td></tr>';
+            });
+    }
+
+    // ─── ESCUCHADORES DE EVENTOS ───
+
+    // Clic en botón "Siguiente"
+    document.getElementById('btn-next').addEventListener('click', () => {
+        recargarTablaMaestra(paginaActual + 1);
+    });
+
+    // Clic en botón "Anterior"
+    document.getElementById('btn-prev').addEventListener('click', () => {
+        if (paginaActual > 1) {
+            recargarTablaMaestra(paginaActual - 1);
+        }
+    });
+
+    // Recargar automáticamente al cambiar un filtro (siempre vuelve a la página 1)
+    document.querySelectorAll('.filter-select').forEach(input => {
+        input.addEventListener('change', () => recargarTablaMaestra(1));
+    });
+
+    // Escuchador para el botón "Limpiar" (siempre vuelve a la página 1)
+    document.querySelector('.btn-clear').addEventListener('click', () => {
+        document.querySelectorAll('.filter-select').forEach(input => input.value = '');
+        recargarTablaMaestra(1);
+    });
+
+    // ─── 3. EXPORTACIÓN A CSV ───
+    document.getElementById('btn-download').addEventListener('click', () => {
+        const params = new URLSearchParams();
+        
+        // Recolectamos los mismos filtros que usamos para la tabla
+        const filtros = {
+            fecha_desde: document.getElementById('fecha-desde').value,
+            fecha_hasta: document.getElementById('fecha-hasta').value,
+            modulo: document.getElementById('filtro-modulo').value,
+            accion: document.getElementById('filtro-accion').value,
+            usuario: document.getElementById('filtro-usuario').value,
+            estatus: document.getElementById('filtro-estatus').value
+        };
+
+        // Solo añadimos los que no estén vacíos
+        Object.keys(filtros).forEach(key => {
+            if (filtros[key] && filtros[key].trim() !== '') {
+                params.append(key, filtros[key]);
+            }
+        });
+
+        // Redirigimos a la ruta Flask que generará el CSV
+        window.location.href = `/binnacle/api/logs/export?${params.toString()}`;
+    });
+
+    // Cargar la página 1 apenas entras a la pantalla
+    document.addEventListener("DOMContentLoaded", () => {
+        recargarTablaMaestra(1);
+    });
+
+</script>
+{% endblock %}

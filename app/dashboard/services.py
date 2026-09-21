@@ -225,3 +225,13 @@ def get_dashboard_indicators(user):
             'user_state': user_state_info,
             'jurisdiction_summary': []
         }
+
+def get_audit_logs(limit=None):
+    """
+    Estructura de datos simulada para maquetar la vista de bitácora (US-25).
+    Pendiente conectar con la BD en la historia de backend.
+    """
+    # Dejamos la lista vacía para limpiar la tabla en el frontend
+    mock_logs = []
+    
+    return mock_logs[:limit] if limit else mock_logs
