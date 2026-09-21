@@ -1,0 +1,305 @@
+/* Cabecera estándar del sistema (.page-header) */
+.page-header {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 14px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.05);
+    margin-bottom: 18px;
+    border-left: 4px solid #1fcab0;
+}
+
+.page-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #111827;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: -0.3px;
+}
+
+.page-title svg {
+    color: #1fcab0;
+}
+
+.page-date {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #6B7280;
+    font-weight: 500;
+    background: #F1F5F9;
+    padding: 10px 18px;
+    border-radius: 30px;
+    font-size: 0.875rem;
+    letter-spacing: 0.2px;
+}
+
+.page-date svg {
+    width: 17px;
+    height: 17px;
+    color: #1fcab0;
+    flex-shrink: 0;
+}
+
+.page-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.page-top-actions {
+    width: 100%;
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 1.5rem;
+}
+
+.back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+}
+
+.back-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(108, 117, 125, 0.4);
+    color: white;
+}
+
+.back-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+@media (max-width: 768px) {
+    .module-page-wrapper {
+        padding: 1rem;
+    }
+
+    .module-form-header,
+    .module-form-body {
+        padding: 1.5rem;
+    }
+
+    .module-form-title {
+        font-size: 1.25rem;
+    }
+
+    .module-form-subtitle {
+        font-size: 0.9rem;
+    }
+
+    .btn-action-submit {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Estructura general de página para alineación a la izquierda total */
+.module-page-wrapper {
+    padding: 1.5rem;
+    background-color: #f8fafc;
+    min-height: calc(100vh - var(--topbar-height, 70px));
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Contenedor principal de la tarjeta */
+.module-form-container {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 0;
+}
+
+/* Tarjeta del Formulario (Basada en .wizard-container) */
+.module-form-card {
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    color: #1f2937;
+    margin-top: 1.5rem;
+}
+
+/* Cabecera del formulario (Basada en .wizard-header) */
+.module-form-header {
+    background: linear-gradient(90deg, #1fcab0, #1c3d73);
+    padding: 2.5rem;
+    text-align: center;
+}
+
+.module-form-title {
+    color: #ffffff;
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.85rem;
+}
+
+.module-form-title svg {
+    width: 28px;
+    height: 28px;
+    color: #ffffff; /* Ajustado para que resalte en el fondo oscuro */
+}
+
+.module-form-subtitle {
+    color: rgba(255, 255, 255, 0.8) !important;
+    font-size: 1rem;
+    margin: 0;
+    font-weight: 400;
+}
+
+.module-form-body {
+    padding: 2.5rem;
+}
+
+.form-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.form-group-custom {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.form-group-custom label {
+    display: block;
+    color: #6b7280;
+    font-size: 0.85rem;
+    margin-bottom: 0.2rem;
+    font-weight: 600;
+}
+
+.form-group-custom .required-mark {
+    color: #ef4444;
+    margin-left: 2px;
+}
+
+/* Inputs y Selects */
+.form-input-custom,
+.form-select-custom {
+    width: 100%;
+    padding: 0.85rem 1.2rem;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 30px;
+    font-size: 0.95rem;
+    color: #1f2937;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+    outline: none;
+}
+
+/* Textarea - Menos borde redondeado para no deformarse */
+.form-textarea-custom {
+    width: 100%;
+    padding: 0.85rem 1.2rem;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 15px; 
+    font-size: 0.95rem;
+    color: #1f2937;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+    outline: none;
+    font-family: inherit;
+    resize: vertical;
+}
+
+.form-input-custom:focus,
+.form-textarea-custom:focus,
+.form-select-custom:focus {
+    border-color: #1fcab0;
+    box-shadow: 0 0 0 3px rgba(31, 202, 176, 0.1);
+    background: #ffffff;
+}
+
+.form-input-custom.is-invalid,
+.form-textarea-custom.is-invalid,
+.form-select-custom.is-invalid {
+    border-color: #ef4444;
+}
+
+.readonly-field {
+    background-color: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #64748b;
+    cursor: not-allowed;
+}
+
+.readonly-field:focus {
+    border-color: #cbd5e1;
+    box-shadow: none;
+}
+
+.form-helper-text {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-top: 0.25rem;
+}
+
+.form-error-feedback {
+    display: flex;
+    color: #ef4444;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.form-actions-bar {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 2.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+/* Botón Guardar (Basado en .btn-submit) */
+.btn-action-submit {
+    padding: 0.85rem 2rem;
+    background: linear-gradient(90deg, #1c3d73, #1fcab0);
+    border: none;
+    border-radius: 30px;
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.btn-action-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(31, 202, 176, 0.4);
+    color: white;
+}
+
+.btn-action-submit:active {
+    transform: translateY(0);
+}

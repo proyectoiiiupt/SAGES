@@ -12,17 +12,16 @@ from datetime import datetime, time
 from flask import render_template, jsonify, abort, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from sqlalchemy import func
-
 from app.trainings import trainings_bp
-from app.trainings.forms import TrainingModuleForm
+from app.trainings.forms import TrainingModuleForm, TrainingForm
 from app.models.training_module_model import TrainingModule
 from app.models.training_model import Training
 from app.models.status_model import Status
 from app.trainings.forms import ModuleEditForm
 from app.trainings.services import get_module_by_id, update_training_module
 from app.decorators import check_permissions, role_required
-from app.utils.binnacle_utils import log_action
-from app.extensions import db
+from app.extensions import db, limiter
+from app.trainings.services import generate_training_code, is_training_name_duplicated, create_training
 
 
 # ---------------------------------------------------------------------------
@@ -157,8 +156,7 @@ def get_module_counts():
         }), 200
 
     except Exception as e:
-        import logging
-        logging.error(f"[trainings.get_module_counts] Error al calcular conteos: {e}")
+        current_app.logger.error(f"[trainings.get_module_counts] Error al calcular conteos: {e}")
         return jsonify({
             'success': False,
             'message': 'No se pudieron cargar los contadores en este momento.',
@@ -332,8 +330,7 @@ def list_all():
         )
 
     except Exception as e:
-        import logging
-        logging.error(f"[trainings.list_all] Error al obtener listado de formaciones: {e}")
+        current_app.logger.error(f"[trainings.list_all] Error al obtener listado de formaciones: {e}")
         return render_template(
             'trainings/list.html',
             trainings=[],
@@ -407,31 +404,12 @@ def new_module():
             db.session.add(new_mod)
             db.session.commit()
 
-            # Registro en bitácora del sistema
-            try:
-                log_action(
-                    user_id=current_user.id,
-                    module='trainings',
-                    action_type='CREATE',
-                    description=f"Registro de nuevo Módulo Rector: {new_mod.name} ({new_mod.module_code})",
-                    new_values={
-                        'module_code': new_mod.module_code,
-                        'name': new_mod.name,
-                        'description': new_mod.description,
-                        'order_index': new_mod.order_index
-                    }
-                )
-            except Exception as log_err:
-                import logging
-                logging.warning(f"[trainings.new_module] No se pudo registrar en bitácora: {log_err}")
-
             flash(f'Módulo Rector "{new_mod.name}" registrado exitosamente.', "success")
             return redirect(url_for('trainings.index'))
 
         except Exception as e:
             db.session.rollback()
-            import logging
-            logging.error(f"[trainings.new_module] Error al registrar módulo: {e}")
+            current_app.logger.error(f"[trainings.new_module] Error al registrar módulo: {e}")
             flash("Ocurrió un error inesperado al registrar el Módulo Rector. Intente nuevamente.", "danger")
     elif request.method == 'POST':
         flash("Por favor, verifica los campos obligatorios del formulario.", "warning")
@@ -445,3 +423,92 @@ def new_module():
         user_role=_get_user_role()
     )
 
+# ---------------------------------------------------------------------------
+# Registro de Nuevo Tema Formativo
+# ---------------------------------------------------------------------------
+
+@trainings_bp.route('/api/validate-name', methods=['GET'])
+@login_required
+@role_required('super_admin')
+def validate_training_name_api():
+    """
+    Endpoint AJAX para validar en tiempo real que el título del tema
+    no esté duplicado.
+    """
+    name = request.args.get('name', '').strip()
+    module_id = request.args.get('module_id', type=int)
+
+    if not name or not module_id:
+        return jsonify({'valid': False, 'exists': False, 'message': 'Faltan parámetros requeridos.'}), 400
+
+    existing = is_training_name_duplicated(module_id, name)
+
+    if existing:
+        return jsonify({
+            'valid': False,
+            'exists': True,
+            'message': f'Ya existe un tema formativo con este título ({existing.training_code}).'
+        })
+
+    return jsonify({'valid': True, 'exists': False, 'message': 'Título disponible.'})
+
+
+@trainings_bp.route('/new', methods=['GET', 'POST'])
+@login_required
+@role_required('super_admin')
+@limiter.limit("20 per minute", methods=["POST"], key_func=lambda: str(current_user.id))
+def new_training():
+    """
+    Ruta para registrar un nuevo Tema Formativo.
+    """
+    form = TrainingForm()
+
+    if request.method == 'GET':
+        preselected_module = request.args.get('module_id', type=int)
+        if preselected_module:
+            form.training_module_id.data = preselected_module
+
+    if form.validate_on_submit():
+        module_id = form.training_module_id.data
+        name_clean = form.name.data.strip()
+        desc_clean = form.description.data.strip()
+
+        try:
+            new_training_obj = create_training(
+                module_id=module_id,
+                name=name_clean,
+                description=desc_clean
+            )
+            flash(f'Tema Formativo "{new_training_obj.name}" registrado exitosamente.', 'success')
+            return redirect(url_for('trainings.index'))
+
+        except ValueError as ve:
+            flash(str(ve), 'danger')
+            return render_template(
+                'trainings/training_new.html',
+                form=form,
+                is_super_admin=_is_super_admin(),
+                is_admin=_is_admin(),
+                user_role=_get_user_role()
+            )
+        except Exception as e:
+            current_app.logger.error(f"[trainings.new_training] Error al registrar tema: {e}")
+            flash('Ocurrió un error inesperado al registrar el tema formativo. Intente nuevamente.', 'danger')
+
+    return render_template(
+        'trainings/training_new.html',
+        form=form,
+        is_super_admin=_is_super_admin(),
+        is_admin=_is_admin(),
+        user_role=_get_user_role()
+    )
+
+
+@trainings_bp.route('/api/active-modules', methods=['GET'])
+@login_required
+def api_active_modules():
+    """
+    Endpoint API para cargar dinámicamente los Módulos Rectores activos en el frontend.
+    """
+    modules = TrainingModule.query.filter_by(is_active=True).order_by(TrainingModule.order_index).all()
+    return jsonify([{'id': m.id, 'name': f"{m.module_code} – {m.name}"} for m in modules])
