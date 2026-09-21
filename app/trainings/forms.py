@@ -1,43 +1,48 @@
 """
-Formularios WTForms para el módulo de Formación (Trainings).
-Proporciona validación de seguridad y reglas de captura para Módulos Rectores.
+Formularios para el Módulo de Formación (Trainings)
+Maneja la validación de entrada para módulos y temas formativos.
 """
 from flask_wtf import FlaskForm
 from wtforms import StringField, TextAreaField
-from wtforms.validators import DataRequired, Length, Optional
+from wtforms.validators import DataRequired, Length, ValidationError
+from app.models.training_module_model import TrainingModule
 
 
-class TrainingModuleForm(FlaskForm):
+class ModuleEditForm(FlaskForm):
     """
-    Formulario para el registro de un nuevo Módulo Rector.
-    
-    Regla de negocio:
-      - 'module_code' es un identificador técnico de base de datos autogenerado en backend (MOD-XXX),
-        invisible para usuarios finales y no asignable manualmente. Se define como solo lectura.
-      - 'name', 'description' y 'order_index' son los campos capturados para el usuario.
+    Formulario exclusivo para la edición de Módulo Rector.
+    Permite actualizar nombre y descripción operativa.
     """
-    module_code = StringField(
-        'Código del Módulo',
-        render_kw={
-            'readonly': True,
-            'placeholder': 'Autogenerado por el sistema (ej. MOD-005)',
-            'class': 'readonly-field'
-        },
-        validators=[Optional()]
-    )
+    def __init__(self, *args, module_id=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.module_id = module_id
 
     name = StringField(
         'Nombre del Módulo Rector',
+        filters=[lambda x: x.strip() if x else x],
         validators=[
-            DataRequired(message='El nombre del módulo rector es obligatorio.'),
-            Length(min=3, max=200, message='El nombre debe tener entre 3 y 200 caracteres.')
+            DataRequired(message="El nombre del módulo rector es obligatorio."),
+            Length(min=3, max=200, message="El nombre debe tener entre 3 y 200 caracteres.")
         ]
     )
 
     description = TextAreaField(
-        'Descripción',
+        'Descripción Operativa',
+        filters=[lambda x: x.strip() if x else x],
         validators=[
-            DataRequired(message='La descripción es obligatoria.'),
-            Length(min=10, max=1000, message='La descripción debe tener entre 10 y 1000 caracteres.')
+            DataRequired(message="La descripción operativa es obligatoria."),
+            Length(min=10, max=2000, message="La descripción debe tener entre 10 y 2000 caracteres.")
         ]
     )
+
+    def validate_name(self, field):
+        """Valida que no exista otro módulo con el mismo nombre (ignora mayúsculas/minúsculas)."""
+        if not field.data:
+            return
+        query = TrainingModule.query.filter(
+            TrainingModule.name.ilike(field.data.strip())
+        )
+        if self.module_id:
+            query = query.filter(TrainingModule.id != self.module_id)
+        if query.first():
+            raise ValidationError("Ya existe otro módulo rector registrado con este nombre.")

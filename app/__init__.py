@@ -114,6 +114,8 @@ def create_app(config_class=Config) -> Flask:
     @check_permissions('view_home')
     def home_applicant():
         return render_template('home.html')
+
+
     
     @app.errorhandler(RateLimitExceeded)
     def handle_rate_limit(e):
