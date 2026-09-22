@@ -8,20 +8,26 @@ Endpoints:
 """
 
 import re
+import io
 from datetime import datetime, time
-from flask import render_template, jsonify, abort, request, redirect, url_for, flash
+from flask import render_template, jsonify, abort, request, redirect, url_for, flash, current_app, send_file
 from flask_login import login_required, current_user
 from sqlalchemy import func
 from app.trainings import trainings_bp
-from app.trainings.forms import TrainingModuleForm, TrainingForm
+from app.trainings.forms import TrainingModuleForm, TrainingForm, ModuleEditForm
 from app.models.training_module_model import TrainingModule
 from app.models.training_model import Training
 from app.models.status_model import Status
-from app.trainings.forms import ModuleEditForm
-from app.trainings.services import get_module_by_id, update_training_module
+from app.trainings.services import (
+    get_module_by_id, 
+    update_training_module,
+    generate_training_code, 
+    is_training_name_duplicated, 
+    create_training,
+    parse_training_file
+)
 from app.decorators import check_permissions, role_required
 from app.extensions import db, limiter
-from app.trainings.services import generate_training_code, is_training_name_duplicated, create_training
 
 
 # ---------------------------------------------------------------------------
@@ -512,3 +518,256 @@ def api_active_modules():
     """
     modules = TrainingModule.query.filter_by(is_active=True).order_by(TrainingModule.order_index).all()
     return jsonify([{'id': m.id, 'name': f"{m.module_code} – {m.name}"} for m in modules])
+
+
+# ---------------------------------------------------------------------------
+# Carga Masiva de Temas Formativos
+# ---------------------------------------------------------------------------
+
+@trainings_bp.route('/bulk', methods=['GET'])
+@login_required
+@role_required('super_admin')
+def bulk_upload_view():
+    """Renderiza la interfaz de carga masiva."""
+    modules = TrainingModule.query.filter_by(is_active=True).order_by(TrainingModule.order_index).all()
+    return render_template(
+        'trainings/training_bulk.html',
+        modules=modules,
+        is_super_admin=_is_super_admin(),
+        is_admin=_is_admin(),
+        user_role=_get_user_role()
+    )
+
+
+@trainings_bp.route('/bulk/template', methods=['GET'])
+@login_required
+@role_required('super_admin')
+def bulk_upload_template():
+    """Genera y descarga la plantilla oficial de Excel para la carga masiva."""
+    import openpyxl
+    from openpyxl.worksheet.datavalidation import DataValidation
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Plantilla Temas"
+    
+    # Cabeceras requeridas
+    headers = ["codigo_modulo", "nombre_tema", "descripcion"]
+    ws.append(headers)
+    
+    # Datos de ejemplo e instrucciones directas
+    ws.append([
+        "-> Ve a la pestaña 'Catalogo' y copia un valor", 
+        "Tema de Ejemplo", 
+        "Descripción de ejemplo del tema formativo."
+    ])
+    
+    # Ajuste básico de ancho
+    ws.column_dimensions['A'].width = 35
+    ws.column_dimensions['B'].width = 40
+    ws.column_dimensions['C'].width = 50
+
+    # Crear pestaña de Catálogo (sin espacios ni acentos para evitar bugs en la fórmula de Validación)
+    ws_catalog = wb.create_sheet(title="Catalogo")
+    ws_catalog.append(["Selección", "Nombre", "Descripción"])
+    
+    # Obtener módulos activos de BD
+    modules = TrainingModule.query.filter_by(is_active=True).order_by(TrainingModule.order_index).all()
+    
+    # Llenar el catálogo y preparar Data Validation
+    row_count = 2
+    for m in modules:
+        code_name = f"{m.module_code} - {m.name}"
+        ws_catalog.append([code_name, m.name, m.description])
+        row_count += 1
+        
+    # Ajustar anchos del catálogo
+    ws_catalog.column_dimensions['A'].width = 40
+    ws_catalog.column_dimensions['B'].width = 40
+    ws_catalog.column_dimensions['C'].width = 80
+    
+    # Aplicar validación de datos apuntando al catálogo (si hay módulos disponibles)
+    if row_count > 2:
+        # Rango en el catálogo: ej. Catalogo!$A$2:$A$5
+        formula = f"=Catalogo!$A$2:$A${row_count - 1}"
+        dv = DataValidation(type="list", formula1=formula, allow_blank=True)
+        dv.error = 'Su selección no es válida'
+        dv.errorTitle = 'Módulo Inválido'
+        dv.prompt = 'Seleccione un Módulo de la lista desplegable'
+        dv.promptTitle = 'Selección de Módulo'
+        
+        # Aplicar a las filas de la columna A en la Plantilla (desde fila 2 hasta la 1000)
+        dv.add(f"A2:A1000")
+        ws.add_data_validation(dv)
+
+    out = io.BytesIO()
+    wb.save(out)
+    out.seek(0)
+    
+    return send_file(
+        out,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='Plantilla_Carga_Masiva_Temas.xlsx'
+    )
+
+
+@trainings_bp.route('/bulk/preview', methods=['POST'])
+@login_required
+@role_required('super_admin')
+@limiter.limit("10 per minute", key_func=lambda: str(current_user.id))
+def bulk_upload_preview():
+    """Ejecuta el Dry-Run (análisis) del archivo y retorna resultados en JSON."""
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': 'No se envió ningún archivo.'}), 400
+        
+    file = request.files['file']
+    if not file.filename:
+        return jsonify({'success': False, 'message': 'Archivo vacío.'}), 400
+        
+    try:
+        valid_rows, invalid_rows, stats = parse_training_file(file)
+        
+        valid_preview = []
+        for r in valid_rows:
+            valid_preview.append({
+                'row_index': r['row_number'],
+                'module_code': r['module_code'],
+                'name': r['name'],
+                'description': r['description']
+            })
+            
+        return jsonify({
+            'success': True,
+            'stats': stats,
+            'valid_rows': valid_preview,
+            'invalid_rows': invalid_rows
+        })
+        
+    except ValueError as ve:
+        return jsonify({'success': False, 'message': str(ve)}), 400
+    except Exception as e:
+        current_app.logger.error(f"[bulk_upload_preview] Error: {e}")
+        return jsonify({'success': False, 'message': 'Error al procesar el archivo.'}), 500
+
+
+@trainings_bp.route('/bulk/process', methods=['POST'])
+@login_required
+@role_required('super_admin')
+@limiter.limit("5 per minute", key_func=lambda: str(current_user.id))
+def bulk_upload_process():
+    """Procesa el archivo y guarda las filas válidas en base de datos."""
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': 'No se envió ningún archivo.'}), 400
+        
+    file = request.files['file']
+    if not file.filename:
+        return jsonify({'success': False, 'message': 'Archivo vacío.'}), 400
+        
+    try:
+        valid_rows, invalid_rows, stats = parse_training_file(file)
+        
+        if not valid_rows:
+            return jsonify({
+                'success': False, 
+                'message': 'No hay filas válidas para procesar.',
+                'stats': stats
+            }), 400
+            
+        from app.trainings.services import get_active_status_id, generate_training_code
+        
+        status_id = get_active_status_id()
+        inserted_count = 0
+        
+        for row in valid_rows:
+            new_code = generate_training_code()
+            new_training = Training(
+                training_code=new_code,
+                name=row['name'],
+                description=row['description'],
+                training_module_id=row['module_id'],
+                status_id=status_id
+            )
+            db.session.add(new_training)
+            inserted_count += 1
+            
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Se han registrado {inserted_count} temas formativos correctamente.',
+            'inserted_count': inserted_count,
+            'invalid_count': len(invalid_rows)
+        })
+        
+    except ValueError as ve:
+        return jsonify({'success': False, 'message': str(ve)}), 400
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"[bulk_upload_process] Error guardando carga masiva: {e}")
+        return jsonify({'success': False, 'message': 'Ocurrió un error al guardar los registros en BD.'}), 500
+
+
+@trainings_bp.route('/bulk/download_errors', methods=['POST'])
+@login_required
+@role_required('super_admin')
+@limiter.limit("5 per minute", key_func=lambda: str(current_user.id))
+def bulk_download_errors():
+    """Recibe la plantilla de carga masiva y devuelve un Excel únicamente con las filas inválidas y su motivo de error."""
+    import openpyxl
+    from openpyxl.styles import Font, Alignment
+    
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': 'No se envió ningún archivo.'}), 400
+        
+    file = request.files['file']
+    if not file.filename:
+        return jsonify({'success': False, 'message': 'Archivo vacío.'}), 400
+        
+    try:
+        _, invalid_rows, _ = parse_training_file(file)
+        
+        if not invalid_rows:
+            return jsonify({'success': False, 'message': 'No se detectaron errores en el archivo.'}), 400
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Reporte de Errores"
+        
+        headers = ["codigo_modulo", "nombre_tema", "descripcion", "ERRORES_ENCONTRADOS"]
+        ws.append(headers)
+        
+        for cell in ws[1]:
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.alignment = Alignment(horizontal="center")
+            cell.fill = openpyxl.styles.PatternFill(start_color="EF4444", end_color="EF4444", fill_type="solid")
+
+        for row in invalid_rows:
+            ws.append([
+                row.get('module_input', ''),
+                row.get('name_input', ''),
+                row.get('desc_input', ''),
+                f"[Fila Original: {row.get('row_number', '')}] - {row.get('error', '')}"
+            ])
+            
+        ws.column_dimensions['A'].width = 25
+        ws.column_dimensions['B'].width = 40
+        ws.column_dimensions['C'].width = 50
+        ws.column_dimensions['D'].width = 80
+
+        out = io.BytesIO()
+        wb.save(out)
+        out.seek(0)
+        
+        return send_file(
+            out,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name='Reporte_Errores_Carga_Masiva.xlsx'
+        )
+        
+    except ValueError as ve:
+        return jsonify({'success': False, 'message': str(ve)}), 400
+    except Exception as e:
+        current_app.logger.error(f"[bulk_download_errors] Error generando reporte: {e}")
+        return jsonify({'success': False, 'message': 'Ocurrió un error al generar el archivo de errores.'}), 500
