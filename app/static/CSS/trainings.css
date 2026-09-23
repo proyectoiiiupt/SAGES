@@ -492,6 +492,76 @@
     display: inline-block;
 }
 
+.badge-status.inactive {
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #cbd5e1;
+}
+
+.badge-status.inactive::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #94a3b8;
+    display: inline-block;
+}
+
+/* ── MÓDULO RECTOR INACTIVO / DESINCORPORADO EN EL HUB ── */
+.module-card.module-card-inactive {
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+    opacity: 0.82;
+    transition: all var(--hub-transition);
+}
+
+.module-card.module-card-inactive::before {
+    background: #94a3b8 !important;
+}
+
+.module-card.module-card-inactive:hover {
+    opacity: 1;
+    border-color: #94a3b8 !important;
+    box-shadow: 0 10px 25px rgba(100, 116, 139, 0.15) !important;
+    transform: translateY(-2px);
+}
+
+.module-card.module-card-inactive .module-icon-wrap {
+    background: #e2e8f0 !important;
+    color: #64748b !important;
+    box-shadow: none !important;
+}
+
+.module-card.module-card-inactive .module-name {
+    color: #475569 !important;
+}
+
+.module-card.module-card-inactive .module-description {
+    color: #64748b !important;
+}
+
+.module-card.module-card-inactive .module-counter-wrap {
+    background: #f1f5f9 !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+.module-card.module-card-inactive .counter-active {
+    color: #64748b !important;
+}
+
+.module-card.module-card-inactive .btn-explore {
+    color: #64748b !important;
+    border-color: #cbd5e1 !important;
+    background: #e2e8f0 !important;
+}
+
+.module-card.module-card-inactive:hover .btn-explore {
+    background: #64748b !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(100, 116, 139, 0.25) !important;
+}
+
 /* ── CUERPO DE TARJETA ────────────────────────────────────────────────── */
 .module-card-body {
     padding: 0.5rem 1.4rem 1rem;
