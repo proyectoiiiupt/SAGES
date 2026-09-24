@@ -24,7 +24,8 @@ from app.trainings.services import (
     generate_training_code, 
     is_training_name_duplicated, 
     create_training,
-    parse_training_file
+    parse_training_file,
+    toggle_module_status
 )
 from app.decorators import check_permissions, role_required
 from app.extensions import db, limiter
@@ -60,14 +61,23 @@ def _is_admin() -> bool:
 def index():
     """
     Vista de entrada al catálogo de Formación.
-    Renderiza los 4 Módulos Rectores de la UREE en una cuadrícula responsiva.
+    Renderiza los Módulos Rectores de la UREE en una cuadrícula responsiva.
+    Para super_admin se muestran todos (activos e inactivos, con los activos primero y los inactivos al final).
+    Para solicitantes se muestran únicamente los módulos activos.
     """
-    modules = (
-        TrainingModule.query
-        .filter_by(is_active=True)
-        .order_by(TrainingModule.order_index)
-        .all()
-    )
+    if _is_super_admin():
+        modules = (
+            TrainingModule.query
+            .order_by(TrainingModule.is_active.desc(), TrainingModule.order_index.asc())
+            .all()
+        )
+    else:
+        modules = (
+            TrainingModule.query
+            .filter_by(is_active=True)
+            .order_by(TrainingModule.order_index.asc())
+            .all()
+        )
 
     return render_template(
         'trainings/hub.html',
@@ -133,10 +143,13 @@ def get_module_counts():
         total_rows = {row.training_module_id: row.total for row in base_q.all()}
         active_rows = {row.training_module_id: row.active for row in active_q.all()}
 
-        # Obtener todos los módulos activos para incluirlos (aunque tengan 0 temas)
-        module_ids = [
-            m.id for m in TrainingModule.query.filter_by(is_active=True).all()
-        ]
+        # Obtener módulos según rol para incluirlos (aunque tengan 0 temas)
+        if is_admin:
+            module_ids = [m.id for m in TrainingModule.query.all()]
+        else:
+            module_ids = [
+                m.id for m in TrainingModule.query.filter_by(is_active=True).all()
+            ]
 
         counts = {}
         for mid in module_ids:
@@ -194,11 +207,15 @@ def edit_module(module_id: int):
         form.description.data = module.description
 
     elif form.validate_on_submit():
+        is_active_raw = request.form.get('is_active')
+        new_is_active = (is_active_raw == 'true') if is_active_raw is not None else module.is_active
+
         success, message = update_training_module(
             module=module,
             name=form.name.data,
             description=form.description.data,
-            user_id=current_user.id
+            user_id=current_user.id,
+            is_active=new_is_active
         )
         if success:
             flash(f'Módulo rector "{module.name}" actualizado correctamente.', 'success')
@@ -214,6 +231,42 @@ def edit_module(module_id: int):
         is_admin=_is_admin(),
         user_role=_get_user_role()
     )
+
+
+@trainings_bp.route('/module/toggle-status/<int:module_id>', methods=['POST'])
+@login_required
+@role_required('super_admin')
+def toggle_module_status_route(module_id: int):
+    """
+    Ruta exclusiva de Super Administrador para desincorporar (inactivar) o reactivar un Módulo Rector.
+    Valida estrictamente que el módulo no posea temas formativos activos asociados antes de inactivarlo.
+    """
+    success, message, module, active_count = toggle_module_status(module_id, current_user.id)
+
+    is_ajax = (
+        request.is_json or
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+        (request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html)
+    )
+
+    if is_ajax:
+        if success:
+            return jsonify({
+                'success': True,
+                'message': message,
+                'is_active': module.is_active if module else False,
+                'status_label': 'Activo' if (module and module.is_active) else 'Inactivo'
+            }), 200
+        else:
+            status_code = 404 if not module else (400 if active_count > 0 else 500)
+            return jsonify({
+                'success': False,
+                'message': message,
+                'active_topics_count': active_count
+            }), status_code
+    else:
+        flash(message, 'success' if success else 'danger')
+        return redirect(url_for('trainings.edit_module', module_id=module_id) if module else url_for('trainings.index'))
 
 
 # ---------------------------------------------------------------------------

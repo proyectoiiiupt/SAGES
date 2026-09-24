@@ -121,7 +121,8 @@
     <div class="hub-grid-header">
         <span class="hub-status-badge" role="status" aria-label="Estado del catálogo">
             <span class="status-dot" aria-hidden="true"></span>
-            {{ modules | length }} Módulo{% if modules | length != 1 %}s{% endif %} Rector{% if modules | length != 1 %}es{% endif %} Operativo{% if modules | length != 1 %}s{% endif %}
+            {% set active_modules_count = modules | selectattr('is_active') | list | length %}
+            {{ active_modules_count }} Módulo{% if active_modules_count != 1 %}s{% endif %} Rector{% if active_modules_count != 1 %}es{% endif %} Operativo{% if active_modules_count != 1 %}s{% endif %}
         </span>
     </div>
 
@@ -148,7 +149,7 @@
             {# ──────────────────────────────────────────────────────────
                TARJETA DE MÓDULO RECTOR
                ────────────────────────────────────────────────────────── #}
-            <article class="module-card {{ mod_class }}"
+            <article class="module-card {{ mod_class }} {% if not module.is_active %}module-card-inactive{% endif %}"
                      id="card-module-{{ module.id }}"
                      role="article"
                      aria-labelledby="module-name-{{ module.id }}">
@@ -159,7 +160,11 @@
                         {{ icon_svg }}
                     </div>
                     <div class="module-badges">
-                        <span class="badge-status active" aria-label="Estado: Activo">Rector</span>
+                        {% if module.is_active %}
+                        <span class="badge-status active" aria-label="Estado: Activo">Activo</span>
+                        {% else %}
+                        <span class="badge-status inactive" aria-label="Estado: Inactivo">Inactivo</span>
+                        {% endif %}
                         {% if is_super_admin %}
                         <a href="{{ url_for('trainings.edit_module', module_id=module.id) }}"
                            class="btn-module-edit"
