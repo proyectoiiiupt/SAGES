@@ -18,6 +18,7 @@ from app.trainings.forms import TrainingModuleForm, TrainingForm, ModuleEditForm
 from app.models.training_module_model import TrainingModule
 from app.models.training_model import Training
 from app.models.status_model import Status
+from app.models.request_model import Request
 from app.trainings.services import (
     get_module_by_id, 
     update_training_module,
@@ -519,6 +520,40 @@ def api_active_modules():
     modules = TrainingModule.query.filter_by(is_active=True).order_by(TrainingModule.order_index).all()
     return jsonify([{'id': m.id, 'name': f"{m.module_code} – {m.name}"} for m in modules])
 
+
+# ---------------------------------------------------------------------------
+# Detalle de Tema Formativo
+# ---------------------------------------------------------------------------
+
+@trainings_bp.route('/detail/<int:id>', methods=['GET'])
+@login_required
+@role_required('super_admin', 'state_admin', 'applicant')
+def view_training_detail(id: int):
+    training = (
+        Training.query
+        .join(TrainingModule, Training.training_module_id == TrainingModule.id)
+        .join(Status, Training.status_id == Status.id)
+        .filter(Training.id == id, Training.deleted_at.is_(None))
+        .first_or_404()
+    )
+
+    atendidas_calculadas = (
+        db.session.query(func.count(Request.id))
+        .join(Status, Request.status_id == Status.id)
+        .filter(
+            Request.training_id == id,
+            Status.status_code == 'STAT-007'
+        ).scalar() or 0
+    )
+
+    return render_template(
+        'trainings/detail.html',
+        training=training,
+        atendidas=atendidas_calculadas,
+        is_super_admin=_is_super_admin(),
+        is_admin=_is_admin(),
+        user_role=_get_user_role()
+    )
 
 # ---------------------------------------------------------------------------
 # Carga Masiva de Temas Formativos

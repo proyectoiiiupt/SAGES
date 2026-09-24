@@ -150,30 +150,20 @@
                                 <span class="no-data">Sin estatus</span>
                                 {% endif %}
                             </td>
+
                             <td class="text-center">
-                                {#
-                                    Nota de alcance:
-                                    La ejecución de las acciones de edición y borrado lógico está reservada
-                                    para una tarea posterior. Aquí se provee la acción de visualización de detalles.
-                                #}
-                                <button type="button"
-                                        class="action-btn view-btn"
-                                        title="Ver detalles del tema"
-                                        aria-label="Ver detalles de {{ training.name }}"
-                                        data-code="{{ training.training_code }}"
-                                        data-name="{{ training.name }}"
-                                        data-module="{{ training.training_module.name if training.training_module else 'N/A' }}"
-                                        data-module-code="{{ training.training_module.module_code if training.training_module else '' }}"
-                                        data-desc="{{ training.description }}"
-                                        data-status="{{ training.status.status_name if training.status else 'N/A' }}"
-                                        data-status-code="{{ training.status.status_code if training.status else '' }}"
-                                        data-date="{{ training.created_at.strftime('%d/%m/%Y %H:%M') if training.created_at else 'N/A' }}">
+                                {# Redirección directa a la ficha técnica (detail.html) #}
+                                <a href="{{ url_for('trainings.view_training_detail', id=training.id) }}"
+                                   class="action-btn view-btn"
+                                   title="Ver detalles del tema"
+                                   aria-label="Ver detalles de {{ training.name }}">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                         <circle cx="12" cy="12" r="3"></circle>
                                     </svg>
-                                </button>
+                                </a>
                             </td>
+                            
                         </tr>
                         {% endfor %}
                     {% else %}
