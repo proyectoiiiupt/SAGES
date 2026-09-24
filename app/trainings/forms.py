@@ -8,6 +8,7 @@ from wtforms import StringField, TextAreaField, SelectField
 from wtforms.validators import DataRequired, Length, ValidationError, Optional
 from app.users.forms import safe_int_coerce
 from app.pre_registration.forms import validate_fk_exists
+from app.models.training_model import Training
 
 class TrainingModuleForm(FlaskForm):
     """
@@ -86,13 +87,7 @@ class ModuleEditForm(FlaskForm):
 class TrainingForm(FlaskForm):
     """
     Formulario para el registro de un nuevo Tema Formativo.
-    
-    Reglas de negocio:
-      - 'training_code' es generado internamente por el backend y no se expone al usuario.
-      - 'training_module_id' exige la selección obligatoria de un módulo activo existente.
-      - 'name' y 'description' son obligatorios con límites de caracteres controlados.
     """
-
     training_module_id = SelectField(
         'Módulo Rector',
         coerce=safe_int_coerce,
@@ -107,7 +102,7 @@ class TrainingForm(FlaskForm):
         'Título del Tema Formativo',
         validators=[
             DataRequired(message='El título del tema formativo es obligatorio.'),
-            Length(min=10, max=200, message='El título debe tener entre 10 y 200 caracteres.')
+            Length(min=5, max=200, message='El título debe tener entre 5 y 200 caracteres.')
         ]
     )
 
@@ -118,3 +113,72 @@ class TrainingForm(FlaskForm):
             Length(min=15, max=1000, message='La descripción debe tener entre 15 y 1000 caracteres.')
         ]
     )
+
+    def validate_name(self, field):
+        """Valida que no exista otro tema con el mismo título en el mismo módulo."""
+        if not field.data or not self.training_module_id.data:
+            return
+            
+        exists = Training.query.filter(
+            Training.name.ilike(field.data.strip()),
+            Training.training_module_id == self.training_module_id.data,
+            Training.deleted_at.is_(None)
+        ).first()
+        
+        if exists:
+            raise ValidationError("Ya existe un tema formativo registrado con este título en el módulo seleccionado.")
+
+
+class TrainingEditForm(FlaskForm):
+    """
+    Formulario exclusivo para la edición de Tema Formativo.
+    """
+    def __init__(self, *args, training_id=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.training_id = training_id
+
+    training_module_id = SelectField(
+        'Módulo Rector',
+        coerce=safe_int_coerce,
+        validate_choice=False,
+        validators=[
+            DataRequired(message='Debe seleccionar el Módulo Rector de adscripción.'),
+            validate_fk_exists('TrainingModule')
+        ]
+    )
+
+    name = StringField(
+        'Título del Tema Formativo',
+        filters=[lambda x: x.strip() if x else x],
+        validators=[
+            DataRequired(message='El título del tema formativo es obligatorio.'),
+            Length(min=5, max=200, message='El título debe tener entre 5 y 200 caracteres.')
+        ]
+    )
+
+    description = TextAreaField(
+        'Descripción Programática',
+        filters=[lambda x: x.strip() if x else x],
+        validators=[
+            DataRequired(message='La descripción programática es obligatoria.'),
+            Length(min=15, max=1000, message='La descripción debe tener entre 15 y 1000 caracteres.')
+        ]
+    )
+
+    def validate_name(self, field):
+        """Valida que no exista otro tema con el mismo título (excluyendo el actual)."""
+        if not field.data or not self.training_module_id.data:
+            return
+            
+        query = Training.query.filter(
+            Training.name.ilike(field.data.strip()),
+            Training.training_module_id == self.training_module_id.data,
+            Training.deleted_at.is_(None)
+        )
+        
+        # Excluimos el ID actual de la búsqueda de duplicados
+        if self.training_id:
+            query = query.filter(Training.id != self.training_id)
+            
+        if query.first():
+            raise ValidationError("Ya existe otro tema formativo registrado con este título en el módulo seleccionado.")
