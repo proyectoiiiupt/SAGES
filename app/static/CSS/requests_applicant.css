@@ -291,3 +291,414 @@
     margin-bottom: 24px;
     line-height: 1.5;
 }
+
+/* ==========================================================================
+   Estilos del Wizard de Radicación (US-34)
+   ========================================================================== */
+
+/* Stepper Superior */
+.wizard-stepper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.step-indicator {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.step-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background-color: #e9ecef;
+    color: #495057;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: 700;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.step-label {
+    font-weight: 600;
+    color: #adb5bd;
+    font-size: 15px;
+    transition: color 0.3s ease;
+}
+
+.step-line {
+    width: 60px;
+    height: 3px;
+    background-color: #e9ecef;
+    margin: 0 16px;
+    border-radius: 3px;
+    transition: background-color 0.3s ease;
+}
+
+/* Estados del Stepper */
+.step-indicator.active .step-circle {
+    background-color: #019577; /* Accent corporativo */
+    color: #fff;
+    box-shadow: 0 0 0 4px rgba(1, 149, 119, 0.2);
+}
+
+.step-indicator.active .step-label {
+    color: #212529;
+}
+
+.step-indicator.completed .step-circle {
+    background-color: #019577;
+    color: #fff;
+}
+
+.step-indicator.completed + .step-line {
+    background-color: #019577;
+}
+
+/* Botonera Superior (Volver/Cancelar) */
+.wizard-top-actions {
+    width: 100%;
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 1.5rem;
+}
+
+/* Contenedor Principal del Wizard (Para centrar y controlar ancho) */
+.wizard-container {
+    max-width: 780px;
+    margin: 2rem auto 0;
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    color: #1f2937;
+}
+
+.wizard-header {
+    background: linear-gradient(90deg, #1fcab0, #1c3d73);
+    padding: 2.5rem;
+    text-align: center;
+}
+
+.wizard-title {
+    color: #ffffff;
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.85rem;
+}
+
+.wizard-title svg {
+    width: 28px;
+    height: 28px;
+    color: #ffffff;
+}
+
+.wizard-subtitle {
+    color: rgba(255, 255, 255, 0.8) !important;
+    font-size: 1rem;
+    margin: 0;
+    font-weight: 400;
+}
+
+.wizard-body {
+    padding: 2.5rem;
+}
+
+/* Paneles del Wizard (Estilos modernizados estilo Formulario) */
+.wizard-panel {
+    display: none;
+    animation: fadeIn 0.4s ease-in-out;
+}
+
+.wizard-panel.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Controles de Formulario Estilo SAGES Moderno */
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    margin-bottom: 2rem;
+}
+
+.form-label {
+    display: block;
+    color: #6b7280;
+    font-size: 0.85rem;
+    margin-bottom: 0.2rem;
+    font-weight: 600;
+}
+
+.form-select, .form-textarea {
+    width: 100%;
+    padding: 0.85rem 1.2rem;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    font-size: 0.95rem;
+    color: #1f2937;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.form-select {
+    border-radius: 30px;
+}
+
+.form-textarea {
+    border-radius: 15px; 
+    resize: vertical;
+    min-height: 120px;
+    font-family: inherit;
+}
+
+.form-select:focus, .form-textarea:focus {
+    border-color: #1fcab0;
+    box-shadow: 0 0 0 3px rgba(31, 202, 176, 0.1);
+    background: #ffffff;
+}
+
+.char-counter {
+    display: block;
+    text-align: right;
+    font-size: 13px;
+    color: #6c757d;
+    margin-top: 6px;
+}
+.char-counter.invalid {
+    color: #ef4444;
+    font-weight: 600;
+}
+
+.form-helper-text {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-top: 0.25rem;
+}
+
+.required-mark {
+    color: #ef4444;
+    margin-left: 2px;
+}
+
+/* Tarjeta de Resumen (Paso 2) Estilo Limpio */
+.summary-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 15px;
+    overflow: hidden;
+    margin-bottom: 24px;
+}
+
+.summary-section {
+    padding: 20px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #ffffff;
+}
+
+.summary-section:last-child {
+    border-bottom: none;
+    background: #f8fafc;
+}
+
+.summary-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #1c3d73;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.summary-row {
+    display: flex;
+    margin-bottom: 10px;
+    font-size: 0.95rem;
+}
+
+.summary-label {
+    font-weight: 600;
+    color: #64748b;
+    width: 35%;
+    flex-shrink: 0;
+}
+
+.summary-value {
+    color: #1f2937;
+    font-weight: 500;
+    width: 65%;
+}
+
+/* Barra de Acciones del Wizard */
+.wizard-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 16px;
+    margin-top: 2.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+/* Botones Modernizados (Igual a training_new.css) */
+.btn-action {
+    padding: 0.85rem 2rem;
+    background: linear-gradient(90deg, #1c3d73, #1fcab0);
+    border: none;
+    border-radius: 30px;
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.btn-action:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(31, 202, 176, 0.4);
+    color: white;
+}
+
+.btn-action:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.btn-action:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.btn-cancel {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+    margin-right: auto;
+}
+
+.btn-cancel:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(108, 117, 125, 0.4);
+    color: white;
+}
+
+/* ==========================================================================
+   Componente Combo-box Dinámico (Autocomplete Select)
+   ========================================================================== */
+.custom-combobox {
+    position: relative;
+    width: 100%;
+}
+
+.combobox-icon {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6b7280;
+    pointer-events: none;
+    transition: transform 0.3s ease;
+}
+
+.custom-combobox.open .combobox-icon {
+    transform: translateY(-50%) rotate(180deg);
+}
+
+.combobox-input {
+    width: 100%;
+    padding-right: 36px !important; 
+    cursor: text;
+}
+
+.combobox-input:disabled {
+    background: #f1f5f9;
+    cursor: not-allowed;
+    color: #94a3b8;
+    border-color: #e2e8f0;
+}
+
+.combobox-options-list {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    width: 100%;
+    max-height: 250px;
+    overflow-y: auto;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.08); /* Sombra más sutil */
+    z-index: 1000;
+    display: none;
+}
+
+.combobox-options-list.show {
+    display: block;
+    animation: fadeInDropdown 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.combobox-option {
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: #374151;
+    border-bottom: 1px solid #f8fafc;
+    transition: all 0.15s ease;
+}
+
+.combobox-option:last-child {
+    border-bottom: none;
+}
+
+.combobox-option:hover {
+    background: #f1f5f9;
+    color: #1c3d73;
+    /* Retiramos el padding-left para que no "salte" bruscamente */
+}
+
+.combobox-option.no-results {
+    color: #64748b;
+    font-style: italic;
+    cursor: default;
+}
+
+.combobox-option.no-results:hover {
+    background: #ffffff;
+    color: #64748b;
+    padding-left: 16px;
+}
+
+@keyframes fadeInDropdown {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}

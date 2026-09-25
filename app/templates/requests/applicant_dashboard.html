@@ -12,7 +12,8 @@
     <!-- Cabecera Estilo Banner (Iconic) -->
     <div class="dashboard-banner">
         <div class="banner-date">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                 <line x1="16" y1="2" x2="16" y2="6"></line>
                 <line x1="8" y1="2" x2="8" y2="6"></line>
@@ -28,13 +29,14 @@
     <!-- Banda de acciones (fuera de la cabecera) -->
     <div class="dashboard-info-band">
         <div class="dashboard-info-left">
-            <p class="dashboard-subtitle">Gestione y haga seguimiento a los requerimientos formativos en curso para su plantel escolar.</p>
+            <p class="dashboard-subtitle">Gestione y haga seguimiento a los requerimientos formativos en curso para su
+                plantel escolar.</p>
         </div>
         <div class="dashboard-actions-bar">
             <!-- Usamos URLs estáticas momentáneamente para no generar BuildError -->
             <a href="/requests/history" class="btn-secondary">Historial</a>
             {% if institution_active %}
-            <a href="/requests/new" class="btn-primary">Registrar Nueva Solicitud +</a>
+            <a href="{{ url_for('requests.new_request_wizard') }}" class="btn-primary">Registrar Nueva Solicitud +</a>
             {% else %}
             <a href="#" class="btn-primary disabled" aria-disabled="true">Registrar Nueva Solicitud +</a>
             {% endif %}
@@ -57,12 +59,14 @@
         <div class="request-card" tabindex="0" data-url="/requests/view-request/{{ req.id }}">
             <div class="card-header">
                 <span class="request-code">{{ req.request_code }}</span>
-                
+
                 <!-- Determinamos dinámicamente qué fecha mostrar -->
-                {% set display_date = req.updated_at if req.updated_at and req.updated_at != req.created_at else req.created_at %}
-                
+                {% set display_date = req.updated_at if req.updated_at and req.updated_at != req.created_at else
+                req.created_at %}
+
                 <!-- Uso de time-formatter.js con el formato date-only (Sin horas) -->
-                <span class="request-date local-datetime" data-utc="{{ display_date.isoformat() }}" data-format="date-only"></span>
+                <span class="request-date local-datetime" data-utc="{{ display_date.isoformat() }}"
+                    data-format="date-only"></span>
             </div>
 
             <div class="card-body">
@@ -108,7 +112,7 @@
             su comunidad escolar en el Uso Racional y Eficiente de la Energía.
         </p>
         {% if institution_active %}
-        <a href="/requests/new" class="btn-primary">Registrar Primera Solicitud</a>
+        <a href="{{ url_for('requests.new_request_wizard') }}" class="btn-primary">Registrar Primera Solicitud</a>
         {% endif %}
     </div>
     {% endif %}
@@ -119,20 +123,4 @@
 <!-- Vinculamos el JS interactivo y el formateador de tiempo global -->
 <script src="{{ url_for('static', filename='JS/time-formatter.js') }}"></script>
 <script src="{{ url_for('static', filename='JS/requests_applicant.js') }}"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // Configuramos la fecha actual (banner) dinámicamente para que time-formatter la procese
-        const dateElement = document.getElementById('current-date-display');
-        if (dateElement) {
-            dateElement.setAttribute('data-utc', new Date().toISOString());
-            dateElement.classList.add('local-datetime');
-            dateElement.setAttribute('data-format', 'full');
-            
-            // Forzamos la actualización llamando a la función global de time-formatter.js
-            if (typeof formatAllLocalTimes === 'function') {
-                formatAllLocalTimes();
-            }
-        }
-    });
-</script>
 {% endblock %}

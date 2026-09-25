@@ -605,6 +605,31 @@ def api_active_modules():
     return jsonify([{'id': m.id, 'name': f"{m.module_code} – {m.name}"} for m in modules])
 
 
+@trainings_bp.route('/api/modules/<int:module_id>/trainings', methods=['GET'])
+@login_required
+def get_module_trainings_api(module_id: int):
+    """
+    API endpoint para cargar dinámicamente los temas formativos (activos y no eliminados)
+    asociados a un módulo rector específico (Cascada para Wizard US-34).
+    """
+    trainings = (
+        Training.query
+        .join(Status, Training.status_id == Status.id)
+        .filter(
+            Training.training_module_id == module_id,
+            Training.deleted_at.is_(None),
+            Status.status_code == 'STAT-001'  # Solo activos
+        )
+        .order_by(Training.name.asc())
+        .all()
+    )
+    
+    return jsonify([{
+        'id': t.id, 
+        'name': f"{t.training_code} – {t.name}"
+    } for t in trainings]), 200
+
+
 # ---------------------------------------------------------------------------
 # Detalle de Tema Formativo
 # ---------------------------------------------------------------------------

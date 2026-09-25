@@ -6,6 +6,18 @@
 'use strict';
 
 document.addEventListener('DOMContentLoaded', function () {
+    // 0. Configuración de la fecha del banner
+    const dateElement = document.getElementById('current-date-display');
+    if (dateElement) {
+        dateElement.setAttribute('data-utc', new Date().toISOString());
+        dateElement.classList.add('local-datetime');
+        dateElement.setAttribute('data-format', 'full-date');
+
+        if (typeof formatAllLocalTimes === 'function') {
+            formatAllLocalTimes();
+        }
+    }
+
     // Seleccionamos todas las tarjetas de solicitud interactiva
     const requestCards = document.querySelectorAll('.request-card');
 

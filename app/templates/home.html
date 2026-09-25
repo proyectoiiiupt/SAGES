@@ -80,7 +80,7 @@
 
     {# Crear Solicitud -> Nueva Solicitud (Applicant) #}
     {% if 'create_request' in user_permissions %}
-    <a href="#" class="card card-blue">
+    <a href="{{ url_for('requests.new_request_wizard') }}" class="card card-blue">
         <div class="card-header">
             <div class="card-title">Nueva Solicitud</div>
             <div class="card-icon">
