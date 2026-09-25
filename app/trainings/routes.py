@@ -14,7 +14,8 @@ from flask import render_template, jsonify, abort, request, redirect, url_for, f
 from flask_login import login_required, current_user
 from sqlalchemy import func
 from app.trainings import trainings_bp
-from app.trainings.forms import TrainingModuleForm, TrainingForm, ModuleEditForm
+import unicodedata
+from app.trainings.forms import TrainingModuleForm, TrainingForm, ModuleEditForm, TrainingEditForm
 from app.models.training_module_model import TrainingModule
 from app.models.training_model import Training
 from app.models.status_model import Status
@@ -492,16 +493,46 @@ def new_module():
 @role_required('super_admin')
 def validate_training_name_api():
     """
-    Endpoint AJAX para validar en tiempo real que el título del tema
-    no esté duplicado.
+    Endpoint AJAX para validar duplicidad con normalización extrema (ignora tildes, puntuación y espacios)
     """
     name = request.args.get('name', '').strip()
     module_id = request.args.get('module_id', type=int)
+    exclude_id = request.args.get('exclude_id', type=int)
 
     if not name or not module_id:
         return jsonify({'valid': False, 'exists': False, 'message': 'Faltan parámetros requeridos.'}), 400
 
-    existing = is_training_name_duplicated(module_id, name)
+    # 1. Traemos todos los temas del módulo seleccionado (excluyendo el actual si estamos editando)
+    query = Training.query.filter(
+        Training.training_module_id == module_id,
+        Training.deleted_at.is_(None)
+    )
+
+    if exclude_id:
+        query = query.filter(Training.id != exclude_id)
+        
+    all_module_trainings = query.all()
+
+    # 2. Función de normalización extrema (se queda solo con letras minúsculas y números)
+    def normalize_text(text):
+        if not text: 
+            return ""
+        # Pasar a minúsculas
+        t = text.lower()
+        # Eliminar tildes/acentos
+        t = unicodedata.normalize('NFKD', t).encode('ASCII', 'ignore').decode('utf-8')
+        # Eliminar TODO lo que no sea una letra o número (espacios, comas, puntos, etc.)
+        t = re.sub(r'[^a-z0-9]', '', t)
+        return t
+
+    name_to_check = normalize_text(name)
+    existing = None
+    
+    # 3. Comparamos
+    for t in all_module_trainings:
+        if normalize_text(t.name) == name_to_check:
+            existing = t
+            break
 
     if existing:
         return jsonify({
@@ -607,6 +638,96 @@ def view_training_detail(id: int):
         is_admin=_is_admin(),
         user_role=_get_user_role()
     )
+
+
+# ---------------------------------------------------------------------------
+# Edición de Tema Formativo
+# ---------------------------------------------------------------------------
+
+@trainings_bp.route('/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
+@role_required('super_admin')
+def edit_training(id: int):
+    """
+    Ruta para editar un tema formativo existente.
+    Si el tema posee solicitudes/preinscripciones asociadas, bloquea el 
+    cambio de Módulo Rector para proteger la integridad de los datos.
+    """
+    # Obtener el tema formativo asegurando que no esté eliminado lógicamente
+    training = (
+        Training.query
+        .filter(Training.id == id, Training.deleted_at.is_(None))
+        .first_or_404()
+    )
+
+    form = TrainingEditForm(obj=training, training_id=training.id)
+
+    # Cargar las opciones del selector de Módulos Rectores activos
+    modules = TrainingModule.query.filter_by(is_active=True).order_by(TrainingModule.order_index).all()
+    form.training_module_id.choices = [(m.id, f"{m.module_code} - {m.name}") for m in modules]
+
+    # Verificar si el tema formativo tiene solicitudes asociadas
+    has_requests = (
+        db.session.query(func.count(Request.id))
+        .filter(Request.training_id == id)
+        .scalar()
+    ) > 0
+
+
+
+    if form.validate_on_submit():
+        # Regla estricta: Si tiene solicitudes, se bloquea el cambio de módulo rector
+        if has_requests and form.training_module_id.data != training.training_module_id:
+            flash('No se puede cambiar el Módulo Rector porque este tema ya posee solicitudes asociadas.', 'danger')
+            return redirect(url_for('trainings.edit_training', id=id))
+
+        # --- CANDADO DE SEGURIDAD EXTREMA ANTES DE GUARDAR ---
+        import unicodedata, re
+        def normalize_text(text):
+            if not text: return ""
+            t = unicodedata.normalize('NFKD', text.lower()).encode('ASCII', 'ignore').decode('utf-8')
+            return re.sub(r'[^a-z0-9]', '', t)
+            
+        # Determinar en qué módulo se va a guardar
+        target_module_id = training.training_module_id if has_requests else form.training_module_id.data
+        name_to_check = normalize_text(form.name.data.strip())
+        
+        # Traer todos los temas de ese módulo (excepto el que estamos editando)
+        duplicates = Training.query.filter(
+            Training.training_module_id == target_module_id,
+            Training.id != id,
+            Training.deleted_at.is_(None)
+        ).all()
+        
+        # Si encuentra coincidencia, aborta el guardado
+        if any(normalize_text(t.name) == name_to_check for t in duplicates):
+            flash('No se pudo actualizar: El título ingresado ya está en uso en este Módulo Rector.', 'danger')
+            return redirect(url_for('trainings.edit_training', id=id))
+        # --- FIN DEL CANDADO ---
+
+        # Si pasa la prueba, actualizamos los campos de texto limpios de espacios extra
+        training.name = form.name.data.strip()
+        training.description = form.description.data.strip()
+        
+        # Solo actualizar el módulo foráneo si no hay restricciones
+        if not has_requests:
+            training.training_module_id = form.training_module_id.data
+
+        db.session.commit()
+        flash('Tema formativo actualizado exitosamente.', 'success')
+        return redirect(url_for('trainings.view_training_detail', id=training.id))
+    
+    return render_template(
+        'trainings/training_edit.html',
+        form=form,
+        training=training,
+        has_requests=has_requests,
+        is_super_admin=_is_super_admin(),
+        is_admin=_is_admin(),
+        user_role=_get_user_role()
+    )
+
+
 
 # ---------------------------------------------------------------------------
 # Carga Masiva de Temas Formativos

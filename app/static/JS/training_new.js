@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
 
-    const form = document.getElementById('form-new-training');
+    const form = document.getElementById('form-new-training') || document.getElementById('form-edit-training');
     const moduleInput = document.getElementById('training_module_id');
     const nameInput = document.getElementById('name');
     const descInput = document.getElementById('description');
@@ -105,19 +105,32 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
 
-                fetch(`/training/api/validate-name?name=${encodeURIComponent(nameVal)}&module_id=${moduleVal}`)
+                // Construimos la URL base
+                let url = `/training/api/validate-name?name=${encodeURIComponent(nameVal)}&module_id=${moduleVal}`;
+                
+                // Si la variable global existe (estamos en modo edición), agregamos el exclude_id
+                if (window.CURRENT_TRAINING_ID) {
+                    url += `&exclude_id=${window.CURRENT_TRAINING_ID}`;
+                }
+
+                // Hacemos el fetch con la URL dinámica
+                fetch(url)
                     .then(response => {
                         if (!response.ok) throw new Error('Parámetros incompletos');
                         return response.json();
                     })
+
+
                     .then(data => {
                         if (data.exists) {
                             feedbackDiv.innerHTML = '<span style="color: #dc2626; font-size: 0.9rem; font-weight: bold;">Este nombre ya está en uso.</span>';
                             nameInput.classList.add('is-invalid');
+                            // Declaramos que el nombre es inválido para que el formulario dispare la alerta
                             isNameValid = false;
                         } else {
                             feedbackDiv.innerHTML = '<span style="color: #10b981; font-size: 0.9rem;">Nombre disponible.</span>';
                             nameInput.classList.remove('is-invalid');
+                            // Declaramos que es válido para permitir el guardado
                             isNameValid = true;
                         }
                     })

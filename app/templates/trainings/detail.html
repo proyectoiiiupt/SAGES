@@ -10,6 +10,21 @@
 {% block content %}
 <div class="trainings-container">
 
+    {# --- BLOQUE DE MENSAJES FLASH AÑADIDO --- #}
+    <div class="flash-messages-container" style="margin-bottom: 1rem;">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show" role="alert" style="padding: 1rem; margin-bottom: 1rem; border-radius: 8px; background-color: {% if category == 'success' %}#d1fae5{% elif category == 'danger' %}#fee2e2{% else %}#e0f2fe{% endif %}; color: {% if category == 'success' %}#065f46{% elif category == 'danger' %}#991b1b{% else %}#075985{% endif %}; border: 1px solid {% if category == 'success' %}#34d399{% elif category == 'danger' %}#f87171{% else %}#7dd3fc{% endif %};">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="float: right; background: none; border: none; font-size: 1.2rem; cursor: pointer; color: inherit;">&times;</button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+    {# ---------------------------------------- #}
+
     {# ── CABECERA INSTITUCIONAL ESTÁNDAR SAGES ────────────────────────── #}
     <div class="page-header">
         <div class="page-title">
@@ -22,15 +37,41 @@
         </div>
     </div>
 
-    {# ── BOTÓN VOLVER (Debajo de la cabecera, a la izquierda) ────────── #}
-    <div class="table-actions-bar" style="margin-bottom: 24px; display: flex; justify-content: flex-start;">
-        <button type="button" class="btn-clear" onclick="window.history.back();" style="display: inline-flex; align-items: center; gap: 8px; padding-left: 0; background: transparent; border: none; cursor: pointer; color: #64748b; font-weight: 500;">
+    {# ── BARRA DE ACCIONES (Volver a la izquierda, Editar a la derecha) ────────── #}
+    <div class="table-actions-bar" style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
+        
+        {# Botón Volver #}
+        <a href="{{ url_for('trainings.index') }}" class="btn-clear" style="display: inline-flex; align-items: center; gap: 8px; padding-left: 0; background: transparent; border: none; cursor: pointer; color: #64748b; font-weight: 500; text-decoration: none;">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12"></line>
                 <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
             Volver
-        </button>
+        </a>
+
+        {# Lógica de permisos y Botón Editar Tema #}
+        {% set ns_admin = namespace(es_admin=false) %}
+        {% if current_user.is_authenticated %}
+            {% for relacion in current_user.roles_assoc %}
+                {% if relacion.role.name == 'super_admin' %}
+                    {% set ns_admin.es_admin = true %}
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+
+        {% if ns_admin.es_admin or is_super_admin %}
+        <a href="{{ url_for('trainings.edit_training', id=training.id) }}" 
+           class="btn-primary" 
+           style="display: inline-flex; align-items: center; gap: 8px; background-color: #10b981; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 0.9rem; border: none; cursor: pointer; transition: background-color 0.2s;"
+           onmouseover="this.style.backgroundColor='#059669'" 
+           onmouseout="this.style.backgroundColor='#10b981'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+            Editar Tema
+        </a>
+        {% endif %}
     </div>
 
     <div class="contenedor-vista">
