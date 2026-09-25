@@ -7,6 +7,7 @@ class RequestJustification(db.Model):
     id = db.Column(db.BigInteger, primary_key=True)
     request_id = db.Column(db.BigInteger, db.ForeignKey('sages.requests.id'), nullable=False)
     reason_id = db.Column(db.BigInteger, db.ForeignKey('sages.reasons.id'), nullable=False)
+    justification_type = db.Column(db.String(50), nullable=False)
     justification = db.Column(db.Text, nullable=False)
 
     # Relaciones
