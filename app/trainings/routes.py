@@ -927,3 +927,85 @@ def bulk_download_errors():
     except Exception as e:
         current_app.logger.error(f"[bulk_download_errors] Error generando reporte: {e}")
         return jsonify({'success': False, 'message': 'Ocurrió un error al generar el archivo de errores.'}), 500
+
+
+
+
+# ---------------------------------------------------------------------------
+# Cambio de Estatus de Tema Formativo (Activo / Inactivo) - Tarea 1
+# ---------------------------------------------------------------------------
+
+@trainings_bp.route('/toggle_status/<int:training_id>', methods=['POST'])
+@login_required
+@role_required('super_admin', 'state_admin')
+def toggle_training_status(training_id: int):
+    """
+    Alterna el estatus de un tema formativo entre Activo e Inactivo.
+    Implementación basada en el modelo del módulo de usuarios (US-16).
+    """
+    try:
+        # 1. Buscamos el tema formativo validando el borrado lógico (deleted_at IS NULL)
+        training = Training.query.filter_by(id=training_id, deleted_at=None).first_or_404()
+        
+        # 2. Obtenemos los estatus usando los códigos estandarizados (STAT-001 Activo, STAT-002 Inactivo)
+        active_status = Status.query.filter_by(status_code='STAT-001').first()
+        inactive_status = Status.query.filter_by(status_code='STAT-002').first()
+        
+        if not active_status or not inactive_status:
+            return jsonify({
+                'success': False, 
+                'message': 'Error de configuración: Los estatus no están definidos correctamente.'
+            }), 500
+
+        # 3. Alternamos el estatus (Lógica idéntica al toggle_status de usuarios)
+        old_status = training.status_id
+        if old_status == active_status.id:
+            training.status_id = inactive_status.id
+            new_status_name = inactive_status.name
+            is_active_flag = False
+            estado_str = "desactivado"
+        else:
+            training.status_id = active_status.id
+            new_status_name = active_status.name
+            is_active_flag = True
+            estado_str = "activado"
+            
+        # 4. Guardamos los cambios
+        db.session.commit()
+        
+        # 5. (Opcional pero Recomendado) Si usas BinnacleService en Formación también, 
+        # puedes agregarlo aquí de manera idéntica a usuarios. Ejemplo:
+        """
+        BinnacleService.create_log_entry(
+            module=AuditModule.TRAININGS.value, # Asegúrate de que exista en tu enum
+            action_type=AuditAction.CAMBIO_ESTATUS_FORMACION.value,
+            description=f'El tema formativo ha sido {estado_str} exitosamente.',
+            target_table='sages.trainings',
+            record_id=training.id,
+            status=AuditStatus.MODIFICADO.value
+        )
+        """
+        
+        # Como indicaste que el frontend lo actualizará dinámicamente, devolvemos JSON
+        return jsonify({
+            'success': True,
+            'message': f'Tema formativo {estado_str} exitosamente.',
+            'new_status_name': new_status_name,
+            'is_active': is_active_flag,
+            'training_id': training.id
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"[trainings.toggle_training_status] Error al cambiar estatus: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Ocurrió un error al intentar cambiar el estatus del tema formativo.'
+        }), 500
+
+
+
+
+
+
+        
