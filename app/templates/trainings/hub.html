@@ -151,7 +151,9 @@
                ────────────────────────────────────────────────────────── #}
             <article class="module-card {{ mod_class }} {% if not module.is_active %}module-card-inactive{% endif %}"
                      id="card-module-{{ module.id }}"
+                     data-module-url="{{ url_for('trainings.module_topics', module_id=module.id) }}"
                      role="article"
+                     tabindex="0"
                      aria-labelledby="module-name-{{ module.id }}">
 
                 {# ── Cabecera de tarjeta ─────────────────────────────── #}
@@ -203,7 +205,7 @@
 
                 {# ── Pie de tarjeta: Botón Explorar ─────────────────── #}
                 <div class="module-card-footer">
-                    <a href="#"
+                    <a href="{{ url_for('trainings.module_topics', module_id=module.id) }}"
                        id="btn-explore-{{ module.id }}"
                        class="btn-explore"
                        role="button"
