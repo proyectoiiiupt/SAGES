@@ -2304,6 +2304,263 @@
 }
 
 /* ==========================================================================
+   VISTA DETALLE DE FORMACIÓN (FICHA TÉCNICA)
+   ========================================================================== */
+
+   .training-detail-card {
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05) !important;
+    border-top: 5px solid #007865; /* Color institucional basado en tu CSS actual */
+}
+
+.training-title {
+    color: #111827;
+    font-weight: 700;
+    font-size: 1.8rem;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.3px;
+}
+
+.custom-badge {
+    font-size: 0.90rem;
+    padding: 0.5em 0.9em;
+    margin-right: 8px;
+    font-weight: 600;
+    border-radius: 6px;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+}
+
+.section-title {
+    font-weight: 700;
+    color: #374151;
+    border-bottom: 2px solid #f1f5f9;
+    padding-bottom: 8px;
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+}
+
+.training-description {
+    font-size: 0.95rem;
+    line-height: 1.65;
+    text-align: justify;
+    color: #6b7280;
+}
+
+.training-date {
+    font-size: 0.9rem;
+    color: #6b7280;
+}
+
+/* Tarjeta de Métricas */
+.tarjeta.impact-metric-box {
+    border: 1px solid #e2e8f0;
+    background: linear-gradient(145deg, #ffffff, #f8fafc);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.03);
+    border-left: 4px solid #007865; 
+    border-radius: 12px;
+}
+
+.impact-title {
+    letter-spacing: 0.5px;
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.impact-number {
+    color: #007865; 
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.02);
+}
+
+.btn-volver {
+    display: inline-flex;
+    font-weight: 600;
+    border-radius: 10px;
+    padding: 8px 20px;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.btn-volver:hover {
+    background: #e2e8f0;
+    color: #1c3d73;
+    transform: translateX(-3px);
+}
+
+/* Fondo para dar contraste a las tarjetas */
+.contenedor-vista {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+    font-family: system-ui, -apple-system, sans-serif;
+    color: #333;
+    background-color: var(--hub-page-bg, #f4f7f6); /* Contraste fundamental */
+    min-height: 100vh;
+}
+
+/* Base para todas las Tarjetas con sombras de diseño */
+.tarjeta {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 28px;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: var(--hub-card-shadow, 0 4px 16px rgba(0, 0, 0, 0.06));
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.tarjeta:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--hub-card-shadow-hover, 0 16px 40px rgba(0, 0, 0, 0.12));
+}
+
+/* Tarjeta principal de Descripción con franja superior de color */
+.tarjeta-descripcion {
+    position: relative;
+    overflow: hidden;
+}
+
+.tarjeta-descripcion::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 6px;
+    background: var(--mod-001-gradient, linear-gradient(135deg, #019577 0%, #1fcab0 100%));
+}
+
+.tarjeta-descripcion h3 {
+    margin-top: 0;
+    color: var(--text-heading, #111827);
+    font-size: 19px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Badge de Verificado con brillo (Glow) */
+.badge-verificado {
+    background-color: var(--mod-001-bg, rgba(31, 202, 176, 0.07));
+    color: #007865;
+    padding: 8px 18px;
+    border-radius: 50px;
+    font-weight: 700;
+    font-size: 14px;
+    border: 1px solid var(--mod-001-border, rgba(31, 202, 176, 0.35));
+    box-shadow: 0 4px 12px var(--mod-001-glow, rgba(31, 202, 176, 0.18));
+    display: inline-flex;
+    width: fit-content;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Estilización del número de impacto con degradado de texto */
+.bloque-metrica {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-top: 16px;
+}
+
+.numero-destacado {
+    font-size: 56px;
+    font-weight: 900;
+    line-height: 1;
+    background: var(--mod-001-gradient, linear-gradient(135deg, #019577 0%, #1fcab0 100%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 4px 12px var(--mod-001-glow);
+}
+
+.texto-metrica {
+    font-size: 15px;
+    color: var(--text-muted, #6b7280);
+    line-height: 1.4;
+    font-weight: 500;
+}
+
+/* Estilo para la tarjeta de fecha (más compacta) */
+.tarjeta-registro {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 16px 24px;
+    border-radius: 12px;
+}
+
+.etiqueta-superior {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: #94a3b8;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+}
+
+.acciones-superiores {
+    margin-bottom: 24px;
+}
+
+.layout-dos-columnas {
+    display: grid;
+    /* Divide el espacio: 2 fracciones para la izquierda, 1 fracción para la derecha */
+    grid-template-columns: 2fr 1fr; 
+    gap: 24px;
+    align-items: start; /* Evita que las tarjetas se estiren verticalmente de forma irregular */
+}
+
+/* Espaciado interno de las columnas */
+.columna-principal {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    height: 100%;
+}
+
+.columna-lateral {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    height: 100%;
+}
+
+.encabezado-titulo h2 {
+    margin: 0 0 8px 0;
+    font-size: 28px;
+    color: #111827;
+}
+
+.encabezado-titulo p {
+    margin: 0;
+    color: #6b7280;
+    font-size: 15px;
+}
+
+/* ==========================================================================
+   RESPONSIVE DESIGN
+   ========================================================================== */
+/* Si la pantalla es menor a 992px (tablets o móviles), colapsa a 1 sola columna */
+@media (max-width: 992px) {
+    .layout-dos-columnas {
+        grid-template-columns: 1fr;
+    }
+    
+    /* Cambia el orden para que en móviles el badge y las métricas salgan arriba o abajo según prefieras */
+    .columna-lateral {
+        order: -1; /* Pone la columna lateral (badge) arriba en móviles */
+    }
+
+    .impact-metric-box {
+        border-left: 4px solid #007865 !important;
+    }
    VISTA FOCALIZADA: DESPLIEGUE DE TEMAS POR MÓDULO (ESTILOS GENÉRICOS)
    ========================================================================== */
 
