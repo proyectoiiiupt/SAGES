@@ -21,7 +21,43 @@
     /* ── Inicialización ─────────────────────────────────────────────── */
     document.addEventListener('DOMContentLoaded', function () {
         fetchModuleCounts();
+        initCardClickNavigation();
     });
+
+    /**
+     * Permite que toda la tarjeta de módulo sea interactiva y navegue
+     * a su vista focalizada, aislando los clics en botones de acción (ej. editar).
+     */
+    function initCardClickNavigation() {
+        const cards = document.querySelectorAll('.module-card[data-module-url]');
+
+        cards.forEach(function (card) {
+            card.addEventListener('click', function (e) {
+                // Si el clic provino del botón de edición o un elemento dentro de él, no navegar
+                if (e.target.closest('.btn-module-edit')) {
+                    return;
+                }
+                const url = card.getAttribute('data-module-url');
+                if (url) {
+                    window.location.href = url;
+                }
+            });
+
+            // Soporte de accesibilidad con teclado (Enter y Espacio)
+            card.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    if (e.target.closest('.btn-module-edit')) {
+                        return;
+                    }
+                    e.preventDefault();
+                    const url = card.getAttribute('data-module-url');
+                    if (url) {
+                        window.location.href = url;
+                    }
+                }
+            });
+        });
+    }
 
     /* ────────────────────────────────────────────────────────────────── */
     /**

@@ -205,6 +205,149 @@
         transform: translateY(-1px);
     }
 
+    /* Toggle de Estatus Operativo del Módulo */
+    .module-toggle-section {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1.25rem 1.5rem;
+        border-radius: 14px;
+        border: 1.5px solid #e2e8f0;
+        background: #f8fafc;
+        transition: border-color 0.25s ease, background 0.25s ease;
+    }
+
+    .module-toggle-section.is-active {
+        background: #f0fdf4;
+        border-color: #bbf7d0;
+    }
+
+    /* Switch pill */
+    .mod-toggle-btn {
+        position: relative;
+        flex-shrink: 0;
+        width: 64px;
+        height: 32px;
+        background: #94a3b8;
+        border: none;
+        border-radius: 16px;
+        cursor: pointer;
+        padding: 0;
+        transition: background 0.3s ease;
+        outline: none;
+    }
+
+    .mod-toggle-btn.active {
+        background: #22c55e;
+    }
+
+    .mod-toggle-slider {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 26px;
+        height: 26px;
+        background: #ffffff;
+        border-radius: 50%;
+        transition: transform 0.3s ease;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+    }
+
+    .mod-toggle-btn.active .mod-toggle-slider {
+        transform: translateX(32px);
+    }
+
+    .mod-toggle-btn:hover {
+        opacity: 0.88;
+    }
+
+    /* Texto e indicador */
+    .mod-toggle-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+    }
+
+    .mod-toggle-label {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .mod-toggle-hint {
+        font-size: 0.9rem;
+        color: #64748b;
+        line-height: 1.4;
+    }
+
+    /* ── Alertas inline de resultado ─────────────────────────────────── */
+    .inline-alert {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 1.15rem 1.5rem;
+        border-radius: 14px;
+        margin-bottom: 1.75rem;
+        font-size: 1rem;
+        line-height: 1.55;
+        animation: alertSlideIn 0.3s ease;
+    }
+
+    @keyframes alertSlideIn {
+        from { opacity: 0; transform: translateY(-8px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .inline-alert-danger {
+        background-color: #fef2f2;
+        border: 1.5px solid #fca5a5;
+        color: #7f1d1d;
+    }
+
+    .inline-alert-success {
+        background-color: #f0fdf4;
+        border: 1.5px solid #86efac;
+        color: #14532d;
+    }
+
+    .inline-alert-warning {
+        background-color: #fffbeb;
+        border: 1.5px solid #fcd34d;
+        color: #78350f;
+    }
+
+    .inline-alert-icon {
+        flex-shrink: 0;
+        margin-top: 1px;
+    }
+
+    .inline-alert-body {
+        flex: 1;
+    }
+
+    .inline-alert-title {
+        font-weight: 700;
+        font-size: 1.05rem;
+        margin-bottom: 0.25rem;
+        display: block;
+    }
+
+    .inline-alert-dismiss {
+        flex-shrink: 0;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: inherit;
+        opacity: 0.55;
+        padding: 0;
+        line-height: 1;
+        transition: opacity 0.2s;
+    }
+
+    .inline-alert-dismiss:hover {
+        opacity: 1;
+    }
+
     @media (max-width: 768px) {
         .module-page-wrapper {
             padding: 1rem 1rem 2rem 1rem;
@@ -266,8 +409,57 @@
 
             {# Cuerpo del formulario #}
             <div class="module-form-body">
+
+                {# ── Mensajes Flash inline (errores/éxitos del servidor) ── #}
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            {% set alert_class = 'inline-alert-danger' if category in ('danger', 'error') else ('inline-alert-success' if category == 'success' else 'inline-alert-warning') %}
+                            {% set icon_color  = '#dc2626' if category in ('danger', 'error') else ('#16a34a' if category == 'success' else '#d97706') %}
+                            <div class="inline-alert {{ alert_class }}" role="alert" id="inline-flash-alert">
+                                <span class="inline-alert-icon">
+                                    {% if category in ('danger', 'error') %}
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{ icon_color }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <line x1="12" y1="8" x2="12" y2="12"/>
+                                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                                    </svg>
+                                    {% elif category == 'success' %}
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{ icon_color }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                        <polyline points="22 4 12 14.01 9 11.01"/>
+                                    </svg>
+                                    {% else %}
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{ icon_color }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                        <line x1="12" y1="9" x2="12" y2="13"/>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                    </svg>
+                                    {% endif %}
+                                </span>
+                                <div class="inline-alert-body">
+                                    <span class="inline-alert-title">
+                                        {% if category in ('danger', 'error') %}Operación no permitida
+                                        {% elif category == 'success' %}¡Cambio aplicado!
+                                        {% else %}Advertencia{% endif %}
+                                    </span>
+                                    {{ message }}
+                                </div>
+                                <button type="button" class="inline-alert-dismiss" onclick="this.closest('.inline-alert').remove()" aria-label="Cerrar">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="18" y1="6" x2="6" y2="18"/>
+                                        <line x1="6" y1="6" x2="18" y2="18"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
                 <form method="POST" action="" id="form-edit-module" novalidate>
                     {{ form.csrf_token }}
+                    {# Campo oculto que envía el valor del toggle al servidor #}
+                    <input type="hidden" id="is_active_input" name="is_active" value="{{ 'true' if module.is_active else 'false' }}">
 
                     <div class="form-grid">
 
@@ -286,7 +478,7 @@
                             {% endif %}
                         </div>
 
-                        {# 2. Descripción #}
+                        {# 2. Descripción Operativa #}
                         <div class="form-group-custom">
                             <label for="{{ form.description.id }}">
                                 {{ form.description.label.text }} <span class="required-mark">*</span>
@@ -299,6 +491,33 @@
                                     {{ form.description.errors[0] }}
                                 </div>
                             {% endif %}
+                        </div>
+
+                        {# 3. Toggle de Estatus Operativo #}
+                        <div class="form-group-custom">
+                            <label>Estatus Operativo</label>
+                            <div class="module-toggle-section {{ 'is-active' if module.is_active else '' }}" id="module-toggle-section">
+                                <button type="button"
+                                        id="mod-toggle-btn"
+                                        class="mod-toggle-btn {{ 'active' if module.is_active else '' }}"
+                                        aria-pressed="{{ 'true' if module.is_active else 'false' }}"
+                                        title="Cambiar estatus del módulo">
+                                    <span class="mod-toggle-slider"></span>
+                                </button>
+                                <div class="mod-toggle-info">
+                                    <span class="mod-toggle-label" id="mod-toggle-label">
+                                        {{ 'Módulo Operativo (Activo)' if module.is_active else 'Módulo Desincorporado (Inactivo)' }}
+                                    </span>
+                                    <span class="mod-toggle-hint" id="mod-toggle-hint">
+                                        {% if module.is_active %}
+                                            Al desincorporarlo, el sistema validará que no tenga temas activos asociados.
+                                        {% else %}
+                                            Al reactivarlo, el módulo se posicionará en primer lugar del catálogo.
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                            <span class="form-helper-text">El cambio de estatus se aplicará al guardar.</span>
                         </div>
 
                     </div>{# /form-grid #}
@@ -328,11 +547,49 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Validación y confirmación interactiva al hacer clic en Guardar
-    const form = document.getElementById('form-edit-module');
-    const nameInput = document.getElementById('{{ form.name.id }}');
-    const descInput = document.getElementById('{{ form.description.id }}');
+    const form        = document.getElementById('form-edit-module');
+    const nameInput   = document.getElementById('{{ form.name.id }}');
+    const descInput   = document.getElementById('{{ form.description.id }}');
+    const isActiveInput   = document.getElementById('is_active_input');
+    const modToggleBtn    = document.getElementById('mod-toggle-btn');
+    const toggleSection   = document.getElementById('module-toggle-section');
+    const toggleLabel     = document.getElementById('mod-toggle-label');
+    const toggleHint      = document.getElementById('mod-toggle-hint');
 
+    // ── Toggle visual de estatus (sin submit inmediato) ──────────────────
+    if (modToggleBtn) {
+        modToggleBtn.addEventListener('click', function () {
+            const willBeActive = !modToggleBtn.classList.contains('active');
+
+            // Actualizar apariencia visual
+            modToggleBtn.classList.toggle('active', willBeActive);
+            modToggleBtn.setAttribute('aria-pressed', String(willBeActive));
+            toggleSection.classList.toggle('is-active', willBeActive);
+
+            // Actualizar campo oculto
+            isActiveInput.value = willBeActive ? 'true' : 'false';
+
+            // Actualizar texto descriptivo
+            if (toggleLabel) {
+                toggleLabel.textContent = willBeActive
+                    ? 'Módulo Operativo (Activo)'
+                    : 'Módulo Desincorporado (Inactivo)';
+            }
+            if (toggleHint) {
+                toggleHint.textContent = willBeActive
+                    ? 'Al reactivarlo, el módulo se posicionará en primer lugar del catálogo.'
+                    : 'Al desincorporarlo, el sistema validará que no tenga temas activos asociados.';
+            }
+        });
+    }
+
+    // ── Scroll automático al alert inline si existe (errores del servidor) ──
+    const inlineAlert = document.getElementById('inline-flash-alert');
+    if (inlineAlert) {
+        inlineAlert.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // ── Validación y confirmación al guardar ─────────────────────────────
     if (form) {
         form.addEventListener('submit', function(e) {
             e.preventDefault();
@@ -340,7 +597,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const nameVal = nameInput ? nameInput.value.trim() : '';
             const descVal = descInput ? descInput.value.trim() : '';
 
-            // Validación interactiva: Nombre
             if (!nameVal) {
                 Swal.fire({
                     title: 'Campo obligatorio',
@@ -348,9 +604,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     icon: 'warning',
                     confirmButtonColor: '#0d9488',
                     confirmButtonText: 'Entendido'
-                }).then(() => {
-                    if (nameInput) nameInput.focus();
-                });
+                }).then(() => { if (nameInput) nameInput.focus(); });
                 return;
             }
 
@@ -361,13 +615,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     icon: 'warning',
                     confirmButtonColor: '#0d9488',
                     confirmButtonText: 'Entendido'
-                }).then(() => {
-                    if (nameInput) nameInput.focus();
-                });
+                }).then(() => { if (nameInput) nameInput.focus(); });
                 return;
             }
 
-            // Validación interactiva: Descripción
             if (!descVal) {
                 Swal.fire({
                     title: 'Campo obligatorio',
@@ -375,9 +626,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     icon: 'warning',
                     confirmButtonColor: '#0d9488',
                     confirmButtonText: 'Entendido'
-                }).then(() => {
-                    if (descInput) descInput.focus();
-                });
+                }).then(() => { if (descInput) descInput.focus(); });
                 return;
             }
 
@@ -388,13 +637,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     icon: 'warning',
                     confirmButtonColor: '#0d9488',
                     confirmButtonText: 'Entendido'
-                }).then(() => {
-                    if (descInput) descInput.focus();
-                });
+                }).then(() => { if (descInput) descInput.focus(); });
                 return;
             }
 
-            // Confirmación antes de guardar
             Swal.fire({
                 title: '¿Actualizar Módulo Rector?',
                 text: '¿Deseas guardar los cambios en este Módulo Rector?',
@@ -410,9 +656,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         title: 'Actualizando Módulo Rector...',
                         text: 'Guardando los cambios en el catálogo',
                         allowOutsideClick: false,
-                        didOpen: () => {
-                            Swal.showLoading();
-                        }
+                        didOpen: () => { Swal.showLoading(); }
                     });
                     HTMLFormElement.prototype.submit.call(form);
                 }

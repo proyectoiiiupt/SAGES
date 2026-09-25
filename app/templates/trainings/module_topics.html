@@ -1,0 +1,245 @@
+{#
+    Template: Vista Focalizada de Temas por Módulo Rector
+    Propósito: Despliegue de los temas formativos oficiales de un módulo específico en formato tabular.
+    Requisitos:
+      - Navegación de retorno al Hub de Módulos.
+      - Resumen contextual genérico del Módulo Rector.
+      - Búsqueda reactiva de temas.
+      - Tabla semántica con descripción sintética y botón explícito 'Ver Detalle'.
+      - Modal institucional de detalle con opción de cierre.
+#}
+{% extends "layouts/base.html" %}
+
+{% block title %}{{ module.name }} – Temas Formativos – SAGES{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/trainings.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="trainings-container">
+
+    {# ── CABECERA INSTITUCIONAL SAGES ────────────────────────────────────── #}
+    <div class="page-header">
+        <div class="page-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="header-icon" aria-hidden="true">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            <h1>{{ module.name }}</h1>
+        </div>
+
+        <div class="header-right-actions">
+            {# Píldora de fecha dinámica #}
+            <div class="page-date">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <span id="current-date"></span>
+            </div>
+        </div>
+    </div>
+
+    {# ── BARRA DE NAVEGACIÓN Y RETORNO AL HUB ───────────────────────────── #}
+    <div class="table-actions-bar" style="justify-content: space-between; margin-bottom: 1.25rem;">
+        <a href="{{ url_for('trainings.index') }}" class="btn-back-hub" id="btn-back-hub" title="Regresar al Hub de Módulos">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            <span>Volver a Módulos Rectores</span>
+        </a>
+
+        {% if is_admin %}
+        <a href="{{ url_for('trainings.list_all') }}" class="btn-hub-view" title="Ir a la Vista de Gestión Tabular Global" id="btn-global-view">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="8" y1="6" x2="21" y2="6"></line>
+                <line x1="8" y1="12" x2="21" y2="12"></line>
+                <line x1="8" y1="18" x2="21" y2="18"></line>
+                <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+            <span>Gestión Global</span>
+        </a>
+        {% endif %}
+    </div>
+
+
+
+    {# ── BARRA DE BÚSQUEDA RÁPIDA DE TEMAS ──────────────────────────────── #}
+    <div class="filters-container">
+        <div class="filters-section">
+            <div class="filter-row">
+                <div class="filter-group search-group" style="flex: 1;">
+                    <input type="text"
+                           id="search-input"
+                           placeholder="Buscar tema por nombre..."
+                           autocomplete="off"
+                           aria-label="Buscar tema formativo">
+                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                </div>
+                {# Badge de conteo de temas al lado del buscador #}
+                <span class="hub-status-badge" role="status" style="white-space: nowrap; flex-shrink: 0;">
+                    <span class="status-dot" aria-hidden="true"></span>
+                    <span id="topic-count-badge">{{ total_topics }} Tema{% if total_topics != 1 %}s{% endif %} Formativo{% if total_topics != 1 %}s{% endif %}</span>
+                </span>
+                <div class="filter-actions" id="search-clear-wrapper" style="display: none;">
+                    <button type="button" class="btn-clear" id="btn-clear-search">Limpiar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ── TABLA SEMÁNTICA DE TEMAS POR MÓDULO ─────────────────────────────── #}
+    <div class="table-container">
+        <div class="table-responsive">
+            <table class="trainings-table" id="trainings-table">
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">N°</th>
+                        <th>Tema Formativo</th>
+                        <th style="width: 110px;">Estatus</th>
+                        <th style="width: 90px; text-align: center;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="topics-table-body">
+                    {% if trainings and trainings|length > 0 %}
+                        {% for training in trainings %}
+                        <tr class="topic-row"
+                            data-name="{{ training.name|lower }}">
+                            <td class="code-cell text-muted">
+                                {{ (pagination.page - 1) * pagination.per_page + loop.index }}
+                            </td>
+                            <td>
+                                <div class="training-name">{{ training.name }}</div>
+                                <div class="training-description text-muted">
+                                    {{ training.description }}
+                                </div>
+                            </td>
+                            <td>
+                                {% if training.status %}
+                                <span class="status-badge status-{{ training.status.status_code }}">
+                                    {{ training.status.status_name }}
+                                </span>
+                                {% else %}
+                                <span class="no-data">Sin estatus</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {#
+                                    Nota de alcance:
+                                    La acción de visualización detallada está reservada
+                                    para una tarea posterior del plan de desarrollo de SAGES.
+                                #}
+                                <button type="button"
+                                        class="action-btn view-btn"
+                                        title="Ver detalles del tema"
+                                        aria-label="Ver detalles de {{ training.name }}">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr id="empty-initial-row">
+                            <td colspan="4" class="empty-state">
+                                <div class="empty-state-content">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="empty-icon" aria-hidden="true">
+                                        <circle cx="11" cy="11" r="8"></circle>
+                                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                        <line x1="8" y1="11" x2="14" y2="11"></line>
+                                    </svg>
+                                    <p class="empty-title">No hay temas formativos registrados</p>
+                                    <p class="empty-subtitle">Actualmente este módulo no posee temas formativos disponibles.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endif %}
+
+                    {# Fila para cuando la búsqueda en vivo no retorna resultados #}
+                    <tr id="no-results-row" style="display: none;">
+                        <td colspan="4" class="empty-state">
+                            <div class="empty-state-content">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="empty-icon" aria-hidden="true">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                    <line x1="8" y1="11" x2="14" y2="11"></line>
+                                </svg>
+                                <p class="empty-title">No se encontraron temas formativos</p>
+                                <p class="empty-subtitle">No se encontraron coincidencias para el término ingresado en este módulo.</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        {# ── CONTROLES DE PAGINACIÓN DINÁMICA ────────────────────────────── #}
+        {% if pagination and pagination.total > 0 %}
+        <div class="pagination-container">
+            <div class="pagination-info">
+                <span>
+                    Mostrando registros {{ (pagination.page - 1) * pagination.per_page + 1 }}-{% if pagination.page * pagination.per_page < pagination.total %}{{ pagination.page * pagination.per_page }}{% else %}{{ pagination.total }}{% endif %} de {{ pagination.total }} registros
+                </span>
+            </div>
+            <div class="pagination-controls">
+                <div class="pagination-buttons">
+                    {# Botón Anterior #}
+                    <button type="button"
+                            class="pagination-btn"
+                            {% if not pagination.has_prev %}disabled{% endif %}
+                            onclick="goToPage({{ pagination.prev_num if pagination.has_prev else 1 }})">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                        Anterior
+                    </button>
+
+                    {# Números de página con ventana deslizante #}
+                    <div class="page-numbers">
+                        {% for p in range(1, pagination.pages + 1) %}
+                            {% if p == 1 or p == pagination.pages or (p >= pagination.page - 1 and p <= pagination.page + 1) %}
+                                <button type="button"
+                                        class="page-number {% if p == pagination.page %}active{% endif %}"
+                                        onclick="goToPage({{ p }})">
+                                    {{ p }}
+                                </button>
+                            {% elif p == pagination.page - 2 or p == pagination.page + 2 %}
+                                <span class="page-ellipsis">...</span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+
+                    {# Botón Siguiente #}
+                    <button type="button"
+                            class="pagination-btn"
+                            {% if not pagination.has_next %}disabled{% endif %}
+                            onclick="goToPage({{ pagination.next_num if pagination.has_next else pagination.pages }})">
+                        Siguiente
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='JS/trainings_module_topics.js') }}"></script>
+{% endblock %}
