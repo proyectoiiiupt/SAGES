@@ -824,3 +824,69 @@ def bulk_download_errors():
     except Exception as e:
         current_app.logger.error(f"[bulk_download_errors] Error generando reporte: {e}")
         return jsonify({'success': False, 'message': 'Ocurrió un error al generar el archivo de errores.'}), 500
+
+        # ---------------------------------------------------------------------------
+# Vista Focalizada de Módulo Rector: Despliegue de Temas Formativos
+# ---------------------------------------------------------------------------
+
+@trainings_bp.route('/module/<int:module_id>', methods=['GET'])
+@login_required
+@check_permissions('view_training_catalog')
+def module_topics(module_id: int):
+    """
+    Vista focalizada de un Módulo Rector.
+    Lista todos los temas formativos oficiales asociados a dicho módulo en formato tabular.
+    - Solicitantes: Acceso solo a módulos activos y temas activos (STAT-001) no eliminados.
+    - Administradores: Acceso a todos los temas registrados (activos e inactivos) no eliminados.
+    """
+    module = get_module_by_id(module_id)
+    if not module:
+        abort(404)
+
+    is_admin_user = _is_admin()
+
+    # Si el módulo está inactivo y no es administrador, no permitir acceso
+    if not module.is_active and not is_admin_user:
+        abort(404)
+
+    # Parámetros de búsqueda y paginación
+    search_query = request.args.get('search', '').strip()
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+
+    # Consulta base: temas del módulo no eliminados lógicamente
+    query = (
+        Training.query
+        .join(Status, Training.status_id == Status.id)
+        .filter(
+            Training.training_module_id == module.id,
+            Training.deleted_at.is_(None)
+        )
+    )
+
+    # Si es solicitante, filtrar estrictamente temas con estatus activo (STAT-001)
+    if not is_admin_user:
+        query = query.filter(Status.status_code == 'STAT-001')
+
+    # Filtro opcional por búsqueda
+    if search_query:
+        sanitized_term = search_query.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+        search_pattern = f"%{sanitized_term}%"
+        query = query.filter(Training.name.ilike(search_pattern))
+
+    pagination = query.order_by(Training.id.asc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    trainings = pagination.items
+
+    return render_template(
+        'trainings/module_topics.html',
+        module=module,
+        trainings=trainings,
+        pagination=pagination,
+        total_topics=pagination.total,
+        search_query=search_query,
+        is_super_admin=_is_super_admin(),
+        is_admin=is_admin_user,
+        user_role=_get_user_role()
+    )
