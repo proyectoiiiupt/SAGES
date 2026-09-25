@@ -25,6 +25,7 @@ class User(db.Model, UserMixin, AuditableMixin):
     logs = db.relationship('Binnacle', back_populates='user', lazy=True)
     request_trackings = db.relationship('RequestTracking', back_populates='user', lazy=True)
     ratings = db.relationship('Rating', back_populates='user', lazy=True)
+    attended_requests = db.relationship('Request', back_populates='attended_by', lazy=True)
 
     def __repr__(self):
         return f'<User {self.user_code}: {self.user_name}>'
