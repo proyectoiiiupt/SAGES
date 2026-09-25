@@ -1005,7 +1005,50 @@ def toggle_training_status(training_id: int):
 
 
 
+# ---------------------------------------------------------------------------
+# Borrado Lógico de Tema Formativo (Irreversible) - Tarea 2
+# ---------------------------------------------------------------------------
 
+@trainings_bp.route('/delete/<int:training_id>', methods=['POST'])
+@login_required
+@role_required('super_admin') 
+def delete_training(training_id: int):
+    """
+    Realiza el borrado lógico de un tema formativo.
+    Asigna un estatus de eliminado y registra la fecha/hora en deleted_at.
+    """
+    try:
+        # 1. Validamos que el tema exista y no esté eliminado previamente
+        training = Training.query.filter_by(id=training_id, deleted_at=None).first_or_404()
+        
+        # 2. Obtenemos el estatus de Eliminado
+        # IMPORTANTE: Verifica si en el seeder de base de datos el estatus eliminado es STAT-003 u otro.
+        deleted_status = Status.query.filter_by(status_code='STAT-003').first()
+        
+        if not deleted_status:
+            return jsonify({
+                'success': False, 
+                'message': 'Error: Estatus de Eliminado no configurado en el sistema.'
+            }), 500
+
+        # 3. Aplicamos el borrado lógico
+        training.status_id = deleted_status.id
+        training.deleted_at = datetime.now()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Tema formativo eliminado exitosamente.'
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"[trainings.delete_training] Error al realizar borrado lógico: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Ocurrió un error al intentar eliminar el tema formativo.'
+        }), 500
 
 
         
