@@ -81,23 +81,23 @@ document.addEventListener('DOMContentLoaded', function () {
                 opt.className = 'combobox-option';
                 opt.textContent = t.name;
                 opt.dataset.id = t.id;
-                
+
                 // Evento al seleccionar una opción
-                opt.addEventListener('click', function(e) {
+                opt.addEventListener('click', function (e) {
                     e.stopPropagation(); // Evita que se cierre inmediatamente el dropdown
-                    
+
                     // Asigna el texto al input visible y el ID al select oculto
                     trainingSearch.value = this.textContent;
                     trainingSelect.value = this.dataset.id;
-                    
+
                     // Dispara validación para habilitar el botón "Siguiente"
                     validateStep1();
-                    
+
                     // Cierra el menú y quita la clase open
                     trainingOptionsList.classList.remove('show');
                     comboboxWrapper.classList.remove('open');
                 });
-                
+
                 trainingOptionsList.appendChild(opt);
             });
         }
@@ -105,32 +105,32 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (trainingSearch) {
         // Al escribir en la caja
-        trainingSearch.addEventListener('input', function() {
+        trainingSearch.addEventListener('input', function () {
             const term = this.value.toLowerCase().trim();
-            
+
             // Si el usuario borra todo, limpiamos el select oculto
             if (term === '') {
                 trainingSelect.value = '';
                 validateStep1();
             }
-            
+
             // Filtramos en memoria y renderizamos
             const filtered = term ? currentTrainings.filter(t => t.name.toLowerCase().includes(term)) : currentTrainings;
             renderComboboxOptions(filtered);
-            
+
             // Nos aseguramos que el menú esté visible
             trainingOptionsList.classList.add('show');
             comboboxWrapper.classList.add('open');
         });
-        
+
         // Al hacer clic en la caja
-        trainingSearch.addEventListener('click', function(e) {
+        trainingSearch.addEventListener('click', function (e) {
             if (!this.disabled && currentTrainings.length > 0) {
                 // Si la caja ya tiene un valor válido, seleccionamos el texto para que pueda borrar rápido
                 if (trainingSelect.value) {
                     this.select();
                 }
-                
+
                 // Si el menú estaba oculto, renderizamos todo y lo mostramos
                 if (!trainingOptionsList.classList.contains('show')) {
                     renderComboboxOptions(currentTrainings);
@@ -142,20 +142,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
         });
-        
+
         // Evita cerrar al dar clic en la propia lista (ej: barra de scroll)
-        trainingOptionsList.addEventListener('click', function(e) {
+        trainingOptionsList.addEventListener('click', function (e) {
             e.stopPropagation();
         });
     }
 
     // Cerrar el combo-box al hacer clic en cualquier parte fuera de él
-    document.addEventListener('click', function(e) {
+    document.addEventListener('click', function (e) {
         if (trainingSearch && trainingOptionsList) {
             if (e.target !== trainingSearch && !trainingOptionsList.contains(e.target)) {
                 trainingOptionsList.classList.remove('show');
                 comboboxWrapper.classList.remove('open');
-                
+
                 // Restauración anti-errores: Si escribió algo pero no eligió de la lista,
                 // restauramos el texto del ID que actualmente tiene seleccionado, o lo limpiamos.
                 if (trainingSelect.value) {
@@ -173,14 +173,14 @@ document.addEventListener('DOMContentLoaded', function () {
     // Carga de Temas al Seleccionar un Módulo (API Fetch)
     moduleSelect.addEventListener('change', async function () {
         const moduleId = this.value;
-        
+
         // Reset Visual
         trainingSearch.disabled = true;
         trainingSearch.value = '';
         trainingSearch.placeholder = 'Cargando temas...';
         trainingOptionsList.classList.remove('show');
         comboboxWrapper.classList.remove('open');
-        
+
         // Reset Funcional
         trainingSelect.value = '';
         currentTrainings = [];
@@ -200,7 +200,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 trainingSearch.placeholder = 'Buscar o seleccionar tema...';
                 trainingSearch.disabled = false;
                 trainingSelect.disabled = false;
-                
+
                 // Llenar el select oculto para que el navegador acepte el ID cuando hagamos click
                 trainingSelect.innerHTML = '<option value="" selected disabled></option>';
                 currentTrainings.forEach(t => {
@@ -219,7 +219,72 @@ document.addEventListener('DOMContentLoaded', function () {
     // =========================================================================
     // 4. Motor de Navegación del Wizard y Pre-llenado (DOM manipulation)
     // =========================================================================
-    btnNext.addEventListener('click', function () {
+    btnNext.addEventListener('click', async function () {
+        // Validar que haya seleccionado un training (evitar peticiones inútiles)
+        const selectedTrainingId = trainingSelect.value;
+        if (!selectedTrainingId) return;
+
+        // 1. Bloqueo UX preventivo mientras consultamos a la API
+        const originalBtnText = btnNext.innerHTML;
+        btnNext.disabled = true;
+        btnNext.innerHTML = 'Verificando disponibilidad...';
+
+        try {
+            // Capturar Token de Seguridad Inyectado por WTForms
+            const csrfTokenInput = document.querySelector('input[name="csrf_token"]');
+            const csrfToken = csrfTokenInput ? csrfTokenInput.value : '';
+
+            // 2. Petición asíncrona al endpoint preventivo anti-duplicidad
+            const response = await fetch('/requests/api/check-duplicity', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    training_id: selectedTrainingId
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+
+                // 3. Evaluación de resultado y Bloqueo Operativo
+                if (data.is_duplicate) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: '¡Solicitud en Curso!',
+                        html: `Su institución educativa ya posee una solicitud activa para este <b>mismo tema formativo</b>.<br><br>` +
+                            `Código de Solicitud: <b>${data.code}</b><br>` +
+                            `Estatus Actual: <b>${data.status}</b><br><br>` +
+                            `<small><i>Para continuar, por favor elija un tema formativo distinto, o diríjase a su bandeja para consultar el trámite activo.</i></small>`,
+                        showCancelButton: true,
+                        confirmButtonColor: '#1c3d73',
+                        cancelButtonColor: '#019577',
+                        confirmButtonText: 'Elegir otro tema',
+                        cancelButtonText: 'Ir a mis solicitudes'
+                    }).then((result) => {
+                        if (result.dismiss === Swal.DismissReason.cancel) {
+                            window.location.href = '/requests/my-requests';
+                        }
+                    });
+
+                    // Reactivar botón pero NO AVANZAR
+                    btnNext.disabled = false;
+                    btnNext.innerHTML = originalBtnText;
+                    return;
+                }
+            }
+        } catch (error) {
+            console.error('API Error (Check Duplicity):', error);
+            // En caso de caída temporal de red, dejamos pasar. 
+            // La Compuerta Dura (Backend Submit - Fase 3) lo atrapará de todos modos.
+        }
+
+        // Si pasó el filtro, restaurar el botón
+        btnNext.disabled = false;
+        btnNext.innerHTML = originalBtnText;
+
         // Pre-llenar la Tarjeta de Resumen con la información tipeada
         const selectedTrainingText = trainingSelect.options[trainingSelect.selectedIndex].text;
         document.getElementById('summary-training').textContent = selectedTrainingText;
@@ -318,10 +383,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // =========================================================================
     const btnCancelWizard = document.getElementById('btn-cancel-wizard');
     if (btnCancelWizard) {
-        btnCancelWizard.addEventListener('click', function(e) {
+        btnCancelWizard.addEventListener('click', function (e) {
             e.preventDefault(); // Detener la navegación inmediata
             const targetUrl = this.href;
-            
+
             Swal.fire({
                 title: '¿Desea cancelar el registro?',
                 text: "Se perderán todos los datos ingresados y no se registrará la solicitud.",
