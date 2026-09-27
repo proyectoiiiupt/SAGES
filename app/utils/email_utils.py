@@ -8,8 +8,8 @@ from flask import url_for
 logger = logging.getLogger(__name__)
 
 
-def send_email(to_email: str, subject: str, html_content: str, text_content: str) -> bool:
-    """Utilidad global para el envío de correos con formato HTML y texto."""
+def send_email(to_email: str, subject: str, html_content: str, text_content: str, attachments: list = None) -> bool:
+    """Utilidad global para el envío de correos con formato HTML, texto y soporte para archivos adjuntos."""
     smtp_user = os.getenv('SMTP_USER') or os.getenv('EMAIL_USER')
     smtp_pass = os.getenv('SMTP_PASS')
     
@@ -37,6 +37,16 @@ def send_email(to_email: str, subject: str, html_content: str, text_content: str
                     msg.get_payload()[1].add_related(f.read(), 'image', 'png', cid='logo_corpoelec')
             except Exception as e:
                 logger.warning(f"Error al adjuntar imagen inline: {e}")
+                
+    # Procesar archivos adjuntos si existen
+    if attachments:
+        for att in attachments:
+            msg.add_attachment(
+                att['content'], 
+                maintype=att.get('maintype', 'application'), 
+                subtype=att.get('subtype', 'octet-stream'), 
+                filename=att['filename']
+            )
 
     try:
         with smtplib.SMTP('smtp.gmail.com', 587, timeout=15) as smtp:
@@ -376,6 +386,78 @@ def send_administrative_activation_email(to_email: str, token: str, role_display
     
     # Despacho en hilo independiente
     thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content))
+    thread.start()
+    return True
+
+def send_request_receipt_email(to_email: str, full_name: str, institution_name: str, request_code: str, pdf_bytes: bytes) -> bool:
+    """Orquesta el contenido visual del correo de recibo y lanza el hilo asíncrono usando el estándar global."""
+    import html
+    safe_name = html.escape(full_name)
+    safe_institution = html.escape(institution_name)
+    
+    subject = f"Comprobante de Solicitud {request_code} — SAGES UREE"
+    text_content = (
+        f"Estimado/a {safe_name},\n\n"
+        f"Se ha registrado exitosamente una solicitud de formación para {safe_institution} bajo el código {request_code}.\n"
+        f"Adjunto a este correo encontrará el Comprobante Digital Oficial en formato PDF.\n\n"
+        f"Conserve este documento para el seguimiento de su trámite."
+    )
+
+    logo_html = get_logo_html()
+    html_content = f"""<!DOCTYPE html>
+    <html lang="es">
+    <head><meta charset="UTF-8"><title>{subject}</title></head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9fafb; color: #1f2937;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb; overflow: hidden;">
+            <tr><td style="height: 6px; background: linear-gradient(90deg, #1c3d73 0%, #1fcab0 100%);"></td></tr>
+            <tr>
+                <td align="center" style="padding: 40px 20px 20px 20px;">
+                    {logo_html}
+                    <h1 style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.5;">Sistema de Gestión de Solicitudes de Formación</h1>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 0 40px;">
+                    <h2 style="font-size: 22px; font-weight: 700; color: #1f2937; margin: 10px 0 20px 0; text-transform: uppercase; letter-spacing: 0.5px;">SOLICITUD RADICADA</h2>
+                    <p style="font-size: 15px; color: #4b5563; margin: 0 0 15px 0; line-height: 1.6; text-align: left;">
+                        Estimado/a <strong>{safe_name}</strong>, le informamos que se ha registrado exitosamente una nueva solicitud de formación para <strong>{safe_institution}</strong>.
+                    </p>
+                    <div style="background-color: #f3f4f6; border-radius: 8px; padding: 15px; margin-bottom: 20px; text-align: center;">
+                        <p style="margin: 0; font-size: 16px;">Código de Solicitud: <span style="color: #1c3d73; font-weight: bold;">{request_code}</span></p>
+                    </div>
+                    <p style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.6; text-align: left;">
+                        <strong>Adjunto a este correo electrónico</strong> encontrará su Comprobante Digital Oficial con Código QR en formato PDF. Por favor, descárguelo y consérvelo para efectos de seguimiento.
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 30px 40px 40px 40px;">
+                    <hr style="border: 0; border-top: 1px solid #e5e7eb; margin-bottom: 25px;">
+                    <p style="font-size: 12px; color: #9ca3af; line-height: 1.6; margin: 0; text-align: justify;">
+                        * Este mensaje fue generado de forma automática. No responda a este correo.
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
+                    &copy; 2026 SAGES. Todos los derechos reservados.
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+    
+    # Preparamos el archivo adjunto usando el estándar
+    attachments = [{
+        'filename': f"Comprobante_{request_code}.pdf",
+        'maintype': 'application',
+        'subtype': 'pdf',
+        'content': pdf_bytes
+    }]
+    
+    # Despachamos al mismo hilo genérico, pasándole los adjuntos
+    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content, attachments))
     thread.start()
     return True
 

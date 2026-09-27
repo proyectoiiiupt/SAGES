@@ -147,13 +147,60 @@ def submit_new_request():
         return jsonify({'success': False, 'message': errors[0] if errors else "Datos inválidos."}), 400
         
     # Invocamos al servicio transaccional
-    success, message = create_training_request(
+    success, message, req_id = create_training_request(
         user_id=current_user.id,
         training_id=form.training_id.data,
         description=form.description.data
     )
     
     if success:
-        return jsonify({'success': True, 'message': message}), 201
+        return jsonify({'success': True, 'message': message, 'request_id': req_id}), 201
     else:
         return jsonify({'success': False, 'message': message}), 400
+
+# ---------------------------------------------------------------------------
+# Ruta Solicitante: Descarga Directa del Comprobante PDF (US-36)
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/download-ticket/<int:request_id>', methods=['GET'])
+@login_required
+@role_required('applicant')
+@check_permissions('create_request')
+def download_receipt_ticket(request_id):
+    """
+    Genera y descarga el comprobante en PDF al vuelo.
+    Cuenta con protección estricta IDOR: Un solicitante solo puede descargar tickets de su propio plantel.
+    """
+    from flask import send_file, abort
+    from app.models.request_model import Request
+    from app.utils.pdf_generator import generate_receipt_ticket_pdf
+    
+    # Extraer el usuario en sesión y su plantel
+    user = User.query.get(current_user.id)
+    if not user or not user.person or not user.person.institutional_staff:
+        abort(403, description="No posee afiliación institucional válida.")
+        
+    session_institution_id = user.person.institutional_staff[0].institution_id
+    
+    # 1. Buscar la solicitud
+    req = Request.query.get_or_404(request_id)
+    
+    # 2. Protección IDOR: Validar que el plantel de la solicitud sea el mismo del usuario
+    request_institution_id = req.institutional_staff.institution_id
+    if session_institution_id != request_institution_id:
+        abort(403, description="Acceso denegado: No tiene permisos para descargar este documento institucional.")
+        
+    # 3. Compilación del PDF en memoria
+    try:
+        pdf_buffer, _ = generate_receipt_ticket_pdf(req)
+        
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f"Comprobante_{req.request_code}.pdf"
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error sirviendo el PDF de la solicitud {req.request_code}: {e}")
+        abort(500, description="Error interno al generar el documento. Intente nuevamente.")
