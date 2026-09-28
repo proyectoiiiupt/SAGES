@@ -60,17 +60,34 @@
         {% endif %}
 
         {% if ns_admin.es_admin or is_super_admin %}
-        <a href="{{ url_for('trainings.edit_training', id=training.id) }}" 
-           class="btn-primary" 
-           style="display: inline-flex; align-items: center; gap: 8px; background-color: #10b981; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 0.9rem; border: none; cursor: pointer; transition: background-color 0.2s;"
-           onmouseover="this.style.backgroundColor='#059669'" 
-           onmouseout="this.style.backgroundColor='#10b981'">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-            </svg>
-            Editar Tema
-        </a>
+        <div style="display: flex; gap: 10px;">
+            <a href="{{ url_for('trainings.edit_training', id=training.id) }}" 
+               class="btn-primary" 
+               style="display: inline-flex; align-items: center; gap: 8px; background-color: #10b981; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 0.9rem; border: none; cursor: pointer; transition: background-color 0.2s;"
+               onmouseover="this.style.backgroundColor='#059669'" 
+               onmouseout="this.style.backgroundColor='#10b981'">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                Editar
+            </a>
+
+            {# Botón de Eliminar (Borrado Lógico) #}
+            <button type="button" 
+                    onclick="confirmarBorradoLogico({{ training.id }})"
+                    style="display: inline-flex; align-items: center; gap: 8px; background-color: #ef4444; color: white; padding: 8px 16px; border-radius: 6px; font-weight: 500; font-size: 0.9rem; border: none; cursor: pointer; transition: background-color 0.2s;"
+                    onmouseover="this.style.backgroundColor='#dc2626'" 
+                    onmouseout="this.style.backgroundColor='#ef4444'">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+                Eliminar
+            </button>
+        </div>
         {% endif %}
     </div>
 
@@ -165,4 +182,48 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmarBorradoLogico(trainingId) {
+    Swal.fire({
+        title: '¿Estás seguro?',
+        text: "Esta acción deshabilitará el tema formativo.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch(`/training/delete/${trainingId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'  // <-- Inyectamos el token de seguridad de Flask
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    Swal.fire(
+                        '¡Eliminado!',
+                        'El registro ha sido eliminado exitosamente.',
+                        'success'
+                    ).then(() => {
+                        window.location.href = "{{ url_for('trainings.list_all') }}";
+                    });
+                } else {
+                    Swal.fire('Error', 'Hubo un problema al intentar eliminar el registro.', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire('Error', 'Ocurrió un error de red.', 'error');
+            });
+        }
+    });
+}
+</script>
 {% endblock %}
