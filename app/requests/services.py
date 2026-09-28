@@ -78,16 +78,17 @@ def _generate_request_code() -> str:
     return f"{prefix}{new_num:05d}"
 
 
-def create_training_request(user_id: int, training_id: int, description: str) -> tuple[bool, str]:
+def create_training_request(user_id: int, training_id: int, description: str) -> tuple[bool, str, int]:
     """
     Registra una nueva solicitud (Wizard US-34) de forma transaccional.
     Valida la existencia del usuario, asociación institucional y duplicidad.
+    Tras guardar, compila el Ticket PDF y dispara el correo asíncrono.
     """
     from app.extensions import db
     user = User.query.get(user_id)
     
     if not user or not user.person or not user.person.institutional_staff:
-        return False, "Usuario no autorizado o sin afiliación institucional."
+        return False, "Usuario no autorizado o sin afiliación institucional.", 0
         
     institutional_staff_id = user.person.institutional_staff[0].id
     institution_id = user.person.institutional_staff[0].institution_id
@@ -96,12 +97,12 @@ def create_training_request(user_id: int, training_id: int, description: str) ->
     duplicity_check = check_request_duplicity(institution_id, training_id)
     
     if duplicity_check.get("is_duplicate"):
-        return False, f"Su institución educativa ya posee una solicitud activa para este mismo tema formativo (Trámite: {duplicity_check.get('code')}). Por favor, elija un tema distinto."
+        return False, f"Su institución educativa ya posee una solicitud activa para este mismo tema formativo (Trámite: {duplicity_check.get('code')}). Por favor, elija un tema distinto.", 0
         
     # 2. Buscar Estatus inicial 'Nuevo' (STAT-003)
     status_new = Status.query.filter_by(status_code='STAT-003').first()
     if not status_new:
-        return False, "Error interno de sistema: Código de estado inicial no encontrado."
+        return False, "Error interno de sistema: Código de estado inicial no encontrado.", 0
         
     # 3. Transacción atómica
     try:
@@ -115,7 +116,31 @@ def create_training_request(user_id: int, training_id: int, description: str) ->
         )
         db.session.add(new_request)
         db.session.commit()
-        return True, "Solicitud radicada de forma exitosa."
+        
+        # 4. Compilación de PDF y Despacho Asíncrono de Correo
+        try:
+            from app.utils.pdf_generator import generate_receipt_ticket_pdf
+            from app.utils.email_utils import send_request_receipt_email
+            
+            pdf_buffer, _ = generate_receipt_ticket_pdf(new_request)
+            pdf_bytes = pdf_buffer.read()
+            
+            full_name = f"{user.person.first_name} {user.person.last_name}"
+            institution_name = user.person.institutional_staff[0].institution.institution_name
+            
+            send_request_receipt_email(
+                to_email=user.person.email,
+                full_name=full_name,
+                institution_name=institution_name,
+                request_code=new_request.request_code,
+                pdf_bytes=pdf_bytes
+            )
+        except Exception as e:
+            # Tolerancia a fallos: Si el correo falla, la solicitud sigue siendo válida en la base de datos
+            import logging
+            logging.getLogger(__name__).error(f"Fallo al emitir comprobante para {new_request.request_code}: {e}")
+            
+        return True, "Solicitud radicada de forma exitosa.", new_request.id
     except Exception as e:
         db.session.rollback()
-        return False, "Ocurrió un error en la base de datos al registrar la solicitud."
+        return False, "Ocurrió un error en la base de datos al registrar la solicitud.", 0

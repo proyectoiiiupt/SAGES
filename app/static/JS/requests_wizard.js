@@ -341,15 +341,32 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await response.json();
 
             if (response.ok && data.success) {
-                // Alerta nativa corporativa SAGES
+                // Alerta nativa corporativa SAGES con Comprobante PDF (Fase 4 - US-36)
                 Swal.fire({
                     icon: 'success',
                     title: '¡Solicitud Registrada con Éxito!',
-                    text: data.message || 'La solicitud ha sido cursada exitosamente.',
+                    html: `
+                        <p style="margin-bottom: 15px;">${data.message || 'La solicitud ha sido cursada exitosamente.'}</p>
+                        <p style="font-size: 0.9em; color: #6c757d; margin-bottom: 20px;">
+                            <i class="fas fa-envelope"></i> Se ha enviado una copia oficial a su correo electrónico.
+                        </p>
+                        <button id="btn-download-pdf" class="swal2-confirm swal2-styled" style="background-color: #1c3d73; display: flex; align-items: center; justify-content: center; margin: 0 auto; gap: 8px;">
+                            <i class="fas fa-file-pdf"></i> Descargar Comprobante PDF
+                        </button>
+                    `,
+                    showConfirmButton: true,
                     confirmButtonColor: '#019577',
                     confirmButtonText: 'Continuar al Panel',
                     allowOutsideClick: false,
-                    allowEscapeKey: false
+                    allowEscapeKey: false,
+                    didRender: () => {
+                        const btnDownload = Swal.getHtmlContainer().querySelector('#btn-download-pdf');
+                        if (btnDownload && data.request_id) {
+                            btnDownload.addEventListener('click', () => {
+                                window.open('/requests/download-ticket/' + data.request_id, '_blank');
+                            });
+                        }
+                    }
                 }).then(() => {
                     // Redirección exigida por los Criterios de Aceptación
                     window.location.href = '/requests/my-requests';
