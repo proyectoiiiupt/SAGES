@@ -1,0 +1,282 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}SAGES - Registrar Nueva Solicitud{% endblock %}
+
+{% block extra_css %}
+<!-- Reutilizamos la hoja de estilos del solicitante que contiene el wizard -->
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_applicant.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="applicant-dashboard-container">
+    <!-- Cabecera Estilo Banner (Reutilizado para consistencia UX) -->
+    <div class="dashboard-banner">
+        <div class="banner-date">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <!-- Fecha local inyectada por JS dinámico (solo fecha, sin hora) -->
+            <span id="current-date-display" class="local-datetime" data-format="full-date"></span>
+        </div>
+        <h1 class="banner-title">
+            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
+            </svg>
+            Registrar Solicitud Formativa
+        </h1>
+    </div>
+
+    <!-- Botonera Superior -->
+    <div class="wizard-top-actions">
+        <a href="{{ url_for('requests.applicant_dashboard') }}" id="btn-cancel-wizard" class="btn-cancel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            Cancelar y Volver
+        </a>
+    </div>
+
+    <!-- Contenedor Centralizado del Asistente -->
+    <div class="wizard-container">
+
+        <!-- Cabecera Temática -->
+        <div class="wizard-header">
+            <h1 class="wizard-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="12" y1="18" x2="12" y2="12"></line>
+                    <line x1="9" y1="15" x2="15" y2="15"></line>
+                </svg>
+                Registro de Solicitud de Formación
+            </h1>
+            <p class="wizard-subtitle">
+                Complete los siguientes pasos para emitir una solicitud formal de formación para su plantel educativo.
+            </p>
+        </div>
+
+        <div class="wizard-body">
+
+            <!-- Stepper de Navegación Visual -->
+            <div class="wizard-stepper">
+                <div class="step-indicator active" id="indicator-step-1">
+                    <div class="step-circle">1</div>
+                    <div class="step-label">Selección y Justificación</div>
+                </div>
+                <div class="step-line" id="line-step-1"></div>
+                <div class="step-indicator" id="indicator-step-2">
+                    <div class="step-circle">2</div>
+                    <div class="step-label">Revisión Institucional</div>
+                </div>
+            </div>
+
+            <!-- Contenedor Principal del Wizard -->
+            <form id="new-request-form" novalidate>
+                <!-- Token CSRF protegido -->
+                {{ form.csrf_token }}
+
+                <!-- ============================================== -->
+                <!-- PASO 1: SELECCIÓN Y JUSTIFICACIÓN              -->
+                <!-- ============================================== -->
+                <div class="wizard-panel active" id="panel-step-1">
+
+                    <div class="form-group">
+                        <label class="form-label" for="module_select">Módulo Rector <span
+                                class="required-mark">*</span></label>
+                        <select id="module_select" class="form-select" required>
+                            <option value="" selected disabled>Seleccione un módulo rector...</option>
+                            {% for m in modules %}
+                            <option value="{{ m.id }}">{{ m.module_code }} - {{ m.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <span class="form-helper-text">Eje temático base al que pertenece la formación.</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="training_id">Tema Formativo Requerido <span
+                                class="required-mark">*</span></label>
+                        <!-- Contenedor del Combo-box Dinámico -->
+                        <div id="training-combobox-wrapper" class="custom-combobox">
+                            <svg class="combobox-icon" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                            
+                            <!-- Input visible de búsqueda y selección -->
+                            <input type="text" id="training_search" class="form-select combobox-input" placeholder="Seleccione un módulo primero..." autocomplete="off" disabled>
+                            
+                            <!-- Menú flotante de opciones -->
+                            <div id="training-options-list" class="combobox-options-list"></div>
+                        </div>
+
+                        <!-- Select oculto nativo que viaja al backend y mantiene la validación -->
+                        <select id="training_id" name="training_id" disabled required style="display: none;">
+                            <option value="" selected disabled></option>
+                        </select>
+                        <span class="form-helper-text">Tema específico que desea impartir en su institución.</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="description">Justificación de la Solicitud <span
+                                class="required-mark">*</span></label>
+                        <textarea id="description" name="description" class="form-textarea"
+                            placeholder="Ej: Requerimos la formación para concientizar a nuestros estudiantes de 5to año..."
+                            required></textarea>
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 0.25rem;">
+                            <span class="form-helper-text" style="margin-top: 0;">Explique brevemente por qué requiere
+                                esta formación y quiénes serán los beneficiarios directos.</span>
+                            <span class="char-counter" id="char-counter" style="margin-top: 0;">0 / 200</span>
+                        </div>
+                    </div>
+
+                    <div class="wizard-actions">
+                        <button type="button" id="btn-next" class="btn-action" disabled>
+                            Siguiente Paso
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                <polyline points="12 5 19 12 12 19"></polyline>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+
+                <!-- ============================================== -->
+                <!-- PASO 2: REVISIÓN INSTITUCIONAL CONSOLIDADA     -->
+                <!-- ============================================== -->
+                <div class="wizard-panel" id="panel-step-2">
+
+                    <div class="alert-warning"
+                        style="margin-bottom: 24px; border-radius: 10px; border: 1px solid #fde68a; background: #fffbeb; color: #b45309; display: flex; align-items: center; gap: 10px; padding: 15px;">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                            </path>
+                            <line x1="12" y1="9" x2="12" y2="13"></line>
+                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                        </svg>
+                        <div>
+                            <strong>Aviso Importante:</strong> Al hacer clic en "Procesar Solicitud", el sistema
+                            validará que no exista una solicitud idéntica en curso para su misma institución.
+                        </div>
+                    </div>
+
+                    <div class="summary-card">
+
+                        <!-- Sección 1: Datos de la Solicitud (Llenados por JS) -->
+                        <div class="summary-section">
+                            <h3 class="summary-title">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                    stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                </svg>
+                                Resumen del Requerimiento
+                            </h3>
+                            <div class="summary-row" style="margin-top: 15px;">
+                                <span class="summary-label">Tema Formativo:</span>
+                                <span class="summary-value" id="summary-training" style="font-weight: 600;"></span>
+                            </div>
+                            <div class="summary-row">
+                                <span class="summary-label">Justificación:</span>
+                                <span class="summary-value" id="summary-description"
+                                    style="font-style: italic; color: #475569;"></span>
+                            </div>
+                        </div>
+
+                        <!-- Sección 2: Datos del Representante -->
+                        <div class="summary-section">
+                            <h3 class="summary-title">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                    stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="12" cy="7" r="4"></circle>
+                                </svg>
+                                Datos del Representante Solicitante
+                            </h3>
+                            <div class="summary-row" style="margin-top: 15px;">
+                                <span class="summary-label">Identidad:</span>
+                                <span class="summary-value">{{ staff.person.identification_type }}-{{ "{:,}".format(staff.person.identification_number | int).replace(',', '.') }}</span>
+                            </div>
+                            <div class="summary-row">
+                                <span class="summary-label">Nombre Completo:</span>
+                                <span class="summary-value">{{ staff.person.first_name }} {{ staff.person.last_name }}</span>
+                            </div>
+                            <div class="summary-row">
+                                <span class="summary-label">Contacto:</span>
+                                <span class="summary-value">{{ staff.person.email }} | ({{ staff.person.mobile[:4] }})-{{ staff.person.mobile[4:] }}</span>
+                            </div>
+                            <div class="summary-row">
+                                <span class="summary-label">Cargo Institucional:</span>
+                                <span class="summary-value">{{ staff.position.name }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Sección 3: Datos de la Institución -->
+                        <div class="summary-section" style="border-bottom: none;">
+                            <h3 class="summary-title">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                    stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                                </svg>
+                                Datos del Plantel Educativo
+                            </h3>
+                            <div class="summary-row" style="margin-top: 15px;">
+                                <span class="summary-label">Nombre de Institución:</span>
+                                <span class="summary-value">{{ staff.institution.institution_name }}</span>
+                            </div>
+                            <div class="summary-row">
+                                <span class="summary-label">Código de Plantel:</span>
+                                <span class="summary-value">{{ staff.institution.plantel_code }}</span>
+                            </div>
+                            <div class="summary-row">
+                                <span class="summary-label">Ubicación Geográfica:</span>
+                                <span class="summary-value">
+                                    {{ staff.institution.parish.municipality.state.name }},
+                                    {{ staff.institution.parish.municipality.name }},
+                                    {{ staff.institution.parish.name }}.
+                                    {{ staff.institution.address }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="wizard-actions">
+                        <button type="button" id="btn-prev" class="btn-cancel">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                                <line x1="19" y1="12" x2="5" y2="12"></line>
+                                <polyline points="12 19 5 12 12 5"></polyline>
+                            </svg>
+                            Anterior
+                        </button>
+                        <!-- Botón final para invocar submit_new_request -->
+                        <button type="button" id="btn-submit" class="btn-action">
+                            Procesar Solicitud
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+                                stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+            </form>
+        </div> <!-- /wizard-body -->
+    </div> <!-- /wizard-container -->
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Vinculamos SweetAlert2 -->
+<script src="{{ url_for('static', filename='JS/sweetalert2.all.min.js') }}"></script>
+<!-- Formateador de tiempo global para la fecha del banner -->
+<script src="{{ url_for('static', filename='JS/time-formatter.js') }}"></script>
+<!-- Script específico del Wizard -->
+<script src="{{ url_for('static', filename='JS/requests_wizard.js') }}"></script>
+{% endblock %}
