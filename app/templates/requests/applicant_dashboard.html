@@ -1,0 +1,138 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}SAGES - Mis Solicitudes de Formación{% endblock %}
+
+{% block extra_css %}
+<!-- Vinculamos nuestra hoja de estilos especializada para el panel de solicitantes -->
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_applicant.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="applicant-dashboard-container">
+    <!-- Cabecera Estilo Banner (Iconic) -->
+    <div class="dashboard-banner">
+        <div class="banner-date">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span id="current-date-display"></span>
+        </div>
+        <div class="banner-title">
+            Mis Solicitudes de Formación
+        </div>
+    </div>
+
+    <!-- Banda de acciones (fuera de la cabecera) -->
+    <div class="dashboard-info-band">
+        <div class="dashboard-info-left">
+            <p class="dashboard-subtitle">Gestione y haga seguimiento a los requerimientos formativos en curso para su plantel escolar.</p>
+        </div>
+        <div class="dashboard-actions-bar">
+            <!-- Usamos URLs estáticas momentáneamente para no generar BuildError -->
+            <a href="/requests/history" class="btn-secondary">Historial</a>
+            {% if institution_active %}
+            <a href="/requests/new" class="btn-primary">Registrar Nueva Solicitud +</a>
+            {% else %}
+            <a href="#" class="btn-primary disabled" aria-disabled="true">Registrar Nueva Solicitud +</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Advertencia de Institución Inactiva -->
+    {% if not institution_active %}
+    <div class="alert-warning" role="alert">
+        <strong>Atención:</strong> La emisión de nuevas formaciones se encuentra suspendida temporalmente para su
+        plantel.
+    </div>
+    {% endif %}
+
+    <!-- Contenedor dinámico (Cuadrícula o Estado Vacío) -->
+    {% if requests %}
+    <div class="request-cards-grid">
+        {% for req in requests %}
+        <!-- El tabindex="0" permite enfocar la tarjeta con teclado (Accesibilidad) -->
+        <div class="request-card" tabindex="0" data-url="/requests/view-request/{{ req.id }}">
+            <div class="card-header">
+                <span class="request-code">{{ req.request_code }}</span>
+                
+                <!-- Determinamos dinámicamente qué fecha mostrar -->
+                {% set display_date = req.updated_at if req.updated_at and req.updated_at != req.created_at else req.created_at %}
+                
+                <!-- Uso de time-formatter.js con el formato date-only (Sin horas) -->
+                <span class="request-date local-datetime" data-utc="{{ display_date.isoformat() }}" data-format="date-only"></span>
+            </div>
+
+            <div class="card-body">
+                <h2 class="training-name">{{ req.training.name }}</h2>
+                <p class="training-module">{{ req.training.training_module.name }}</p>
+
+                <!-- Lógica condicional: Si está planificada, mostramos la fecha agendada -->
+                {% if req.status.status_code == 'STAT-005' and req.plannings %}
+                <div class="planned-date">
+                    <!-- Las fechas planificadas son tipo Date (sin TZ), mantenemos strftime -->
+                    Jornada pautada para el: {{ req.plannings[0].planned_for.strftime('%d/%m/%Y') }}
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="card-footer">
+                <!-- Asignación de Badge Cromático según la FSM -->
+                {% set badge_class = 'status-new' %}
+                {% if req.status.status_code == 'STAT-003' %}
+                {% set badge_class = 'status-new' %}
+                {% elif req.status.status_code == 'STAT-004' %}
+                {% set badge_class = 'status-pending' %}
+                {% elif req.status.status_code == 'STAT-005' %}
+                {% set badge_class = 'status-planned' %}
+                {% elif req.status.status_code == 'STAT-006' %}
+                {% set badge_class = 'status-in-process' %}
+                {% endif %}
+
+                <span class="badge-status {{ badge_class }}">
+                    {{ req.status.status_name }}
+                </span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <!-- Implementación del Estado Vacío Asistido (Empty State) -->
+    <div class="empty-state-card">
+        <div class="empty-icon">🌱</div> <!-- Icono pedagógico -->
+        <h2 class="empty-title">No posee solicitudes activas en este momento</h2>
+        <p class="empty-description">
+            Su institución no tiene actividades formativas en curso. Puede iniciar una nueva petición para capacitar a
+            su comunidad escolar en el Uso Racional y Eficiente de la Energía.
+        </p>
+        {% if institution_active %}
+        <a href="/requests/new" class="btn-primary">Registrar Primera Solicitud</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Vinculamos el JS interactivo y el formateador de tiempo global -->
+<script src="{{ url_for('static', filename='JS/time-formatter.js') }}"></script>
+<script src="{{ url_for('static', filename='JS/requests_applicant.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Configuramos la fecha actual (banner) dinámicamente para que time-formatter la procese
+        const dateElement = document.getElementById('current-date-display');
+        if (dateElement) {
+            dateElement.setAttribute('data-utc', new Date().toISOString());
+            dateElement.classList.add('local-datetime');
+            dateElement.setAttribute('data-format', 'full');
+            
+            // Forzamos la actualización llamando a la función global de time-formatter.js
+            if (typeof formatAllLocalTimes === 'function') {
+                formatAllLocalTimes();
+            }
+        }
+    });
+</script>
+{% endblock %}
