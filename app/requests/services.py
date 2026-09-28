@@ -37,6 +37,30 @@ def get_applicant_active_requests(user_id):
     return requests
 
 
+def check_request_duplicity(institution_id: int, training_id: int) -> dict:
+    """
+    Verifica de forma cruzada si una Institución Educativa ya posee una solicitud activa
+    sobre un tema formativo específico (Validación Institucional, no personal).
+    """
+    closed_status = ['STAT-007', 'STAT-008', 'STAT-009']
+    
+    existing = Request.query.join(InstitutionalStaff).join(
+        Status, Request.status_id == Status.id
+    ).filter(
+        InstitutionalStaff.institution_id == institution_id,
+        Request.training_id == training_id,
+        Request.historical == False,
+        Status.status_code.notin_(closed_status)
+    ).first()
+    
+    if existing:
+        return {
+            "is_duplicate": True,
+            "code": existing.request_code,
+            "status": existing.status.status_name
+        }
+    return {"is_duplicate": False}
+
 def _generate_request_code() -> str:
     """Genera un código correlativo único (REQ-YYYY-XXXXX) para la solicitud."""
     from datetime import datetime
@@ -66,16 +90,13 @@ def create_training_request(user_id: int, training_id: int, description: str) ->
         return False, "Usuario no autorizado o sin afiliación institucional."
         
     institutional_staff_id = user.person.institutional_staff[0].id
+    institution_id = user.person.institutional_staff[0].institution_id
     
-    # 1. Validación anti-duplicidad activa (Misma institución, mismo tema, sin finalizar)
-    existing_request = Request.query.filter_by(
-        institutional_staff_id=institutional_staff_id,
-        training_id=training_id,
-        historical=False
-    ).first()
+    # 1. Validación anti-duplicidad (Institucional)
+    duplicity_check = check_request_duplicity(institution_id, training_id)
     
-    if existing_request:
-        return False, "Su institución ya posee una solicitud activa para este tema formativo."
+    if duplicity_check.get("is_duplicate"):
+        return False, f"Su institución educativa ya posee una solicitud activa para este mismo tema formativo (Trámite: {duplicity_check.get('code')}). Por favor, elija un tema distinto."
         
     # 2. Buscar Estatus inicial 'Nuevo' (STAT-003)
     status_new = Status.query.filter_by(status_code='STAT-003').first()

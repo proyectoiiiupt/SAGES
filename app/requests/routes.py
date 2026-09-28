@@ -6,6 +6,10 @@ from app.requests.services import get_applicant_active_requests
 from app.models.user_model import User
 from app.extensions import limiter
 
+# ---------------------------------------------------------------------------
+# Ruta Solicitante: Mis Solicitudes
+# ---------------------------------------------------------------------------
+
 @requests_bp.route('/my-requests', methods=['GET'])
 @login_required
 @role_required('applicant')
@@ -69,6 +73,42 @@ def new_request_wizard():
         staff=user.person.institutional_staff[0]
     )
 
+# ---------------------------------------------------------------------------
+# Ruta Solicitante: Validación de Duplicidad de Solicitud
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/api/check-duplicity', methods=['POST'])
+@login_required
+@role_required('applicant')
+@check_permissions('create_request')
+@limiter.limit("20 per minute", methods=["POST"], key_func=lambda: str(current_user.id))
+def check_duplicity():
+    """
+    Endpoint AJAX para validación preventiva de duplicidad.
+    Devuelve HTTP 200 con payload {is_duplicate: true/false}.
+    """
+    from flask import request, jsonify
+    from app.requests.services import check_request_duplicity
+    
+    data = request.get_json() or {}
+    training_id = data.get('training_id')
+    
+    if not training_id:
+        return jsonify({'error': 'training_id requerido'}), 400
+        
+    user = User.query.get(current_user.id)
+    if not user or not user.person or not user.person.institutional_staff:
+        return jsonify({'error': 'Usuario no autorizado'}), 403
+        
+    institution_id = user.person.institutional_staff[0].institution_id
+    
+    # Invocamos la lógica de servicio arquitectónicamente correcta
+    result = check_request_duplicity(institution_id, int(training_id))
+    return jsonify(result), 200
+
+# ---------------------------------------------------------------------------
+# Ruta Solicitante: Enviar Nueva Solicitud
+# ---------------------------------------------------------------------------
 
 @requests_bp.route('/submit-new', methods=['POST'])
 @login_required
@@ -83,11 +123,23 @@ def submit_new_request():
     from flask import request, jsonify
     from app.requests.forms import NewRequestWizardForm
     from app.requests.services import create_training_request
+    from app.models.training_model import Training
 
     data = request.get_json() or {}
     
     # Instanciamos WTForms omitiendo CSRF nativo del formulario (Se asume validación global por CSRFProtect)
     form = NewRequestWizardForm(data=data, meta={'csrf': False})
+    
+    # Validamos contra la Base de Datos inyectando el choice dinámicamente si existe.
+    submitted_id = data.get('training_id')
+    if submitted_id:
+        training = Training.query.get(submitted_id)
+        if training:
+            form.training_id.choices = [(training.id, training.name)]
+        else:
+            form.training_id.choices = []
+    else:
+        form.training_id.choices = []
     
     if not form.validate():
         # Extraer el primer error de validación
