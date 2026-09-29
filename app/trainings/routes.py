@@ -1021,9 +1021,8 @@ def delete_training(training_id: int):
         # 1. Validamos que el tema exista y no esté eliminado previamente
         training = Training.query.filter_by(id=training_id, deleted_at=None).first_or_404()
         
-        # 2. Obtenemos el estatus de Eliminado
-        # IMPORTANTE: Verifica si en el seeder de base de datos el estatus eliminado es STAT-003 u otro.
-        deleted_status = Status.query.filter_by(status_code='STAT-003').first()
+        # 2. Obtenemos el estatus de Eliminado oficial (STAT-010)
+        deleted_status = Status.query.filter_by(status_code='STAT-010').first()
         
         if not deleted_status:
             return jsonify({

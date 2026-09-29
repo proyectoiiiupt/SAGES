@@ -60,6 +60,12 @@ def seed_status():
             "status_name": "Cancelado", 
             "description": "La solicitud fue anulada por el usuario o el administrador antes de su culminación.", 
             "context": "Solicitudes y Atención"
+        },
+        {
+            "status_code": "STAT-010", 
+            "status_name": "Eliminado", 
+            "description": "Eliminado por el usuario o el administrador.", 
+            "context": "Formación"
         }
     ]
 
