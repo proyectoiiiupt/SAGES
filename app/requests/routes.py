@@ -204,3 +204,79 @@ def download_receipt_ticket(request_id):
         import logging
         logging.getLogger(__name__).error(f"Error sirviendo el PDF de la solicitud {req.request_code}: {e}")
         abort(500, description="Error interno al generar el documento. Intente nuevamente.")
+
+
+# ---------------------------------------------------------------------------
+# Ruta Administrador Estadal: Bandeja Territorial de Solicitudes (US-39)
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/state-dashboard', methods=['GET'])
+@login_required
+@role_required('state_admin')
+@check_permissions('manage_requests')
+def state_admin_dashboard():
+    """
+    Renderiza el centro de mando regional para el administrador estadal.
+    Aplica aislamiento estricto por Estado (Capa de Seguridad) y clasifica 
+    los expedientes por semáforo de prioridad lógica (Business Logic Sorting).
+    """
+    from flask import request, render_template, abort, flash
+    from app.requests.services import get_admin_state_id, get_state_dashboard_metrics, get_state_requests_paginated
+    
+    # 1. Extracción de Jurisdicción Inmutable
+    # Evita que el administrador intente inyectar '?state_id=5' en la URL.
+    state_id = get_admin_state_id(current_user)
+    if not state_id:
+        flash("Acceso denegado: Su perfil no posee una asignación territorial válida (Estado).", "danger")
+        abort(403)
+        
+    # 2. Captura de Parámetros GET (Paginación y Filtros Reactivos)
+    page = request.args.get('page', 1, type=int)
+    search_query = request.args.get('search', '', type=str)
+    status_id = request.args.get('status', None, type=int)
+    municipality_id = request.args.get('municipality', None, type=int)
+    
+    # 3. Consulta Masiva de KPIs Regionales
+    metrics = get_state_dashboard_metrics(state_id)
+    
+    # 4. Consulta Paginada de Expedientes
+    per_page = min(request.args.get('per_page', 10, type=int), 50)
+    
+    pagination = get_state_requests_paginated(
+        state_id=state_id, 
+        page=page, 
+        per_page=per_page, 
+        search_query=search_query,
+        status_id=status_id,
+        municipality_id=municipality_id
+    )
+    
+    # 5. Respuesta Dual (Soporte para recarga asíncrona o primera carga completa)
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('ajax'):
+        # Retorna un fragmento (Partial) solo con los <tr> para el Fetch JS
+        return render_template('requests/partials/_state_dashboard_table.html', pagination=pagination)
+        
+    # Consultas auxiliares para llenar los `<select>` de filtros
+    from app.models.status_model import Status
+    from app.models.municipality_model import Municipality
+    
+    # Obtener estatus relevantes para solicitudes (STAT-003 al STAT-009)
+    available_statuses = Status.query.filter(
+        Status.status_code.in_(['STAT-003', 'STAT-004', 'STAT-005', 'STAT-006', 'STAT-007', 'STAT-008', 'STAT-009'])
+    ).all()
+    
+    # Obtener municipios de la jurisdicción actual
+    available_municipalities = Municipality.query.filter_by(state_id=state_id).order_by(Municipality.name.asc()).all()
+
+    # Primera carga de la página
+    return render_template(
+        'requests/state_dashboard.html',
+        metrics=metrics,
+        pagination=pagination,
+        search_query=search_query,
+        current_status=status_id,
+        current_municipality=municipality_id,
+        statuses=available_statuses,
+        municipalities=available_municipalities,
+        user_state=current_user.person.company_staff[0].place.parish.municipality.state.name
+    )

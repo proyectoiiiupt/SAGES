@@ -53,7 +53,7 @@
 
     {# Gestión de Solicitudes #}
     {% if 'manage_requests' in user_permissions %}
-    <a href="#" class="card card-green">
+    <a href="{{ url_for('requests.state_admin_dashboard') }}" class="card card-green">
         <div class="card-header">
             <div class="card-title">Gestión de Solicitudes</div>
             <div class="card-icon">
