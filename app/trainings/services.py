@@ -8,6 +8,7 @@ import functools
 import csv
 import io
 import openpyxl
+from datetime import datetime, timezone
 from typing import Optional, Tuple, List, Dict, Any
 from sqlalchemy import select, func
 from app.extensions import db
@@ -38,16 +39,18 @@ def update_training_module(
     module: TrainingModule,
     name: str,
     description: str,
-    user_id: int
+    user_id: int,
+    is_active: Optional[bool] = None
 ) -> Tuple[bool, str]:
     """
-    Actualiza los datos editables de un módulo rector (nombre y descripción).
+    Actualiza los datos editables de un módulo rector (nombre, descripción y opcionalmente estatus operativo).
     
     Args:
         module: Instancia de TrainingModule a actualizar.
         name: Nuevo nombre del módulo rector.
         description: Nueva descripción operativa.
         user_id: ID del usuario autenticado (Super Admin) que realiza la acción.
+        is_active: Opcional. Nuevo estatus booleano del módulo rector.
         
     Returns:
         Tuple (éxito: bool, mensaje: str).
@@ -57,12 +60,63 @@ def update_training_module(
         clean_name = name.strip()
         clean_desc = description.strip()
         
-        # 2. Aplicar cambios en la entidad
+        status_changed = False
+        estado_str = ""
+        old_status = module.is_active
+
+        # 2. Si se solicitó cambio de estatus
+        if is_active is not None and is_active != module.is_active:
+            if old_status and not is_active:
+                # Inactivación (Desincorporación): validación estricta de temas activos
+                active_count = count_active_trainings_for_module(module.id)
+                if active_count > 0:
+                    return (
+                        False,
+                        f'No se puede desincorporar el Módulo Rector "{module.name}" porque posee '
+                        f"{active_count} tema(s) formativo(s) activo(s) asociado(s). "
+                        f"Debe desincorporar o reasignar dichos temas antes de proceder a inactivar el módulo."
+                    )
+                module.is_active = False
+                max_order = db.session.query(func.max(TrainingModule.order_index)).scalar() or 0
+                module.order_index = max_order + 1
+                status_changed = True
+                estado_str = "desincorporado (inactivado)"
+            elif not old_status and is_active:
+                # Reactivación: posición de primero
+                module.is_active = True
+                db.session.query(TrainingModule).filter(TrainingModule.id != module.id).update(
+                    {TrainingModule.order_index: TrainingModule.order_index + 1}
+                )
+                module.order_index = 1
+                status_changed = True
+                estado_str = "reactivado (activado)"
+
+        # 3. Aplicar cambios de texto
         module.name = clean_name
         module.description = clean_desc
+        module.updated_at = datetime.now(timezone.utc)
         
         db.session.commit()
-        
+
+        # 4. Registrar en bitácora si hubo cambio de estatus
+        if status_changed:
+            try:
+                from app.binnacle.services import BinnacleService
+                from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+
+                BinnacleService.create_log_entry(
+                    module=AuditModule.TRAININGS.value,
+                    action_type=AuditAction.CAMBIO_ESTATUS.value,
+                    description=f"El Módulo Rector '{module.name}' ({module.module_code}) ha sido {estado_str} y actualizado exitosamente.",
+                    target_table='sages.training_modules',
+                    record_id=module.id,
+                    status=AuditStatus.MODIFICADO.value,
+                    old_values={'is_active': old_status},
+                    new_values={'is_active': module.is_active}
+                )
+            except Exception as audit_err:
+                logger.error(f"[trainings.services.update_training_module] Error registrando bitácora: {audit_err}")
+
         logger.info(
             f"[trainings.services.update_training_module] Módulo {module.id} ({module.module_code}) "
             f"actualizado exitosamente por usuario {user_id}."
@@ -344,3 +398,117 @@ def parse_training_file(file_storage) -> Tuple[List[Dict[str, Any]], List[Dict[s
     }
 
     return valid_rows, invalid_rows, summary
+
+
+# ============================================================================
+# Desincorporación y Activación Lógica de Módulo Rector
+# ============================================================================
+
+def count_active_trainings_for_module(module_id: int) -> int:
+    """
+    Cuenta la cantidad de temas formativos activos asociados a un módulo rector.
+    Un tema se considera activo si:
+      - training_module_id coincide con el módulo
+      - deleted_at es NULL (no está eliminado lógicamente)
+      - status tiene status_code == 'STAT-001' (Activo)
+    """
+    try:
+        count = (
+            db.session.query(func.count(Training.id))
+            .join(Status, Training.status_id == Status.id)
+            .filter(
+                Training.training_module_id == module_id,
+                Training.deleted_at.is_(None),
+                Status.status_code == 'STAT-001'
+            )
+            .scalar()
+        )
+        return count or 0
+    except Exception as e:
+        logger.error(f"[trainings.services.count_active_trainings_for_module] Error al contar temas activos para módulo {module_id}: {e}")
+        return 0
+
+
+def toggle_module_status(module_id: int, user_id: int) -> Tuple[bool, str, Optional[TrainingModule], int]:
+    """
+    Alterna el estatus operativo (is_active) de un Módulo Rector.
+    
+    Reglas de negocio:
+      - Inactivación (Desincorporación): Si is_active es True, se valida estrictamente
+        que el módulo no posea temas formativos activos asociados. Si posee al menos uno,
+        se rechaza la operación informando el total de temas activos.
+        Al inactivarse, su orden de visualización (order_index) se traslada a la última posición.
+      - Activación (Reactivación): Si is_active es False, se reactiva inmediatamente y su
+        orden de visualización (order_index) se posiciona de primero (1), desplazando a los demás.
+      - Auditoría: Registra el evento en la bitácora (sages.binnacles).
+      
+    Returns:
+      Tuple[bool (éxito), str (mensaje), Optional[TrainingModule], int (temas_activos_pendientes)]
+    """
+    try:
+        module = TrainingModule.query.get(module_id)
+        if not module:
+            return False, "Módulo Rector no encontrado.", None, 0
+
+        old_status = module.is_active
+
+        if old_status:
+            # 1. Validación estricta: verificar temas activos asociados
+            active_topics_count = count_active_trainings_for_module(module.id)
+            if active_topics_count > 0:
+                return (
+                    False,
+                    f'No se puede desincorporar el Módulo Rector "{module.name}" porque posee '
+                    f"{active_topics_count} tema(s) formativo(s) activo(s) asociado(s). "
+                    f"Debe desincorporar o reasignar dichos temas antes de proceder a inactivar el módulo.",
+                    module,
+                    active_topics_count
+                )
+
+            # Inactivar módulo y mover su posición a la última
+            module.is_active = False
+            max_order = db.session.query(func.max(TrainingModule.order_index)).scalar() or 0
+            module.order_index = max_order + 1
+            estado_str = "desincorporado (inactivado)"
+
+        else:
+            # Reactivar módulo y mover su posición a la primera (desplazar a los demás)
+            module.is_active = True
+            db.session.query(TrainingModule).filter(TrainingModule.id != module.id).update(
+                {TrainingModule.order_index: TrainingModule.order_index + 1}
+            )
+            module.order_index = 1
+            estado_str = "reactivado (activado)"
+
+        module.updated_at = datetime.now(timezone.utc)
+        db.session.commit()
+
+        # Registro en bitácora de auditoría
+        try:
+            from app.binnacle.services import BinnacleService
+            from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+
+            BinnacleService.create_log_entry(
+                module=AuditModule.TRAININGS.value,
+                action_type=AuditAction.CAMBIO_ESTATUS.value,
+                description=f"El Módulo Rector '{module.name}' ({module.module_code}) ha sido {estado_str} exitosamente.",
+                target_table='sages.training_modules',
+                record_id=module.id,
+                status=AuditStatus.MODIFICADO.value,
+                old_values={'is_active': old_status},
+                new_values={'is_active': module.is_active}
+            )
+        except Exception as audit_err:
+            logger.error(f"[trainings.services.toggle_module_status] Error registrando bitácora: {audit_err}")
+
+        logger.info(
+            f"[trainings.services.toggle_module_status] Módulo {module.id} ({module.module_code}) "
+            f"ha sido {estado_str} por el usuario {user_id}."
+        )
+
+        return True, f"El Módulo Rector '{module.name}' ha sido {estado_str} exitosamente.", module, 0
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"[trainings.services.toggle_module_status] Error al cambiar estatus del módulo {module_id}: {e}")
+        return False, f"Ocurrió un error inesperado al cambiar el estatus del módulo: {str(e)}", None, 0
