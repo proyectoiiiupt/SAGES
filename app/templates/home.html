@@ -160,7 +160,7 @@
 
     {# Estadísticas y Reportes #}
     {% if 'view_statistics' in user_permissions %}
-    <a href="#" class="card card-cyan">
+    <a href="{{ url_for('analytics.index') }}" class="card card-cyan">
         <div class="card-header">
             <div class="card-title">Estadísticas y Reportes</div>
             <div class="card-icon">

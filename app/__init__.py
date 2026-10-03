@@ -87,6 +87,10 @@ def create_app(config_class=Config) -> Flask:
     from app.binnacle.routes import binnacle_bp
     app.register_blueprint(binnacle_bp, url_prefix='/binnacle')
 
+    # Registro del blueprint de Analítica y Estadísticas
+    from app.analytics import analytics_bp
+    app.register_blueprint(analytics_bp, url_prefix='/analytics')
+
     @app.route('/')
     def index():
         return render_template('public/index.html')

@@ -1,0 +1,151 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Reportes y Estadísticas – SAGES{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/analytics.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="analytics-container">
+    <!-- ── CABECERA PRINCIPAL ── -->
+    <div class="analytics-header-card">
+        <div class="analytics-title-group">
+            <h1 class="analytics-main-title">Reportes y Estadísticas</h1>
+            <div class="analytics-jurisdiction-badge" title="Ámbito de datos">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                </svg>
+                <span>{{ metrics.jurisdiction_label }}</span>
+            </div>
+        </div>
+        <div class="analytics-date-wrapper">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span id="current-analytics-date"></span>
+        </div>
+    </div>
+
+    <!-- ── TARJETA KPI SUPERIOR: ACTIVIDAD RECIENTE (28 DÍAS) ── -->
+    <div class="kpi-banner-card">
+        <div class="kpi-banner-left">
+            <div class="kpi-banner-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                </svg>
+            </div>
+            <div class="kpi-banner-text">
+                <span class="kpi-banner-number">{{ metrics.kpi_28_dias }}</span>
+                <span class="kpi-banner-label">solicitudes recibidas en los últimos 28 días</span>
+            </div>
+        </div>
+        <div class="kpi-banner-diff {% if metrics.diferencial_pct >= 0 %}diff-positive{% else %}diff-negative{% endif %}">
+            <span>{% if metrics.diferencial_pct >= 0 %}+{% endif %}{{ metrics.diferencial_pct }}%</span>
+            <small>vs. ciclo anterior</small>
+        </div>
+    </div>
+    
+     <!-- ── BOTONERA DE NAVEGACIÓN Y COMANDO PRINCIPAL ── -->
+     <div class="analytics-actions-footer">
+        <a href="{{ url_for('analytics.index') }}" class="btn-action-analytics btn-action-calc">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="2" width="16" height="20" rx="2"></rect>
+                <line x1="8" y1="6" x2="16" y2="6"></line>
+                <line x1="16" y1="14" x2="16" y2="18"></line>
+                <path d="M16 10h.01"></path>
+                <path d="M12 10h.01"></path>
+                <path d="M8 10h.01"></path>
+                <path d="M12 14h.01"></path>
+                <path d="M8 14h.01"></path>
+                <path d="M12 18h.01"></path>
+                <path d="M8 18h.01"></path>
+            </svg>
+            <span>Calcular indicadores</span>
+        </a>
+        <a href="{{ url_for('analytics.index') }}" class="btn-action-analytics btn-action-export">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Exportar Reportes</span>
+        </a>
+    </div>
+
+    <!-- ── CUADRÍCULA DE GRÁFICOS DEL TABLERO ── -->
+    <div class="dashboard-charts-grid">
+        <!-- 1. GRÁFICO CIRCULAR / DONUT: ESTADO DE LAS SOLICITUDES -->
+        <div class="chart-card">
+            <div class="chart-card-header">
+                <h3 class="chart-card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M12 2a10 10 0 0 1 10 10h-10z"></path>
+                    </svg>
+                    Estado de las Solicitudes
+                </h3>
+            </div>
+            <div class="chart-card-body chart-donut-wrapper">
+                <canvas id="donutStatusChart"></canvas>
+            </div>
+            <div class="donut-custom-legend">
+                <div class="legend-item"><span class="legend-dot dot-green"></span> Aprobada ({{ metrics.donut.aprobadas }})</div>
+                <div class="legend-item"><span class="legend-dot dot-amber"></span> En proceso ({{ metrics.donut.en_proceso }})</div>
+                <div class="legend-item"><span class="legend-dot dot-red"></span> Pendiente ({{ metrics.donut.pendientes }})</div>
+            </div>
+        </div>
+
+        <!-- 2. GRÁFICO DE LÍNEAS CONTINUAS: EVOLUCIÓN DE SOLICITUDES (TENDENCIA ESTILO MERCADO/VENTAS) -->
+        <div class="chart-card chart-card-wide">
+            <div class="chart-card-header">
+                <h3 class="chart-card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
+                    Evolución de Solicitudes
+                </h3>
+                <span class="chart-subtitle-pill">Tendencia por Estatus</span>
+            </div>
+            <div class="chart-card-body chart-lines-wrapper">
+                <canvas id="lineEvolutionChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 3. GRÁFICO DE BARRAS HORIZONTALES: TIPO DE SOLICITUD (TEMAS FORMACIÓN UREE) -->
+        <div class="chart-card chart-card-full">
+            <div class="chart-card-header">
+                <h3 class="chart-card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="20" x2="18" y2="10"></line>
+                        <line x1="12" y1="20" x2="12" y2="4"></line>
+                        <line x1="6" y1="20" x2="6" y2="14"></line>
+                    </svg>
+                    Tipo de Solicitud (Temas Formativos UREE Más Demandados)
+                </h3>
+            </div>
+            <div class="chart-card-body chart-bars-wrapper">
+                <canvas id="barTrainingsChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+   
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Librería Chart.js -->
+<script src="{{ url_for('static', filename='JS/chart.js') }}"></script>
+
+<!-- Carga del payload serializado y lógica de inicialización -->
+<script id="analytics-data-payload" type="application/json">
+    {{ metrics_json | safe }}
+</script>
+<script src="{{ url_for('static', filename='js/analytics_dashboard.js') }}"></script>
+{% endblock %}

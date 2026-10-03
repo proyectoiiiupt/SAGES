@@ -131,7 +131,8 @@
         {# ── ESTADÍSTICAS ─────────────────────────────────────────── #}
         {% if 'view_statistics' in user_permissions %}
         <li>
-            <a href="#">
+            <a href="{{ url_for('analytics.index') }}"
+               class="{{ active_if(['analytics.index', 'analytics.indicators_view', 'analytics.reports_wizard']) }}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round">
                     <line x1="12" y1="20" x2="12" y2="10"></line>
