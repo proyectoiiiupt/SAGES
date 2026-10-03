@@ -56,6 +56,18 @@ function formatAllLocalTimes() {
                     minute: '2-digit',
                     hour12: true
                 }).format(date);
+            } else if (formatType === 'full-date') {
+                formattedStr = new Intl.DateTimeFormat('es-VE', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                }).format(date);
+            } else if (formatType === 'date-only') {
+                formattedStr = new Intl.DateTimeFormat('es-VE', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                }).format(date);
             }
             
             el.innerText = formattedStr;

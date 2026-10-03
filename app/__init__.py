@@ -87,9 +87,17 @@ def create_app(config_class=Config) -> Flask:
     from app.binnacle.routes import binnacle_bp
     app.register_blueprint(binnacle_bp, url_prefix='/binnacle')
 
+    # Registro del blueprint de Solicitudes (UREE)
+    from app.requests import requests_bp
+    app.register_blueprint(requests_bp, url_prefix='/requests')
+
     # Registro del blueprint de Analítica y Estadísticas
     from app.analytics import analytics_bp
     app.register_blueprint(analytics_bp, url_prefix='/analytics')
+
+    # Registro del blueprint de Configuraciones
+    from app.configurations import configurations_bp
+    app.register_blueprint(configurations_bp, url_prefix='/configurations')
 
     @app.route('/')
     def index():
