@@ -51,9 +51,13 @@
     </a>
     {% endif %}
 
-    {# Gestión de Solicitudes #}
-    {% if 'manage_requests' in user_permissions and user_role == 'super_admin' %}
-    <a href="{{ url_for('requests.national_monitoring') }}" class="card card-green">
+{# Gestión de Solicitudes #}
+{% if 'manage_requests' in user_permissions %}
+    {% if user_role == 'super_admin' %}
+        <a href="{{ url_for('requests.national_monitoring') }}" class="card card-green">
+    {% else %}
+        <a href="{{ url_for('requests.state_admin_dashboard') }}" class="card card-green">
+    {% endif %}
         <div class="card-header">
             <div class="card-title">Gestión de Solicitudes</div>
             <div class="card-icon">

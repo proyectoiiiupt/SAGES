@@ -1,0 +1,99 @@
+{% if pagination.items %}
+{% for req in pagination.items %}
+<tr>
+    <!-- 1. Enumeración Dinámica -->
+    <td class="col-num" style="font-weight: 600; color: #6c757d;">
+        {{ (pagination.page - 1) * pagination.per_page + loop.index }}
+    </td>
+    <!-- 2. Fecha y Código de Solicitud -->
+    <td class="col-date">
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+            <span class="local-datetime" data-utc="{{ req.created_at.isoformat() }}" data-format="date-only"></span>
+            <small class="text-muted" style="font-size: 0.8rem; color: #868e96; font-weight: 500;">{{ req.request_code }}</small>
+        </div>
+    </td>
+    <!-- 3. Semáforo (Estatus) -->
+    <td class="col-status" style="text-align: center;">
+        <span class="traffic-badge badge-{{ req.traffic_light_color }}">
+            {{ req.traffic_light_text }}
+        </span>
+    </td>
+    <!-- 4. Institución -->
+    <td class="col-institution">
+        <div class="truncate-text" title="{{ req.institutional_staff.institution.institution_name }}">
+            {{ req.institutional_staff.institution.institution_name }}
+        </div>
+    </td>
+    <!-- 5. Formación -->
+    <td class="col-training">
+        <div class="truncate-text" title="{{ req.training.name }}">
+            {{ req.training.name }}
+        </div>
+    </td>
+    <!-- 6. Ubicación: Municipio, Parroquia -->
+    <td class="col-location">
+        <div class="font-medium text-dark truncate-text" style="color: #334155; font-weight: 600; font-size: 0.9rem;" title="{{ req.institutional_staff.institution.parish.municipality.name | title }}">
+            {{ req.institutional_staff.institution.parish.municipality.name | title }}
+        </div>
+        <small class="text-muted truncate-text" style="display: block; font-size: 11px; color: #64748b;" title="{{ req.institutional_staff.institution.parish.name | title }}">
+            {{ req.institutional_staff.institution.parish.name | title }}
+        </small>
+    </td>
+    <!-- 7. Acción -->
+    <td class="col-actions" style="text-align: center;">
+        <a href="#" class="action-btn view-btn" title="Ver Detalles de Solicitud">Ver</a>
+    </td>
+</tr>
+{% endfor %}
+
+<!-- Controles de Paginación UI -->
+{% if pagination.pages > 1 %}
+<tr class="pagination-row">
+    <td colspan="7">
+        <div class="pagination-controls">
+            <span class="pagination-info">Mostrando {{ pagination.items|length }} Registros</span>
+            <div class="pagination-buttons">
+                {% if pagination.has_prev %}
+                <a href="?page={{ pagination.prev_num }}" class="page-link">&laquo;</a>
+                {% else %}
+                <span class="page-link disabled">&laquo;</span>
+                {% endif %}
+
+                {% for page_num in pagination.iter_pages() %}
+                {% if page_num %}
+                {% if page_num == pagination.page %}
+                <span class="page-link active">{{ page_num }}</span>
+                {% else %}
+                <a href="?page={{ page_num }}" class="page-link">{{ page_num }}</a>
+                {% endif %}
+                {% else %}
+                <span class="page-link disabled">...</span>
+                {% endif %}
+                {% endfor %}
+
+                {% if pagination.has_next %}
+                <a href="?page={{ pagination.next_num }}" class="page-link">&raquo;</a>
+                {% else %}
+                <span class="page-link disabled">&raquo;</span>
+                {% endif %}
+            </div>
+        </div>
+    </td>
+</tr>
+{% endif %}
+
+{% else %}
+<!-- Estado Vacío o Sin Resultados -->
+<tr>
+    <td colspan="7" class="empty-table-msg" style="text-align: center; padding: 40px; color: #888;">
+        <div style="display: flex; justify-content: center; margin-bottom: 15px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 52px; height: 52px; color: #cbd5e1;">
+                <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+                <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+            </svg>
+        </div>
+        <strong>Bandeja Limpia</strong><br>
+        No se encontraron solicitudes para este estado o bajo este criterio de búsqueda.
+    </td>
+</tr>
+{% endif %}
