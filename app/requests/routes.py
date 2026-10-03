@@ -1,4 +1,4 @@
-from flask import render_template
+from flask import render_template, request, jsonify
 from flask_login import login_required, current_user
 from app.decorators.auth_decorators import role_required, check_permissions
 from app.requests import requests_bp
@@ -207,6 +207,121 @@ def download_receipt_ticket(request_id):
 
 
 # ---------------------------------------------------------------------------
+# Ruta Administrador Estadal: Bandeja Territorial de Solicitudes (US-39)
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/state-dashboard', methods=['GET'])
+@login_required
+@role_required('state_admin')
+@check_permissions('manage_requests')
+def state_admin_dashboard():
+    """
+    Renderiza el centro de mando regional para el administrador estadal.
+    Aplica aislamiento estricto por Estado (Capa de Seguridad) y clasifica 
+    los expedientes por semáforo de prioridad lógica (Business Logic Sorting).
+    """
+    from flask import request, render_template, abort, flash
+    from app.requests.services import get_admin_state_id, get_state_dashboard_metrics, get_state_requests_paginated
+    
+    # 1. Extracción de Jurisdicción Inmutable
+    # Evita que el administrador intente inyectar '?state_id=5' en la URL.
+    state_id = get_admin_state_id(current_user)
+    if not state_id:
+        flash("Acceso denegado: Su perfil no posee una asignación territorial válida (Estado).", "danger")
+        abort(403)
+        
+    # 2. Captura de Parámetros GET (Paginación y Filtros Reactivos)
+    page = request.args.get('page', 1, type=int)
+    search_query = request.args.get('search', '', type=str)
+    status_id = request.args.get('status', None, type=int)
+    municipality_id = request.args.get('municipality', None, type=int)
+    
+    # 3. Consulta Masiva de KPIs Regionales
+    metrics = get_state_dashboard_metrics(state_id)
+    
+    # 4. Consulta Paginada de Expedientes
+    per_page = min(request.args.get('per_page', 10, type=int), 50)
+    
+    pagination = get_state_requests_paginated(
+        state_id=state_id, 
+        page=page, 
+        per_page=per_page, 
+        search_query=search_query,
+        status_id=status_id,
+        municipality_id=municipality_id
+    )
+    
+    # 5. Respuesta Dual (Soporte para recarga asíncrona o primera carga completa)
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('ajax'):
+        # Retorna un fragmento (Partial) solo con los <tr> para el Fetch JS
+        return render_template('requests/partials/_state_dashboard_table.html', pagination=pagination)
+        
+    # Consultas auxiliares para llenar los `<select>` de filtros
+    from app.models.status_model import Status
+    from app.models.municipality_model import Municipality
+    
+    # Obtener estatus relevantes para solicitudes (STAT-003 al STAT-009)
+    available_statuses = Status.query.filter(
+        Status.status_code.in_(['STAT-003', 'STAT-004', 'STAT-005', 'STAT-006', 'STAT-007', 'STAT-008', 'STAT-009'])
+    ).all()
+    
+    # Obtener municipios de la jurisdicción actual
+    available_municipalities = Municipality.query.filter_by(state_id=state_id).order_by(Municipality.name.asc()).all()
+
+    # Primera carga de la página
+    return render_template(
+        'requests/state_dashboard.html',
+        metrics=metrics,
+        pagination=pagination,
+        search_query=search_query,
+        current_status=status_id,
+        current_municipality=municipality_id,
+        statuses=available_statuses,
+        municipalities=available_municipalities,
+        user_state=current_user.person.company_staff[0].place.parish.municipality.state.name
+    )
+
+# ---------------------------------------------------------------------------
+# Ruta Administrador Estadal: Vista Detallada de Solicitud (Ficha Técnica)
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/<int:id>/detail', methods=['GET'])
+@login_required
+@role_required('state_admin')
+@check_permissions('manage_requests')
+def state_request_detail(id):
+    """
+    Renderiza la Ficha Técnica Individual.
+    Carga toda la información de la solicitud.
+    """
+    from flask import render_template, abort, flash, redirect, url_for
+    from app.requests.services import get_admin_state_id, get_request_full_detail
+    
+    # 1. Extraer la jurisdicción inmutable del Administrador en sesión
+    admin_state_id = get_admin_state_id(current_user)
+    if not admin_state_id:
+        flash("Acceso denegado: Su perfil no posee una asignación territorial válida.", "danger")
+        abort(403)
+        
+    # 2. Cargar la radiografía completa del expediente
+    # Lanza 404 de manera nativa si la solicitud no existe.
+    req = get_request_full_detail(id)
+    
+    # 3. Escudo Territorial Transversal
+    # Compara el Estado de la Institución solicitante contra el Estado del Administrador.
+    req_state_id = req.institutional_staff.institution.parish.municipality.state_id
+    if req_state_id != admin_state_id:
+        flash("Violación de Acceso: El expediente solicitado pertenece a otra jurisdicción territorial.", "danger")
+        abort(403)
+        
+    # 4. Regla de Negocio: Exclusión de Trámites Cerrados
+    # La consola operativa no gestiona históricos. Si ya culminó o se canceló, se deniega la entrada.
+    if req.historical:
+        flash("Este expediente ya se encuentra cerrado (Histórico) y no admite más gestiones operativas.", "warning")
+        return redirect(url_for('requests.state_admin_dashboard'))
+        
+    return render_template('requests/state_request_detail.html', req=req)
+# ---------------------------------------------------------------------------  
 # Ruta Super Administrador: Tablero de Monitoreo Nacional (US-38)
 # ---------------------------------------------------------------------------
 
@@ -305,4 +420,129 @@ def national_monitoring():
         filters=active_filters,
         default_state_id=default_state_id
     )
+
+
+# ---------------------------------------------------------------------------
+# Rutas Super Administrador: Auditoría de Retrasos SLA y Exigencia Coercitiva (US-38-act2)
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/delays-audit', methods=['GET'])
+@login_required
+@role_required('super_admin')
+@check_permissions('manage_requests')
+def delays_audit():
+    """
+    Renderiza el Panel de Auditoría de Retrasos SLA (Vista A.2)
+    para el Super Administrador. Centraliza los expedientes con infracciones normativas
+    (>72h en atención inicial o >10 días en ejecución presencial).
+    """
+    from app.models.state_model import State
+    from app.requests.services import get_delays_audit_data
+
+    # 1. Resolución de Estado (Pre-filtrado inteligente vs Selección explícita)
+    user = User.query.get(current_user.id)
+    default_state_id = None
+    if user and user.person and user.person.company_staff:
+        try:
+            default_state_id = user.person.company_staff[0].place.parish.municipality.state_id
+        except (IndexError, AttributeError):
+            default_state_id = None
+
+    if 'state_id' not in request.args:
+        selected_state_id = default_state_id
+        state_filter_val = str(default_state_id) if default_state_id else 'all'
+    else:
+        raw_state = request.args.get('state_id', '').strip()
+        if raw_state in ('', 'all', '0'):
+            selected_state_id = None
+            state_filter_val = 'all'
+        elif raw_state.isdigit():
+            selected_state_id = int(raw_state)
+            state_filter_val = str(selected_state_id)
+        else:
+            selected_state_id = None
+            state_filter_val = 'all'
+
+    # 2. Filtro por estatus de descargo (all, unjustified, justified)
+    justification_status = request.args.get('justification_status', 'all').strip()
+    if justification_status not in ('all', 'unjustified', 'justified'):
+        justification_status = 'all'
+
+    # 3. Búsqueda y paginación
+    search = request.args.get('search', '').strip()
+
+    try:
+        page = max(1, int(request.args.get('page', 1)))
+    except (ValueError, TypeError):
+        page = 1
+
+    try:
+        per_page = min(max(1, int(request.args.get('per_page', 10))), 50)
+    except (ValueError, TypeError):
+        per_page = 10
+
+    # 4. Invocar servicio
+    data = get_delays_audit_data(
+        user=user,
+        state_id=selected_state_id,
+        justification_status=justification_status,
+        search=search,
+        page=page,
+        per_page=per_page
+    )
+
+    # 5. Catálogo de Estados para el selector
+    states = State.query.order_by(State.name.asc()).all()
+
+    active_filters = {
+        'state_id': state_filter_val,
+        'justification_status': justification_status,
+        'search': search,
+        'per_page': per_page
+    }
+
+    return render_template(
+        'requests/delays_audit.html',
+        kpis=data['kpis'],
+        pagination=data['pagination'],
+        requests=data['requests'],
+        states=states,
+        filters=active_filters,
+        default_state_id=default_state_id
+    )
+
+
+@requests_bp.route('/api/delays/<int:request_id>/justification', methods=['GET'])
+@login_required
+@role_required('super_admin')
+@check_permissions('manage_requests')
+def get_delay_justification(request_id):
+    """
+    Endpoint AJAX para obtener los detalles de la justificación técnica de mora.
+    Retorna JSON { request_code, institution_name, reason_name, submitted_by, created_at, justification_text, justification_type }.
+    """
+    from app.requests.services import get_request_justification_detail
+
+    detail = get_request_justification_detail(request_id)
+    if not detail:
+        return jsonify({'error': 'No se encontró un descargo formal registrado para este expediente.'}), 404
+
+    return jsonify(detail), 200
+
+
+@requests_bp.route('/api/delays/<int:request_id>/demand-response', methods=['POST'])
+@login_required
+@role_required('super_admin')
+@check_permissions('manage_requests')
+@limiter.limit("3 per 2 hours", methods=["POST"], key_func=lambda: f"demand_delay_{request.view_args.get('request_id')}")
+def demand_delay_response_endpoint(request_id):
+    """
+    Endpoint AJAX con rate limiting (máx. 3 cada 2 horas por solicitud)
+    para despachar la intimación coercitiva (notificación DANGER, correo formal y bitácoras).
+    """
+    from app.requests.services import demand_delay_response
+
+    success, message, status_code = demand_delay_response(request_id, current_user)
+    return jsonify({'success': success, 'message': message}), status_code
+
 
