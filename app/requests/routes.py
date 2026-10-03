@@ -204,3 +204,105 @@ def download_receipt_ticket(request_id):
         import logging
         logging.getLogger(__name__).error(f"Error sirviendo el PDF de la solicitud {req.request_code}: {e}")
         abort(500, description="Error interno al generar el documento. Intente nuevamente.")
+
+
+# ---------------------------------------------------------------------------
+# Ruta Super Administrador: Tablero de Monitoreo Nacional (US-38)
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/national-monitoring', methods=['GET'])
+@login_required
+@role_required('super_admin')
+@check_permissions('manage_requests')
+def national_monitoring():
+    """
+    Renderiza el Tablero de Monitoreo Nacional con semáforo y pre-filtrado (US-38)
+    para el Super Administrador.
+    """
+    from flask import request
+    from app.models.state_model import State
+    from app.models.training_module_model import TrainingModule
+    from app.models.status_model import Status
+    from app.requests.services import get_national_monitoring_data
+
+    # 1. Resolución de Estado (Pre-filtrado inteligente vs Selección explícita)
+    # Si 'state_id' no está en request.args (primera carga / acceso inicial),
+    # se preselecciona la sede corporativa del Super Administrador.
+    user = User.query.get(current_user.id)
+    default_state_id = None
+    if user and user.person and user.person.company_staff:
+        try:
+            default_state_id = user.person.company_staff[0].place.parish.municipality.state_id
+        except (IndexError, AttributeError):
+            default_state_id = None
+
+    if 'state_id' not in request.args:
+        # Primera carga: asignar sede corporativa
+        selected_state_id = default_state_id
+        state_filter_val = str(default_state_id) if default_state_id else 'all'
+    else:
+        raw_state = request.args.get('state_id', '').strip()
+        if raw_state in ('', 'all', '0'):
+            selected_state_id = None
+            state_filter_val = 'all'
+        elif raw_state.isdigit():
+            selected_state_id = int(raw_state)
+            state_filter_val = str(selected_state_id)
+        else:
+            selected_state_id = None
+            state_filter_val = 'all'
+
+    # 2. Otros filtros y paginación
+    search = request.args.get('search', '').strip()
+    raw_module = request.args.get('module_id', '').strip()
+    module_id = int(raw_module) if raw_module.isdigit() else None
+    
+    raw_status = request.args.get('status_id', '').strip()
+    status_id = int(raw_status) if raw_status.isdigit() else (raw_status if raw_status else None)
+    
+    try:
+        page = max(1, int(request.args.get('page', 1)))
+    except (ValueError, TypeError):
+        page = 1
+        
+    try:
+        per_page = min(max(1, int(request.args.get('per_page', 10))), 50)
+    except (ValueError, TypeError):
+        per_page = 10
+
+    # 3. Invocar servicio de agregación y filtrado
+    data = get_national_monitoring_data(
+        state_id=selected_state_id,
+        search=search,
+        module_id=module_id,
+        status_id=status_id,
+        page=page,
+        per_page=per_page
+    )
+
+    # 4. Catálogos para selectores
+    states = State.query.order_by(State.name.asc()).all()
+    modules = TrainingModule.query.filter_by(is_active=True).order_by(TrainingModule.order_index).all()
+    statuses = Status.query.filter(Status.context.like('%Solicitudes%')).order_by(Status.id.asc()).all()
+
+    # Filtros actuales para la vista
+    active_filters = {
+        'state_id': state_filter_val,
+        'search': search,
+        'module_id': raw_module,
+        'status_id': raw_status,
+        'per_page': per_page
+    }
+
+    return render_template(
+        'requests/national_monitoring.html',
+        kpis=data['kpis'],
+        pagination=data['pagination'],
+        requests=data['requests'],
+        states=states,
+        modules=modules,
+        statuses=statuses,
+        filters=active_filters,
+        default_state_id=default_state_id
+    )
+
