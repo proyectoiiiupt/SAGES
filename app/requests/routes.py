@@ -1,4 +1,4 @@
-from flask import render_template
+from flask import render_template, request, jsonify
 from flask_login import login_required, current_user
 from app.decorators.auth_decorators import role_required, check_permissions
 from app.requests import requests_bp
@@ -305,4 +305,129 @@ def national_monitoring():
         filters=active_filters,
         default_state_id=default_state_id
     )
+
+
+# ---------------------------------------------------------------------------
+# Rutas Super Administrador: Auditoría de Retrasos SLA y Exigencia Coercitiva (US-38-act2)
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/delays-audit', methods=['GET'])
+@login_required
+@role_required('super_admin')
+@check_permissions('manage_requests')
+def delays_audit():
+    """
+    Renderiza el Panel de Auditoría de Retrasos SLA (Vista A.2)
+    para el Super Administrador. Centraliza los expedientes con infracciones normativas
+    (>72h en atención inicial o >10 días en ejecución presencial).
+    """
+    from app.models.state_model import State
+    from app.requests.services import get_delays_audit_data
+
+    # 1. Resolución de Estado (Pre-filtrado inteligente vs Selección explícita)
+    user = User.query.get(current_user.id)
+    default_state_id = None
+    if user and user.person and user.person.company_staff:
+        try:
+            default_state_id = user.person.company_staff[0].place.parish.municipality.state_id
+        except (IndexError, AttributeError):
+            default_state_id = None
+
+    if 'state_id' not in request.args:
+        selected_state_id = default_state_id
+        state_filter_val = str(default_state_id) if default_state_id else 'all'
+    else:
+        raw_state = request.args.get('state_id', '').strip()
+        if raw_state in ('', 'all', '0'):
+            selected_state_id = None
+            state_filter_val = 'all'
+        elif raw_state.isdigit():
+            selected_state_id = int(raw_state)
+            state_filter_val = str(selected_state_id)
+        else:
+            selected_state_id = None
+            state_filter_val = 'all'
+
+    # 2. Filtro por estatus de descargo (all, unjustified, justified)
+    justification_status = request.args.get('justification_status', 'all').strip()
+    if justification_status not in ('all', 'unjustified', 'justified'):
+        justification_status = 'all'
+
+    # 3. Búsqueda y paginación
+    search = request.args.get('search', '').strip()
+
+    try:
+        page = max(1, int(request.args.get('page', 1)))
+    except (ValueError, TypeError):
+        page = 1
+
+    try:
+        per_page = min(max(1, int(request.args.get('per_page', 10))), 50)
+    except (ValueError, TypeError):
+        per_page = 10
+
+    # 4. Invocar servicio
+    data = get_delays_audit_data(
+        user=user,
+        state_id=selected_state_id,
+        justification_status=justification_status,
+        search=search,
+        page=page,
+        per_page=per_page
+    )
+
+    # 5. Catálogo de Estados para el selector
+    states = State.query.order_by(State.name.asc()).all()
+
+    active_filters = {
+        'state_id': state_filter_val,
+        'justification_status': justification_status,
+        'search': search,
+        'per_page': per_page
+    }
+
+    return render_template(
+        'requests/delays_audit.html',
+        kpis=data['kpis'],
+        pagination=data['pagination'],
+        requests=data['requests'],
+        states=states,
+        filters=active_filters,
+        default_state_id=default_state_id
+    )
+
+
+@requests_bp.route('/api/delays/<int:request_id>/justification', methods=['GET'])
+@login_required
+@role_required('super_admin')
+@check_permissions('manage_requests')
+def get_delay_justification(request_id):
+    """
+    Endpoint AJAX para obtener los detalles de la justificación técnica de mora.
+    Retorna JSON { request_code, institution_name, reason_name, submitted_by, created_at, justification_text, justification_type }.
+    """
+    from app.requests.services import get_request_justification_detail
+
+    detail = get_request_justification_detail(request_id)
+    if not detail:
+        return jsonify({'error': 'No se encontró un descargo formal registrado para este expediente.'}), 404
+
+    return jsonify(detail), 200
+
+
+@requests_bp.route('/api/delays/<int:request_id>/demand-response', methods=['POST'])
+@login_required
+@role_required('super_admin')
+@check_permissions('manage_requests')
+@limiter.limit("3 per 2 hours", methods=["POST"], key_func=lambda: f"demand_delay_{request.view_args.get('request_id')}")
+def demand_delay_response_endpoint(request_id):
+    """
+    Endpoint AJAX con rate limiting (máx. 3 cada 2 horas por solicitud)
+    para despachar la intimación coercitiva (notificación DANGER, correo formal y bitácoras).
+    """
+    from app.requests.services import demand_delay_response
+
+    success, message, status_code = demand_delay_response(request_id, current_user)
+    return jsonify({'success': success, 'message': message}), status_code
+
 
