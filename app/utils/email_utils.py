@@ -461,3 +461,128 @@ def send_request_receipt_email(to_email: str, full_name: str, institution_name: 
     thread.start()
     return True
 
+
+def send_delay_demand_email(
+    to_email: str,
+    recipient_name: str,
+    request_code: str,
+    institution_name: str,
+    delay_info: str,
+    phase_name: str
+) -> bool:
+    """
+    Despacha un correo formal de intimación institucional por vencimiento de plazos normativos ANS (SLA).
+    Se ejecuta de forma asíncrona mediante un hilo en segundo plano (threading.Thread).
+    """
+    subject = f"[URGENTE] Exigencia de Respuesta ANS - Trámite {request_code}"
+
+    text_content = f"""
+SAGES - CORPOELEC
+SISTEMA AUTOMATIZADO DE GESTIÓN PARA LA EFICIENCIA SOCIAL
+
+REQUERIMIENTO INSTITUCIONAL URGENTE
+EXIGENCIA FORMAL DE JUSTIFICACIÓN DE RETRASO
+
+Estimado(a) {recipient_name}:
+
+La Gerencia General (Super Administrador), en ejercicio de sus funciones de fiscalización y auditoría del Acuerdo de Nivel de Servicio (ANS / SLA), ha detectado que el siguiente expediente formativo se encuentra en mora y ha vulnerado los tiempos normativos institucionales de CORPOELEC:
+
+- Código de Trámite: {request_code}
+- Institución Educativa: {institution_name}
+- Fase Operativa: {phase_name}
+- Tiempo de Mora Detectado: {delay_info}
+
+Por tal motivo, se le intima a ingresar de manera INMEDIATA a la plataforma SAGES y consignar el descargo operativo y justificación técnica correspondiente para la regularización del caso.
+
+Este mensaje fue generado automáticamente por la Gerencia de Auditoría y Fiscalización SLA.
+© 2026 SAGES - CORPOELEC. Todos los derechos reservados.
+"""
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <title>Exigencia de Respuesta ANS - SAGES</title>
+    </head>
+    <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; margin: 0; padding: 0;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); overflow: hidden; border: 1px solid #fee2e2;">
+            <!-- Cabecera Institucional Roja -->
+            <tr>
+                <td align="center" style="background: linear-gradient(135deg, #991b1b 0%, #b91c1c 100%); padding: 30px 20px;">
+                    <span style="display: inline-block; background-color: rgba(255,255,255,0.2); color: #ffffff; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; margin-bottom: 10px;">
+                        AUDITORÍA NACIONAL SLA
+                    </span>
+                    <h1 style="color: #ffffff; font-size: 22px; margin: 0; font-weight: 700; letter-spacing: -0.5px;">
+                        REQUERIMIENTO FORMAL DE RESPUESTA
+                    </h1>
+                    <p style="color: #fecaca; font-size: 13px; margin: 8px 0 0 0;">
+                        Vencimiento de Acuerdo de Nivel de Servicio (ANS)
+                    </p>
+                </td>
+            </tr>
+
+            <!-- Contenido Principal -->
+            <tr>
+                <td style="padding: 35px 35px 20px 35px;">
+                    <p style="font-size: 15px; color: #1f2937; margin: 0 0 16px 0;">
+                        Estimado(a) <strong>{recipient_name}</strong>,
+                    </p>
+                    <p style="font-size: 14px; color: #4b5563; line-height: 1.6; margin: 0 0 24px 0;">
+                        La Gerencia General, mediante el módulo de fiscalización de solicitudes de <strong>SAGES</strong>, ha emitido una <strong style="color: #991b1b;">exigencia formal e inmediata de justificación operativa</strong> debido al vencimiento de los plazos reglamentarios de atención para el siguiente trámite:
+                    </p>
+
+                    <!-- Tarjeta con Resumen del Trámite -->
+                    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; margin-bottom: 25px;">
+                        <tr>
+                            <td style="padding: 16px 20px;">
+                                <table width="100%" cellpadding="4" cellspacing="0" style="font-size: 13px;">
+                                    <tr>
+                                        <td style="color: #7f1d1d; font-weight: 600; width: 40%;">Expediente:</td>
+                                        <td style="color: #111827; font-weight: 700;">{request_code}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="color: #7f1d1d; font-weight: 600;">Plantel Educativo:</td>
+                                        <td style="color: #111827;">{institution_name}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="color: #7f1d1d; font-weight: 600;">Fase en Mora:</td>
+                                        <td style="color: #111827;">{phase_name}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="color: #7f1d1d; font-weight: 600;">Demora Acumulada:</td>
+                                        <td style="color: #b91c1c; font-weight: 700;">{delay_info}</td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 4px; margin-bottom: 25px;">
+                        <p style="font-size: 13px; color: #92400e; margin: 0; line-height: 1.5;">
+                            <strong>Instrucción Inmediata:</strong> Debe ingresar a la consola de gestión de solicitudes en SAGES y consignar el motivo oficial del retraso o programar la acción operativa pendiente.
+                        </p>
+                    </div>
+
+                    <p style="font-size: 12px; color: #6b7280; line-height: 1.5; margin: 0;">
+                        * Este requerimiento ha quedado registrado con severidad <strong>CRÍTICA</strong> en la bitácora transversal de trazabilidad del expediente y en la bitácora de auditoría forense institucional.
+                    </p>
+                </td>
+            </tr>
+
+            <!-- Pie de Página -->
+            <tr>
+                <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
+                    &copy; 2026 SAGES - CORPOELEC. Todos los derechos reservados.
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+
+    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content))
+    thread.start()
+    return True
+
+

@@ -52,7 +52,7 @@
     {% endif %}
 
     {# Gestión de Solicitudes #}
-    {% if 'manage_requests' in user_permissions %}
+    {% if 'manage_requests' in user_permissions and user_role == 'super_admin' %}
     <a href="{{ url_for('requests.national_monitoring') }}" class="card card-green">
         <div class="card-header">
             <div class="card-title">Gestión de Solicitudes</div>
