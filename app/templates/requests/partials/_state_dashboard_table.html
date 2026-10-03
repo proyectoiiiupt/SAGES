@@ -41,7 +41,7 @@
     </td>
     <!-- 7. Acción -->
     <td class="col-actions" style="text-align: center;">
-        <a href="#" class="action-btn view-btn" title="Ver Detalles de Solicitud">Ver</a>
+        <a href="{{ url_for('requests.state_request_detail', id=req.id) }}" class="action-btn view-btn" title="Ver Detalles de Solicitud">Ver</a>
     </td>
 </tr>
 {% endfor %}

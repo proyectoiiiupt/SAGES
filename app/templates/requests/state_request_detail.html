@@ -1,0 +1,282 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}SAGES - Detalle de Solicitud{% endblock %}
+
+{% block extra_css %}
+<!-- Hoja de estilos específica de la Ficha Técnica -->
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_detail.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="detail-container">
+
+    <!-- 1. Cabecera Estilo Banner -->
+    <div class="dashboard-banner">
+        <div class="banner-date">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span id="current-date-display"></span>
+        </div>
+        <div class="banner-title">
+            Ficha Técnica de Solicitud
+        </div>
+    </div>
+
+    <!-- 2. Action Toolbar (Navegación y Acciones) -->
+    <div class="action-toolbar">
+        <div class="toolbar-left">
+            <a href="{{ url_for('requests.state_admin_dashboard') }}" class="btn-cancel">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                Volver a la Bandeja
+            </a>
+        </div>
+        <div class="action-buttons">
+            {% if req.status.status_code == 'STAT-003' %}
+
+            {% if req.has_delay_block %}
+            <button type="button" class="btn-action-danger">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                    </path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                Justificar Retraso
+            </button>
+            <button type="button" class="btn-action-primary" disabled title="Debe justificar el retraso primero">
+                Atender Solicitud
+            </button>
+            {% else %}
+            <button type="button" class="btn-action-primary">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+                Atender Solicitud
+            </button>
+            {% endif %}
+
+            {% elif req.status.status_code in ['STAT-004', 'STAT-005', 'STAT-006'] %}
+
+            {% if req.has_delay_block %}
+            <button type="button" class="btn-action-danger">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                    </path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                Justificar Retraso
+            </button>
+            <button type="button" class="btn-action-primary" disabled title="Debe justificar el retraso primero">
+                Seguir Solicitud
+            </button>
+            {% else %}
+            <button type="button" class="btn-action-primary">
+                Seguir Solicitud
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+            </button>
+            {% endif %}
+
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 3. Cabecera Secundaria (Estado y Radicación) -->
+    <div class="detail-main-header status-border-{{ req.traffic_light_color }}">
+        <div class="request-id-block">
+            <h1>
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#019577" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                Código: {{ req.request_code }}
+            </h1>
+            <div class="request-meta">
+                <span>
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    Radicada el: <strong class="local-datetime" data-utc="{{ req.created_at.isoformat() }}"
+                        data-format="standard"></strong>
+                </span>
+            </div>
+        </div>
+
+        <div class="request-status-block">
+            <span class="status-badge-lg badge-{{ req.traffic_light_color }}">
+                {% if 'Excedido' in req.traffic_light_text or '+' in req.traffic_light_text or 'Quedan' in
+                req.traffic_light_text %}
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                    </path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                {% else %}
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 8 12 12 14 15"></polyline>
+                </svg>
+                {% endif %}
+                {{ req.traffic_light_text }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Ficha Técnica Integral -->
+    <div class="ficha-tecnica status-border-{{ req.traffic_light_color }}">
+        <div class="ficha-grid-columns">
+
+            <!-- Columna 1: Plantel -->
+            <div class="ficha-columna">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                        </svg>
+                    </div>
+                    <h2>Datos del Plantel</h2>
+                </div>
+                <ul class="info-list">
+                    <li class="info-item">
+                        <span class="info-label">Institución Educativa</span>
+                        <span class="info-value">{{ req.institutional_staff.institution.institution_name }}</span>
+                    </li>
+                    <li class="info-item">
+                        <span class="info-label">Código Plantel</span>
+                        <span class="info-value">{{ req.institutional_staff.institution.plantel_code }}</span>
+                    </li>
+                    <li class="info-item">
+                        <span class="info-label">Ubicación Geográfica</span>
+                        <span class="info-value" style="line-height: 1.4;">
+                            {{ req.institutional_staff.institution.parish.municipality.state.name | title }} /
+                            {% set locs = req.institutional_staff.institution.parish.locations %}
+                            {% if locs %}{{ locs[0].city.name | title }} / {% endif %}
+                            {{ req.institutional_staff.institution.parish.municipality.name | title }} /
+                            {{ req.institutional_staff.institution.parish.name | title }}
+                        </span>
+                    </li>
+                    <li class="info-item">
+                        <span class="info-label">Dirección Detallada</span>
+                        <span class="info-value" style="font-size: 0.9rem; color: #475569;">{{
+                            req.institutional_staff.institution.address }}</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Columna 2: Solicitante -->
+            <div class="ficha-columna">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </div>
+                    <h2>Datos del Solicitante</h2>
+                </div>
+                <ul class="info-list">
+                    <li class="info-item">
+                        <span class="info-label">Nombre del Solicitante</span>
+                        <span class="info-value">{{ req.institutional_staff.person.first_name }} {{
+                            req.institutional_staff.person.last_name }}</span>
+                    </li>
+                    <li class="info-item">
+                        <span class="info-label">Cédula de Identidad</span>
+                        <span class="info-value">{{ req.institutional_staff.person.identification_type }}-{{
+                            "{:,.0f}".format(req.institutional_staff.person.identification_number | int).replace(',',
+                            '.') }}</span>
+                    </li>
+                    <li class="info-item">
+                        <span class="info-label">Teléfono de Contacto</span>
+                        <span class="info-value">
+                            {% set tlf = req.institutional_staff.person.mobile or req.institutional_staff.person.phone
+                            or '' %}
+                            {% if tlf|length == 11 %}
+                            ({{ tlf[:4] }})-{{ tlf[4:] }}
+                            {% else %}
+                            {{ tlf or 'No registrado' }}
+                            {% endif %}
+                        </span>
+                    </li>
+                    <li class="info-item">
+                        <span class="info-label">Correo Electrónico</span>
+                        <span class="info-value">{{ req.institutional_staff.person.email or 'No registrado' }}</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Columna 3: Requerimiento -->
+            <div class="ficha-columna">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                        </svg>
+                    </div>
+                    <h2>Requerimientos</h2>
+                </div>
+                <ul class="info-list">
+                    <li class="info-item">
+                        <span class="info-label">Módulo UREE</span>
+                        <span class="info-value">{{ req.training.training_module.name }}</span>
+                    </li>
+                    <li class="info-item">
+                        <span class="info-label">Tema Formativo</span>
+                        <span class="info-value">{{ req.training.name }}</span>
+                    </li>
+                    <li class="info-item">
+                        <span class="info-label">Justificación de la Necesidad</span>
+                        <div
+                            style="background: #f8fafc; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 0.95rem; color: #334155; line-height: 1.5; margin-top: 4px;">
+                            {{ req.description }}
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Inicializar el reloj del banner
+        const dateElement = document.getElementById('current-date-display');
+        if (dateElement) {
+            dateElement.setAttribute('data-utc', new Date().toISOString());
+            dateElement.classList.add('local-datetime');
+            dateElement.setAttribute('data-format', 'full-date');
+
+            // Llamar explícitamente a la macro global de formato si está disponible
+            if (typeof formatAllLocalTimes === 'function') {
+                formatAllLocalTimes();
+            }
+        }
+    });
+</script>
+{% endblock %}

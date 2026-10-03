@@ -281,6 +281,46 @@ def state_admin_dashboard():
         user_state=current_user.person.company_staff[0].place.parish.municipality.state.name
     )
 
+# ---------------------------------------------------------------------------
+# Ruta Administrador Estadal: Vista Detallada de Solicitud (Ficha Técnica)
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/<int:id>/detail', methods=['GET'])
+@login_required
+@role_required('state_admin')
+@check_permissions('manage_requests')
+def state_request_detail(id):
+    """
+    Renderiza la Ficha Técnica Individual.
+    Carga toda la información de la solicitud.
+    """
+    from flask import render_template, abort, flash, redirect, url_for
+    from app.requests.services import get_admin_state_id, get_request_full_detail
+    
+    # 1. Extraer la jurisdicción inmutable del Administrador en sesión
+    admin_state_id = get_admin_state_id(current_user)
+    if not admin_state_id:
+        flash("Acceso denegado: Su perfil no posee una asignación territorial válida.", "danger")
+        abort(403)
+        
+    # 2. Cargar la radiografía completa del expediente
+    # Lanza 404 de manera nativa si la solicitud no existe.
+    req = get_request_full_detail(id)
+    
+    # 3. Escudo Territorial Transversal
+    # Compara el Estado de la Institución solicitante contra el Estado del Administrador.
+    req_state_id = req.institutional_staff.institution.parish.municipality.state_id
+    if req_state_id != admin_state_id:
+        flash("Violación de Acceso: El expediente solicitado pertenece a otra jurisdicción territorial.", "danger")
+        abort(403)
+        
+    # 4. Regla de Negocio: Exclusión de Trámites Cerrados
+    # La consola operativa no gestiona históricos. Si ya culminó o se canceló, se deniega la entrada.
+    if req.historical:
+        flash("Este expediente ya se encuentra cerrado (Histórico) y no admite más gestiones operativas.", "warning")
+        return redirect(url_for('requests.state_admin_dashboard'))
+        
+    return render_template('requests/state_request_detail.html', req=req)
 # ---------------------------------------------------------------------------  
 # Ruta Super Administrador: Tablero de Monitoreo Nacional (US-38)
 # ---------------------------------------------------------------------------
