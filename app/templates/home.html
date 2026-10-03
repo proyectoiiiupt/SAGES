@@ -311,7 +311,7 @@
 
     {# Configuración #}
     {% if 'system_configuration' in user_permissions %}
-    <a href="#" class="card card-cyan">
+    <a href="{{ url_for('configurations.index') }}" class="card card-cyan">
         <div class="card-header">
             <div class="card-title">Configuración</div>
             <div class="card-icon">

@@ -1,0 +1,572 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}SAGES - Configuración{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/configurations.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/sweetalert2.min.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="config-container">
+
+    <!-- ── CABECERA ESTÁNDAR (.page-header) ── -->
+    <div class="page-header">
+        <div class="page-title">
+            <h1>Configuración</h1>
+        </div>
+        <div class="page-date">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span id="config-date-text"></span>
+        </div>
+    </div>
+
+    <!-- ── ESTRUCTURA DE DOS COLUMNAS (LAYOUT DE PESTAÑAS AGRUPADAS) ── -->
+    <div class="config-layout-grid">
+
+        <!-- COLUMNA IZQUIERDA: PANEL DE PESTAÑAS LATERALES -->
+        <aside class="config-nav-panel">
+            
+            <!-- Grupo 1: SISTEMA -->
+            <div class="nav-group">
+                <span class="nav-group-title">SISTEMA</span>
+                
+                <button type="button" class="config-tab-btn active" data-tab="roles" id="btn-tab-roles">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                    <span>Roles y Permisos</span>
+                </button>
+
+                <button type="button" class="config-tab-btn" data-tab="backups" id="btn-tab-backups">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                    </svg>
+                    <span>Respaldos (Backups)</span>
+                </button>
+            </div>
+
+            <!-- Grupo 2: ORGANIZACIÓN -->
+            <div class="nav-group">
+                <span class="nav-group-title">ORGANIZACIÓN</span>
+
+                <button type="button" class="config-tab-btn" data-tab="corporate" id="btn-tab-corporate">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                    </svg>
+                    <span>Datos Corporativos</span>
+                </button>
+
+                <button type="button" class="config-tab-btn" data-tab="places" id="btn-tab-places">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                        <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                    <span>Control de Sedes</span>
+                </button>
+            </div>
+
+        </aside>
+
+        <!-- COLUMNA DERECHA: CONTENEDOR REACTIVO DE SUBVISTAS -->
+        <main class="config-content-panel">
+
+            <!-- ══════════════════════════════════════════════════════════ -->
+            <!-- SUBVISTA 1: ROLES Y PERMISOS (#tab-roles)                 -->
+            <!-- ══════════════════════════════════════════════════════════ -->
+            <section class="config-tab-content active" id="tab-roles">
+                <div class="content-card">
+                    <div class="card-header-group">
+                        <div>
+                            <h2 class="section-title">Roles y Permisos</h2>
+                            <p class="section-description">Define los niveles de acceso y acciones permitidas en el sistema.</p>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="config-table">
+                            <thead>
+                                <tr>
+                                    <th>Rol</th>
+                                    <th class="text-center">Usuarios</th>
+                                    <th class="text-center">Nivel de Acceso</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <div class="role-cell">
+                                            <span class="role-icon-box bg-purple">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                                            </span>
+                                            <div>
+                                                <strong>Super Administrador</strong>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center"><span class="badge-count">2</span></td>
+                                    <td class="text-center"><span class="badge-status badge-success">Acceso Total</span></td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn-action btn-manage-role" data-role-name="Super Administrador" data-role-code="super_admin">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                                            Gestionar
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div class="role-cell">
+                                            <span class="role-icon-box bg-blue">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                                            </span>
+                                            <div>
+                                                <strong>Administrador Estadal</strong>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center"><span class="badge-count">8</span></td>
+                                    <td class="text-center"><span class="badge-status badge-info">Aprobación Regional</span></td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn-action btn-manage-role" data-role-name="Administrador Estadal" data-role-code="state_admin">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                                            Gestionar
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div class="role-cell">
+                                            <span class="role-icon-box bg-teal">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                            </span>
+                                            <div>
+                                                <strong>Solicitante (Comunitario)</strong>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center"><span class="badge-count">45</span></td>
+                                    <td class="text-center"><span class="badge-status badge-neutral">Lectura y Carga</span></td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn-action btn-manage-role" data-role-name="Solicitante (Comunitario)" data-role-code="applicant">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                                            Gestionar
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ══════════════════════════════════════════════════════════ -->
+            <!-- SUBVISTA 2: RESPALDOS DEL SISTEMA (#tab-backups)          -->
+            <!-- ══════════════════════════════════════════════════════════ -->
+            <section class="config-tab-content" id="tab-backups">
+                <div class="content-card">
+                    <div class="card-header-group">
+                        <div>
+                            <h2 class="section-title">Respaldos del Sistema (Backups)</h2>
+                            <p class="section-description">Gestión de copias de seguridad de la base de datos PostgreSQL para salvaguarda de contingencia.</p>
+                        </div>
+                    </div>
+
+                    <!-- Cuadrícula de KPIs -->
+                    <div class="backup-kpi-grid">
+                        <div class="backup-kpi-card">
+                            <div class="kpi-icon-wrapper bg-green-light">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                            </div>
+                            <div>
+                                <span class="kpi-label">Último Respaldo Automático</span>
+                                <strong class="kpi-main-val">Ayer a las 23:59:01 (Caracas)</strong>
+                                <span class="kpi-sub-val">Estado: Exitoso (18.4 MB)</span>
+                            </div>
+                        </div>
+
+                        <div class="backup-kpi-card">
+                            <div class="kpi-icon-wrapper bg-blue-light">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                            </div>
+                            <div style="flex: 1;">
+                                <span class="kpi-label">Frecuencia Programada</span>
+                                <strong class="kpi-main-val" id="kpi-schedule-freq">Semanal (Domingos)</strong>
+                                <span class="kpi-sub-val" id="kpi-schedule-next">Próxima ejecución: Domingo 23:00</span>
+                            </div>
+                            <button type="button" class="btn-kpi-config" id="btn-config-schedule-kpi" title="Definir cuándo será el respaldo automático">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                                <span>Definir</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Panel de Acciones -->
+                    <div class="backup-actions-panel">
+                        <div class="action-card">
+                            <div class="action-info">
+                                <h3>Programación de Respaldo Automático</h3>
+                                <p>Configura la periodicidad (semanal, quincenal o mensual) y la hora programada para no saturar el servidor con respaldos diarios.</p>
+                            </div>
+                            <button type="button" class="btn-schedule-backup" id="btn-schedule-backup">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                <span>Definir Programación</span>
+                            </button>
+                        </div>
+
+                        <div class="action-card">
+                            <div class="action-info">
+                                <h3>Descarga Inmediata de Base de Datos</h3>
+                                <p>Genera un volcado completo de las tablas del esquema <code>sages</code> en formato SQL listo para contingencia.</p>
+                            </div>
+                            <button type="button" class="btn-primary-backup" id="btn-download-sql">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                <span>Descargar SQL Actual</span>
+                            </button>
+                        </div>
+
+                        <div class="action-card">
+                            <div class="action-info">
+                                <h3>Restauración de Respaldo</h3>
+                                <p>Consulta las directrices de seguridad para restaurar un archivo <code>.sql</code> en el entorno de base de datos.</p>
+                            </div>
+                            <button type="button" class="btn-secondary-backup" id="btn-restore-backup">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                                <span>Restaurar Respaldo Antiguo</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ══════════════════════════════════════════════════════════ -->
+            <!-- SUBVISTA 3: DATOS CORPORATIVOS (#tab-corporate)           -->
+            <!-- ══════════════════════════════════════════════════════════ -->
+            <section class="config-tab-content" id="tab-corporate">
+                <div class="content-card">
+                    <div class="card-header-group">
+                        <div>
+                            <h2 class="section-title">Datos Corporativos</h2>
+                            <p class="section-description">Información oficial de la empresa que aparece en los reportes, oficios y membretes del sistema.</p>
+                        </div>
+                    </div>
+
+                    <form id="form-corporate" class="corporate-form-grid" onsubmit="return false;">
+                        
+                        <!-- Columna 1: Campos Institucionales -->
+                        <div class="form-inputs-col">
+                            <div class="form-group">
+                                <label for="corp-name" class="form-label">Nombre de la Organización</label>
+                                <input type="text" id="corp-name" class="form-control" value="Corporación Eléctrica Nacional, S.A (CORPOELEC)" readonly>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="corp-rif" class="form-label">RIF Institucional</label>
+                                <input type="text" id="corp-rif" class="form-control" value="G-20007870-9" readonly>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="corp-phone" class="form-label">Teléfono Central</label>
+                                <input type="text" id="corp-phone" class="form-control" value="+58(212)502-1111">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="corp-address" class="form-label">Dirección Fiscal Central</label>
+                                <textarea id="corp-address" class="form-control textarea-address" rows="3">Av. Vollmer, Edif. CORPOELEC, San Bernardino, Caracas</textarea>
+                            </div>
+                        </div>
+
+                        <!-- Columna 2: Carga y Previsualización de Logotipos -->
+                        <div class="form-uploads-col">
+                            
+                            <!-- Dropzone Logo -->
+                            <div class="upload-box">
+                                <span class="upload-label">Logotipo del Sistema</span>
+                                <div class="dropzone-preview">
+                                    <img src="{{ url_for('static', filename='img/logo_corpoelec.png') }}" alt="Logo CORPOELEC" class="preview-logo">
+                                </div>
+                                <span class="upload-hint">Dimensión recomendada: 120×40 px (PNG transparente)</span>
+                            </div>
+
+                            <!-- Dropzone Favicon -->
+                            <div class="upload-box">
+                                <span class="upload-label">Favicon / Ícono Institucional</span>
+                                <div class="dropzone-preview preview-square">
+                                    <img src="{{ url_for('static', filename='img/icon_corpoelec.png') }}" alt="Ícono CORPOELEC" class="preview-icon">
+                                </div>
+                                <span class="upload-hint">Dimensión recomendada: 32×32 px (ICO o PNG)</span>
+                            </div>
+
+                        </div>
+
+                        <!-- Botón de Envío -->
+                        <div class="form-actions-full">
+                            <button type="button" class="btn-save-primary" id="btn-save-corporate">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                                <span>Guardar Cambios</span>
+                            </button>
+                        </div>
+
+                    </form>
+                </div>
+            </section>
+
+            <!-- ══════════════════════════════════════════════════════════ -->
+            <!-- SUBVISTA 4: CONTROL DE SEDES (#tab-places)                -->
+            <!-- ══════════════════════════════════════════════════════════ -->
+            <section class="config-tab-content" id="tab-places">
+                <div class="content-card">
+                    <div class="card-header-group flex-between">
+                        <div>
+                            <h2 class="section-title">Control de Sedes Operativas</h2>
+                            <p class="section-description">Gestión de sedes físicas de adscripción de CORPOELEC para el personal administrativo.</p>
+                        </div>
+                        <button type="button" class="btn-new-place" id="btn-new-place">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            <span>Registrar Sede</span>
+                        </button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="config-table">
+                            <thead>
+                                <tr>
+                                    <th>Sede Operativa</th>
+                                    <th>Ubicación Territorial</th>
+                                    <th class="text-center">Teléfono</th>
+                                    <th class="text-center">Estatus</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <strong>Sede Principal - San Bernardino</strong>
+                                        <span class="sub-text">Edificio CORPOELEC Caracas</span>
+                                    </td>
+                                    <td>Distrito Capital / San Bernardino</td>
+                                    <td class="text-center">+58(212)502-0000</td>
+                                    <td class="text-center"><span class="badge-status badge-success">Activa</span></td>
+                                    <td class="text-center">
+                                        <div class="btn-group-actions">
+                                            <button type="button" class="btn-table-action btn-view-place" title="Ver detalles">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                            </button>
+                                            <button type="button" class="btn-table-action btn-edit-place" title="Editar">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <strong>Centro de Servicio Técnico - Catia</strong>
+                                        <span class="sub-text">Base de Operaciones UREE Oeste</span>
+                                    </td>
+                                    <td>Distrito Capital / Sucre</td>
+                                    <td class="text-center">+58(212)860-1234</td>
+                                    <td class="text-center"><span class="badge-status badge-success">Activa</span></td>
+                                    <td class="text-center">
+                                        <div class="btn-group-actions">
+                                            <button type="button" class="btn-table-action btn-view-place" title="Ver detalles">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                            </button>
+                                            <button type="button" class="btn-table-action btn-edit-place" title="Editar">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- MODAL DE MATRIZ DE PERMISOS (#modal-permissions)                  -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-permissions" style="display: none;">
+    <div class="modal-card">
+        
+        <div class="modal-header">
+            <div>
+                <h3 class="modal-title" id="modal-role-title">Matriz de Permisos — Super Administrador</h3>
+                <p class="modal-subtitle">Asignación de privilegios de acceso y visibilidad de vistas para el rol seleccionado.</p>
+            </div>
+            <button type="button" class="btn-close-modal" id="btn-close-modal-x">&times;</button>
+        </div>
+
+        <div class="modal-body">
+            
+            <!-- Grupo 1: Módulos Generales -->
+            <div class="perm-group">
+                <span class="perm-group-header">Módulos Generales</span>
+                <div class="perm-grid">
+                    <label class="perm-checkbox-item locked">
+                        <input type="checkbox" checked disabled>
+                        <span class="perm-box"></span>
+                        <div class="perm-info">
+                            <strong>Ver Inicio (view_home)</strong>
+                            <span class="perm-lock-tag">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                Protegido
+                            </span>
+                        </div>
+                    </label>
+
+                    <label class="perm-checkbox-item locked" id="perm-item-admin-panel">
+                        <input type="checkbox" checked disabled id="chk-admin-panel">
+                        <span class="perm-box"></span>
+                        <div class="perm-info">
+                            <strong>Panel Administrativo (view_admin_panel)</strong>
+                            <span class="perm-lock-tag" id="tag-admin-panel">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                Protegido
+                            </span>
+                        </div>
+                    </label>
+
+                    <label class="perm-checkbox-item">
+                        <input type="checkbox" checked id="chk-statistics">
+                        <span class="perm-box"></span>
+                        <div class="perm-info">
+                            <strong>Ver Estadísticas (view_statistics)</strong>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Grupo 2: Gestión de Formación -->
+            <div class="perm-group">
+                <span class="perm-group-header">Gestión de Formación</span>
+                <div class="perm-grid">
+                    <label class="perm-checkbox-item">
+                        <input type="checkbox" checked id="chk-training-catalog">
+                        <span class="perm-box"></span>
+                        <div class="perm-info">
+                            <strong>Catálogo de Formación (view_training_catalog)</strong>
+                        </div>
+                    </label>
+
+                    <label class="perm-checkbox-item">
+                        <input type="checkbox" checked id="chk-upload-training">
+                        <span class="perm-box"></span>
+                        <div class="perm-info">
+                            <strong>Cargar Formación (upload_training)</strong>
+                        </div>
+                    </label>
+
+                    <label class="perm-checkbox-item">
+                        <input type="checkbox" checked id="chk-edu-levels">
+                        <span class="perm-box"></span>
+                        <div class="perm-info">
+                            <strong>Asignar a Niveles Educ. (assign_to_educational_levels)</strong>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Grupo 3: Administración Territorial e Institucional -->
+            <div class="perm-group">
+                <span class="perm-group-header">Administración Territorial e Institucional</span>
+                <div class="perm-grid">
+                    <label class="perm-checkbox-item">
+                        <input type="checkbox" checked id="chk-assign-states">
+                        <span class="perm-box"></span>
+                        <div class="perm-info">
+                            <strong>Asignar a Estados (assign_to_states)</strong>
+                        </div>
+                    </label>
+
+                    <label class="perm-checkbox-item">
+                        <input type="checkbox" checked id="chk-manage-inst">
+                        <span class="perm-box"></span>
+                        <div class="perm-info">
+                            <strong>Gestionar Institución (manage_institution)</strong>
+                        </div>
+                    </label>
+
+                    <label class="perm-checkbox-item">
+                        <input type="checkbox" id="chk-my-inst">
+                        <span class="perm-box"></span>
+                        <div class="perm-info">
+                            <strong>Ver Mi Institución (view_my_institution)</strong>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Grupo 4: Usuarios y Seguridad -->
+            <div class="perm-group">
+                <span class="perm-group-header">Usuarios y Seguridad Global</span>
+                <div class="perm-grid">
+                    <label class="perm-checkbox-item locked" id="perm-item-users">
+                        <input type="checkbox" checked disabled id="chk-manage-users">
+                        <span class="perm-box"></span>
+                        <div class="perm-info">
+                            <strong>Gestionar Usuarios (manage_users)</strong>
+                            <span class="perm-lock-tag" id="tag-manage-users">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                Protegido
+                            </span>
+                        </div>
+                    </label>
+
+                    <label class="perm-checkbox-item">
+                        <input type="checkbox" checked id="chk-register-users">
+                        <span class="perm-box"></span>
+                        <div class="perm-info">
+                            <strong>Registrar Usuarios (register_users)</strong>
+                        </div>
+                    </label>
+
+                    <label class="perm-checkbox-item locked" id="perm-item-sys-config">
+                        <input type="checkbox" checked disabled id="chk-sys-config">
+                        <span class="perm-box"></span>
+                        <div class="perm-info">
+                            <strong>Configuración del Sistema (system_configuration)</strong>
+                            <span class="perm-lock-tag" id="tag-sys-config">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                Protegido
+                            </span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="modal-footer">
+            <button type="button" class="btn-modal-cancel" id="btn-cancel-modal">Cancelar</button>
+            <button type="button" class="btn-modal-save" id="btn-save-permissions">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Guardar Privilegios</span>
+            </button>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='JS/sweetalert2.all.min.js') }}"></script>
+<script src="{{ url_for('static', filename='JS/configurations.js') }}"></script>
+{% endblock %}
