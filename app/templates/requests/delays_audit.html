@@ -1,0 +1,404 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}SAGES - Auditoría de Retrasos SLA y Exigencia de Respuesta{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_monitoring.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="monitoring-container">
+    <!-- ===== CABECERA INSTITUCIONAL ===== -->
+    <div class="page-header">
+        <div class="page-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px; color: #b91c1c;">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+            <h1>Auditoría de Retrasos SLA y Exigencia de Respuesta</h1>
+        </div>
+        <div class="page-date">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span id="audit-current-date"></span>
+        </div>
+    </div>
+
+    <!-- ===== PESTAÑAS DE NAVEGACIÓN (TABS) ===== -->
+    <nav class="monitoring-nav-tabs" aria-label="Navegación de monitoreo y auditoría">
+        <a href="{{ url_for('requests.national_monitoring') }}" class="monitoring-tab-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="3" y1="9" x2="21" y2="9"></line>
+                <line x1="9" y1="21" x2="9" y2="9"></line>
+            </svg>
+            Monitoreo Global de Solicitudes
+        </a>
+        <a href="{{ url_for('requests.delays_audit') }}" class="monitoring-tab-link active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            Auditoría de Retrasos SLA (Fiscalización Nacional)
+        </a>
+    </nav>
+
+    <!-- ===== CUADRÍCULA DE TARJETAS KPI (MÉTRICAS DE MORA) ===== -->
+    <div class="kpi-grid">
+        <!-- KPI 1: Total en Mora ANS -->
+        <div class="kpi-card kpi-blue">
+            <div class="kpi-card-left">
+                <div class="kpi-icon-container">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                </div>
+                <div class="kpi-info">
+                    <span class="kpi-label">Total en Mora ANS</span>
+                    <span class="kpi-sublabel">
+                        {% if filters.state_id and filters.state_id != 'all' %}
+                        Jurisdicción Seleccionada
+                        {% else %}
+                        Alcance Nacional
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+            <div class="kpi-value">{{ kpis.total }}</div>
+        </div>
+
+        <!-- KPI 2: Sin Justificar (Críticas) -->
+        <div class="kpi-card kpi-red card-highlight-danger">
+            <div class="kpi-card-left">
+                <div class="kpi-icon-container">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                </div>
+                <div class="kpi-info">
+                    <span class="kpi-label">Sin Justificar (Críticas)</span>
+                    <span class="kpi-sublabel">Requieren Intimación Coercitiva</span>
+                </div>
+            </div>
+            <div class="kpi-value text-danger">{{ kpis.unjustified }}</div>
+        </div>
+
+        <!-- KPI 3: Descargos Consignados -->
+        <div class="kpi-card kpi-amber card-highlight-warning">
+            <div class="kpi-card-left">
+                <div class="kpi-icon-container">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                </div>
+                <div class="kpi-info">
+                    <span class="kpi-label">Descargos Consignados</span>
+                    <span class="kpi-sublabel">Disponibles para Evaluación</span>
+                </div>
+            </div>
+            <div class="kpi-value text-amber">{{ kpis.justified }}</div>
+        </div>
+    </div>
+
+    <!-- ===== BARRA DE FILTROS Y BÚSQUEDA AVANZADA ===== -->
+    <div class="monitoring-filters-card">
+        <form id="audit-filter-form" method="GET" action="{{ url_for('requests.delays_audit') }}" class="monitoring-filter-form">
+            <input type="hidden" name="page" value="1">
+            <input type="hidden" name="per_page" value="{{ filters.per_page }}">
+
+            <!-- Buscador textual -->
+            <div class="search-input-wrapper">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input
+                    type="text"
+                    id="audit-search-input"
+                    name="search"
+                    class="monitoring-search-input"
+                    placeholder="Buscar por plantel, ubicación o tema..."
+                    value="{{ filters.search or '' }}"
+                    autocomplete="off"
+                >
+            </div>
+
+            <!-- Selector de Estado con Pre-filtrado Corporativo -->
+            <select
+                id="audit-state-select"
+                name="state_id"
+                class="monitoring-select {% if filters.state_id and filters.state_id != 'all' %}highlighted-corporate{% endif %}"
+            >
+                <option value="all" {% if filters.state_id == 'all' or not filters.state_id %}selected{% endif %}>
+                    Todos los Estados (Nacional)
+                </option>
+                {% for st in states %}
+                <option value="{{ st.id }}" {% if filters.state_id == st.id|string %}selected{% endif %}>
+                    {{ st.name | title }} {% if default_state_id and default_state_id == st.id %}(Sede){% endif %}
+                </option>
+                {% endfor %}
+            </select>
+
+            <!-- Selector de Estado de Descargo -->
+            <select id="audit-justification-select" name="justification_status" class="monitoring-select">
+                <option value="all" {% if filters.justification_status == 'all' %}selected{% endif %}>
+                    Todos los Descargos
+                </option>
+                <option value="unjustified" {% if filters.justification_status == 'unjustified' %}selected{% endif %}>
+                    🔴 Sin Justificar (Críticas)
+                </option>
+                <option value="justified" {% if filters.justification_status == 'justified' %}selected{% endif %}>
+                    🟡 Descargo Consignado
+                </option>
+            </select>
+
+            <!-- Botón Limpiar Filtros -->
+            <a href="{{ url_for('requests.delays_audit', state_id='all') }}" class="btn-filter-clear" title="Restablecer filtros">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
+                    <polyline points="1 4 1 10 7 10"></polyline>
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                </svg>
+                Limpiar
+            </a>
+        </form>
+    </div>
+
+    <!-- ===== TABLA DE FISCALIZACIÓN DE RETRASOS ===== -->
+    <div class="monitoring-table-card">
+        <div class="table-responsive">
+            <table class="monitoring-table" id="delays-audit-table">
+                <thead>
+                    <tr>
+                        <th class="col-num" style="width: 50px; text-align: center;">N°</th>
+                        <th style="width: 25%; text-align: center;">Plantel Educativo</th>
+                        <th style="width: 14%; text-align: center;">Ubicación</th>
+                        <th style="width: 14%; text-align: center;">Fase en Mora</th>
+                        <th style="width: 13%; text-align: center;">Demora ANS</th>
+                        <th style="width: 13%; text-align: center;">Operador Asignado</th>
+                        <th style="width: 13%; text-align: center;">Estatus Descargo</th>
+                        <th style="width: 15%; text-align: center;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if requests %}
+                        {% for req in requests %}
+                        <tr class="audit-row {% if not req.has_justification %}row-unjustified{% else %}row-justified{% endif %}" id="delay-row-{{ req.id }}">
+                            <!-- N° Simple -->
+                            <td class="col-num code-cell" style="text-align: center; font-weight: 600; color: #475569;">
+                                {{ (pagination.page - 1) * pagination.per_page + loop.index }}
+                            </td>
+
+                            <!-- Institución Educativa -->
+                            <td>
+                                <div class="school-info">
+                                    <span class="school-name" title="{{ req.institutional_staff.institution.institution_name if req.institutional_staff and req.institutional_staff.institution else 'No especificada' }}">
+                                        {{ req.institutional_staff.institution.institution_name if req.institutional_staff and req.institutional_staff.institution else 'No especificada' }}
+                                    </span>
+                                </div>
+                            </td>
+
+                            <!-- Ubicación -->
+                            <td>
+                                <div class="location-info">
+                                    <span class="location-state">
+                                        {% if req.institutional_staff and req.institutional_staff.institution and req.institutional_staff.institution.parish and req.institutional_staff.institution.parish.municipality and req.institutional_staff.institution.parish.municipality.state %}
+                                            {{ req.institutional_staff.institution.parish.municipality.state.name }}
+                                        {% else %}
+                                            Nacional
+                                        {% endif %}
+                                    </span>
+                                    <span class="location-sub">
+                                        {% if req.institutional_staff and req.institutional_staff.institution and req.institutional_staff.institution.parish %}
+                                            Parroquia {{ req.institutional_staff.institution.parish.name }}
+                                        {% else %}
+                                            Ubicación S/D
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </td>
+
+                            <!-- Fase Operativa en Mora -->
+                            <td style="text-align: center;">
+                                <span class="phase-indicator">
+                                    {{ req.mora_phase }}
+                                </span>
+                            </td>
+
+                            <!-- Tiempo de Demora ANS -->
+                            <td style="text-align: center;">
+                                <span class="badge-ans-delay text-danger font-bold">
+                                    {{ req.delay_text }}
+                                </span>
+                            </td>
+
+                            <!-- Operador Asignado -->
+                            <td style="text-align: center;">
+                                {% if req.attended_by and req.attended_by.person %}
+                                    <div class="location-info">
+                                        <span class="location-state" style="color: #1e293b;">
+                                            {{ req.attended_by.person.first_name }} {{ req.attended_by.person.last_name }}
+                                        </span>
+                                        <span class="location-sub">Admin Estadal</span>
+                                    </div>
+                                {% else %}
+                                    <span class="badge-unassigned">Sin Asignar</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Estatus de Descargo -->
+                            <td style="text-align: center;">
+                                {% if req.has_justification %}
+                                    <span class="badge-delay-status badge-justified">
+                                        <span class="badge-dot"></span>
+                                        Descargo Consignado
+                                    </span>
+                                {% else %}
+                                    <span class="badge-delay-status badge-unjustified">
+                                        <span class="badge-dot"></span>
+                                        Sin Justificar
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Botones de Acción -->
+                            <td style="text-align: center;">
+                                <div class="action-buttons-group">
+                                    {% if req.has_justification %}
+                                        <!-- Botón Leer Justificación -->
+                                        <button
+                                            type="button"
+                                            class="btn-action-audit btn-view-justification"
+                                            data-request-id="{{ req.id }}"
+                                            title="Inspeccionar Descargo Operativo Registrado"
+                                        >
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
+                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                                <circle cx="12" cy="12" r="3"></circle>
+                                            </svg>
+                                            Leer Justificación
+                                        </button>
+                                    {% else %}
+                                        <!-- Botón Exigir Respuesta Coercitiva -->
+                                        <button
+                                            type="button"
+                                            class="btn-action-audit btn-demand-response"
+                                            data-request-id="{{ req.id }}"
+                                            data-institution="{{ req.institutional_staff.institution.institution_name if req.institutional_staff and req.institutional_staff.institution else 'Plantel' }}"
+                                            title="Despachar Intimación Formal Coercitiva"
+                                        >
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
+                                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                                            </svg>
+                                            Exigir Respuesta
+                                        </button>
+                                    {% endif %}
+
+                                    <!-- Botón Secundario Inspeccionar Expediente (deshabilitado: ruta pendiente) -->
+                                    <span
+                                        class="btn-action-audit btn-inspect-expediente"
+                                        title="Ficha forense — próximamente disponible"
+                                        style="opacity: 0.45; cursor: not-allowed; pointer-events: none;"
+                                    >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                            <circle cx="12" cy="12" r="3"></circle>
+                                        </svg>
+                                        Ficha
+                                    </span>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="8" class="empty-state-cell">
+                                <div class="empty-state-container">
+                                    <div class="empty-state-icon text-success">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 48px; height: 48px; color: #10b981;">
+                                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                        </svg>
+                                    </div>
+                                    <h3 class="empty-state-title">Sin Retrasos Normativos Detectados</h3>
+                                    <p class="empty-state-desc">
+                                        Todas las solicitudes en el ámbito territorial seleccionado se encuentran dentro de los tiempos normativos del Acuerdo de Nivel de Servicio (ANS / SLA) institucional.
+                                    </p>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación Defensiva (Estilo Dashboard SAGES) -->
+        {% if pagination.pages > 1 %}
+        <div class="mon-pagination-container">
+            <div class="mon-pagination-info">
+                Mostrando p&aacute;gina {{ pagination.page }} de {{ pagination.pages }} &bull; {{ pagination.total }} solicitudes en mora
+            </div>
+            <div class="mon-pagination-buttons">
+                <button
+                    type="button"
+                    class="mon-pagination-btn"
+                    onclick="goToAuditPage({{ pagination.prev_num }})"
+                    {% if not pagination.has_prev %}disabled{% endif %}
+                    aria-label="Página anterior"
+                >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                    Anterior
+                </button>
+
+                <div class="mon-page-numbers">
+                    {% for p in pagination.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=1) %}
+                        {% if p %}
+                            {% if p == pagination.page %}
+                            <span class="mon-page-number active">{{ p }}</span>
+                            {% else %}
+                            <button type="button" class="mon-page-number" onclick="goToAuditPage({{ p }})">{{ p }}</button>
+                            {% endif %}
+                        {% else %}
+                            <span class="mon-page-ellipsis">&hellip;</span>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+
+                <button
+                    type="button"
+                    class="mon-pagination-btn"
+                    onclick="goToAuditPage({{ pagination.next_num }})"
+                    {% if not pagination.has_next %}disabled{% endif %}
+                    aria-label="Página siguiente"
+                >
+                    Siguiente
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Inclusión del Modal de Inspección de Descargos -->
+{% include 'requests/partials/_justification_view_modal.html' %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='JS/requests_delays_audit.js') }}"></script>
+{% endblock %}

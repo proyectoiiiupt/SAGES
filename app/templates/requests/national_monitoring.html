@@ -1,0 +1,364 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}SAGES - Monitoreo Nacional de Solicitudes{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_monitoring.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="monitoring-container">
+    <!-- ===== CABECERA INSTITUCIONAL ===== -->
+    <div class="page-header">
+        <div class="page-title">
+            <h1>Tablero de Monitoreo Nacional</h1>
+        </div>
+        <div class="page-date">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span id="monitoring-current-date"></span>
+        </div>
+    </div>
+
+    <!-- ===== PESTAÑAS DE NAVEGACIÓN (TABS) ===== -->
+    <nav class="monitoring-nav-tabs" aria-label="Navegación de monitoreo">
+        <a href="{{ url_for('requests.national_monitoring') }}" class="monitoring-tab-link active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="3" y1="9" x2="21" y2="9"></line>
+                <line x1="9" y1="21" x2="9" y2="9"></line>
+            </svg>
+            Monitoreo Global de Solicitudes
+        </a>
+        <a href="{{ url_for('requests.delays_audit') }}" class="monitoring-tab-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            Auditoría de Retrasos SLA
+        </a>
+    </nav>
+
+    <!-- ===== CUADRÍCULA DE TARJETAS KPI (ESTILO DASHBOARD) ===== -->
+    <div class="kpi-grid">
+        <!-- KPI 1: Total Solicitudes -->
+        <div class="kpi-card kpi-blue">
+            <div class="kpi-card-left">
+                <div class="kpi-icon-container">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                </div>
+                <div class="kpi-info">
+                    <span class="kpi-label">Total Solicitudes</span>
+                    <span class="kpi-sublabel">
+                        {% if filters.state_id and filters.state_id != 'all' %}
+                        Filtrado por estado
+                        {% else %}
+                        Alcance Nacional
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+            <div class="kpi-value">{{ kpis.total }}</div>
+        </div>
+
+        <!-- KPI 2: Completadas -->
+        <div class="kpi-card kpi-green">
+            <div class="kpi-card-left">
+                <div class="kpi-icon-container">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                </div>
+                <div class="kpi-info">
+                    <span class="kpi-label">Completadas</span>
+                </div>
+            </div>
+            <div class="kpi-value">{{ kpis.completed }}</div>
+        </div>
+
+        <!-- KPI 3: En Proceso -->
+        <div class="kpi-card kpi-amber">
+            <div class="kpi-card-left">
+                <div class="kpi-icon-container">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                </div>
+                <div class="kpi-info">
+                    <span class="kpi-label">En Proceso</span>
+                </div>
+            </div>
+            <div class="kpi-value">{{ kpis.in_process }}</div>
+        </div>
+
+        <!-- KPI 4: Pendientes / Nuevas -->
+        <div class="kpi-card kpi-red">
+            <div class="kpi-card-left">
+                <div class="kpi-icon-container">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                </div>
+                <div class="kpi-info">
+                    <span class="kpi-label">Pendientes / Nuevas</span>
+                </div>
+            </div>
+            <div class="kpi-value">{{ kpis.pending }}</div>
+        </div>
+    </div>
+
+    <!-- ===== BARRA DE FILTROS Y BÚSQUEDA AVANZADA ===== -->
+    <div class="monitoring-filters-card">
+        <form id="monitoring-filter-form" method="GET" action="{{ url_for('requests.national_monitoring') }}" class="monitoring-filter-form">
+            <input type="hidden" name="page" value="1">
+            <input type="hidden" name="per_page" value="{{ filters.per_page }}">
+
+            <!-- Buscador textual -->
+            <div class="search-input-wrapper">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input
+                    type="text"
+                    id="monitoring-search-input"
+                    name="search"
+                    class="monitoring-search-input"
+                    placeholder="Buscar por plantel o tema..."
+                    value="{{ filters.search or '' }}"
+                    autocomplete="off"
+                >
+            </div>
+
+            <!-- Selector de Estado con Pre-filtrado Corporativo -->
+            <select
+                id="monitoring-state-select"
+                name="state_id"
+                class="monitoring-select {% if filters.state_id and filters.state_id != 'all' %}highlighted-corporate{% endif %}"
+            >
+                <option value="all" {% if filters.state_id == 'all' or not filters.state_id %}selected{% endif %}>
+                    Todos los Estados (Nacional)
+                </option>
+                {% for st in states %}
+                <option value="{{ st.id }}" {% if filters.state_id == st.id|string %}selected{% endif %}>
+                    {{ st.name | title }} {% if default_state_id and default_state_id == st.id %}(Sede){% endif %}
+                </option>
+                {% endfor %}
+            </select>
+
+            <!-- Selector de Módulo Formativo -->
+            <select id="monitoring-module-select" name="module_id" class="monitoring-select">
+                <option value="">Todos los Módulos</option>
+                {% for m in modules %}
+                <option value="{{ m.id }}" {% if filters.module_id == m.id|string %}selected{% endif %}>
+                    {{ m.name }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <!-- Selector de Estatus -->
+            <select id="monitoring-status-select" name="status_id" class="monitoring-select">
+                <option value="">Todos los Estatus</option>
+                {% for s in statuses %}
+                <option value="{{ s.status_code }}" {% if filters.status_id == s.status_code or filters.status_id == s.id|string %}selected{% endif %}>
+                    {{ s.status_name }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <!-- Botón Limpiar Filtros -->
+            <a href="{{ url_for('requests.national_monitoring', state_id='all') }}" class="btn-filter-clear">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="1 4 1 10 7 10"></polyline>
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                </svg>
+                Limpiar
+            </a>
+        </form>
+    </div>
+
+    <!-- ===== TABLA DE AUDITORÍA CON SEMÁFORO ===== -->
+    <div class="mon-table-container">
+        <div class="table-responsive">
+            <table class="mon-table" id="monitoring-requests-table">
+                <thead>
+                    <tr>
+                        <th class="col-num" style="width: 50px;">N°</th>
+                        <th class="col-school">Plantel Escolar</th>
+                        <th class="col-location">Ubicación</th>
+                        <th class="col-topic">Tema Formativo</th>
+                        <th class="col-status" style="width: 120px;">Estatus</th>
+                        <th class="col-ans" style="width: 170px;">Semáforo ANS</th>
+                        <th class="col-admin">Administrador Asignado</th>
+                        <th class="col-action" style="width: 70px; text-align:center;">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if requests and requests|length > 0 %}
+                        {% for req in requests %}
+                        <tr>
+                            <!-- N° -->
+                            <td class="col-num code-cell">
+                                {{ (pagination.page - 1) * pagination.per_page + loop.index }}
+                            </td>
+
+                            <!-- Plantel Escolar -->
+                            <td class="col-school">
+                                <div class="school-info">
+                                    <span class="school-name" title="{{ req.institutional_staff.institution.institution_name if req.institutional_staff and req.institutional_staff.institution else 'N/A' }}">
+                                        {{ req.institutional_staff.institution.institution_name if req.institutional_staff and req.institutional_staff.institution else 'N/A' }}
+                                    </span>
+                                </div>
+                            </td>
+
+                            <!-- Ubicación -->
+                            <td class="col-location">
+                                <div class="location-info">
+                                    {% if req.institutional_staff and req.institutional_staff.institution and req.institutional_staff.institution.parish and req.institutional_staff.institution.parish.municipality %}
+                                    <span class="location-state">{{ req.institutional_staff.institution.parish.municipality.state.name | title }}</span>
+                                    <span class="location-sub">{{ req.institutional_staff.institution.parish.municipality.name | title }}</span>
+                                    {% else %}
+                                    <span class="location-sub">Sin ubicación</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+
+                            <!-- Tema Formativo -->
+                            <td class="col-topic">
+                                <div class="training-topic" title="{{ req.training.name if req.training else 'Tema no disponible' }}">
+                                    {{ req.training.name if req.training else 'Tema no disponible' }}
+                                </div>
+                            </td>
+
+                            <!-- Estatus FSM -->
+                            <td class="col-status">
+                                {% set status_code_lower = req.status.status_code.lower() if req.status else 'stat-003' %}
+                                <span class="status-pill {{ status_code_lower }}">
+                                    {{ req.status.status_name if req.status else 'Nuevo' }}
+                                </span>
+                            </td>
+
+                            <!-- Semáforo / ANS -->
+                            <td class="col-ans">
+                                <span class="badge-ans {{ req.traffic_light.badge_class }}">
+                                    <span class="ans-pulse-dot"></span>
+                                    {{ req.traffic_light.text }}
+                                </span>
+                            </td>
+
+                            <!-- Administrador Asignado -->
+                            <td class="col-admin">
+                                {% if req.attended_by and req.attended_by.person %}
+                                <span class="operator-assigned" title="{{ req.attended_by.person.first_name }} {{ req.attended_by.person.last_name }}">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                        <circle cx="12" cy="7" r="4"></circle>
+                                    </svg>
+                                    {{ req.attended_by.person.first_name }} {{ req.attended_by.person.last_name }}
+                                </span>
+                                {% else %}
+                                <span class="badge-unassigned">Sin Asignar</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Acciones -->
+                            <td class="col-action text-center">
+                                <a href="/requests/audit-detail/{{ req.id }}"
+                                   class="mon-action-btn mon-view-btn"
+                                   title="Inspección Forense de Expediente">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="8" class="empty-state">
+                                <div class="empty-state-content">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="empty-icon">
+                                        <circle cx="11" cy="11" r="8"></circle>
+                                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                        <line x1="8" y1="11" x2="14" y2="11"></line>
+                                    </svg>
+                                    <p class="empty-title">No se encontraron solicitudes</p>
+                                    <p class="empty-subtitle">Intenta ajustar los criterios de búsqueda o limpia los filtros aplicados.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación estilo formaciones -->
+        {% if pagination and pagination.total > 0 %}
+        <div class="mon-pagination-container">
+            <div class="mon-pagination-info">
+                <span>
+                    Mostrando registros {{ (pagination.page - 1) * 10 + 1 }}–{% if pagination.page * 10 < pagination.total %}{{ pagination.page * 10 }}{% else %}{{ pagination.total }}{% endif %} de {{ pagination.total }} solicitudes
+                </span>
+            </div>
+            <div class="mon-pagination-controls">
+                <div class="mon-pagination-buttons">
+                    <!-- Botón Anterior -->
+                    <button type="button"
+                            class="mon-pagination-btn"
+                            {% if not pagination.has_prev %}disabled{% endif %}
+                            onclick="goToMonPage({{ pagination.prev_num if pagination.has_prev else 1 }})">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                        Anterior
+                    </button>
+
+                    <!-- Números de página con ventana deslizante -->
+                    <div class="mon-page-numbers">
+                        {% for p in range(1, pagination.pages + 1) %}
+                            {% if p == 1 or p == pagination.pages or (p >= pagination.page - 1 and p <= pagination.page + 1) %}
+                                <button type="button"
+                                        class="mon-page-number {% if p == pagination.page %}active{% endif %}"
+                                        onclick="goToMonPage({{ p }})">
+                                    {{ p }}
+                                </button>
+                            {% elif p == pagination.page - 2 or p == pagination.page + 2 %}
+                                <span class="mon-page-ellipsis">...</span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+
+                    <!-- Botón Siguiente -->
+                    <button type="button"
+                            class="mon-pagination-btn"
+                            {% if not pagination.has_next %}disabled{% endif %}
+                            onclick="goToMonPage({{ pagination.next_num if pagination.has_next else pagination.pages }})">
+                        Siguiente
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='JS/requests_national_monitoring.js') }}"></script>
+{% endblock %}
+
+
