@@ -1,0 +1,323 @@
+/* ── CONTENEDOR PRINCIPAL ── */
+.analytics-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.5rem;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    color: #334155;
+}
+
+/* ── CABECERA Y BADGES ── */
+.analytics-header-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #ffffff;
+    padding: 0.75rem; /* Ultra compacto */
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    margin-bottom: 0.75rem; /* Ultra compacto */
+    border: 1px solid #e2e8f0;
+}
+
+.analytics-title-group {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.analytics-main-title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.analytics-jurisdiction-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #f0fdf4;
+    color: #15803d;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border: 1px solid #bbf7d0;
+}
+
+.analytics-jurisdiction-badge svg {
+    width: 16px;
+    height: 16px;
+}
+
+.analytics-date-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #64748b;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.analytics-date-wrapper svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* ── BANNER KPI (28 DÍAS) ── */
+.kpi-banner-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    color: white;
+    padding: 0.75rem 1.25rem; /* Ultra compacto */
+    border-radius: 16px;
+    margin-bottom: 0.75rem; /* Ultra compacto */
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.2);
+}
+
+.kpi-banner-left {
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+}
+
+.kpi-banner-icon {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 0.8rem;
+    border-radius: 12px;
+    display: flex;
+}
+
+.kpi-banner-icon svg {
+    width: 22px; /* Ícono un poco más pequeño para acompañar el texto */
+    height: 22px;
+}
+
+.kpi-banner-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.kpi-banner-number {
+    font-size: 1.6rem; /* Mucho más pequeño y estilizado */
+    font-weight: 800;
+    line-height: 1;
+}
+
+.kpi-banner-label {
+    font-size: 0.95rem;
+    opacity: 0.9;
+    margin-top: 0.3rem;
+}
+
+.kpi-banner-diff {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    backdrop-filter: blur(4px);
+}
+
+.kpi-banner-diff span {
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.kpi-banner-diff small {
+    font-size: 0.75rem;
+    opacity: 0.8;
+}
+
+.diff-positive span { color: #a3e635; }
+.diff-negative span { color: #fca5a5; }
+
+/* ── CUADRÍCULA DE GRÁFICOS ── */
+.dashboard-charts-grid {
+    display: grid;
+    grid-template-columns: 35% 65%;
+    gap: 0.75rem; /* Espaciado mínimo entre tarjetas */
+    margin-bottom: 0.75rem; /* Espaciado mínimo inferior */
+}
+
+/* Tarjetas con estilo de módulos rectores (Actualizado con borde verde) */
+.chart-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    border-top: 4px solid #10b981; 
+    padding: 0.75rem; /* Reduce el espacio en blanco dentro de la tarjeta */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.chart-card:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.chart-card-wide { grid-column: 2 / 3; }
+.chart-card-full { grid-column: 1 / -1; }
+
+.chart-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem; /* Título mucho más pegado al gráfico */
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.chart-card-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.chart-card-title svg {
+    width: 18px;
+    height: 18px;
+    color: #0284c7;
+}
+
+.chart-subtitle-pill {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #475569;
+    background: #f1f5f9;
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+}
+
+.chart-card-body {
+    flex-grow: 1;
+    position: relative;
+    width: 100%;
+}
+
+/* Control de altura de los canvas */
+.chart-donut-wrapper { height: 150px; } 
+.chart-lines-wrapper { height: 180px; } 
+.chart-bars-wrapper { height: 180px; }
+
+/* ── LEYENDA PERSONALIZADA DONUT ── */
+.donut-custom-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem; /* Muy pegados */
+    margin-top: 0.5rem; 
+    padding-top: 0.5rem; 
+    border-top: 1px dashed #e2e8f0;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #475569;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    font-size: 0.8rem; /* Texto de leyenda más pequeño */
+    font-weight: 500;
+    color: #475569;
+}
+
+.dot-green { background-color: #10b981; }
+.dot-amber { background-color: #f59e0b; }
+.dot-red { background-color: #ef4444; }
+
+.analytics-actions-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 0;
+    margin-bottom: 1rem; 
+}
+
+.btn-action-analytics {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.btn-action-analytics svg {
+    width: 18px;
+    height: 18px;
+}
+
+.btn-action-calc {
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+}
+
+.btn-action-calc:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+.btn-action-export {
+    background: #10b981;
+    color: white;
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
+}
+
+.btn-action-export:hover {
+    background: #059669;
+    box-shadow: 0 4px 8px rgba(5, 150, 105, 0.4);
+}
+
+/* ── RESPONSIVIDAD ── */
+@media (max-width: 992px) {
+    .dashboard-charts-grid {
+        grid-template-columns: 1fr;
+    }
+    .chart-card-wide {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 768px) {
+    .analytics-header-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    .kpi-banner-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 1.5rem;
+    }
+    .kpi-banner-left {
+        flex-direction: column;
+    }
+    .kpi-banner-diff {
+        align-items: center;
+        width: 100%;
+    }
+    .analytics-actions-footer {
+        flex-direction: column;
+    }
+    .btn-action-analytics {
+        justify-content: center;
+    }
+}

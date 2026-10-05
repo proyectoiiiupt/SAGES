@@ -7,6 +7,11 @@ from flask_login import login_required, current_user
 from app.dashboard import dashboard_bp
 from app.dashboard.services import get_dashboard_indicators, get_audit_logs
 from app.decorators import role_required, check_permissions
+from flask import jsonify
+from datetime import datetime, timedelta
+from sqlalchemy import func
+from app import db
+from app.models import Request, Training
 
 
 @dashboard_bp.route('/', methods=['GET'], strict_slashes=False)
@@ -52,3 +57,4 @@ def audit_view():
     """
     logs = get_audit_logs()
     return render_template('dashboard/audit_log.html', logs=logs)
+
