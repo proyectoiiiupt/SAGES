@@ -351,7 +351,7 @@ def get_request_full_detail(request_id: int):
     # Si posee justificaciones previas registradas para este retraso, se levanta el bloqueo visual temporal
     if has_delay_block and req.justifications:
         for just in req.justifications:
-            if just.justification_type in ['RETRASO', 'REPROGRAMACION']:
+            if just.justification_type in ['RETRASO', 'REPROGRAMACION', 'RETRASO_ATENCION', 'RETRASO_EJECUCION']:
                 has_delay_block = False
                 break
                 
@@ -948,16 +948,11 @@ def get_request_justification_detail(request_id: int) -> dict | None:
 
 def demand_delay_response(request_id: int, super_admin_user) -> tuple[bool, str, int]:
     """
-    Dispara la intimación coercitiva multicanal (UI DANGER, correo asíncrono, bitácoras)
-    al operador responsable por vulneración del ANS.
+    Registra la exigencia formal al operador responsable por vulneración del ANS.
+    Bloqueado estrictamente a una sola exigencia por solicitud para evitar spam.
+    Sin despacho de bitácora ni notificaciones automáticas conforme a directriz.
     """
-    from app.models.role_model import Role
-    from app.models.role_user_model import RoleUser
     from app.models.request_tracking_model import RequestTracking
-    from app.models.notification_model import Notification
-    from app.notifications.services import NotificationService
-    from app.binnacle.services import BinnacleService
-    from app.utils.email_utils import send_delay_demand_email
 
     req = Request.query.options(
         joinedload(Request.status),
@@ -965,7 +960,8 @@ def demand_delay_response(request_id: int, super_admin_user) -> tuple[bool, str,
         joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.institution)
             .joinedload(Institution.parish).joinedload(Parish.municipality).joinedload(Municipality.state),
         joinedload(Request.plannings),
-        joinedload(Request.justifications)
+        joinedload(Request.justifications),
+        joinedload(Request.trackings)
     ).get(request_id)
 
     if not req:
@@ -983,16 +979,11 @@ def demand_delay_response(request_id: int, super_admin_user) -> tuple[bool, str,
 
     status_code = req.status.status_code if req.status else ''
     is_delayed = False
-    phase_name = ""
-    delay_info = ""
 
     if status_code in ('STAT-003', 'STAT-004'):
         delta_hours = (now_dt - created_at).total_seconds() / 3600.0
         if delta_hours > 72.0:
             is_delayed = True
-            days = int(delta_hours // 24)
-            phase_name = "Atención Inicial (Vencimiento ANS 72h)"
-            delay_info = f"+{days} días sin atención inicial"
     elif status_code == 'STAT-006':
         accepted_at = None
         if req.plannings:
@@ -1006,102 +997,171 @@ def demand_delay_response(request_id: int, super_admin_user) -> tuple[bool, str,
         days_proc = (now_dt - ref_dt).days
         if days_proc > 10:
             is_delayed = True
-            phase_name = "Ejecución Presencial (Vencimiento ANS 10 días)"
-            delay_info = f"+{days_proc} días continuos en ejecución"
 
     if not is_delayed:
         return False, "El expediente se encuentra dentro de los plazos reglamentarios o no aplica intimación.", 422
 
     has_just = any(
-        j.justification_type in ('RETRASO_ATENCION', 'RETRASO_EJECUCION')
+        j.justification_type in ('RETRASO_ATENCION', 'RETRASO_EJECUCION', 'RETRASO', 'REPROGRAMACION')
         for j in req.justifications
     )
     if has_just:
         return False, "El expediente ya cuenta con un descargo formal consignado.", 422
 
-    inst_name = "Plantel Educativo"
-    state_id = None
-    if req.institutional_staff and req.institutional_staff.institution:
-        inst_name = req.institutional_staff.institution.institution_name
-        try:
-            state_obj = req.institutional_staff.institution.parish.municipality.state
-            state_id = state_obj.id
-        except AttributeError:
-            pass
+    # Bloqueo estricto: Una sola exigencia por solicitud para evitar spam
+    existing_demand = any(
+        'exigencia formal' in (t.messages or '').lower()
+        for t in req.trackings
+    )
+    if existing_demand:
+        return False, "Ya se ha emitido una exigencia formal previa para este expediente. Debe esperar la respuesta.", 422
 
-    # Identificar destinatarios
-    recipients = []
-    if req.attended_by:
-        recipients.append(req.attended_by)
-    else:
-        all_state_admins = User.query.join(RoleUser).join(Role).filter(Role.name == 'state_admin').all()
-        for sa in all_state_admins:
-            if sa.person and sa.person.company_staff:
-                try:
-                    staff_state = sa.person.company_staff[0].place.parish.municipality.state_id
-                    if state_id and staff_state == state_id:
-                        recipients.append(sa)
-                except (AttributeError, IndexError):
-                    pass
-        if not recipients:
-            recipients = all_state_admins
-
-    # 1. Notificación Campana UI (Canal 1 - DANGER)
-    for recipient in recipients:
-        try:
-            notif = Notification(
-                notification_code=NotificationService.generate_notification_code(),
-                user_id=recipient.id,
-                type='DANGER',
-                event_code='SOLICITUD_DEMORADA',
-                title="REQUERIMIENTO URGENTE: Justificación de Retraso Exigida",
-                message=f"La Gerencia General exige descargo formal inmediato para el expediente {req.request_code} ({inst_name}).",
-                redirect_url='/requests/process-inbox',
-                action_text='Atender Expediente',
-                extra_data={'request_code': req.request_code, 'institution_name': inst_name}
-            )
-            db.session.add(notif)
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(f"Error despachando notificación campana a user_id {recipient.id}: {e}")
-
-    # 2. Correo Electrónico Institucional Asíncrono (Canal 2)
-    for recipient in recipients:
-        if recipient.person and recipient.person.email:
-            rec_name = f"{recipient.person.first_name} {recipient.person.last_name}"
-            send_delay_demand_email(
-                to_email=recipient.person.email,
-                recipient_name=rec_name,
-                request_code=req.request_code,
-                institution_name=inst_name,
-                delay_info=delay_info,
-                phase_name=phase_name
-            )
-
-    # 3. Trazabilidad en sages.request_trackings
+    # Trazabilidad en sages.request_trackings
     tracking = RequestTracking(
         request_id=req.id,
         user_id=super_admin_user.id,
         messages="La Gerencia General (Super Administrador) ha emitido una exigencia formal de justificación operativa por vencimiento de plazos normativos."
     )
     db.session.add(tracking)
-
-    # 4. Bitácora Forense (BinnacleService)
-    recipient_names = ", ".join([
-        f"{r.person.first_name} {r.person.last_name}" if r.person else f"User {r.id}"
-        for r in recipients
-    ]) if recipients else "Administración Estadal"
-    
-    BinnacleService.create_log_entry(
-        module='Solicitudes',
-        action_type='EXIGIR_RESPUESTA_SLA',
-        description=f"Exigencia formal de respuesta emitida para trámite {req.request_code} ({inst_name}). Destinatarios intimados: {recipient_names}.",
-        target_table='requests',
-        record_id=req.id
-    )
-
     db.session.commit()
 
-    return True, "Requerimiento formal despachado exitosamente al operador responsable.", 200
+    return True, "Exigencia formal registrada exitosamente en el expediente.", 200
 
 
+# ---------------------------------------------------------------------------
+# SLA Gate: Justificación Obligatoria de Retraso (Modal Bloqueante)
+# ---------------------------------------------------------------------------
+
+def get_delay_reasons() -> list:
+    """
+    Retorna el catálogo de razones válidas para justificación de mora ANS.
+    Filtra prioritariamente las razones con prefijo 'RSL-' (Retraso SLA).
+    """
+    from app.models.reason_model import Reason
+    reasons = Reason.query.filter(
+        Reason.reason_code.like('RSL-%')
+    ).order_by(Reason.name.asc()).all()
+
+    # Fallback: Si no existen razones específicas RSL-, devolver todas
+    if not reasons:
+        reasons = Reason.query.order_by(Reason.name.asc()).all()
+
+    return [{'id': r.id, 'code': r.reason_code, 'name': r.name} for r in reasons]
+
+
+def submit_delay_justification(
+    request_id: int,
+    admin_user,
+    reason_id: int,
+    justification_text: str
+) -> tuple[bool, str, int]:
+    """
+    Registra el descargo formal de mora ANS (SLA Gate) para una solicitud bloqueada.
+
+    Reglas de Negocio:
+      - Solo aplica a solicitudes con bloqueo activo ANS.
+      - El texto del descargo debe tener mínimo 20 caracteres.
+      - La razón debe existir en el catálogo sages.reasons.
+      - Determina el tipo automáticamente: RETRASO_ATENCION o RETRASO_EJECUCION.
+      - Persiste en sages.request_justifications y genera tracking (sin bitácora ni notificaciones).
+      - Bloquea spam: solo permite una justificación por expediente.
+      - Retorna (success: bool, message: str, http_status: int).
+    """
+    from app.models.reason_model import Reason
+    from app.models.request_tracking_model import RequestTracking
+
+    # ── 1. Validaciones de Entrada ──────────────────────────────────────────
+    if not justification_text or len(justification_text.strip()) < 20:
+        return False, "El descargo debe contener al menos 20 caracteres.", 400
+
+    justification_text = justification_text.strip()
+
+    # ── 2. Cargar Solicitud con Carga Ansiosa ───────────────────────────────
+    req = Request.query.options(
+        joinedload(Request.status),
+        joinedload(Request.justifications),
+        joinedload(Request.plannings),
+        joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.institution)
+    ).get(request_id)
+
+    if not req:
+        return False, "La solicitud indicada no existe.", 404
+
+    if req.historical:
+        return False, "La solicitud es histórica y no admite justificaciones operativas.", 422
+
+    # ── 3. Verificar Estado de Bloqueo ANS ─────────────────────────────────
+    vzla_tz = timezone(timedelta(hours=-4))
+    now_local = datetime.now(vzla_tz)
+    status_code = req.status.status_code if req.status else ''
+
+    has_delay_block = False
+    justification_type = None
+
+    if status_code == 'STAT-003':
+        if req.created_at:
+            hours_diff = (now_local - req.created_at.astimezone(vzla_tz)).total_seconds() / 3600
+            if hours_diff > 72:
+                has_delay_block = True
+                justification_type = 'RETRASO_ATENCION'
+
+    elif status_code in ('STAT-004', 'STAT-005', 'STAT-006'):
+        if req.updated_at:
+            hours_diff = (now_local - req.updated_at.astimezone(vzla_tz)).total_seconds() / 3600
+            if hours_diff > 240:
+                has_delay_block = True
+                justification_type = 'RETRASO_EJECUCION'
+
+    # Verificar si ya existe justificación de retraso previa (Anti-spam estricto)
+    already_justified = any(
+        j.justification_type in ('RETRASO_ATENCION', 'RETRASO_EJECUCION', 'RETRASO', 'REPROGRAMACION')
+        for j in req.justifications
+    )
+
+    if already_justified:
+        return False, "Este expediente ya cuenta con un descargo formal registrado.", 422
+
+    if not has_delay_block:
+        return False, "Este expediente no presenta bloqueo ANS activo que requiera justificación.", 422
+
+    # ── 4. Validar Razón ────────────────────────────────────────────────────
+    reason = Reason.query.get(reason_id)
+    if not reason:
+        return False, "La razón seleccionada no es válida.", 400
+
+    # ── 5. Transacción Atómica ──────────────────────────────────────────────
+    try:
+        # 5a. Persistir Justificación
+        new_just = RequestJustification(
+            request_id=req.id,
+            reason_id=reason.id,
+            justification_type=justification_type,
+            justification=justification_text
+        )
+        db.session.add(new_just)
+
+        # 5b. Tracking de Trazabilidad en el Expediente
+        admin_name = "Administrador"
+        if admin_user and hasattr(admin_user, 'person') and admin_user.person:
+            admin_name = f"{admin_user.person.first_name} {admin_user.person.last_name}"
+
+        tracking = RequestTracking(
+            request_id=req.id,
+            user_id=admin_user.id,
+            messages=(
+                f"Descargo formal de justificación registrado por {admin_name}. "
+                f"Razón: {reason.name}. Tipo: {justification_type}."
+            )
+        )
+        db.session.add(tracking)
+
+        db.session.commit()
+        return True, "Descargo registrado correctamente. El bloqueo operativo ha sido levantado.", 200
+
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logging.getLogger(__name__).error(
+            f"Error al registrar justificación SLA para request_id={request_id}: {e}"
+        )
+        return False, "Error interno al registrar el descargo. Intente nuevamente.", 500
