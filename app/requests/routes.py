@@ -539,11 +539,11 @@ def get_delay_justification(request_id):
 @login_required
 @role_required('super_admin')
 @check_permissions('manage_requests')
-@limiter.limit("3 per 2 hours", methods=["POST"], key_func=lambda: f"demand_delay_{request.view_args.get('request_id')}")
+@limiter.limit("1 per hour", methods=["POST"], key_func=lambda: f"demand_delay_{current_user.id}_{request.view_args.get('request_id')}")
 def demand_delay_response_endpoint(request_id):
     """
-    Endpoint AJAX con rate limiting (máx. 3 cada 2 horas por solicitud)
-    para despachar la intimación coercitiva (notificación DANGER, correo formal y bitácoras).
+    Endpoint AJAX con rate limiting estricto (máx. 1 por hora por solicitud/usuario)
+    para registrar la exigencia formal en el tracking de la solicitud.
     """
     from app.requests.services import demand_delay_response
 
@@ -604,5 +604,61 @@ def calendar_events_endpoint():
 
     return jsonify(data), 200
 
+# ---------------------------------------------------------------------------
+# SLA Gate: Catálogo de Razones para el Modal Bloqueante
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/api/requests/<int:request_id>/delay-reasons', methods=['GET'])
+@login_required
+@role_required('state_admin')
+@check_permissions('manage_requests')
+def get_delay_reasons_for_request(request_id):
+    """
+    Endpoint AJAX que devuelve el catálogo de razones disponibles
+    para justificar una mora ANS en la Ficha Técnica (SLA Gate Modal).
+    """
+    from app.requests.services import get_delay_reasons
+    reasons = get_delay_reasons()
+    return jsonify({'reasons': reasons}), 200
 
 
+# ---------------------------------------------------------------------------
+# SLA Gate: Registrar Descargo Obligatorio de Retraso
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/api/requests/<int:request_id>/justify-delay', methods=['POST'])
+@login_required
+@role_required('state_admin')
+@check_permissions('manage_requests')
+@limiter.limit("2 per hour", methods=["POST"], key_func=lambda: f"justify_delay_{current_user.id}_{request.view_args.get('request_id')}")
+@limiter.limit("1 per minute", methods=["POST"], key_func=lambda: f"justify_delay_{current_user.id}_{request.view_args.get('request_id')}")
+@limiter.limit("5 per hour", methods=["POST"], key_func=lambda: f"justify_delay_user_{current_user.id}")
+def justify_delay(request_id):
+    """
+    Endpoint AJAX (SLA Gate) para registrar el descargo formal de mora ANS.
+    Cuenta con rate limit estricto por usuario y solicitud para mitigar spam.
+    Requiere reason_id (int) y justification (str, mínimo 20 caracteres).
+    Al completarse exitosamente, el bloqueo operativo de la solicitud se levanta.
+    """
+    from app.requests.services import submit_delay_justification
+
+    data = request.get_json() or {}
+    reason_id = data.get('reason_id')
+    justification_text = data.get('justification', '')
+
+    if not reason_id:
+        return jsonify({'success': False, 'message': 'Debe seleccionar una razón de retraso.'}), 400
+
+    try:
+        reason_id = int(reason_id)
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'message': 'reason_id inválido.'}), 400
+
+    success, message, status_code = submit_delay_justification(
+        request_id=request_id,
+        admin_user=current_user,
+        reason_id=reason_id,
+        justification_text=justification_text
+    )
+
+    return jsonify({'success': success, 'message': message}), status_code
