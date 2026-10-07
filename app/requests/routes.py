@@ -326,6 +326,53 @@ def state_request_detail(id):
             return redirect(url_for('requests.state_admin_dashboard'))
         
     return render_template('requests/state_request_detail.html', req=req)
+
+# ---------------------------------------------------------------------------
+# Bloque Administrador Estadal: Tomar Solicitud
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/api/requests/<int:request_id>/claim-and-attend', methods=['POST'])
+@login_required
+@role_required('state_admin')
+@check_permissions('manage_requests')
+def api_claim_and_attend(request_id):
+    """
+    Endpoint para que un administrador estadal asuma una solicitud.
+    Verifica jurisdicción, controla concurrencia (409) y responde HTTP codes según estándar.
+    """
+    from flask import jsonify
+    from app.requests.services import claim_and_attend_request, RequestAlreadyClaimedException, get_admin_state_id
+    from app.models.request_model import Request
+
+    # 1. Validación de territorio (In-line security)
+    req = Request.query.get(request_id)
+    if not req:
+        return jsonify({'success': False, 'message': 'Solicitud no encontrada.'}), 404
+        
+    admin_state_id = get_admin_state_id(current_user)
+    
+    try:
+        req_state_id = req.institutional_staff.institution.parish.municipality.state_id
+    except AttributeError:
+        req_state_id = None
+
+    if not admin_state_id or req_state_id != admin_state_id:
+        return jsonify({'success': False, 'message': 'Acceso denegado. Jurisdicción no válida para este operador.'}), 403
+
+    # 2. Delegar a capa de servicios (Transaccional)
+    try:
+        success, msg, data = claim_and_attend_request(request_id, current_user)
+        if success:
+            return jsonify({'success': True, 'message': msg, 'data': data}), 200
+        else:
+            return jsonify({'success': False, 'message': msg}), 400
+    except RequestAlreadyClaimedException as e:
+        return jsonify({'success': False, 'message': str(e)}), 409
+    except Exception as e:
+        import logging
+        logging.error(f"Error en claim-and-attend (Request ID {request_id}): {e}")
+        return jsonify({'success': False, 'message': 'Error interno al procesar la asignación.'}), 500
+
 # ---------------------------------------------------------------------------  
 # Ruta Super Administrador: Tablero de Monitoreo Nacional (US-38)
 # ---------------------------------------------------------------------------

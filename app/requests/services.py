@@ -16,6 +16,10 @@ from app.models.request_justification_model import RequestJustification
 from sqlalchemy import func, case, or_
 from datetime import datetime, timezone, timedelta
 
+class RequestAlreadyClaimedException(Exception):
+    """Excepción lanzada cuando un administrador intenta atender una solicitud que ya fue tomada concurrentemente."""
+    pass
+
 # ---------------------------------------------------------------------------
 # Bloque Solicitante
 # ---------------------------------------------------------------------------
@@ -395,6 +399,100 @@ def get_request_full_detail(request_id: int):
         req.traffic_light_text = base_text
 
     return req
+
+# Bloque Administrador Estadal (Atención y Asignación nominal)
+def claim_and_attend_request(request_id: int, admin_user) -> tuple[bool, str, dict]:
+    """
+    Toma propiedad nominal de una solicitud.
+    Ejecuta un bloqueo pesimista en base de datos para prevenir colisiones concurrentes.
+    Transiciona a STAT-004 (Pendiente), instancia request_plannings y deja traza.
+    """
+    from app.models.request_tracking_model import RequestTracking
+    
+    # Iniciar la transacción y bloquear la fila específica (Pessimistic Locking)
+    req = db.session.query(Request).filter(Request.id == request_id).with_for_update().first()
+    
+    if not req:
+        return False, "Solicitud no encontrada.", {}
+    # Comprobar que sea el estado correcto
+    if req.status.status_code != 'STAT-003':
+        return False, f"La solicitud no se encuentra en estado Nuevo (Actual: {req.status.status_code}).", {}
+    # Comprobar si ya fue asignada en un hilo concurrente
+    if req.attended_by_id is not None:
+        db.session.rollback()
+        raise RequestAlreadyClaimedException("Esta solicitud ya ha sido asumida por otro operador de la sede.")
+    # Consultar el estado Pendiente
+    status_pending = Status.query.filter_by(status_code='STAT-004').first()
+    if not status_pending:
+        db.session.rollback()
+        return False, "Error interno: Estado STAT-004 no encontrado en catálogo.", {}
+    try:
+        # 1. Asignar operador y actualizar estado
+        req.attended_by_id = admin_user.id
+        req.status_id = status_pending.id
+        req.updated_at = datetime.now(timezone.utc)
+        
+        # 2. Instanciación satélite diferida de RequestPlanning
+        accepted_at = datetime.now(timezone.utc)
+        planning = RequestPlanning(
+            requests_id=req.id,
+            accepted_at=accepted_at,
+            acceptance_deadline=req.created_at + timedelta(hours=72),
+            execution_deadline=accepted_at + timedelta(days=10)
+        )
+        db.session.add(planning)
+        
+        # 3. Traza automática institucional en Bitácora
+        admin_name = f"{admin_user.person.first_name} {admin_user.person.last_name}"
+        tracking_msg = (
+            f"Solicitud asignada al Administrador {admin_name}. "
+            f"El Administrador encargado se pondrá en contacto directo con su institución "
+            f"para coordinar requerimientos logísticos, espacio, cantidad estimada de "
+            f"participantes y confirmar la fecha definitiva de la jornada."
+        )
+        tracking = RequestTracking(
+            request_id=req.id,
+            user_id=admin_user.id,
+            messages=tracking_msg
+        )
+        db.session.add(tracking)
+        
+        # 4. Commit Atómico Completo
+        db.session.commit()
+        
+        # 5. Despacho de Correo Asíncrono
+        try:
+            from app.utils.email_utils import send_request_claimed_email
+            
+            # Navegar hacia la Persona (Solicitante) a través de InstitutionalStaff
+            applicant_person = req.institutional_staff.person
+            applicant_email = applicant_person.email
+            applicant_name = f"{applicant_person.first_name} {applicant_person.last_name}"
+            
+            # Extraer institución
+            inst_name = req.institutional_staff.institution.institution_name
+                
+            send_request_claimed_email(
+                to_email=applicant_email,
+                full_name=applicant_name,
+                institution_name=inst_name,
+                request_code=req.request_code,
+                admin_name=admin_name
+            )
+        except Exception as email_e:
+            import logging
+            logging.error(f"No se pudo enviar el correo de asignación: {email_e}")
+        
+        return True, "Solicitud asignada exitosamente.", {
+            "status_code": status_pending.status_code,
+            "status_name": status_pending.status_name,
+            "operator_name": admin_name
+        }
+        
+    except Exception as e:
+        db.session.rollback()
+        return False, f"Error transaccional en asignación: {str(e)}", {}
+
 # ---------------------------------------------------------------------------
 # US-38: Monitoreo Nacional con Semáforo y Pre-filtrado
 # ---------------------------------------------------------------------------
