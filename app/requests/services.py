@@ -1105,3 +1105,124 @@ def demand_delay_response(request_id: int, super_admin_user) -> tuple[bool, str,
     return True, "Requerimiento formal despachado exitosamente al operador responsable.", 200
 
 
+# ---------------------------------------------------------------------------
+# Agenda y Calendario Mensual de Formaciones (Sin Auditoría ni Notificaciones)
+# ---------------------------------------------------------------------------
+
+def get_monthly_calendar_events(user: User, year: int, month: int, state_id: int | None = None) -> dict:
+    """
+    Obtiene los eventos de solicitudes de formación agendados para el mes y año especificados.
+    Aplica aislamiento territorial según el rol:
+      - Admin Estadal: Restringido estrictamente a su estado de asignación.
+      - Super Admin: Vista nacional con opción de filtrar por estado específico.
+    Optimizado con joinedload para evitar consultas N+1.
+    No incluye código de bitácora ni notificaciones.
+    """
+    import calendar
+    from datetime import date
+
+    # 1. Determinar roles del usuario
+    user_roles = [assoc.role.name for assoc in user.roles_assoc] if user and user.roles_assoc else []
+    is_super_admin = 'super_admin' in user_roles
+
+    # 2. Control y aislamiento territorial
+    effective_state_id = None
+    if not is_super_admin:
+        # Admin Estadal: Aislamiento territorial mandatorio
+        admin_state_id = get_admin_state_id(user)
+        if not admin_state_id:
+            return {
+                'success': False,
+                'error': 'El usuario no posee una asignación territorial válida.',
+                'year': year,
+                'month': month,
+                'user_role': 'state_admin',
+                'events': [],
+                'total_events': 0
+            }
+        effective_state_id = admin_state_id
+    else:
+        # Super Admin: Opcional si se solicita filtrar por un estado específico
+        effective_state_id = int(state_id) if (state_id and str(state_id).isdigit()) else None
+
+    # 3. Rango de fechas del mes
+    _, num_days = calendar.monthrange(year, month)
+    start_date = date(year, month, 1)
+    end_date = date(year, month, num_days)
+
+    # 4. Construcción de consulta optimizada
+    query = db.session.query(RequestPlanning).join(
+        Request, RequestPlanning.requests_id == Request.id
+    ).join(
+        InstitutionalStaff, Request.institutional_staff_id == InstitutionalStaff.id
+    ).join(
+        Institution, InstitutionalStaff.institution_id == Institution.id
+    ).join(
+        Parish, Institution.parish_id == Parish.id
+    ).join(
+        Municipality, Parish.municipality_id == Municipality.id
+    ).join(
+        Status, Request.status_id == Status.id
+    ).options(
+        joinedload(RequestPlanning.request).joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.institution).joinedload(Institution.parish).joinedload(Parish.municipality).joinedload(Municipality.state),
+        joinedload(RequestPlanning.request).joinedload(Request.training),
+        joinedload(RequestPlanning.request).joinedload(Request.attended_by).joinedload(User.person),
+        joinedload(RequestPlanning.request).joinedload(Request.status)
+    ).filter(
+        RequestPlanning.planned_for.between(start_date, end_date),
+        Request.historical == False,
+        Status.status_code.notin_(['STAT-009', 'STAT-010'])
+    )
+
+    if effective_state_id:
+        query = query.filter(Municipality.state_id == effective_state_id)
+
+    # Ordenar cronológicamente
+    plannings = query.order_by(RequestPlanning.planned_for.asc(), Request.id.asc()).all()
+
+    # 5. Mapeo estructurado para el consumidor frontend
+    events = []
+    for plan in plannings:
+        req = plan.request
+        if not req:
+            continue
+
+        inst = req.institutional_staff.institution if (req.institutional_staff and req.institutional_staff.institution) else None
+        inst_parish = inst.parish if inst else None
+        inst_mun = inst_parish.municipality if inst_parish else None
+        inst_state = inst_mun.state if inst_mun else None
+
+        attended_person = req.attended_by.person if (req.attended_by and req.attended_by.person) else None
+        operator_name = f"{attended_person.first_name} {attended_person.last_name}" if attended_person else "Sin Asignar"
+
+        events.append({
+            'id': plan.id,
+            'request_id': req.id,
+            'request_code': req.request_code,
+            'date': plan.planned_for.strftime('%Y-%m-%d') if plan.planned_for else '',
+            'status_code': req.status.status_code if req.status else 'STAT-005',
+            'status_name': req.status.status_name if req.status else 'Planificada',
+            'institution_name': inst.institution_name if inst else 'N/A',
+            'topic_name': req.training.name if req.training else 'Sin Tema Asignado',
+            'operator_name': operator_name,
+            'operator_id': req.attended_by_id,
+            'state_name': inst_state.name if inst_state else '',
+            'state_id': inst_state.id if inst_state else None,
+            'municipality_name': inst_mun.name if inst_mun else '',
+            'detail_url': f"/requests/{req.id}/detail",
+            'attended': plan.attended,
+            'rescheduled_count': plan.rescheduled_count
+        })
+
+    return {
+        'success': True,
+        'year': year,
+        'month': month,
+        'user_role': 'super_admin' if is_super_admin else 'state_admin',
+        'effective_state_id': effective_state_id,
+        'events': events,
+        'total_events': len(events)
+    }
+
+
+

@@ -5,6 +5,7 @@
 {% block extra_css %}
 <!-- Hoja de estilos -->
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_state.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/calendar_agenda.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -135,7 +136,7 @@
         </div>
 
         <div class="actions-group">
-            <a href="#" class="btn-action blue" style="display: inline-flex; align-items: center; gap: 6px;">
+            <a href="javascript:void(0)" class="btn-action blue" id="btn-open-agenda" style="display: inline-flex; align-items: center; gap: 6px;" title="Ver Agenda y Calendario Mensual">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
                     <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                     <line x1="16" y1="2" x2="16" y2="6"></line>
@@ -176,6 +177,9 @@
         </table>
     </div>
 </div>
+
+<!-- Modal de Agenda y Calendario Mensual -->
+{% include 'requests/partials/_calendar_agenda_modal.html' %}
 {% endblock %}
 
 {% block extra_js %}
@@ -183,4 +187,6 @@
 <script src="{{ url_for('static', filename='JS/time-formatter.js') }}"></script>
 <!-- JS propio -->
 <script src="{{ url_for('static', filename='JS/requests_state_dashboard.js') }}"></script>
+<!-- Controlador de Agenda y Calendario -->
+<script src="{{ url_for('static', filename='JS/calendar_agenda.js') }}"></script>
 {% endblock %}

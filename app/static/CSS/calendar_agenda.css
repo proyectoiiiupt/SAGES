@@ -1,0 +1,735 @@
+/* ==========================================================================
+   CALENDAR & AGENDA MENSUAL - SAGES DESIGN SYSTEM
+   Paleta: Corporativo Corpoelec (#019577), Slate, Blue, Amber, Emerald
+   ========================================================================== */
+
+/* 1. Backdrop del Modal */
+.calendar-modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    padding: 16px;
+    box-sizing: border-box;
+    opacity: 0;
+    animation: calFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes calFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* 2. Diálogo y Contenedor Principal */
+.calendar-modal-dialog {
+    position: relative;
+    width: 100%;
+    max-width: 1200px;
+    max-height: 94vh;
+    background: #ffffff;
+    border-radius: 18px;
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(226, 232, 240, 0.8);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: calScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes calScaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.96) translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.calendar-modal-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-height: 94vh;
+    overflow: hidden;
+    position: relative;
+}
+
+/* 3. Cabecera */
+.calendar-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.calendar-modal-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.calendar-modal-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #019577 0%, #017a61 100%);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 10px rgba(1, 149, 119, 0.25);
+    flex-shrink: 0;
+}
+
+.calendar-modal-icon svg {
+    width: 22px;
+    height: 22px;
+}
+
+.calendar-modal-title {
+    font-size: 1.18rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+    letter-spacing: -0.02em;
+}
+
+.calendar-modal-subtitle {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin: 2px 0 0 0;
+    display: block;
+}
+
+/* Controles de Navegación */
+.calendar-nav-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f1f5f9;
+    padding: 4px 8px;
+    border-radius: 30px;
+    border: 1px solid #e2e8f0;
+}
+
+.calendar-nav-btn {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.calendar-nav-btn:hover {
+    background: #019577;
+    border-color: #019577;
+    color: #ffffff;
+    transform: scale(1.05);
+}
+
+.calendar-nav-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.calendar-current-month-label {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #0f172a;
+    min-width: 140px;
+    text-align: center;
+    letter-spacing: -0.01em;
+}
+
+.calendar-today-btn {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #019577;
+    font-weight: 600;
+    font-size: 0.8rem;
+    padding: 5px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.calendar-today-btn:hover {
+    background: #019577;
+    border-color: #019577;
+    color: #ffffff;
+}
+
+/* Header Derecha */
+.calendar-modal-header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.calendar-state-select {
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    font-size: 0.85rem;
+    color: #1e293b;
+    background: #f8fafc;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s ease;
+}
+
+.calendar-state-select:focus {
+    border-color: #019577;
+    background: #ffffff;
+}
+
+.calendar-modal-close {
+    background: transparent;
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.calendar-modal-close:hover {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.calendar-modal-close svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* 4. Barra de Carga / Spinner */
+.calendar-loader-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: #e2e8f0;
+    overflow: hidden;
+    z-index: 10;
+}
+
+.calendar-loader-progress {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #019577, #38bdf8, #019577);
+    animation: calLoadingAnim 1.2s infinite ease-in-out;
+}
+
+@keyframes calLoadingAnim {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* 5. Cuerpo del Calendario */
+.calendar-modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 24px;
+    background: #f8fafc;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Fila de Días de la Semana */
+.calendar-weekdays-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.calendar-weekday-col {
+    text-align: center;
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 6px 0;
+}
+
+.calendar-weekday-col.weekend {
+    color: #94a3b8;
+}
+
+/* Cuadrícula de Días */
+.calendar-grid-container {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-auto-rows: minmax(105px, 1fr);
+    gap: 8px;
+    flex: 1;
+}
+
+/* Celda de Día Individual */
+.calendar-day-cell {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.15s ease;
+    position: relative;
+    cursor: default;
+}
+
+.calendar-day-cell:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.calendar-day-cell.other-month {
+    background: #f8fafc;
+    border-color: #f1f5f9;
+    opacity: 0.55;
+}
+
+.calendar-day-cell.is-today {
+    border-color: #019577;
+    background: #f0fdf9;
+    box-shadow: 0 0 0 1px #019577;
+}
+
+.calendar-day-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.calendar-day-number {
+    font-size: 0.98rem;
+    font-weight: 700;
+    color: #334155;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.calendar-day-cell.is-today .calendar-day-number {
+    background: #019577;
+    color: #ffffff;
+}
+
+.calendar-day-count {
+    font-size: 0.8rem;
+    color: #64748b;
+    font-weight: 600;
+}
+
+/* Lista de Eventos en la Celda */
+.calendar-day-events {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow: hidden;
+    flex: 1;
+}
+
+/* Píldora de Evento (Pill) */
+.calendar-event-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 7px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    line-height: 1.3;
+    cursor: pointer;
+    transition: transform 0.12s ease, filter 0.12s ease;
+    border: 1px solid transparent;
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.calendar-event-pill:hover {
+    transform: translateY(-1px);
+    filter: brightness(0.96);
+}
+
+.calendar-event-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.calendar-event-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+/* Variantes Semafóricas de Eventos */
+.pill-status-STAT-005 { /* Planificada */
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    color: #1d4ed8;
+}
+.pill-status-STAT-005 .calendar-event-dot { background: #2563eb; }
+
+.pill-status-STAT-006 { /* En Proceso */
+    background: #fffbeb;
+    border-color: #fde68a;
+    color: #b45309;
+}
+.pill-status-STAT-006 .calendar-event-dot { background: #d97706; }
+
+.pill-status-STAT-007 { /* Completada */
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+    color: #047857;
+}
+.pill-status-STAT-007 .calendar-event-dot { background: #059669; }
+
+.pill-status-default {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #475569;
+}
+.pill-status-default .calendar-event-dot { background: #64748b; }
+
+/* Botón "+N más" */
+.calendar-more-pill {
+    background: #f1f5f9;
+    border: 1px dashed #cbd5e1;
+    color: #475569;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 3px 6px;
+    border-radius: 4px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    margin-top: 2px;
+}
+
+.calendar-more-pill:hover {
+    background: #019577;
+    border-color: #019577;
+    color: #ffffff;
+}
+
+/* 6. Pie del Modal */
+.calendar-modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background: #ffffff;
+    border-top: 1px solid #e2e8f0;
+    font-size: 0.8rem;
+}
+
+.calendar-legend {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.dot-planned { background: #2563eb; }
+.dot-in-progress { background: #d97706; }
+.dot-completed { background: #059669; }
+.dot-pending { background: #ea580c; }
+
+.cal-stats-badge {
+    background: #f0fdf9;
+    color: #019577;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 12px;
+    border: 1px solid #a7f3d0;
+}
+
+/* 7. Tooltip Flotante Adaptativo */
+.calendar-floating-tooltip {
+    position: fixed;
+    z-index: 100000;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 14px 35px -8px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(226, 232, 240, 0.9);
+    padding: 14px 16px;
+    width: 320px;
+    pointer-events: auto;
+    font-family: inherit;
+    animation: calTooltipFade 0.15s ease forwards;
+}
+
+@keyframes calTooltipFade {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.cal-tooltip-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+/* .cal-tooltip-code eliminado — el código de BD ya no se muestra en el tooltip */
+
+.cal-tooltip-status {
+    font-size: 0.76rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.cal-tooltip-status.status-STAT-005 { background: #eff6ff; color: #1d4ed8; }
+.cal-tooltip-status.status-STAT-006 { background: #fffbeb; color: #b45309; }
+.cal-tooltip-status.status-STAT-007 { background: #ecfdf5; color: #047857; }
+
+.cal-tooltip-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.cal-tooltip-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.88rem;
+    line-height: 1.4;
+}
+
+.cal-tooltip-icon {
+    font-size: 0.95rem;
+    flex-shrink: 0;
+    line-height: 1;
+    margin-top: 1px;
+}
+
+.cal-tooltip-label {
+    color: #64748b;
+    font-weight: 500;
+    font-size: 0.8rem;
+    display: block;
+    margin-bottom: 2px;
+}
+
+.cal-tooltip-value {
+    color: #1e293b;
+    font-weight: 600;
+    word-break: break-word;
+}
+
+.cal-tooltip-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 8px;
+}
+
+.cal-tooltip-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #019577;
+    color: #ffffff;
+    font-size: 0.84rem;
+    font-weight: 600;
+    padding: 7px 14px;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: background 0.15s ease;
+}
+
+.cal-tooltip-btn:hover {
+    background: #017a61;
+    color: #ffffff;
+}
+
+.cal-tooltip-btn svg {
+    width: 13px;
+    height: 13px;
+}
+
+/* 8. Panel Lateral / Drawer de Día Saturado */
+.calendar-day-drawer {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 360px;
+    height: 100%;
+    background: #ffffff;
+    box-shadow: -8px 0 25px rgba(0, 0, 0, 0.15);
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    animation: calSlideDrawer 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes calSlideDrawer {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+}
+
+.cal-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.cal-drawer-title {
+    font-size: 1.08rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+}
+
+.cal-drawer-subtitle {
+    font-size: 0.82rem;
+    color: #64748b;
+    display: block;
+}
+
+.cal-drawer-close {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    color: #94a3b8;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+}
+
+.cal-drawer-close:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+.cal-drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.cal-drawer-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.cal-drawer-card:hover {
+    border-color: #019577;
+}
+
+/* 9. Responsividad */
+@media (max-width: 900px) {
+    .calendar-modal-header {
+        padding: 12px 16px;
+    }
+    .calendar-modal-body {
+        padding: 12px 16px;
+    }
+    .calendar-grid-container {
+        grid-auto-rows: minmax(85px, 1fr);
+        gap: 4px;
+    }
+    .calendar-day-cell {
+        padding: 4px;
+    }
+    .calendar-day-drawer {
+        width: 100%;
+    }
+}
+
+@media (max-width: 600px) {
+    .calendar-modal-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .calendar-nav-controls {
+        justify-content: center;
+    }
+    .calendar-weekday-col {
+        font-size: 0.65rem;
+    }
+    .calendar-grid-container {
+        grid-auto-rows: minmax(70px, 1fr);
+    }
+    .calendar-event-text {
+        display: none;
+    }
+    .calendar-event-pill {
+        justify-content: center;
+        padding: 4px 0;
+    }
+}
