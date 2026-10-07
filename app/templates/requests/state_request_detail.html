@@ -43,16 +43,15 @@
             {% if req.status.status_code == 'STAT-003' %}
 
             {% if req.has_delay_block %}
-            <button type="button" class="btn-action-danger">
+            <button type="button" id="btn-open-sla-gate" class="btn-action-danger" data-request-id="{{ req.id }}">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
-                    </path>
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
                     <line x1="12" y1="9" x2="12" y2="13"></line>
                     <line x1="12" y1="17" x2="12.01" y2="17"></line>
                 </svg>
                 Justificar Retraso
             </button>
-            <button type="button" class="btn-action-primary" disabled title="Debe justificar el retraso primero">
+            <button type="button" id="btn-attend-blocked" class="btn-action-primary" disabled title="Debe justificar el retraso primero">
                 Atender Solicitud
             </button>
             {% else %}
@@ -68,16 +67,15 @@
             {% elif req.status.status_code in ['STAT-004', 'STAT-005', 'STAT-006'] %}
 
             {% if req.has_delay_block %}
-            <button type="button" class="btn-action-danger">
+            <button type="button" id="btn-open-sla-gate" class="btn-action-danger" data-request-id="{{ req.id }}">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
-                    </path>
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
                     <line x1="12" y1="9" x2="12" y2="13"></line>
                     <line x1="12" y1="17" x2="12.01" y2="17"></line>
                 </svg>
                 Justificar Retraso
             </button>
-            <button type="button" class="btn-action-primary" disabled title="Debe justificar el retraso primero">
+            <button type="button" id="btn-follow-blocked" class="btn-action-primary" disabled title="Debe justificar el retraso primero">
                 Seguir Solicitud
             </button>
             {% else %}
@@ -105,7 +103,7 @@
                     <line x1="16" y1="17" x2="8" y2="17"></line>
                     <polyline points="10 9 9 9 8 9"></polyline>
                 </svg>
-                Código: {{ req.request_code }}
+                Expediente de Solicitud
             </h1>
             <div class="request-meta">
                 <span>
@@ -260,23 +258,373 @@
         </div>
     </div>
 </div>
+
+{% if req.has_delay_block %}
+<!-- ============================================================
+     SLA GATE: Modal Bloqueante de Justificación de Retraso ANS
+     ============================================================ -->
+<div id="sla-gate-overlay" class="sla-gate-overlay" role="dialog" aria-modal="true" aria-labelledby="sla-gate-title">
+    <div class="sla-gate-modal" id="sla-gate-modal">
+
+        <!-- Cabecera del Modal -->
+        <div class="sla-modal-header">
+            <div class="sla-modal-icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+            </div>
+            <div class="sla-modal-header-text">
+                <h2 id="sla-gate-title">Justificación Obligatoria de Retraso ANS</h2>
+                <p>Este expediente supera los plazos normativos. Debe registrar un descargo formal para continuar.</p>
+            </div>
+        </div>
+
+        <!-- Alerta de ANS Violado -->
+        <div class="sla-alert-banner">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span>
+                Estado: <strong>{{ req.traffic_light_text }}</strong>
+            </span>
+        </div>
+
+        <!-- Formulario del Modal -->
+        <form id="sla-gate-form" novalidate>
+            <input type="hidden" id="sla-request-id" value="{{ req.id }}">
+
+            <!-- Razón del Retraso -->
+            <div class="sla-field-group">
+                <label for="sla-reason-select" class="sla-label">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 11l3 3L22 4"/>
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                    </svg>
+                    Razón del Retraso <span class="sla-required">*</span>
+                </label>
+                <select id="sla-reason-select" name="reason_id" class="sla-select" required>
+                    <option value="">Cargando razones...</option>
+                </select>
+                <span id="sla-reason-error" class="sla-field-error" hidden>Debe seleccionar una razón.</span>
+            </div>
+
+            <!-- Descargo Formal -->
+            <div class="sla-field-group">
+                <label for="sla-justification" class="sla-label">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                    Descargo Formal <span class="sla-required">*</span>
+                </label>
+                <textarea
+                    id="sla-justification"
+                    name="justification"
+                    class="sla-textarea"
+                    rows="5"
+                    maxlength="2000"
+                    placeholder="Explique detalladamente los motivos del retraso normativo (mínimo 20 caracteres)..."
+                    required
+                ></textarea>
+                <div class="sla-textarea-footer">
+                    <span id="sla-char-error" class="sla-field-error" hidden>Mínimo 20 caracteres requeridos.</span>
+                    <span id="sla-char-counter" class="sla-char-counter"><span id="sla-char-count">0</span> / 2000</span>
+                </div>
+                <!-- Barra de progreso de caracteres -->
+                <div class="sla-progress-wrap">
+                    <div id="sla-char-progress" class="sla-char-progress"></div>
+                </div>
+            </div>
+
+            <!-- Footer del Formulario -->
+            <div class="sla-modal-footer">
+                <div class="sla-footer-note">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                    Este descargo formal quedará registrado en el expediente.
+                </div>
+                <button type="submit" id="sla-submit-btn" class="sla-btn-submit" disabled>
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                    Registrar Descargo y Desbloquear
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        // Inicializar el reloj del banner
-        const dateElement = document.getElementById('current-date-display');
-        if (dateElement) {
-            dateElement.setAttribute('data-utc', new Date().toISOString());
-            dateElement.classList.add('local-datetime');
-            dateElement.setAttribute('data-format', 'full-date');
+document.addEventListener("DOMContentLoaded", function () {
 
-            // Llamar explícitamente a la macro global de formato si está disponible
-            if (typeof formatAllLocalTimes === 'function') {
-                formatAllLocalTimes();
+    // ── Banner: Inicializar fecha actual ──────────────────────────────────
+    const dateElement = document.getElementById('current-date-display');
+    if (dateElement) {
+        dateElement.setAttribute('data-utc', new Date().toISOString());
+        dateElement.classList.add('local-datetime');
+        dateElement.setAttribute('data-format', 'full-date');
+        if (typeof formatAllLocalTimes === 'function') {
+            formatAllLocalTimes();
+        }
+    }
+
+    // ── SLA Gate Modal ────────────────────────────────────────────────────
+    const overlay    = document.getElementById('sla-gate-overlay');
+    const openBtn    = document.getElementById('btn-open-sla-gate');
+    const form       = document.getElementById('sla-gate-form');
+    const reasonSel  = document.getElementById('sla-reason-select');
+    const textarea   = document.getElementById('sla-justification');
+    const submitBtn  = document.getElementById('sla-submit-btn');
+    const charCount  = document.getElementById('sla-char-count');
+    const charProg   = document.getElementById('sla-char-progress');
+    const charErr    = document.getElementById('sla-char-error');
+    const reasonErr  = document.getElementById('sla-reason-error');
+    const requestId  = document.getElementById('sla-request-id');
+
+    const MIN_CHARS  = 20;
+    const MAX_CHARS  = 2000;
+
+    // Si el overlay existe, el bloqueo está activo: mostrar inmediatamente
+    if (overlay) {
+        // Mostrar el overlay al cargar la página automáticamente
+        showSlaGate();
+    }
+
+    // Botón secundario "Justificar Retraso" también abre el modal
+    if (openBtn) {
+        openBtn.addEventListener('click', showSlaGate);
+    }
+
+    function showSlaGate() {
+        if (!overlay) return;
+        overlay.classList.add('visible');
+        document.body.style.overflow = 'hidden';
+        loadReasons();
+        if (textarea) textarea.focus();
+    }
+
+    // Prevenir cierre por clic en overlay (es bloqueante)
+    if (overlay) {
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) {
+                // Sacudir el modal para indicar que no se puede cerrar
+                const modal = document.getElementById('sla-gate-modal');
+                if (modal) {
+                    modal.classList.add('sla-shake');
+                    setTimeout(() => modal.classList.remove('sla-shake'), 500);
+                }
+            }
+        });
+    }
+
+    // Prevenir cierre con tecla Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && overlay && overlay.classList.contains('visible')) {
+            e.preventDefault();
+            const modal = document.getElementById('sla-gate-modal');
+            if (modal) {
+                modal.classList.add('sla-shake');
+                setTimeout(() => modal.classList.remove('sla-shake'), 500);
             }
         }
     });
+
+    // Cargar catálogo de razones desde la API
+    function loadReasons() {
+        if (!reasonSel || !requestId) return;
+        const reqId = requestId.value;
+
+        fetch(`/requests/api/requests/${reqId}/delay-reasons`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            reasonSel.innerHTML = '<option value="">-- Seleccione una razón --</option>';
+            if (data.reasons && data.reasons.length > 0) {
+                data.reasons.forEach(r => {
+                    const opt = document.createElement('option');
+                    opt.value = r.id;
+                    opt.textContent = r.name;
+                    reasonSel.appendChild(opt);
+                });
+            } else {
+                reasonSel.innerHTML = '<option value="">No hay razones disponibles</option>';
+            }
+        })
+        .catch(() => {
+            reasonSel.innerHTML = '<option value="">Error al cargar razones. Recargue la página.</option>';
+        });
+    }
+
+    // Contador de caracteres y barra de progreso
+    if (textarea) {
+        textarea.addEventListener('input', function() {
+            const len = textarea.value.length;
+            if (charCount) charCount.textContent = len;
+
+            // Barra de progreso
+            if (charProg) {
+                const pct = Math.min((len / MAX_CHARS) * 100, 100);
+                charProg.style.width = pct + '%';
+                // Color según mínimo cumplido
+                if (len < MIN_CHARS) {
+                    charProg.className = 'sla-char-progress progress-danger';
+                } else if (len < 100) {
+                    charProg.className = 'sla-char-progress progress-warning';
+                } else {
+                    charProg.className = 'sla-char-progress progress-ok';
+                }
+            }
+
+            // Mostrar/ocultar error de caracteres
+            if (charErr) {
+                charErr.hidden = len >= MIN_CHARS;
+            }
+
+            updateSubmitState();
+        });
+    }
+
+    if (reasonSel) {
+        reasonSel.addEventListener('change', function() {
+            if (reasonErr) reasonErr.hidden = !!reasonSel.value;
+            updateSubmitState();
+        });
+    }
+
+    function updateSubmitState() {
+        if (!submitBtn) return;
+        const hasReason = reasonSel && reasonSel.value !== '';
+        const hasText   = textarea && textarea.value.trim().length >= MIN_CHARS;
+        submitBtn.disabled = !(hasReason && hasText);
+    }
+
+    // Envío del formulario
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            let valid = true;
+
+            if (!reasonSel || !reasonSel.value) {
+                if (reasonErr) reasonErr.hidden = false;
+                valid = false;
+            }
+            if (!textarea || textarea.value.trim().length < MIN_CHARS) {
+                if (charErr) charErr.hidden = false;
+                valid = false;
+            }
+            if (!valid) return;
+
+            // Estado de carga
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `
+                <svg class="sla-spinner" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                </svg>
+                Registrando descargo...
+            `;
+
+            const reqId = requestId.value;
+            const payload = {
+                reason_id: parseInt(reasonSel.value),
+                justification: textarea.value.trim()
+            };
+
+            // Obtener el token CSRF del meta tag si existe
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+            fetch(`/requests/api/requests/${reqId}/justify-delay`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    // Éxito: cerrar modal y recargar para habilitar operatividad
+                    overlay.classList.remove('visible');
+                    document.body.style.overflow = '';
+
+                    // Mostrar feedback visual antes de recargar
+                    showSuccessBanner(data.message);
+                    setTimeout(() => window.location.reload(), 1800);
+                } else {
+                    // Error: restaurar botón y mostrar mensaje
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = `
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                            <polyline points="22 4 12 14.01 9 11.01"/>
+                        </svg>
+                        Registrar Descargo y Desbloquear
+                    `;
+                    showModalError(data.message || 'Error al procesar la solicitud.');
+                }
+            })
+            .catch(() => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = `
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                    Registrar Descargo y Desbloquear
+                `;
+                showModalError('Error de red. Verifique su conexión e intente nuevamente.');
+            });
+        });
+    }
+
+    // Notificación de error dentro del modal
+    function showModalError(msg) {
+        let existing = document.getElementById('sla-modal-error-toast');
+        if (existing) existing.remove();
+        const toast = document.createElement('div');
+        toast.id = 'sla-modal-error-toast';
+        toast.className = 'sla-error-toast';
+        toast.innerHTML = `
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span>${msg}</span>
+        `;
+        const modal = document.getElementById('sla-gate-modal');
+        if (modal) modal.insertBefore(toast, modal.querySelector('#sla-gate-form'));
+        setTimeout(() => { if (toast.parentNode) toast.remove(); }, 4000);
+    }
+
+    // Notificación de éxito (fuera del modal)
+    function showSuccessBanner(msg) {
+        const banner = document.createElement('div');
+        banner.className = 'sla-success-banner';
+        banner.innerHTML = `
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            <span>${msg}</span>
+        `;
+        document.body.appendChild(banner);
+        setTimeout(() => requestAnimationFrame(() => banner.classList.add('visible')), 50);
+    }
+
+});
 </script>
 {% endblock %}
