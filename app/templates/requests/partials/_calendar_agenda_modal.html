@@ -1,0 +1,131 @@
+<!-- =========================================================================
+     MODAL DE AGENDA Y CALENDARIO MENSUAL DE FORMACIONES (SAGES)
+     Soporte multi-rol: Super Admin (Operador y Plantel) / Admin Estadal (Plantel y Tema)
+     Navegación al expediente de solicitud (/requests/<id>/detail)
+     ========================================================================= -->
+
+<div class="calendar-modal-backdrop" id="calendarAgendaModal" tabindex="-1" role="dialog" aria-labelledby="calendarModalTitle" aria-hidden="true" style="display: none;"
+     data-user-role="{% if current_user.roles_assoc and 'super_admin' in current_user.roles_assoc|map(attribute='role.name')|list %}super_admin{% else %}state_admin{% endif %}">
+    
+    <div class="calendar-modal-dialog" role="document">
+        <div class="calendar-modal-content">
+            
+            <!-- Cabecera del Modal -->
+            <div class="calendar-modal-header">
+                <div class="calendar-modal-header-left">
+                    <div class="calendar-modal-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="calendar-modal-title" id="calendarModalTitle">Agenda y Calendario Mensual</h2>
+                        <span class="calendar-modal-subtitle">Cronograma y seguimiento de actividades formativas</span>
+                    </div>
+                </div>
+
+                <!-- Controles centrales de navegación de mes -->
+                <div class="calendar-nav-controls">
+                    <button type="button" class="calendar-nav-btn" id="calPrevMonthBtn" title="Mes anterior" aria-label="Mes anterior">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                    </button>
+                    
+                    <span class="calendar-current-month-label" id="calCurrentMonthLabel">Cargando...</span>
+
+                    <button type="button" class="calendar-nav-btn" id="calNextMonthBtn" title="Mes siguiente" aria-label="Mes siguiente">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
+
+                    <button type="button" class="calendar-today-btn" id="calTodayBtn">Hoy</button>
+                </div>
+
+                <!-- Acciones a la derecha y filtro opcional por estado para Super Admin -->
+                <div class="calendar-modal-header-right">
+                    {% if current_user.roles_assoc and 'super_admin' in current_user.roles_assoc|map(attribute='role.name')|list %}
+                    <div class="calendar-state-filter-wrapper">
+                        <select id="calStateFilter" class="calendar-state-select" aria-label="Filtrar por Estado">
+                            <option value="">Todos los Estados</option>
+                            {% if states %}
+                                {% for st in states %}
+                                <option value="{{ st.id }}">{{ st.name | title }}</option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    <button type="button" class="calendar-modal-close" id="closeCalendarModalBtn" aria-label="Cerrar modal">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Cuerpo del Modal -->
+            <div class="calendar-modal-body">
+                <!-- Barra de carga / Spinner -->
+                <div class="calendar-loader-bar" id="calLoaderBar" style="display: none;">
+                    <div class="calendar-loader-progress"></div>
+                </div>
+
+                <!-- Cabecera de días de la semana -->
+                <div class="calendar-weekdays-grid">
+                    <div class="calendar-weekday-col">Lun</div>
+                    <div class="calendar-weekday-col">Mar</div>
+                    <div class="calendar-weekday-col">Mié</div>
+                    <div class="calendar-weekday-col">Jue</div>
+                    <div class="calendar-weekday-col">Vie</div>
+                    <div class="calendar-weekday-col weekend">Sáb</div>
+                    <div class="calendar-weekday-col weekend">Dom</div>
+                </div>
+
+                <!-- Cuadrícula mensual de 7 columnas -->
+                <div class="calendar-grid-container" id="calendarGridBody">
+                    <!-- Se inyecta dinámicamente con JS -->
+                </div>
+            </div>
+
+            <!-- Pie del Modal: Leyenda Semafórica y Resumen -->
+            <div class="calendar-modal-footer">
+                <div class="calendar-legend">
+                    <span class="legend-item"><span class="legend-dot dot-planned"></span> Planificada</span>
+                    <span class="legend-item"><span class="legend-dot dot-in-progress"></span> En Proceso</span>
+                    <span class="legend-item"><span class="legend-dot dot-completed"></span> Completada</span>
+                    <span class="legend-item"><span class="legend-dot dot-pending"></span> Nueva / Pendiente</span>
+                </div>
+                <div class="calendar-stats">
+                    <span id="calTotalEventsBadge" class="cal-stats-badge">0 actividades este mes</span>
+                </div>
+            </div>
+
+            <!-- Panel lateral / Drawer de detalles para días saturados o click en fecha -->
+            <div class="calendar-day-drawer" id="calDayDrawer" style="display: none;">
+                <div class="cal-drawer-header">
+                    <div>
+                        <h4 class="cal-drawer-title" id="calDrawerDateTitle">Citas del día</h4>
+                        <span class="cal-drawer-subtitle" id="calDrawerSubtitle">Detalle de formaciones programadas</span>
+                    </div>
+                    <button type="button" class="cal-drawer-close" id="calCloseDrawerBtn" aria-label="Cerrar panel">&times;</button>
+                </div>
+                <div class="cal-drawer-body" id="calDrawerEventsList">
+                    <!-- Eventos del día inyectados dinámicamente -->
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Contenedor del Tooltip Flotante Adaptativo -->
+<div class="calendar-floating-tooltip" id="calFloatingTooltip" role="tooltip" style="display: none;">
+    <!-- Inyectado dinámicamente por calendar_agenda.js -->
+</div>

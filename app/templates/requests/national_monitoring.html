@@ -4,6 +4,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_monitoring.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/calendar_agenda.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -41,6 +42,15 @@
             </svg>
             Auditoría de Retrasos SLA
         </a>
+        <button type="button" class="monitoring-tab-link btn-open-calendar-agenda" id="btn-open-agenda" style="border: none; background: transparent; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            Agenda Mensual
+        </button>
     </nav>
 
     <!-- ===== CUADRÍCULA DE TARJETAS KPI (ESTILO DASHBOARD) ===== -->
@@ -355,10 +365,15 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Modal de Agenda y Calendario Mensual -->
+{% include 'requests/partials/_calendar_agenda_modal.html' %}
 {% endblock %}
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='JS/requests_national_monitoring.js') }}"></script>
+<!-- Controlador de Agenda y Calendario -->
+<script src="{{ url_for('static', filename='JS/calendar_agenda.js') }}"></script>
 {% endblock %}
 
 

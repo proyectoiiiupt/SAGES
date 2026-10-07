@@ -287,38 +287,43 @@ def state_admin_dashboard():
 
 @requests_bp.route('/<int:id>/detail', methods=['GET'])
 @login_required
-@role_required('state_admin')
+@role_required('state_admin', 'super_admin')
 @check_permissions('manage_requests')
 def state_request_detail(id):
     """
-    Renderiza la Ficha Técnica Individual.
-    Carga toda la información de la solicitud.
+    Renderiza la Ficha Técnica Individual / Expediente.
+    Accesible para Administrador Estadal (con aislamiento territorial)
+    y para Super Administrador (cobertura nacional).
     """
     from flask import render_template, abort, flash, redirect, url_for
     from app.requests.services import get_admin_state_id, get_request_full_detail
     
-    # 1. Extraer la jurisdicción inmutable del Administrador en sesión
-    admin_state_id = get_admin_state_id(current_user)
-    if not admin_state_id:
-        flash("Acceso denegado: Su perfil no posee una asignación territorial válida.", "danger")
-        abort(403)
+    user_roles = [assoc.role.name for assoc in current_user.roles_assoc] if current_user and current_user.roles_assoc else []
+    is_super_admin = 'super_admin' in user_roles
+
+    # 1. Extraer la jurisdicción inmutable si es Administrador Estadal
+    admin_state_id = None
+    if not is_super_admin:
+        admin_state_id = get_admin_state_id(current_user)
+        if not admin_state_id:
+            flash("Acceso denegado: Su perfil no posee una asignación territorial válida.", "danger")
+            abort(403)
         
     # 2. Cargar la radiografía completa del expediente
     # Lanza 404 de manera nativa si la solicitud no existe.
     req = get_request_full_detail(id)
     
-    # 3. Escudo Territorial Transversal
-    # Compara el Estado de la Institución solicitante contra el Estado del Administrador.
-    req_state_id = req.institutional_staff.institution.parish.municipality.state_id
-    if req_state_id != admin_state_id:
-        flash("Violación de Acceso: El expediente solicitado pertenece a otra jurisdicción territorial.", "danger")
-        abort(403)
+    # 3. Escudo Territorial Transversal para Administrador Estadal
+    if not is_super_admin:
+        req_state_id = req.institutional_staff.institution.parish.municipality.state_id
+        if req_state_id != admin_state_id:
+            flash("Violación de Acceso: El expediente solicitado pertenece a otra jurisdicción territorial.", "danger")
+            abort(403)
         
-    # 4. Regla de Negocio: Exclusión de Trámites Cerrados
-    # La consola operativa no gestiona históricos. Si ya culminó o se canceló, se deniega la entrada.
-    if req.historical:
-        flash("Este expediente ya se encuentra cerrado (Histórico) y no admite más gestiones operativas.", "warning")
-        return redirect(url_for('requests.state_admin_dashboard'))
+        # 4. Regla de Negocio: Exclusión de Trámites Cerrados en consola operativa estadal
+        if req.historical:
+            flash("Este expediente ya se encuentra cerrado (Histórico) y no admite más gestiones operativas.", "warning")
+            return redirect(url_for('requests.state_admin_dashboard'))
         
     return render_template('requests/state_request_detail.html', req=req)
 # ---------------------------------------------------------------------------  
@@ -545,6 +550,59 @@ def demand_delay_response_endpoint(request_id):
     success, message, status_code = demand_delay_response(request_id, current_user)
     return jsonify({'success': success, 'message': message}), status_code
 
+
+# ---------------------------------------------------------------------------
+# Ruta Compartida: Endpoint API de Agenda Mensual (/requests/api/calendar-events)
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/api/calendar-events', methods=['GET'])
+@login_required
+@role_required('super_admin', 'state_admin')
+@check_permissions('manage_requests')
+def calendar_events_endpoint():
+    """
+    Endpoint JSON que retorna las formaciones agendadas para el mes y año solicitados.
+    Parámetros GET:
+      - year: int (ej. 2026, por defecto año actual)
+      - month: int (1-12, por defecto mes actual)
+      - state_id: int opcional (interpretado únicamente si el usuario es super_admin)
+    Diferencia rol y aplica aislamiento territorial estricto sin registrar auditorías ni notificaciones.
+    """
+    from datetime import datetime, timezone
+    from flask import request, jsonify
+    from app.requests.services import get_monthly_calendar_events
+
+    now = datetime.now(timezone.utc)
+    
+    # Parsear y validar 'year'
+    try:
+        year = int(request.args.get('year', now.year))
+        if year < 2000 or year > 2100:
+            year = now.year
+    except (ValueError, TypeError):
+        year = now.year
+
+    # Parsear y validar 'month'
+    try:
+        month = int(request.args.get('month', now.month))
+        if month < 1 or month > 12:
+            month = now.month
+    except (ValueError, TypeError):
+        month = now.month
+
+    # Filtro opcional de state_id
+    raw_state_id = request.args.get('state_id', '').strip()
+    state_id = int(raw_state_id) if raw_state_id.isdigit() else None
+
+    # Invocar servicio desacoplado
+    data = get_monthly_calendar_events(
+        user=current_user,
+        year=year,
+        month=month,
+        state_id=state_id
+    )
+
+    return jsonify(data), 200
 
 # ---------------------------------------------------------------------------
 # SLA Gate: Catálogo de Razones para el Modal Bloqueante
