@@ -1,0 +1,211 @@
+<!-- =========================================================================
+     MODAL BLOQUEANTE: ALERTA DE CUMPLIMIENTO POST-FECHA PAUTADA (SPAM DE CIERRE)
+     Intercepta al Administrador Estadal cuando una solicitud superó su fecha
+     planificada sin evidencias cargadas. Forzando a cerrar o a reprogramar.
+     ========================================================================= -->
+
+<div class="closure-modal-backdrop" id="closureAlertModal" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="closureModalTitle"
+     data-should-trigger="{% if req.closure_alert and req.closure_alert.should_trigger %}true{% else %}false{% endif %}"
+     data-request-id="{{ req.id }}"
+     data-request-code="{{ req.request_code }}">
+    
+    <div class="closure-modal-dialog" role="document">
+        <div class="closure-modal-content">
+
+            <!-- Cabecera de Alerta Crítica (Sin botón de cierre para bloqueo estricto) -->
+            <div class="closure-modal-header">
+                <div class="closure-modal-header-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                </div>
+                <div class="closure-modal-header-text">
+                    <div class="closure-modal-badge-row">
+                        <span class="closure-badge-danger">ACCIÓN OBLIGATORIA REQUERIDA</span>
+                        <span class="closure-badge-overdue">
+                            Excedida por {{ req.closure_alert.days_overdue if req.closure_alert else 0 }} día(s)
+                        </span>
+                    </div>
+                    <h2 class="closure-modal-title" id="closureModalTitle">Alerta de Cumplimiento Post-Fecha Pautada</h2>
+                    <p class="closure-modal-subtitle">
+                        La actividad formativa superó su fecha planificada sin evidencias de ejecución registradas. Para continuar operando sobre el sistema debe finalizar la solicitud o reprogramar la fecha.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Resumen Informativo del Expediente -->
+            <div class="closure-summary-card">
+                <div class="closure-summary-grid">
+                    <div class="closure-summary-item">
+                        <span class="closure-summary-label">Solicitante</span>
+                        <span class="closure-summary-value">{{ req.institutional_staff.person.first_name }} {{ req.institutional_staff.person.last_name }}</span>
+                    </div>
+                    <div class="closure-summary-item">
+                        <span class="closure-summary-label">Plantel / Institución</span>
+                        <span class="closure-summary-value">{{ req.institutional_staff.institution.institution_name }}</span>
+                    </div>
+                    <div class="closure-summary-item">
+                        <span class="closure-summary-label">Formación Planificada</span>
+                        <span class="closure-summary-value">{{ req.training.name }}</span>
+                    </div>
+                    <div class="closure-summary-item">
+                        <span class="closure-summary-label">Fecha Pautada Original</span>
+                        <span class="closure-summary-value text-danger font-semibold">
+                            {{ req.closure_alert.planned_date if req.closure_alert else 'N/A' }}
+                        </span>
+                    </div>
+                    {% if req.closure_alert and req.closure_alert.rescheduled_count > 0 %}
+                    <div class="closure-summary-item">
+                        <span class="closure-summary-label">Reprogramaciones</span>
+                        <span class="closure-summary-value text-amber font-semibold">{{ req.closure_alert.rescheduled_count }} (Límite alcanzado)</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Selector de Opciones Operativas (Tabs) -->
+            <div class="closure-tabs-nav" role="tablist">
+                <button type="button" class="closure-tab-btn active" id="tabBtnEvidences" role="tab" aria-selected="true" aria-controls="panelEvidences">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    <span>Cargar Soportes de Cierre</span>
+                </button>
+                {% if req.closure_alert and req.closure_alert.can_reschedule %}
+                <button type="button" class="closure-tab-btn" id="tabBtnReschedule" role="tab" aria-selected="false" aria-controls="panelReschedule">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    <span>Reprogramar / Justificar</span>
+                </button>
+                {% else %}
+                <div class="closure-tab-disabled-notice" title="Esta solicitud ya fue reprogramada anteriormente y no admite más cambios de fecha">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+                    </svg>
+                    <span>Reprogramación no permitida (Límite alcanzado)</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Panel: Carga de Evidencias de Cierre -->
+            <div class="closure-tab-panel active" id="panelEvidences" role="tabpanel" aria-labelledby="tabBtnEvidences">
+                {% if req.closure_alert and not req.closure_alert.can_reschedule %}
+                <div class="closure-reschedule-exhausted-alert">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <div>
+                        <strong>Plazo Final de Cumplimiento:</strong> Esta solicitud ya fue reprogramada previamente. Debe consignar obligatoriamente los soportes digitales para completar y cerrar la solicitud.
+                    </div>
+                </div>
+                {% endif %}
+                <div class="closure-panel-intro">
+                    <p>
+                        Adjunte los soportes digitales que acrediten la realización de la formación (listas de asistencia, fotografías o actas de cumplimiento). Al completar la carga, la solicitud cambiará su estado a <strong>Completada</strong>.
+                    </p>
+                </div>
+
+                <form id="closureEvidenceForm" enctype="multipart/form-data">
+                    <div class="closure-dropzone" id="closureDropZone">
+                        <input type="file" id="closureFileInput" name="evidences" multiple accept=".pdf,.png,.jpg,.jpeg" class="closure-file-hidden">
+                        <div class="closure-dropzone-content">
+                            <div class="closure-dropzone-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="17 8 12 3 7 8"></polyline>
+                                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                                </svg>
+                            </div>
+                            <h4 class="closure-dropzone-title">Arrastre los archivos aquí o haga clic para seleccionar</h4>
+                            <p class="closure-dropzone-hint">Formatos aceptados: PDF, JPG, PNG &bull; Máx. 5 MB por archivo &bull; Hasta 3 archivos</p>
+                        </div>
+                    </div>
+
+                    <!-- Lista de archivos seleccionados -->
+                    <div class="closure-files-container" id="closureFilesList" style="display: none;">
+                        <h5 class="closure-files-title">Archivos seleccionados (<span id="closureFilesCount">0</span>/3):</h5>
+                        <ul class="closure-files-items" id="closureFilesUl"></ul>
+                    </div>
+
+                    <div class="closure-panel-actions">
+                        <button type="submit" class="closure-btn-submit closure-btn-primary" id="btnSubmitEvidence" disabled>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            <span>Registrar Evidencias y Cerrar Solicitud</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            {% if req.closure_alert and req.closure_alert.can_reschedule %}
+            <!-- Panel: Reprogramar / Justificar -->
+            <div class="closure-tab-panel" id="panelReschedule" role="tabpanel" aria-labelledby="tabBtnReschedule" style="display: none;">
+                <div class="closure-panel-intro">
+                    <p>
+                        Si la actividad no pudo ejecutarse según lo programado, consigne el motivo oficial y fije una nueva fecha para la realización de la formación.
+                    </p>
+                </div>
+
+                <form id="closureRescheduleForm">
+                    <div class="closure-form-group">
+                        <label for="closureNewDate" class="closure-form-label">
+                            Nueva Fecha Pautada <span class="text-danger">*</span>
+                        </label>
+                        <input type="date" id="closureNewDate" name="new_date" class="closure-form-control" required>
+                        <small class="closure-form-help">Debe seleccionar una fecha posterior a hoy.</small>
+                    </div>
+
+                    <div class="closure-form-group">
+                        <label for="closureReasonSelect" class="closure-form-label">
+                            Motivo Tipificado de Reprogramación <span class="text-danger">*</span>
+                        </label>
+                        <select id="closureReasonSelect" name="reason_id" class="closure-form-control" required>
+                            <option value="">-- Seleccione un motivo oficial --</option>
+                            {% if reschedule_reasons %}
+                                {% for r in reschedule_reasons %}
+                                <option value="{{ r.id }}">{{ r.name }}</option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+
+                    <div class="closure-form-group">
+                        <label for="closureJustificationText" class="closure-form-label">
+                            Exposición de Motivos / Justificación <span class="text-danger">*</span>
+                        </label>
+                        <textarea id="closureJustificationText" name="justification" class="closure-form-control closure-textarea" rows="4"
+                                  minlength="20" placeholder="Detalle las razones institucionales, operativas o logísticas que justifican la reprogramación de esta formación (mínimo 20 caracteres)..." required></textarea>
+                        <div class="closure-form-meta">
+                            <span class="closure-char-counter" id="closureCharCounter">0 / 20 caracteres mínimos</span>
+                        </div>
+                    </div>
+
+                    <div class="closure-panel-actions">
+                        <button type="submit" class="closure-btn-submit closure-btn-warning" id="btnSubmitReschedule">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="16" y1="2" x2="16" y2="6"></line>
+                                <line x1="8" y1="2" x2="8" y2="6"></line>
+                                <line x1="3" y1="10" x2="21" y2="10"></line>
+                            </svg>
+                            <span>Guardar Justificación y Reprogramar</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
