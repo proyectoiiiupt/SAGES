@@ -1,0 +1,425 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}SAGES - Seguimiento de Solicitud | {{ req.training.name }}{% endblock %}
+
+{% block extra_css %}
+<!-- Hoja de estilos especializada del módulo de solicitante y ficha técnica -->
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_applicant.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="applicant-view-container">
+
+    <!-- 1. Cabecera Estilo Banner -->
+    <div class="dashboard-banner">
+        <div class="banner-date">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span id="current-date-display"></span>
+        </div>
+        <div class="banner-title">
+            Ficha de Seguimiento del Requerimiento
+        </div>
+    </div>
+
+    <!-- 2. Barra Superior de Navegación -->
+    <div class="view-navigation-bar">
+        <div class="nav-left">
+            <a href="{{ url_for('requests.applicant_dashboard') }}" class="btn-back-nav">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                Volver a Mis Solicitudes
+            </a>
+        </div>
+
+    </div>
+
+    <!-- 3. Tarjeta de Encabezado Principal y Estatus -->
+    <div class="request-summary-header">
+        <div class="summary-code-block">
+            <span class="summary-label">Formación Solicitada</span>
+            <h1 class="summary-code">{{ req.training.name }}</h1>
+            <div class="summary-date-meta">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span>Radicada el: <strong class="local-datetime" data-utc="{{ req.created_at.isoformat() }}" data-format="standard"></strong></span>
+            </div>
+        </div>
+
+        <div class="summary-status-block">
+            {% set badge_style = 'badge-new' %}
+            {% if req.status.status_code == 'STAT-003' %}
+                {% set badge_style = 'badge-new' %}
+            {% elif req.status.status_code == 'STAT-004' %}
+                {% set badge_style = 'badge-pending' %}
+            {% elif req.status.status_code == 'STAT-005' %}
+                {% set badge_style = 'badge-planned' %}
+            {% elif req.status.status_code == 'STAT-006' %}
+                {% set badge_style = 'badge-in-process' %}
+            {% elif req.status.status_code == 'STAT-007' %}
+                {% set badge_style = 'badge-completed' %}
+            {% elif req.status.status_code in ['STAT-008', 'STAT-009'] %}
+                {% set badge_style = 'badge-closed' %}
+            {% endif %}
+
+            <span class="request-status-badge {{ badge_style }}">
+                {% if req.status.status_code == 'STAT-009' %}
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
+                {% else %}
+                <span class="status-pulse-dot"></span>
+                {% endif %}
+                {{ req.status.status_name }}
+            </span>
+        </div>
+    </div>
+
+    <!-- 4. Stepper Gráfico de Avance Institucional (5 Fases) -->
+    <div class="stepper-card">
+        <div class="stepper-header">
+            <h2 class="stepper-title">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#019577" stroke-width="2">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+                Línea de Avance Institucional
+            </h2>
+            <span class="stepper-subtitle">Evolución técnica del trámite en la Gerencia UREE</span>
+        </div>
+
+        {% if req.status.status_code == 'STAT-009' %}
+        <!-- Banner de Cancelado en lugar de Stepper Activo -->
+        <div class="stepper-cancelled-notice">
+            <div class="cancelled-notice-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
+            </div>
+            <div class="cancelled-notice-text">
+                <h3>Trámite Cancelado Definitivamente</h3>
+                <p>Este requerimiento no continuará el ciclo de avance operativo y ha sido archivado en el histórico del plantel.</p>
+            </div>
+        </div>
+        {% else %}
+        <div class="stepper-track-wrapper">
+            <div class="stepper-track">
+                <!-- Paso 1: Recibida -->
+                {% set step1_class = 'completed' if req.stepper_step > 1 else ('active' if req.stepper_step == 1 else 'pending') %}
+                <div class="stepper-item {{ step1_class }}">
+                    <div class="stepper-node">
+                        {% if req.stepper_step > 1 %}
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        {% else %}
+                        <span>1</span>
+                        {% endif %}
+                    </div>
+                    <div class="stepper-content">
+                        <span class="stepper-label">Recibida</span>
+                        <span class="stepper-desc">Radicación oficial</span>
+                    </div>
+                </div>
+
+                <div class="stepper-line {{ 'completed' if req.stepper_step > 1 else '' }}"></div>
+
+                <!-- Paso 2: En Coordinación -->
+                {% set step2_class = 'completed' if req.stepper_step > 2 else ('active' if req.stepper_step == 2 else 'pending') %}
+                <div class="stepper-item {{ step2_class }}">
+                    <div class="stepper-node">
+                        {% if req.stepper_step > 2 %}
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        {% else %}
+                        <span>2</span>
+                        {% endif %}
+                    </div>
+                    <div class="stepper-content">
+                        <span class="stepper-label">En Coordinación</span>
+                        <span class="stepper-desc">Facilitador asignado</span>
+                    </div>
+                </div>
+
+                <div class="stepper-line {{ 'completed' if req.stepper_step > 2 else '' }}"></div>
+
+                <!-- Paso 3: Fecha Pautada -->
+                {% set step3_class = 'completed' if req.stepper_step > 3 else ('active' if req.stepper_step == 3 else 'pending') %}
+                <div class="stepper-item {{ step3_class }}">
+                    <div class="stepper-node">
+                        {% if req.stepper_step > 3 %}
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        {% else %}
+                        <span>3</span>
+                        {% endif %}
+                    </div>
+                    <div class="stepper-content">
+                        <span class="stepper-label">Fecha Pautada</span>
+                        <span class="stepper-desc">Jornada agendada</span>
+                    </div>
+                </div>
+
+                <div class="stepper-line {{ 'completed' if req.stepper_step > 3 else '' }}"></div>
+
+                <!-- Paso 4: En Ejecución -->
+                {% set step4_class = 'completed' if req.stepper_step > 4 else ('active' if req.stepper_step == 4 else 'pending') %}
+                <div class="stepper-item {{ step4_class }}">
+                    <div class="stepper-node">
+                        {% if req.stepper_step > 4 %}
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        {% else %}
+                        <span>4</span>
+                        {% endif %}
+                    </div>
+                    <div class="stepper-content">
+                        <span class="stepper-label">En Ejecución</span>
+                        <span class="stepper-desc">Formación en curso</span>
+                    </div>
+                </div>
+
+                <div class="stepper-line {{ 'completed' if req.stepper_step > 4 else '' }}"></div>
+
+                <!-- Paso 5: Culminada -->
+                {% set step5_class = 'active' if req.stepper_step == 5 else 'pending' %}
+                <div class="stepper-item {{ step5_class }}">
+                    <div class="stepper-node">
+                        {% if req.stepper_step == 5 %}
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        {% else %}
+                        <span>5</span>
+                        {% endif %}
+                    </div>
+                    <div class="stepper-content">
+                        <span class="stepper-label">Culminada</span>
+                        <span class="stepper-desc">Jornada finalizada</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 5. Banner de Fecha Pautada (Condicional) -->
+    {% if req.has_scheduled_date and req.status.status_code != 'STAT-009' %}
+    <div class="confirmed-date-banner">
+        <div class="calendar-icon-wrap">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+        </div>
+        <div class="confirmed-date-content">
+            <span class="date-badge-label">Jornada Presencial Pautada</span>
+            <h3 class="date-highlight">{{ req.planned_date.strftime('%d/%m/%Y') }}</h3>
+            <p class="date-instructions">Por favor asegure la disponibilidad del espacio físico y la convocatoria oportuna de los participantes en la fecha acordada.</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 6. Bloque Operativo CORPOELEC (Facilitador Asignado) -->
+    <div class="corpoelec-coordination-card">
+        <div class="coordination-icon-wrap {{ 'assigned' if req.attended_by else 'unassigned' }}">
+            {% if req.attended_by %}
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            {% else %}
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            {% endif %}
+        </div>
+        <div class="coordination-details">
+            {% if req.attended_by %}
+            <span class="coordination-status-label">Facilitador Responsable Asignado</span>
+            <h3 class="facilitator-name">{{ req.attended_by.person.first_name }} {{ req.attended_by.person.last_name }}</h3>
+            <p class="coordination-note">El personal de la cuadrilla estadal de CORPOELEC se pondrá en contacto directo con las autoridades del plantel para afinar detalles logísticos.</p>
+            {% else %}
+            <span class="coordination-status-label">En Cola de Coordinación Regional</span>
+            <h3 class="facilitator-name text-muted">En espera de asignación de facilitador</h3>
+            <p class="coordination-note">Su solicitud se encuentra en evaluación por la Gerencia Estadal de Uso Racional y Eficiente de la Energía. Será asignada a un facilitador en un plazo máximo de 72 horas hábiles.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 7. Cuadrícula de Detalles Técnicos -->
+    <div class="request-details-grid">
+        <!-- Tarjeta: Datos del Plantel -->
+        <div class="detail-card">
+            <div class="card-header-simple">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#019577" stroke-width="2">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                <h3>Institución Educativa</h3>
+            </div>
+            <div class="card-content-simple">
+                <div class="info-row">
+                    <span class="info-label">Nombre del Plantel:</span>
+                    <span class="info-value font-semibold">{{ req.institutional_staff.institution.institution_name }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Ubicación Territorial:</span>
+                    <span class="info-value">
+                        {{ req.institutional_staff.institution.parish.municipality.state.state_name }} — 
+                        {{ req.institutional_staff.institution.parish.municipality.municipality_name }},
+                        Pqa. {{ req.institutional_staff.institution.parish.parish_name }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarjeta: Contenido Formativo -->
+        <div class="detail-card">
+            <div class="card-header-simple">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#019577" stroke-width="2">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                </svg>
+                <h3>Formación Solicitada</h3>
+            </div>
+            <div class="card-content-simple">
+                <div class="info-row">
+                    <span class="info-label">Módulo Rector:</span>
+                    <span class="info-value badge-module">{{ req.training.training_module.name }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Tema Formativo:</span>
+                    <span class="info-value font-semibold text-primary">{{ req.training.name }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Alcance Temático:</span>
+                    <span class="info-value text-muted-small">{{ req.training.description or 'Formación comunitaria en eficiencia energética.' }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 8. Tarjeta: Justificación Institucional Inicial -->
+    <div class="detail-card full-width">
+        <div class="card-header-simple">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#019577" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+            <h3>Justificación y Necesidad Consignada por el Plantel</h3>
+        </div>
+        <div class="card-content-simple">
+            <p class="justification-text">{{ req.description }}</p>
+        </div>
+    </div>
+
+    <!-- 9. Trazabilidad y Bitácora Institucional (US-45) -->
+    {% include 'requests/partials/_tracking_timeline.html' ignore missing %}
+
+    <!-- 10. Bloque de Cancelación / Desistimiento Registrado (Si está archivada) -->
+    {% if req.status.status_code == 'STAT-009' or req.cancellation_justification %}
+    <div class="cancellation-summary-card">
+        <div class="cancellation-summary-header">
+            <div class="cancellation-summary-icon">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
+            </div>
+            <div>
+                <h3>Registro de Desistimiento Voluntario</h3>
+                <span class="text-muted-small">Expediente archivado en el histórico del plantel</span>
+            </div>
+        </div>
+        <div class="cancellation-summary-body">
+            <div class="summary-field">
+                <span class="field-label">Motivo Registrado:</span>
+                <span class="field-value font-semibold">
+                    {{ req.cancellation_justification.reason.name if req.cancellation_justification and req.cancellation_justification.reason else 'Desistimiento escolar' }}
+                </span>
+            </div>
+            <div class="summary-field">
+                <span class="field-label">Justificación Consignada:</span>
+                <p class="field-justification-box">
+                    {{ req.cancellation_justification.justification if req.cancellation_justification else 'Solicitud archivada formalmente.' }}
+                </p>
+            </div>
+            {% if req.finished_at %}
+            <div class="summary-field">
+                <span class="field-label">Fecha de Cierre:</span>
+                <span class="field-value local-datetime" data-utc="{{ req.finished_at.isoformat() }}" data-format="standard"></span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 10. Zona Inferior de Acciones (Habilitada / Bloqueada) -->
+    {% if req.status.status_code != 'STAT-009' and not req.historical and req.status.status_code != 'STAT-007' %}
+    <div class="action-footer-panel">
+        {% if req.can_cancel %}
+        <div class="cancel-action-box">
+            <div class="cancel-info-text">
+                <h4>¿Requiere desistir de esta jornada formativa?</h4>
+                <p>En etapas preliminares (antes de fijar fecha en agenda), el directivo del plantel puede cancelar voluntariamente el trámite por causas sobrevenidas o suspensión académica.</p>
+            </div>
+            <button type="button" class="btn-cancel-request-active" id="openCancellationModalBtn">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
+                Cancelar Solicitud
+            </button>
+        </div>
+        {% else %}
+        <div class="cancel-blocked-box">
+            <div class="blocked-icon">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+            </div>
+            <div class="blocked-content">
+                <h4>Desistimiento Directo No Disponible</h4>
+                <p>Esta formación ya cuenta con fecha acordada en el cronograma institucional o se encuentra en fase de ejecución. Para reprogramaciones o causas de fuerza mayor, por favor coordine directamente con el facilitador asignado.</p>
+            </div>
+            <button type="button" class="btn-cancel-request-disabled" disabled title="No disponible en esta fase del trámite">
+                Cancelar Solicitud
+            </button>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- Inclusión del Modal Parcial de Desistimiento -->
+{% include 'requests/partials/_cancellation_modal.html' %}
+{% endblock %}
+
+{% block extra_js %}
+<!-- Script interactivo para el control del modal, validación cliente y AJAX -->
+<script src="{{ url_for('static', filename='JS/applicant_request_detail.js') }}"></script>
+{% endblock %}

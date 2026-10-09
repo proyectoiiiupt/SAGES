@@ -162,9 +162,240 @@ def create_training_request(user_id: int, training_id: int, description: str) ->
         db.session.rollback()
         return False, "Ocurrió un error en la base de datos al registrar la solicitud.", 0
 
+
+def get_applicant_request_detail(request_id: int, user_institution_id: int):
+    """
+    Obtiene el detalle integral de una solicitud para la vista del directivo/solicitante (US-44).
+    Aplica carga ansiosa para optimizar el rendimiento y calcula las banderas de visualización
+    (fase del stepper de 5 hitos, fecha pautada, facilitador y posibilidad de desistimiento).
+    Garantiza el aislamiento institucional: solo retorna si pertenece al user_institution_id.
+    """
+    from app.models.reason_model import Reason
+    from app.models.request_tracking_model import RequestTracking
+
+    req = Request.query.options(
+        joinedload(Request.training).joinedload(Training.training_module),
+        joinedload(Request.status),
+        joinedload(Request.institutional_staff)
+            .joinedload(InstitutionalStaff.institution)
+            .joinedload(Institution.parish)
+            .joinedload(Parish.municipality)
+            .joinedload(Municipality.state),
+        joinedload(Request.attended_by).joinedload(User.person),
+        joinedload(Request.plannings),
+        joinedload(Request.justifications).joinedload(RequestJustification.reason)
+    ).filter(
+        Request.id == request_id
+    ).first()
+
+    if not req:
+        return None
+
+    # Verificación estricta de aislamiento multitenant
+    if not req.institutional_staff or req.institutional_staff.institution_id != user_institution_id:
+        return None
+
+    # Evaluar si cuenta con fecha confirmada
+    planned_record = next((p for p in req.plannings if p.planned_for is not None), None)
+    req.planned_date = planned_record.planned_for if planned_record else None
+    has_scheduled_date = req.planned_date is not None
+    req.has_scheduled_date = has_scheduled_date
+
+    # Mapeo del Stepper de Progreso (5 Fases institucionales)
+    # Paso 1: Recibida (STAT-003)
+    # Paso 2: En Coordinación (STAT-004 sin fecha acordada)
+    # Paso 3: Fecha Pautada (STAT-005 o STAT-004 con fecha agendada)
+    # Paso 4: En Ejecución (STAT-006)
+    # Paso 5: Culminada (STAT-007)
+    status_code = req.status.status_code if req.status else ''
+    
+    if status_code == 'STAT-003':
+        req.stepper_step = 1
+    elif status_code == 'STAT-004' and not has_scheduled_date:
+        req.stepper_step = 2
+    elif status_code == 'STAT-005' or (status_code == 'STAT-004' and has_scheduled_date):
+        req.stepper_step = 3
+    elif status_code == 'STAT-006':
+        req.stepper_step = 4
+    elif status_code == 'STAT-007':
+        req.stepper_step = 5
+    elif status_code in ['STAT-008', 'STAT-009', 'STAT-010']:
+        # Estados cerrados alternativos
+        req.stepper_step = 1
+    else:
+        req.stepper_step = 1
+
+    # Regla de desistimiento voluntario justificado (solo STAT-003 o STAT-004 sin fecha pautada)
+    req.can_cancel = (
+        status_code == 'STAT-003' or 
+        (status_code == 'STAT-004' and not has_scheduled_date)
+    ) and not req.historical
+
+    # Si se encuentra cancelada, extraer la justificación de desistimiento registrada
+    req.cancellation_justification = None
+    if status_code == 'STAT-009' or req.historical:
+        for just in req.justifications:
+            if just.justification_type == 'CANCELACION_SOLICITANTE':
+                req.cancellation_justification = just
+                break
+
+    return req
+
+
+def cancel_training_request(request_id: int, user: User, reason_id: int, justification_text: str) -> tuple[bool, str, int]:
+    """
+    Procesa el desistimiento voluntario de una solicitud por parte del solicitante escolar (US-44).
+    Aplica bloqueo pesimista (with_for_update) para control estricto de concurrencia.
+    Transiciona a STAT-009 (Cancelado), archiva en histórico y asienta traza en bitácora.
+    Retorna (éxito: bool, mensaje: str, código_http: int).
+    """
+    from app.models.reason_model import Reason
+    from app.models.request_tracking_model import RequestTracking
+
+    if not user or not user.person or not user.person.institutional_staff:
+        return False, "Usuario no autorizado o sin vinculación institucional válida.", 403
+
+    user_institution_id = user.person.institutional_staff[0].institution_id
+
+    # 1. Bloqueo pesimista de fila en BD (Pessimistic Locking)
+    req = db.session.query(Request).filter(Request.id == request_id).with_for_update().first()
+
+    if not req:
+        db.session.rollback()
+        return False, "Solicitud no encontrada.", 404
+
+    # 2. Control de Acceso y Aislamiento Multitenant
+    if not req.institutional_staff or req.institutional_staff.institution_id != user_institution_id:
+        db.session.rollback()
+        return False, "Acceso denegado: El requerimiento no pertenece a su institución educativa.", 403
+
+    # 3. Validación de estado preliminar cancelable (Anti-Bypass de concurrencia)
+    current_status = req.status.status_code if req.status else ''
+    if current_status not in ['STAT-003', 'STAT-004'] or req.historical:
+        db.session.rollback()
+        return False, f"La solicitud no se encuentra en una fase que permita cancelación (Estado actual: {req.status.status_name if req.status else current_status}).", 422
+
+    # Verificar que no tenga fecha pautada en planificaciones
+    has_scheduled_date = any(p.planned_for is not None for p in req.plannings)
+    if current_status == 'STAT-004' and has_scheduled_date:
+        db.session.rollback()
+        return False, "No es posible cancelar esta solicitud porque ya cuenta con fecha pautada en el cronograma institucional.", 422
+
+    # 4. Validar existencia del motivo de catálogo
+    reason = Reason.query.get(reason_id)
+    if not reason:
+        db.session.rollback()
+        return False, "El motivo de cancelación seleccionado no existe en el catálogo oficial.", 400
+
+    # 5. Buscar estado Cancelado (STAT-009)
+    status_cancelled = Status.query.filter_by(status_code='STAT-009').first()
+    if not status_cancelled:
+        db.session.rollback()
+        return False, "Error interno: Estado STAT-009 no encontrado en el sistema.", 500
+
+    try:
+        now_utc = datetime.now(timezone.utc)
+
+        # 6. Registrar en sages.request_justifications
+        justification = RequestJustification(
+            request_id=req.id,
+            reason_id=reason.id,
+            justification_type='CANCELACION_SOLICITANTE',
+            justification=justification_text.strip()
+        )
+        db.session.add(justification)
+
+        # 7. Actualizar sages.requests
+        req.status_id = status_cancelled.id
+        req.finished_at = now_utc
+        req.updated_at = now_utc
+        req.historical = True
+
+        # 8. Asentar traza institucional en sages.request_trackings
+        applicant_name = f"{user.person.first_name} {user.person.last_name}".strip()
+        tracking_message = (
+            f"El representante del plantel educativo ({applicant_name}) ha cancelado la solicitud. "
+            f"Motivo: {reason.name}. Detalle: {justification_text.strip()}"
+        )
+        tracking = RequestTracking(
+            request_id=req.id,
+            user_id=user.id,
+            messages=tracking_message,
+            created_at=now_utc
+        )
+        db.session.add(tracking)
+
+        # 9. Notificación al Administrador Estadal (Campana y Correo)
+        try:
+            from app.notifications.services import NotificationService
+            from app.notifications.enums import NotificationEvent
+            from app.utils.email_utils import send_email
+            import threading
+
+            inst_name = req.institutional_staff.institution.institution_name if req.institutional_staff and req.institutional_staff.institution else "Plantel Educativo"
+            training_name = req.training.name if req.training else "Formación Solicitada"
+
+            context = {
+                "institution_name": inst_name,
+                "training_name": training_name,
+                "reason_name": reason.name,
+                "justification": justification_text.strip()
+            }
+
+            target_user = None
+            if req.attended_by_id and req.attended_by:
+                target_user = req.attended_by
+                NotificationService.notify_user(
+                    user_id=req.attended_by_id,
+                    event=NotificationEvent.REQUEST_CANCELLED_BY_APPLICANT,
+                    context=context,
+                    db_session=db.session
+                )
+            else:
+                notifications = NotificationService.notify_role(
+                    role_name='state_admin',
+                    event=NotificationEvent.REQUEST_CANCELLED_BY_APPLICANT,
+                    context=context,
+                    db_session=db.session
+                )
+                if notifications:
+                    target_user = User.query.get(notifications[0].user_id)
+
+            admin_email = target_user.person.email if target_user and target_user.person else None
+            if admin_email:
+                subject = f"Aviso de Cancelación: Solicitud de {inst_name}"
+                body_text = (
+                    f"Estimado Administrador,\n\n"
+                    f"El representante del plantel educativo {inst_name} ha desistido y cancelado "
+                    f"la solicitud de formación '{training_name}'.\n\n"
+                    f"Motivo: {reason.name}\n"
+                    f"Detalle: {justification_text.strip()}\n\n"
+                    f"El expediente ha sido cerrado formalmente y trasladado al archivo histórico.\n\n"
+                    f"Atentamente,\nPlataforma SAGES - CORPOELEC"
+                )
+                threading.Thread(
+                    target=send_email,
+                    args=(admin_email, subject, None, body_text)
+                ).start()
+        except Exception as notif_err:
+            import logging
+            logging.getLogger(__name__).warning(f"No se pudo despachar la notificación de cancelación: {notif_err}")
+
+        # 10. Confirmación de transacción
+        db.session.commit()
+        return True, "Su solicitud ha sido cancelada exitosamente y trasladada a su historial.", 200
+
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logging.getLogger(__name__).error(f"Error procesando desistimiento de solicitud {req.request_code}: {e}")
+        return False, "Ocurrió un error interno en la base de datos al procesar la cancelación.", 500
+
+
 # ---------------------------------------------------------------------------
 # Bloque Administrador Estadal
 # ---------------------------------------------------------------------------
+
 
 def get_admin_state_id(user: User) -> int | None:
     """

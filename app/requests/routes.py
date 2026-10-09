@@ -207,6 +207,96 @@ def download_receipt_ticket(request_id):
 
 
 # ---------------------------------------------------------------------------
+# Ruta Solicitante: Ficha Técnica de Seguimiento y Cancelación (US-44)
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/my-requests/<int:id>', methods=['GET'])
+@requests_bp.route('/view-request/<int:id>', methods=['GET'])
+@login_required
+@role_required('applicant')
+@check_permissions('create_request')
+def applicant_request_view(id):
+    """
+    Renderiza la ficha técnica de seguimiento individual para el directivo escolar (US-44).
+    Incluye stepper gráfico de 5 fases, datos del facilitador, fecha pautada
+    y modal de desistimiento voluntario justificado.
+    Aplica blindaje institucional estricto (Anti-IDOR).
+    """
+    from flask import abort
+    from app.requests.services import get_applicant_request_detail
+    from app.requests.forms import ApplicantCancelRequestForm
+    from app.models.reason_model import Reason
+
+    user = User.query.get(current_user.id)
+    if not user or not user.person or not user.person.institutional_staff:
+        abort(403, description="No posee afiliación institucional válida.")
+
+    user_institution_id = user.person.institutional_staff[0].institution_id
+
+    req = get_applicant_request_detail(id, user_institution_id)
+    if not req:
+        abort(403, description="Acceso denegado: No tiene permisos para consultar este expediente institucional.")
+
+    cancel_form = ApplicantCancelRequestForm()
+    reasons = Reason.query.order_by(Reason.id.asc()).all()
+    cancel_form.reason_id.choices = [(r.id, r.name) for r in reasons]
+
+    return render_template(
+        'requests/applicant_request_view.html',
+        req=req,
+        cancel_form=cancel_form,
+        reasons=reasons
+    )
+
+
+@requests_bp.route('/api/applicant/<int:id>/cancel', methods=['POST'])
+@login_required
+@role_required('applicant')
+@check_permissions('create_request')
+def applicant_cancel_request(id):
+    """
+    Endpoint AJAX para procesar el desistimiento voluntario del solicitante (US-44).
+    Aplica validación de motivo y justificación (>= 10 chars), ejecuta la transacción
+    con bloqueo pesimista en base de datos y retorna respuesta JSON estructurada.
+    """
+    from app.requests.services import cancel_training_request
+    from app.requests.forms import ApplicantCancelRequestForm
+    from app.models.reason_model import Reason
+
+    user = User.query.get(current_user.id)
+    if not user or not user.person or not user.person.institutional_staff:
+        return jsonify({'success': False, 'message': 'No posee afiliación institucional válida.'}), 403
+
+    # Soporte tanto para payload JSON como para FormData
+    if request.is_json:
+        json_data = request.get_json() or {}
+        form = ApplicantCancelRequestForm(data=json_data)
+    else:
+        form = ApplicantCancelRequestForm()
+
+    reasons = Reason.query.all()
+    form.reason_id.choices = [(r.id, r.name) for r in reasons]
+
+    if not form.validate():
+        errors = [f"{field}: {', '.join(errs)}" for field, errs in form.errors.items()]
+        return jsonify({
+            'success': False,
+            'message': 'Datos del formulario de desistimiento inválidos.',
+            'errors': errors
+        }), 400
+
+    success, message, status_code = cancel_training_request(
+        request_id=id,
+        user=user,
+        reason_id=form.reason_id.data,
+        justification_text=form.justification.data
+    )
+
+    return jsonify({'success': success, 'message': message}), status_code
+
+
+
+# ---------------------------------------------------------------------------
 # Ruta Administrador Estadal: Bandeja Territorial de Solicitudes (US-39)
 # ---------------------------------------------------------------------------
 
