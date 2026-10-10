@@ -6,6 +6,9 @@
 <!-- Hoja de estilos -->
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_state.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/calendar_agenda.css') }}">
+{% if blocking_closure_req and blocking_closure_req.closure_alert and blocking_closure_req.closure_alert.should_trigger %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_closure_alert.css') }}">
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -178,6 +181,13 @@
     </div>
 </div>
 
+<!-- Modal Bloqueante: Alerta de Cumplimiento Post-Fecha Pautada (Spam de Cierre) -->
+{% if blocking_closure_req and blocking_closure_req.closure_alert and blocking_closure_req.closure_alert.should_trigger %}
+    {% with req=blocking_closure_req %}
+        {% include 'requests/partials/_closure_alert_modal.html' %}
+    {% endwith %}
+{% endif %}
+
 <!-- Modal de Agenda y Calendario Mensual -->
 {% include 'requests/partials/_calendar_agenda_modal.html' %}
 {% endblock %}
@@ -189,4 +199,7 @@
 <script src="{{ url_for('static', filename='JS/requests_state_dashboard.js') }}"></script>
 <!-- Controlador de Agenda y Calendario -->
 <script src="{{ url_for('static', filename='JS/calendar_agenda.js') }}"></script>
+{% if blocking_closure_req and blocking_closure_req.closure_alert and blocking_closure_req.closure_alert.should_trigger %}
+<script src="{{ url_for('static', filename='JS/requests_closure_alert.js') }}"></script>
+{% endif %}
 {% endblock %}

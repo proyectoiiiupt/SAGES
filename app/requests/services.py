@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy import func, case, or_, and_, text
 from sqlalchemy.orm import joinedload
 from app.extensions import db
@@ -13,8 +13,6 @@ from app.models.status_model import Status
 from app.models.training_model import Training
 from app.models.request_planning_model import RequestPlanning
 from app.models.request_justification_model import RequestJustification
-from sqlalchemy import func, case, or_
-from datetime import datetime, timezone, timedelta
 
 class RequestAlreadyClaimedException(Exception):
     """Excepción lanzada cuando un administrador intenta atender una solicitud que ya fue tomada concurrentemente."""
@@ -562,7 +560,8 @@ def get_request_full_detail(request_id: int):
         joinedload(Request.status),
         joinedload(Request.attended_by),
         joinedload(Request.plannings),
-        joinedload(Request.justifications)
+        joinedload(Request.justifications),
+        joinedload(Request.evidences)
     ).get_or_404(request_id)
 
     # Evaluación de bloqueo ANS
@@ -628,6 +627,8 @@ def get_request_full_detail(request_id: int):
     else:
         req.traffic_light_color = 'yellow'
         req.traffic_light_text = base_text
+
+    req.closure_alert = check_closure_spam_alert(req)
 
     return req
 
@@ -1613,3 +1614,306 @@ def get_monthly_calendar_events(user: User, year: int, month: int, state_id: int
         'events': events,
         'total_events': len(events)
     }
+
+# ---------------------------------------------------------------------------
+# Alerta de Cumplimiento Post-Fecha Pautada (Spam de Cierre)
+# ---------------------------------------------------------------------------
+
+def check_closure_spam_alert(req, user_id: int = None) -> dict:
+    """
+    Determina si el modal bloqueante de cierre debe activarse para una solicitud.
+
+    Reglas de negocio:
+    - La solicitud debe tener un administrador estadal asignado (attended_by_id).
+    - Si se especifica user_id, debe coincidir con el administrador asignado.
+    - La solicitud no debe ser histórica (historical == False).
+    - La solicitud no debe estar en estado cerrado (STAT-007 / STAT-008 / STAT-009).
+    - La solicitud tiene una fecha pautada (planned_for) en RequestPlanning.
+    - La fecha actual ya superó esa fecha pautada (hoy > planned_for, es decir, día siguiente en adelante).
+    - No existen evidencias cargadas (RequestEvidence vacío).
+    """
+    from datetime import date as date_cls
+
+    CLOSED_STATUSES = {'STAT-007', 'STAT-008', 'STAT-009'}
+
+    if getattr(req, 'historical', False):
+        return {'should_trigger': False}
+
+    if not req.status or req.status.status_code in CLOSED_STATUSES:
+        return {'should_trigger': False}
+
+    # 1. La solicitud debe tener un administrador asignado
+    if not req.attended_by_id:
+        return {'should_trigger': False}
+
+    # Si se especifica un usuario, debe ser el administrador asignado a esta solicitud
+    if user_id is not None and req.attended_by_id != user_id:
+        return {'should_trigger': False}
+
+    # 2. Buscar la planificación activa con fecha pautada
+    active_planning = None
+    if req.plannings:
+        plans_with_date = [p for p in req.plannings if p.planned_for]
+        if plans_with_date:
+            active_planning = max(plans_with_date, key=lambda p: p.planned_for)
+
+    if not active_planning:
+        return {'should_trigger': False}
+
+    today = date_cls.today()
+    planned_date = active_planning.planned_for
+
+    # El día de la formación (planned_date == today) se está cumpliendo la formación;
+    # el spam se activa a partir del día siguiente (today > planned_date)
+    if planned_date >= today:
+        return {'should_trigger': False}
+
+    # 3. Sin evidencias de cumplimiento registradas
+    if req.evidences:
+        return {'should_trigger': False}
+
+    days_overdue = (today - planned_date).days
+    rescheduled_count = active_planning.rescheduled_count or 0
+    can_reschedule = (rescheduled_count < 1)
+
+    return {
+        'should_trigger': True,
+        'days_overdue': days_overdue,
+        'planned_date': planned_date.strftime('%d/%m/%Y'),
+        'planned_date_iso': planned_date.isoformat(),
+        'rescheduled_count': rescheduled_count,
+        'can_reschedule': can_reschedule,
+        'planning_id': active_planning.id,
+    }
+
+
+def get_blocking_closure_request_for_user(user_id: int):
+    """
+    Busca si el administrador estadal tiene alguna solicitud asignada que haya
+    superado su fecha planificada de formación sin evidencias y sin cierre.
+    Retorna la primera solicitud más vencida con toda su data cargada y la bandera closure_alert.
+    """
+    closed_statuses = ['STAT-007', 'STAT-008', 'STAT-009']
+
+    candidate_requests = Request.query.join(
+        Request.status
+    ).filter(
+        Request.attended_by_id == user_id,
+        Request.historical == False,
+        Status.status_code.notin_(closed_statuses),
+        ~Request.evidences.any()
+    ).options(
+        joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.person),
+        joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.institution).joinedload(Institution.parish).joinedload(Parish.municipality),
+        joinedload(Request.training).joinedload(Training.training_module),
+        joinedload(Request.status),
+        joinedload(Request.attended_by).joinedload(User.person),
+        joinedload(Request.plannings),
+        joinedload(Request.evidences)
+    ).all()
+
+    overdue_list = []
+    for req in candidate_requests:
+        alert = check_closure_spam_alert(req, user_id=user_id)
+        if alert.get('should_trigger'):
+            req.closure_alert = alert
+            overdue_list.append(req)
+
+    if not overdue_list:
+        return None
+
+    overdue_list.sort(key=lambda r: r.closure_alert.get('days_overdue', 0), reverse=True)
+    return overdue_list[0]
+
+
+
+def submit_closure_evidences(request_id: int, files, user_id: int) -> tuple:
+    """
+    Opción de cierre por evidencias: guarda los archivos de soporte digital y
+    marca la solicitud como Completada (STAT-007).
+    Solo puede ejecutarlo el administrador estadal asignado (attended_by_id).
+    """
+    import os
+    import uuid
+    from werkzeug.utils import secure_filename
+    from app.models.request_evidence_model import RequestEvidence
+
+    ALLOWED_EXTENSIONS = {'pdf', 'jpg', 'jpeg', 'png'}
+    MAX_FILE_SIZE = 5 * 1024 * 1024
+    MAX_FILES = 3
+
+    if not files:
+        return False, "Debe adjuntar al menos un archivo de evidencia."
+
+    if len(files) > MAX_FILES:
+        return False, f"Solo se permiten hasta {MAX_FILES} archivos por cierre."
+
+    req = Request.query.options(
+        joinedload(Request.status),
+        joinedload(Request.plannings)
+    ).get(request_id)
+
+    if not req:
+        return False, "Solicitud no encontrada."
+
+    if req.attended_by_id and req.attended_by_id != user_id:
+        return False, "Solo el administrador asignado a esta solicitud puede cerrar este expediente."
+
+    CLOSED_STATUSES = {'STAT-007', 'STAT-008', 'STAT-009'}
+    if req.status and req.status.status_code in CLOSED_STATUSES:
+        return False, "Esta solicitud ya se encuentra cerrada."
+
+    validated = []
+    for f in files:
+        filename = secure_filename(f.filename or '')
+        ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+        if ext not in ALLOWED_EXTENSIONS:
+            return False, f"Formato no permitido: '{filename}'. Use PDF, JPG o PNG."
+        f.seek(0, 2)
+        size = f.tell()
+        f.seek(0)
+        if size > MAX_FILE_SIZE:
+            return False, f"El archivo '{filename}' supera el limite de 5 MB."
+        validated.append((f, filename, ext, size))
+
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    upload_dir = os.path.join(base_dir, 'static', 'uploads', 'evidences', str(request_id))
+    os.makedirs(upload_dir, exist_ok=True)
+
+    saved_paths = []
+    try:
+        for f, filename, ext, size in validated:
+            unique_name = f"{uuid.uuid4().hex}_{filename}"
+            full_path = os.path.join(upload_dir, unique_name)
+            f.save(full_path)
+            relative_path = f"uploads/evidences/{request_id}/{unique_name}"
+            saved_paths.append((unique_name, relative_path, ext, size))
+
+        status_completed = Status.query.filter_by(status_code='STAT-007').first()
+        if not status_completed:
+            raise ValueError("Codigo de estado STAT-007 no encontrado en la base de datos.")
+
+        now_utc = datetime.now(timezone.utc)
+
+        for unique_name, relative_path, ext, size in saved_paths:
+            evidence = RequestEvidence(
+                request_id=request_id,
+                file_name=unique_name,
+                file_path=relative_path,
+                format=ext.upper(),
+                file_weight=size
+            )
+            db.session.add(evidence)
+
+        req.status_id = status_completed.id
+        req.finished_at = now_utc
+
+        if req.plannings:
+            plans_with_date = [p for p in req.plannings if p.planned_for]
+            if plans_with_date:
+                latest = max(plans_with_date, key=lambda p: p.planned_for)
+                latest.attended = True
+                latest.attended_at = now_utc
+
+        db.session.commit()
+        return True, "Solicitud cerrada exitosamente con las evidencias de cumplimiento."
+
+    except Exception as e:
+        db.session.rollback()
+        for _, relative_path, _, _ in saved_paths:
+            disk_path = os.path.join(base_dir, 'static', relative_path)
+            if os.path.exists(disk_path):
+                try:
+                    os.remove(disk_path)
+                except OSError:
+                    pass
+        import logging
+        logging.getLogger(__name__).error(f"Error al cerrar solicitud {request_id} con evidencias: {e}")
+        return False, "Error interno al procesar las evidencias. Intente nuevamente."
+
+
+def submit_closure_reschedule(
+    request_id: int,
+    new_date_str: str,
+    reason_id: int,
+    justification_text: str,
+    user_id: int
+) -> tuple:
+    """
+    Opción de reprogramación del modal de cierre: registra una justificacion de tipo
+    REPROGRAMACION_CIERRE y actualiza la fecha pautada a una nueva fecha futura.
+    Solo se permite UNA reprogramación por solicitud (rescheduled_count < 1).
+    No existe limite maximo de fecha, solo se prohiben fechas pasadas o iguales a hoy.
+    """
+    from datetime import date as date_cls
+    from app.models.reason_model import Reason
+    from app.models.request_justification_model import RequestJustification
+
+    if not new_date_str:
+        return False, "Debe indicar una nueva fecha para la reprogramacion."
+
+    try:
+        new_date = date_cls.fromisoformat(new_date_str)
+    except ValueError:
+        return False, "Formato de fecha invalido."
+
+    if new_date <= date_cls.today():
+        return False, "La nueva fecha debe ser posterior a hoy."
+
+    if not justification_text or len(justification_text.strip()) < 20:
+        return False, "La justificacion debe tener al menos 20 caracteres."
+
+    if not reason_id:
+        return False, "Debe seleccionar un motivo de reprogramacion."
+
+    req = Request.query.options(
+        joinedload(Request.status),
+        joinedload(Request.plannings)
+    ).get(request_id)
+
+    if not req:
+        return False, "Solicitud no encontrada."
+
+    if req.attended_by_id and req.attended_by_id != user_id:
+        return False, "Solo el administrador asignado a esta solicitud puede reprogramar este expediente."
+
+    CLOSED_STATUSES = {'STAT-007', 'STAT-008', 'STAT-009'}
+    if req.status and req.status.status_code in CLOSED_STATUSES:
+        return False, "Esta solicitud ya se encuentra cerrada y no puede reprogramarse."
+
+    reason = Reason.query.get(reason_id)
+    if not reason:
+        return False, "El motivo de reprogramacion seleccionado no es valido."
+
+    active_planning = None
+    if req.plannings:
+        plans_with_date = [p for p in req.plannings if p.planned_for]
+        if plans_with_date:
+            active_planning = max(plans_with_date, key=lambda p: p.planned_for)
+
+    if not active_planning:
+        return False, "No se encontro una planificacion activa para esta solicitud."
+
+    if (active_planning.rescheduled_count or 0) >= 1:
+        return False, "Esta solicitud ya fue reprogramada anteriormente y no admite más reprogramaciones. Debe cargar los soportes de cumplimiento para cerrarla."
+
+    try:
+        justification = RequestJustification(
+            request_id=request_id,
+            reason_id=reason_id,
+            justification_type='REPROGRAMACION_CIERRE',
+            justification=justification_text.strip()
+        )
+        db.session.add(justification)
+
+        active_planning.planned_for = new_date
+        active_planning.rescheduled_count = (active_planning.rescheduled_count or 0) + 1
+
+        db.session.commit()
+        return True, f"Solicitud reprogramada al {new_date.strftime('%d/%m/%Y')} exitosamente."
+
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logging.getLogger(__name__).error(f"Error al reprogramar solicitud {request_id}: {e}")
+        return False, "Error interno al guardar la reprogramacion. Intente nuevamente."

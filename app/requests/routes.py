@@ -358,6 +358,17 @@ def state_admin_dashboard():
     # Obtener municipios de la jurisdicción actual
     available_municipalities = Municipality.query.filter_by(state_id=state_id).order_by(Municipality.name.asc()).all()
 
+    # 6. Intercepción por Alerta de Cumplimiento Post-Fecha Pautada (Spam de Cierre)
+    # Si el administrador tiene solicitudes vencidas asignadas a él sin evidencias,
+    # se bloquea el acceso al módulo hasta que reporte (cerrar o reprogramar).
+    from app.requests.services import get_blocking_closure_request_for_user
+    from app.models.reason_model import Reason
+
+    blocking_closure_req = get_blocking_closure_request_for_user(current_user.id)
+    reschedule_reasons = []
+    if blocking_closure_req:
+        reschedule_reasons = Reason.query.order_by(Reason.id.asc()).all()
+
     # Primera carga de la página
     return render_template(
         'requests/state_dashboard.html',
@@ -368,7 +379,9 @@ def state_admin_dashboard():
         current_municipality=municipality_id,
         statuses=available_statuses,
         municipalities=available_municipalities,
-        user_state=current_user.person.company_staff[0].place.parish.municipality.state.name
+        user_state=current_user.person.company_staff[0].place.parish.municipality.state.name,
+        blocking_closure_req=blocking_closure_req,
+        reschedule_reasons=reschedule_reasons
     )
 
 # ---------------------------------------------------------------------------
@@ -414,8 +427,18 @@ def state_request_detail(id):
         if req.historical:
             flash("Este expediente ya se encuentra cerrado (Histórico) y no admite más gestiones operativas.", "warning")
             return redirect(url_for('requests.state_admin_dashboard'))
-        
-    return render_template('requests/state_request_detail.html', req=req)
+
+    from app.models.reason_model import Reason
+    from app.requests.services import check_closure_spam_alert
+    reschedule_reasons = Reason.query.order_by(Reason.id.asc()).all()
+
+    # Solo se activa el spam si el usuario es el administrador asignado a la solicitud
+    if not is_super_admin:
+        req.closure_alert = check_closure_spam_alert(req, user_id=current_user.id)
+    else:
+        req.closure_alert = {'should_trigger': False}
+
+    return render_template('requests/state_request_detail.html', req=req, reschedule_reasons=reschedule_reasons)
 
 # ---------------------------------------------------------------------------
 # Bloque Administrador Estadal: Tomar Solicitud
@@ -783,8 +806,114 @@ def justify_delay(request_id):
     reason_id = data.get('reason_id')
     justification_text = data.get('justification', '')
 
-    if not reason_id:
-        return jsonify({'success': False, 'message': 'Debe seleccionar una razón de retraso.'}), 400
+# ---------------------------------------------------------------------------
+# Endpoints Alerta de Cumplimiento Post-Fecha Pautada (Spam de Cierre)
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/api/<int:request_id>/close-with-evidences', methods=['POST'])
+@login_required
+@role_required('state_admin')
+@check_permissions('manage_requests')
+@limiter.limit("10/hour")
+def close_request_with_evidences_api(request_id):
+    """
+    Endpoint de cierre por evidencias: sube archivos (PDF/PNG/JPG) y cierra
+    la solicitud con estatus Completada.
+    Protegido contra IDOR territorial. Sin auditoría ni notificaciones.
+    """
+    from app.requests.services import get_admin_state_id, submit_closure_evidences
+    from app.models.request_model import Request
+
+    admin_state_id = get_admin_state_id(current_user)
+    if not admin_state_id:
+        return jsonify({'success': False, 'message': 'No posee asignación territorial válida.'}), 403
+
+    # Verificar existencia y territorio
+    req = Request.query.get(request_id)
+    if not req:
+        return jsonify({'success': False, 'message': 'Solicitud no encontrada.'}), 404
+
+    try:
+        req_state_id = req.institutional_staff.institution.parish.municipality.state_id
+    except AttributeError:
+        req_state_id = None
+
+    if req_state_id != admin_state_id:
+        return jsonify({'success': False, 'message': 'Violación territorial: No tiene permiso sobre este expediente.'}), 403
+
+    if req.attended_by_id and req.attended_by_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Solo el administrador asignado a esta solicitud puede gestionar esta acción.'}), 403
+
+    files = request.files.getlist('evidences') or request.files.getlist('evidences[]')
+    if not files or not any(f.filename for f in files):
+        if 'evidence' in request.files and request.files['evidence'].filename:
+            files = [request.files['evidence']]
+        else:
+            return jsonify({'success': False, 'message': 'Debe adjuntar al menos un archivo de evidencia.'}), 400
+
+    success, msg = submit_closure_evidences(request_id, files, current_user.id)
+    status_code = 200 if success else 400
+    return jsonify({'success': success, 'message': msg}), status_code
+
+
+@requests_bp.route('/api/<int:request_id>/reschedule-closure', methods=['POST'])
+@login_required
+@role_required('state_admin')
+@check_permissions('manage_requests')
+@limiter.limit("10/hour")
+def reschedule_closure_api(request_id):
+    """
+    Endpoint de reprogramación: registra justificación oficial y actualiza
+    la fecha pautada a una fecha futura. Solo permite 1 reprogramación por solicitud.
+    Protegido contra IDOR territorial. Sin auditoría ni notificaciones.
+    """
+    from app.requests.services import get_admin_state_id, submit_closure_reschedule
+    from app.models.request_model import Request
+
+    admin_state_id = get_admin_state_id(current_user)
+    if not admin_state_id:
+        return jsonify({'success': False, 'message': 'No posee asignación territorial válida.'}), 403
+
+    req = Request.query.get(request_id)
+    if not req:
+        return jsonify({'success': False, 'message': 'Solicitud no encontrada.'}), 404
+
+    try:
+        req_state_id = req.institutional_staff.institution.parish.municipality.state_id
+    except AttributeError:
+        req_state_id = None
+
+    if req_state_id != admin_state_id:
+        return jsonify({'success': False, 'message': 'Violación territorial: No tiene permiso sobre este expediente.'}), 403
+
+    if req.attended_by_id and req.attended_by_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Solo el administrador asignado a esta solicitud puede gestionar esta acción.'}), 403
+
+    data = request.get_json(silent=True) or {}
+    new_date = data.get('new_date')
+    reason_id = data.get('reason_id')
+    justification = data.get('justification')
+
+    if not new_date or not reason_id or not justification:
+        return jsonify({'success': False, 'message': 'Todos los campos son obligatorios.'}), 400
+
+    try:
+        reason_id = int(reason_id)
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'message': 'Motivo inválido.'}), 400
+
+    success, msg = submit_closure_reschedule(
+        request_id=request_id,
+        new_date_str=new_date,
+        reason_id=reason_id,
+        justification_text=justification,
+        user_id=current_user.id
+    )
+    status_code = 200 if success else 400
+    return jsonify({'success': success, 'message': msg}), status_code
+
+
+
 
     try:
         reason_id = int(reason_id)
