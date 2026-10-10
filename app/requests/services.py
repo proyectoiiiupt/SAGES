@@ -14,6 +14,10 @@ from app.models.training_model import Training
 from app.models.request_planning_model import RequestPlanning
 from app.models.request_justification_model import RequestJustification
 
+class RequestAlreadyClaimedException(Exception):
+    """Excepción lanzada cuando un administrador intenta atender una solicitud que ya fue tomada concurrentemente."""
+    pass
+
 # ---------------------------------------------------------------------------
 # Bloque Solicitante
 # ---------------------------------------------------------------------------
@@ -156,9 +160,240 @@ def create_training_request(user_id: int, training_id: int, description: str) ->
         db.session.rollback()
         return False, "Ocurrió un error en la base de datos al registrar la solicitud.", 0
 
+
+def get_applicant_request_detail(request_id: int, user_institution_id: int):
+    """
+    Obtiene el detalle integral de una solicitud para la vista del directivo/solicitante (US-44).
+    Aplica carga ansiosa para optimizar el rendimiento y calcula las banderas de visualización
+    (fase del stepper de 5 hitos, fecha pautada, facilitador y posibilidad de desistimiento).
+    Garantiza el aislamiento institucional: solo retorna si pertenece al user_institution_id.
+    """
+    from app.models.reason_model import Reason
+    from app.models.request_tracking_model import RequestTracking
+
+    req = Request.query.options(
+        joinedload(Request.training).joinedload(Training.training_module),
+        joinedload(Request.status),
+        joinedload(Request.institutional_staff)
+            .joinedload(InstitutionalStaff.institution)
+            .joinedload(Institution.parish)
+            .joinedload(Parish.municipality)
+            .joinedload(Municipality.state),
+        joinedload(Request.attended_by).joinedload(User.person),
+        joinedload(Request.plannings),
+        joinedload(Request.justifications).joinedload(RequestJustification.reason)
+    ).filter(
+        Request.id == request_id
+    ).first()
+
+    if not req:
+        return None
+
+    # Verificación estricta de aislamiento multitenant
+    if not req.institutional_staff or req.institutional_staff.institution_id != user_institution_id:
+        return None
+
+    # Evaluar si cuenta con fecha confirmada
+    planned_record = next((p for p in req.plannings if p.planned_for is not None), None)
+    req.planned_date = planned_record.planned_for if planned_record else None
+    has_scheduled_date = req.planned_date is not None
+    req.has_scheduled_date = has_scheduled_date
+
+    # Mapeo del Stepper de Progreso (5 Fases institucionales)
+    # Paso 1: Recibida (STAT-003)
+    # Paso 2: En Coordinación (STAT-004 sin fecha acordada)
+    # Paso 3: Fecha Pautada (STAT-005 o STAT-004 con fecha agendada)
+    # Paso 4: En Ejecución (STAT-006)
+    # Paso 5: Culminada (STAT-007)
+    status_code = req.status.status_code if req.status else ''
+    
+    if status_code == 'STAT-003':
+        req.stepper_step = 1
+    elif status_code == 'STAT-004' and not has_scheduled_date:
+        req.stepper_step = 2
+    elif status_code == 'STAT-005' or (status_code == 'STAT-004' and has_scheduled_date):
+        req.stepper_step = 3
+    elif status_code == 'STAT-006':
+        req.stepper_step = 4
+    elif status_code == 'STAT-007':
+        req.stepper_step = 5
+    elif status_code in ['STAT-008', 'STAT-009', 'STAT-010']:
+        # Estados cerrados alternativos
+        req.stepper_step = 1
+    else:
+        req.stepper_step = 1
+
+    # Regla de desistimiento voluntario justificado (solo STAT-003 o STAT-004 sin fecha pautada)
+    req.can_cancel = (
+        status_code == 'STAT-003' or 
+        (status_code == 'STAT-004' and not has_scheduled_date)
+    ) and not req.historical
+
+    # Si se encuentra cancelada, extraer la justificación de desistimiento registrada
+    req.cancellation_justification = None
+    if status_code == 'STAT-009' or req.historical:
+        for just in req.justifications:
+            if just.justification_type == 'CANCELACION_SOLICITANTE':
+                req.cancellation_justification = just
+                break
+
+    return req
+
+
+def cancel_training_request(request_id: int, user: User, reason_id: int, justification_text: str) -> tuple[bool, str, int]:
+    """
+    Procesa el desistimiento voluntario de una solicitud por parte del solicitante escolar (US-44).
+    Aplica bloqueo pesimista (with_for_update) para control estricto de concurrencia.
+    Transiciona a STAT-009 (Cancelado), archiva en histórico y asienta traza en bitácora.
+    Retorna (éxito: bool, mensaje: str, código_http: int).
+    """
+    from app.models.reason_model import Reason
+    from app.models.request_tracking_model import RequestTracking
+
+    if not user or not user.person or not user.person.institutional_staff:
+        return False, "Usuario no autorizado o sin vinculación institucional válida.", 403
+
+    user_institution_id = user.person.institutional_staff[0].institution_id
+
+    # 1. Bloqueo pesimista de fila en BD (Pessimistic Locking)
+    req = db.session.query(Request).filter(Request.id == request_id).with_for_update().first()
+
+    if not req:
+        db.session.rollback()
+        return False, "Solicitud no encontrada.", 404
+
+    # 2. Control de Acceso y Aislamiento Multitenant
+    if not req.institutional_staff or req.institutional_staff.institution_id != user_institution_id:
+        db.session.rollback()
+        return False, "Acceso denegado: El requerimiento no pertenece a su institución educativa.", 403
+
+    # 3. Validación de estado preliminar cancelable (Anti-Bypass de concurrencia)
+    current_status = req.status.status_code if req.status else ''
+    if current_status not in ['STAT-003', 'STAT-004'] or req.historical:
+        db.session.rollback()
+        return False, f"La solicitud no se encuentra en una fase que permita cancelación (Estado actual: {req.status.status_name if req.status else current_status}).", 422
+
+    # Verificar que no tenga fecha pautada en planificaciones
+    has_scheduled_date = any(p.planned_for is not None for p in req.plannings)
+    if current_status == 'STAT-004' and has_scheduled_date:
+        db.session.rollback()
+        return False, "No es posible cancelar esta solicitud porque ya cuenta con fecha pautada en el cronograma institucional.", 422
+
+    # 4. Validar existencia del motivo de catálogo
+    reason = Reason.query.get(reason_id)
+    if not reason:
+        db.session.rollback()
+        return False, "El motivo de cancelación seleccionado no existe en el catálogo oficial.", 400
+
+    # 5. Buscar estado Cancelado (STAT-009)
+    status_cancelled = Status.query.filter_by(status_code='STAT-009').first()
+    if not status_cancelled:
+        db.session.rollback()
+        return False, "Error interno: Estado STAT-009 no encontrado en el sistema.", 500
+
+    try:
+        now_utc = datetime.now(timezone.utc)
+
+        # 6. Registrar en sages.request_justifications
+        justification = RequestJustification(
+            request_id=req.id,
+            reason_id=reason.id,
+            justification_type='CANCELACION_SOLICITANTE',
+            justification=justification_text.strip()
+        )
+        db.session.add(justification)
+
+        # 7. Actualizar sages.requests
+        req.status_id = status_cancelled.id
+        req.finished_at = now_utc
+        req.updated_at = now_utc
+        req.historical = True
+
+        # 8. Asentar traza institucional en sages.request_trackings
+        applicant_name = f"{user.person.first_name} {user.person.last_name}".strip()
+        tracking_message = (
+            f"El representante del plantel educativo ({applicant_name}) ha cancelado la solicitud. "
+            f"Motivo: {reason.name}. Detalle: {justification_text.strip()}"
+        )
+        tracking = RequestTracking(
+            request_id=req.id,
+            user_id=user.id,
+            messages=tracking_message,
+            created_at=now_utc
+        )
+        db.session.add(tracking)
+
+        # 9. Notificación al Administrador Estadal (Campana y Correo)
+        try:
+            from app.notifications.services import NotificationService
+            from app.notifications.enums import NotificationEvent
+            from app.utils.email_utils import send_email
+            import threading
+
+            inst_name = req.institutional_staff.institution.institution_name if req.institutional_staff and req.institutional_staff.institution else "Plantel Educativo"
+            training_name = req.training.name if req.training else "Formación Solicitada"
+
+            context = {
+                "institution_name": inst_name,
+                "training_name": training_name,
+                "reason_name": reason.name,
+                "justification": justification_text.strip()
+            }
+
+            target_user = None
+            if req.attended_by_id and req.attended_by:
+                target_user = req.attended_by
+                NotificationService.notify_user(
+                    user_id=req.attended_by_id,
+                    event=NotificationEvent.REQUEST_CANCELLED_BY_APPLICANT,
+                    context=context,
+                    db_session=db.session
+                )
+            else:
+                notifications = NotificationService.notify_role(
+                    role_name='state_admin',
+                    event=NotificationEvent.REQUEST_CANCELLED_BY_APPLICANT,
+                    context=context,
+                    db_session=db.session
+                )
+                if notifications:
+                    target_user = User.query.get(notifications[0].user_id)
+
+            admin_email = target_user.person.email if target_user and target_user.person else None
+            if admin_email:
+                subject = f"Aviso de Cancelación: Solicitud de {inst_name}"
+                body_text = (
+                    f"Estimado Administrador,\n\n"
+                    f"El representante del plantel educativo {inst_name} ha desistido y cancelado "
+                    f"la solicitud de formación '{training_name}'.\n\n"
+                    f"Motivo: {reason.name}\n"
+                    f"Detalle: {justification_text.strip()}\n\n"
+                    f"El expediente ha sido cerrado formalmente y trasladado al archivo histórico.\n\n"
+                    f"Atentamente,\nPlataforma SAGES - CORPOELEC"
+                )
+                threading.Thread(
+                    target=send_email,
+                    args=(admin_email, subject, None, body_text)
+                ).start()
+        except Exception as notif_err:
+            import logging
+            logging.getLogger(__name__).warning(f"No se pudo despachar la notificación de cancelación: {notif_err}")
+
+        # 10. Confirmación de transacción
+        db.session.commit()
+        return True, "Su solicitud ha sido cancelada exitosamente y trasladada a su historial.", 200
+
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logging.getLogger(__name__).error(f"Error procesando desistimiento de solicitud {req.request_code}: {e}")
+        return False, "Ocurrió un error interno en la base de datos al procesar la cancelación.", 500
+
+
 # ---------------------------------------------------------------------------
 # Bloque Administrador Estadal
 # ---------------------------------------------------------------------------
+
 
 def get_admin_state_id(user: User) -> int | None:
     """
@@ -350,7 +585,7 @@ def get_request_full_detail(request_id: int):
     # Si posee justificaciones previas registradas para este retraso, se levanta el bloqueo visual temporal
     if has_delay_block and req.justifications:
         for just in req.justifications:
-            if just.justification_type in ['RETRASO', 'REPROGRAMACION']:
+            if just.justification_type in ['RETRASO', 'REPROGRAMACION', 'RETRASO_ATENCION', 'RETRASO_EJECUCION']:
                 has_delay_block = False
                 break
                 
@@ -396,6 +631,100 @@ def get_request_full_detail(request_id: int):
     req.closure_alert = check_closure_spam_alert(req)
 
     return req
+
+# Bloque Administrador Estadal (Atención y Asignación nominal)
+def claim_and_attend_request(request_id: int, admin_user) -> tuple[bool, str, dict]:
+    """
+    Toma propiedad nominal de una solicitud.
+    Ejecuta un bloqueo pesimista en base de datos para prevenir colisiones concurrentes.
+    Transiciona a STAT-004 (Pendiente), instancia request_plannings y deja traza.
+    """
+    from app.models.request_tracking_model import RequestTracking
+    
+    # Iniciar la transacción y bloquear la fila específica (Pessimistic Locking)
+    req = db.session.query(Request).filter(Request.id == request_id).with_for_update().first()
+    
+    if not req:
+        return False, "Solicitud no encontrada.", {}
+    # Comprobar que sea el estado correcto
+    if req.status.status_code != 'STAT-003':
+        return False, f"La solicitud no se encuentra en estado Nuevo (Actual: {req.status.status_code}).", {}
+    # Comprobar si ya fue asignada en un hilo concurrente
+    if req.attended_by_id is not None:
+        db.session.rollback()
+        raise RequestAlreadyClaimedException("Esta solicitud ya ha sido asumida por otro operador de la sede.")
+    # Consultar el estado Pendiente
+    status_pending = Status.query.filter_by(status_code='STAT-004').first()
+    if not status_pending:
+        db.session.rollback()
+        return False, "Error interno: Estado STAT-004 no encontrado en catálogo.", {}
+    try:
+        # 1. Asignar operador y actualizar estado
+        req.attended_by_id = admin_user.id
+        req.status_id = status_pending.id
+        req.updated_at = datetime.now(timezone.utc)
+        
+        # 2. Instanciación satélite diferida de RequestPlanning
+        accepted_at = datetime.now(timezone.utc)
+        planning = RequestPlanning(
+            requests_id=req.id,
+            accepted_at=accepted_at,
+            acceptance_deadline=req.created_at + timedelta(hours=72),
+            execution_deadline=accepted_at + timedelta(days=10)
+        )
+        db.session.add(planning)
+        
+        # 3. Traza automática institucional en Bitácora
+        admin_name = f"{admin_user.person.first_name} {admin_user.person.last_name}"
+        tracking_msg = (
+            f"Solicitud asignada al Administrador {admin_name}. "
+            f"El Administrador encargado se pondrá en contacto directo con su institución "
+            f"para coordinar requerimientos logísticos, espacio, cantidad estimada de "
+            f"participantes y confirmar la fecha definitiva de la jornada."
+        )
+        tracking = RequestTracking(
+            request_id=req.id,
+            user_id=admin_user.id,
+            messages=tracking_msg
+        )
+        db.session.add(tracking)
+        
+        # 4. Commit Atómico Completo
+        db.session.commit()
+        
+        # 5. Despacho de Correo Asíncrono
+        try:
+            from app.utils.email_utils import send_request_claimed_email
+            
+            # Navegar hacia la Persona (Solicitante) a través de InstitutionalStaff
+            applicant_person = req.institutional_staff.person
+            applicant_email = applicant_person.email
+            applicant_name = f"{applicant_person.first_name} {applicant_person.last_name}"
+            
+            # Extraer institución
+            inst_name = req.institutional_staff.institution.institution_name
+                
+            send_request_claimed_email(
+                to_email=applicant_email,
+                full_name=applicant_name,
+                institution_name=inst_name,
+                request_code=req.request_code,
+                admin_name=admin_name
+            )
+        except Exception as email_e:
+            import logging
+            logging.error(f"No se pudo enviar el correo de asignación: {email_e}")
+        
+        return True, "Solicitud asignada exitosamente.", {
+            "status_code": status_pending.status_code,
+            "status_name": status_pending.status_name,
+            "operator_name": admin_name
+        }
+        
+    except Exception as e:
+        db.session.rollback()
+        return False, f"Error transaccional en asignación: {str(e)}", {}
+
 # ---------------------------------------------------------------------------
 # US-38: Monitoreo Nacional con Semáforo y Pre-filtrado
 # ---------------------------------------------------------------------------
@@ -949,16 +1278,11 @@ def get_request_justification_detail(request_id: int) -> dict | None:
 
 def demand_delay_response(request_id: int, super_admin_user) -> tuple[bool, str, int]:
     """
-    Dispara la intimación coercitiva multicanal (UI DANGER, correo asíncrono, bitácoras)
-    al operador responsable por vulneración del ANS.
+    Registra la exigencia formal al operador responsable por vulneración del ANS.
+    Bloqueado estrictamente a una sola exigencia por solicitud para evitar spam.
+    Sin despacho de bitácora ni notificaciones automáticas conforme a directriz.
     """
-    from app.models.role_model import Role
-    from app.models.role_user_model import RoleUser
     from app.models.request_tracking_model import RequestTracking
-    from app.models.notification_model import Notification
-    from app.notifications.services import NotificationService
-    from app.binnacle.services import BinnacleService
-    from app.utils.email_utils import send_delay_demand_email
 
     req = Request.query.options(
         joinedload(Request.status),
@@ -966,7 +1290,8 @@ def demand_delay_response(request_id: int, super_admin_user) -> tuple[bool, str,
         joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.institution)
             .joinedload(Institution.parish).joinedload(Parish.municipality).joinedload(Municipality.state),
         joinedload(Request.plannings),
-        joinedload(Request.justifications)
+        joinedload(Request.justifications),
+        joinedload(Request.trackings)
     ).get(request_id)
 
     if not req:
@@ -984,16 +1309,11 @@ def demand_delay_response(request_id: int, super_admin_user) -> tuple[bool, str,
 
     status_code = req.status.status_code if req.status else ''
     is_delayed = False
-    phase_name = ""
-    delay_info = ""
 
     if status_code in ('STAT-003', 'STAT-004'):
         delta_hours = (now_dt - created_at).total_seconds() / 3600.0
         if delta_hours > 72.0:
             is_delayed = True
-            days = int(delta_hours // 24)
-            phase_name = "Atención Inicial (Vencimiento ANS 72h)"
-            delay_info = f"+{days} días sin atención inicial"
     elif status_code == 'STAT-006':
         accepted_at = None
         if req.plannings:
@@ -1007,104 +1327,174 @@ def demand_delay_response(request_id: int, super_admin_user) -> tuple[bool, str,
         days_proc = (now_dt - ref_dt).days
         if days_proc > 10:
             is_delayed = True
-            phase_name = "Ejecución Presencial (Vencimiento ANS 10 días)"
-            delay_info = f"+{days_proc} días continuos en ejecución"
 
     if not is_delayed:
         return False, "El expediente se encuentra dentro de los plazos reglamentarios o no aplica intimación.", 422
 
     has_just = any(
-        j.justification_type in ('RETRASO_ATENCION', 'RETRASO_EJECUCION')
+        j.justification_type in ('RETRASO_ATENCION', 'RETRASO_EJECUCION', 'RETRASO', 'REPROGRAMACION')
         for j in req.justifications
     )
     if has_just:
         return False, "El expediente ya cuenta con un descargo formal consignado.", 422
 
-    inst_name = "Plantel Educativo"
-    state_id = None
-    if req.institutional_staff and req.institutional_staff.institution:
-        inst_name = req.institutional_staff.institution.institution_name
-        try:
-            state_obj = req.institutional_staff.institution.parish.municipality.state
-            state_id = state_obj.id
-        except AttributeError:
-            pass
+    # Bloqueo estricto: Una sola exigencia por solicitud para evitar spam
+    existing_demand = any(
+        'exigencia formal' in (t.messages or '').lower()
+        for t in req.trackings
+    )
+    if existing_demand:
+        return False, "Ya se ha emitido una exigencia formal previa para este expediente. Debe esperar la respuesta.", 422
 
-    # Identificar destinatarios
-    recipients = []
-    if req.attended_by:
-        recipients.append(req.attended_by)
-    else:
-        all_state_admins = User.query.join(RoleUser).join(Role).filter(Role.name == 'state_admin').all()
-        for sa in all_state_admins:
-            if sa.person and sa.person.company_staff:
-                try:
-                    staff_state = sa.person.company_staff[0].place.parish.municipality.state_id
-                    if state_id and staff_state == state_id:
-                        recipients.append(sa)
-                except (AttributeError, IndexError):
-                    pass
-        if not recipients:
-            recipients = all_state_admins
-
-    # 1. Notificación Campana UI (Canal 1 - DANGER)
-    for recipient in recipients:
-        try:
-            notif = Notification(
-                notification_code=NotificationService.generate_notification_code(),
-                user_id=recipient.id,
-                type='DANGER',
-                event_code='SOLICITUD_DEMORADA',
-                title="REQUERIMIENTO URGENTE: Justificación de Retraso Exigida",
-                message=f"La Gerencia General exige descargo formal inmediato para el expediente {req.request_code} ({inst_name}).",
-                redirect_url='/requests/process-inbox',
-                action_text='Atender Expediente',
-                extra_data={'request_code': req.request_code, 'institution_name': inst_name}
-            )
-            db.session.add(notif)
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(f"Error despachando notificación campana a user_id {recipient.id}: {e}")
-
-    # 2. Correo Electrónico Institucional Asíncrono (Canal 2)
-    for recipient in recipients:
-        if recipient.person and recipient.person.email:
-            rec_name = f"{recipient.person.first_name} {recipient.person.last_name}"
-            send_delay_demand_email(
-                to_email=recipient.person.email,
-                recipient_name=rec_name,
-                request_code=req.request_code,
-                institution_name=inst_name,
-                delay_info=delay_info,
-                phase_name=phase_name
-            )
-
-    # 3. Trazabilidad en sages.request_trackings
+    # Trazabilidad en sages.request_trackings
     tracking = RequestTracking(
         request_id=req.id,
         user_id=super_admin_user.id,
         messages="La Gerencia General (Super Administrador) ha emitido una exigencia formal de justificación operativa por vencimiento de plazos normativos."
     )
     db.session.add(tracking)
-
-    # 4. Bitácora Forense (BinnacleService)
-    recipient_names = ", ".join([
-        f"{r.person.first_name} {r.person.last_name}" if r.person else f"User {r.id}"
-        for r in recipients
-    ]) if recipients else "Administración Estadal"
-    
-    BinnacleService.create_log_entry(
-        module='Solicitudes',
-        action_type='EXIGIR_RESPUESTA_SLA',
-        description=f"Exigencia formal de respuesta emitida para trámite {req.request_code} ({inst_name}). Destinatarios intimados: {recipient_names}.",
-        target_table='requests',
-        record_id=req.id
-    )
-
     db.session.commit()
 
-    return True, "Requerimiento formal despachado exitosamente al operador responsable.", 200
+    return True, "Exigencia formal registrada exitosamente en el expediente.", 200
 
+
+# ---------------------------------------------------------------------------
+# SLA Gate: Justificación Obligatoria de Retraso (Modal Bloqueante)
+# ---------------------------------------------------------------------------
+
+def get_delay_reasons() -> list:
+    """
+    Retorna el catálogo de razones válidas para justificación de mora ANS.
+    Filtra prioritariamente las razones con prefijo 'RSL-' (Retraso SLA).
+    """
+    from app.models.reason_model import Reason
+    reasons = Reason.query.filter(
+        Reason.reason_code.like('RSL-%')
+    ).order_by(Reason.name.asc()).all()
+
+    # Fallback: Si no existen razones específicas RSL-, devolver todas
+    if not reasons:
+        reasons = Reason.query.order_by(Reason.name.asc()).all()
+
+    return [{'id': r.id, 'code': r.reason_code, 'name': r.name} for r in reasons]
+
+
+def submit_delay_justification(
+    request_id: int,
+    admin_user,
+    reason_id: int,
+    justification_text: str
+) -> tuple[bool, str, int]:
+    """
+    Registra el descargo formal de mora ANS (SLA Gate) para una solicitud bloqueada.
+
+    Reglas de Negocio:
+      - Solo aplica a solicitudes con bloqueo activo ANS.
+      - El texto del descargo debe tener mínimo 20 caracteres.
+      - La razón debe existir en el catálogo sages.reasons.
+      - Determina el tipo automáticamente: RETRASO_ATENCION o RETRASO_EJECUCION.
+      - Persiste en sages.request_justifications y genera tracking (sin bitácora ni notificaciones).
+      - Bloquea spam: solo permite una justificación por expediente.
+      - Retorna (success: bool, message: str, http_status: int).
+    """
+    from app.models.reason_model import Reason
+    from app.models.request_tracking_model import RequestTracking
+
+    # ── 1. Validaciones de Entrada ──────────────────────────────────────────
+    if not justification_text or len(justification_text.strip()) < 20:
+        return False, "El descargo debe contener al menos 20 caracteres.", 400
+
+    justification_text = justification_text.strip()
+
+    # ── 2. Cargar Solicitud con Carga Ansiosa ───────────────────────────────
+    req = Request.query.options(
+        joinedload(Request.status),
+        joinedload(Request.justifications),
+        joinedload(Request.plannings),
+        joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.institution)
+    ).get(request_id)
+
+    if not req:
+        return False, "La solicitud indicada no existe.", 404
+
+    if req.historical:
+        return False, "La solicitud es histórica y no admite justificaciones operativas.", 422
+
+    # ── 3. Verificar Estado de Bloqueo ANS ─────────────────────────────────
+    vzla_tz = timezone(timedelta(hours=-4))
+    now_local = datetime.now(vzla_tz)
+    status_code = req.status.status_code if req.status else ''
+
+    has_delay_block = False
+    justification_type = None
+
+    if status_code == 'STAT-003':
+        if req.created_at:
+            hours_diff = (now_local - req.created_at.astimezone(vzla_tz)).total_seconds() / 3600
+            if hours_diff > 72:
+                has_delay_block = True
+                justification_type = 'RETRASO_ATENCION'
+
+    elif status_code in ('STAT-004', 'STAT-005', 'STAT-006'):
+        if req.updated_at:
+            hours_diff = (now_local - req.updated_at.astimezone(vzla_tz)).total_seconds() / 3600
+            if hours_diff > 240:
+                has_delay_block = True
+                justification_type = 'RETRASO_EJECUCION'
+
+    # Verificar si ya existe justificación de retraso previa (Anti-spam estricto)
+    already_justified = any(
+        j.justification_type in ('RETRASO_ATENCION', 'RETRASO_EJECUCION', 'RETRASO', 'REPROGRAMACION')
+        for j in req.justifications
+    )
+
+    if already_justified:
+        return False, "Este expediente ya cuenta con un descargo formal registrado.", 422
+
+    if not has_delay_block:
+        return False, "Este expediente no presenta bloqueo ANS activo que requiera justificación.", 422
+
+    # ── 4. Validar Razón ────────────────────────────────────────────────────
+    reason = Reason.query.get(reason_id)
+    if not reason:
+        return False, "La razón seleccionada no es válida.", 400
+      
+    # ── 5. Transacción Atómica ──────────────────────────────────────────────
+    try:
+        # 5a. Persistir Justificación
+        new_just = RequestJustification(
+            request_id=req.id,
+            reason_id=reason.id,
+            justification_type=justification_type,
+            justification=justification_text
+        )
+        db.session.add(new_just)
+
+        # 5b. Tracking de Trazabilidad en el Expediente
+        admin_name = "Administrador"
+        if admin_user and hasattr(admin_user, 'person') and admin_user.person:
+            admin_name = f"{admin_user.person.first_name} {admin_user.person.last_name}"
+
+        tracking = RequestTracking(
+            request_id=req.id,
+            user_id=admin_user.id,
+            messages=(
+                f"Descargo formal de justificación registrado por {admin_name}. "
+                f"Razón: {reason.name}. Tipo: {justification_type}."
+            )
+        )
+        db.session.add(tracking)
+
+        db.session.commit()
+        return True, "Descargo registrado correctamente. El bloqueo operativo ha sido levantado.", 200
+
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logging.getLogger(__name__).error(
+            f"Error al registrar justificación SLA para request_id={request_id}: {e}"
+        )
+        return False, "Error interno al registrar el descargo. Intente nuevamente.", 500
 
 # ---------------------------------------------------------------------------
 # Agenda y Calendario Mensual de Formaciones (Sin Auditoría ni Notificaciones)
@@ -1224,10 +1614,6 @@ def get_monthly_calendar_events(user: User, year: int, month: int, state_id: int
         'events': events,
         'total_events': len(events)
     }
-
-
-
-
 
 # ---------------------------------------------------------------------------
 # Alerta de Cumplimiento Post-Fecha Pautada (Spam de Cierre)

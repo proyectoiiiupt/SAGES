@@ -586,3 +586,70 @@ Este mensaje fue generado automáticamente por la Gerencia de Auditoría y Fisca
     return True
 
 
+def send_request_claimed_email(to_email: str, full_name: str, institution_name: str, request_code: str, admin_name: str) -> bool:
+    import html
+    safe_name = html.escape(full_name)
+    safe_institution = html.escape(institution_name)
+    safe_code = html.escape(request_code)
+    safe_admin = html.escape(admin_name)
+    
+    subject = f"Su Solicitud {safe_code} ha sido Asignada"
+    text_content = f"""Estimado/a {safe_name},
+
+Su solicitud ({safe_code}) para {safe_institution} ha sido aceptada y asignada al Administrador Estadal {safe_admin}.
+
+El administrador se pondrá en contacto directo con usted para coordinar requerimientos logísticos, espacio, cantidad de participantes y confirmar la fecha definitiva de la jornada.
+
+Gracias por usar el sistema SAGES.
+"""
+    logo_html = get_logo_html()
+    html_content = f"""<!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <title>{subject}</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9fafb; color: #1f2937;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb; overflow: hidden;">
+            <tr>
+                <td style="height: 6px; background: linear-gradient(90deg, #1c3d73 0%, #1fcab0 100%);"></td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 40px 20px 20px 20px;">
+                    {logo_html}
+                    <h1 style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.5;">Sistema de Gestión de Solicitudes de Formación</h1>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 0 40px;">
+                    <h2 style="font-size: 22px; font-weight: 700; color: #1f2937; margin: 10px 0 20px 0; text-transform: uppercase; letter-spacing: 0.5px;">NOTIFICACIÓN DE ASIGNACIÓN</h2>
+                    <p style="font-size: 15px; color: #4b5563; margin: 0 0 10px 0; line-height: 1.5; text-align: left;">Estimado/a <strong>{safe_name}</strong>,</p>
+                    <p style="font-size: 15px; color: #4b5563; margin: 0 0 10px 0; line-height: 1.5; text-align: left;">
+                        Nos complace informarle que su solicitud <strong>{safe_code}</strong> ha sido aceptada y está ahora bajo la responsabilidad del Administrador Estadal <strong>{safe_admin}</strong>.
+                    </p>
+                    <p style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.5; text-align: left;">
+                        El administrador asignado se contactará con usted próximamente para iniciar las coordinaciones pertinentes.
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 30px 40px 40px 40px;">
+                    <hr style="border: 0; border-top: 1px solid #e5e7eb; margin-bottom: 25px;">
+                    <p style="font-size: 12px; color: #9ca3af; line-height: 1.6; margin: 0; text-align: justify;">
+                        Por favor, no responda a este correo automatizado.
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
+                    &copy; 2026 SAGES. Todos los derechos reservados.
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+
+    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content))
+    thread.start()
+    return True

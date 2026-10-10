@@ -207,6 +207,96 @@ def download_receipt_ticket(request_id):
 
 
 # ---------------------------------------------------------------------------
+# Ruta Solicitante: Ficha Técnica de Seguimiento y Cancelación (US-44)
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/my-requests/<int:id>', methods=['GET'])
+@requests_bp.route('/view-request/<int:id>', methods=['GET'])
+@login_required
+@role_required('applicant')
+@check_permissions('create_request')
+def applicant_request_view(id):
+    """
+    Renderiza la ficha técnica de seguimiento individual para el directivo escolar (US-44).
+    Incluye stepper gráfico de 5 fases, datos del facilitador, fecha pautada
+    y modal de desistimiento voluntario justificado.
+    Aplica blindaje institucional estricto (Anti-IDOR).
+    """
+    from flask import abort
+    from app.requests.services import get_applicant_request_detail
+    from app.requests.forms import ApplicantCancelRequestForm
+    from app.models.reason_model import Reason
+
+    user = User.query.get(current_user.id)
+    if not user or not user.person or not user.person.institutional_staff:
+        abort(403, description="No posee afiliación institucional válida.")
+
+    user_institution_id = user.person.institutional_staff[0].institution_id
+
+    req = get_applicant_request_detail(id, user_institution_id)
+    if not req:
+        abort(403, description="Acceso denegado: No tiene permisos para consultar este expediente institucional.")
+
+    cancel_form = ApplicantCancelRequestForm()
+    reasons = Reason.query.order_by(Reason.id.asc()).all()
+    cancel_form.reason_id.choices = [(r.id, r.name) for r in reasons]
+
+    return render_template(
+        'requests/applicant_request_view.html',
+        req=req,
+        cancel_form=cancel_form,
+        reasons=reasons
+    )
+
+
+@requests_bp.route('/api/applicant/<int:id>/cancel', methods=['POST'])
+@login_required
+@role_required('applicant')
+@check_permissions('create_request')
+def applicant_cancel_request(id):
+    """
+    Endpoint AJAX para procesar el desistimiento voluntario del solicitante (US-44).
+    Aplica validación de motivo y justificación (>= 10 chars), ejecuta la transacción
+    con bloqueo pesimista en base de datos y retorna respuesta JSON estructurada.
+    """
+    from app.requests.services import cancel_training_request
+    from app.requests.forms import ApplicantCancelRequestForm
+    from app.models.reason_model import Reason
+
+    user = User.query.get(current_user.id)
+    if not user or not user.person or not user.person.institutional_staff:
+        return jsonify({'success': False, 'message': 'No posee afiliación institucional válida.'}), 403
+
+    # Soporte tanto para payload JSON como para FormData
+    if request.is_json:
+        json_data = request.get_json() or {}
+        form = ApplicantCancelRequestForm(data=json_data)
+    else:
+        form = ApplicantCancelRequestForm()
+
+    reasons = Reason.query.all()
+    form.reason_id.choices = [(r.id, r.name) for r in reasons]
+
+    if not form.validate():
+        errors = [f"{field}: {', '.join(errs)}" for field, errs in form.errors.items()]
+        return jsonify({
+            'success': False,
+            'message': 'Datos del formulario de desistimiento inválidos.',
+            'errors': errors
+        }), 400
+
+    success, message, status_code = cancel_training_request(
+        request_id=id,
+        user=user,
+        reason_id=form.reason_id.data,
+        justification_text=form.justification.data
+    )
+
+    return jsonify({'success': success, 'message': message}), status_code
+
+
+
+# ---------------------------------------------------------------------------
 # Ruta Administrador Estadal: Bandeja Territorial de Solicitudes (US-39)
 # ---------------------------------------------------------------------------
 
@@ -349,6 +439,53 @@ def state_request_detail(id):
         req.closure_alert = {'should_trigger': False}
 
     return render_template('requests/state_request_detail.html', req=req, reschedule_reasons=reschedule_reasons)
+
+# ---------------------------------------------------------------------------
+# Bloque Administrador Estadal: Tomar Solicitud
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/api/requests/<int:request_id>/claim-and-attend', methods=['POST'])
+@login_required
+@role_required('state_admin')
+@check_permissions('manage_requests')
+def api_claim_and_attend(request_id):
+    """
+    Endpoint para que un administrador estadal asuma una solicitud.
+    Verifica jurisdicción, controla concurrencia (409) y responde HTTP codes según estándar.
+    """
+    from flask import jsonify
+    from app.requests.services import claim_and_attend_request, RequestAlreadyClaimedException, get_admin_state_id
+    from app.models.request_model import Request
+
+    # 1. Validación de territorio (In-line security)
+    req = Request.query.get(request_id)
+    if not req:
+        return jsonify({'success': False, 'message': 'Solicitud no encontrada.'}), 404
+        
+    admin_state_id = get_admin_state_id(current_user)
+    
+    try:
+        req_state_id = req.institutional_staff.institution.parish.municipality.state_id
+    except AttributeError:
+        req_state_id = None
+
+    if not admin_state_id or req_state_id != admin_state_id:
+        return jsonify({'success': False, 'message': 'Acceso denegado. Jurisdicción no válida para este operador.'}), 403
+
+    # 2. Delegar a capa de servicios (Transaccional)
+    try:
+        success, msg, data = claim_and_attend_request(request_id, current_user)
+        if success:
+            return jsonify({'success': True, 'message': msg, 'data': data}), 200
+        else:
+            return jsonify({'success': False, 'message': msg}), 400
+    except RequestAlreadyClaimedException as e:
+        return jsonify({'success': False, 'message': str(e)}), 409
+    except Exception as e:
+        import logging
+        logging.error(f"Error en claim-and-attend (Request ID {request_id}): {e}")
+        return jsonify({'success': False, 'message': 'Error interno al procesar la asignación.'}), 500
+
 # ---------------------------------------------------------------------------  
 # Ruta Super Administrador: Tablero de Monitoreo Nacional (US-38)
 # ---------------------------------------------------------------------------
@@ -562,11 +699,11 @@ def get_delay_justification(request_id):
 @login_required
 @role_required('super_admin')
 @check_permissions('manage_requests')
-@limiter.limit("3 per 2 hours", methods=["POST"], key_func=lambda: f"demand_delay_{request.view_args.get('request_id')}")
+@limiter.limit("1 per hour", methods=["POST"], key_func=lambda: f"demand_delay_{current_user.id}_{request.view_args.get('request_id')}")
 def demand_delay_response_endpoint(request_id):
     """
-    Endpoint AJAX con rate limiting (máx. 3 cada 2 horas por solicitud)
-    para despachar la intimación coercitiva (notificación DANGER, correo formal y bitácoras).
+    Endpoint AJAX con rate limiting estricto (máx. 1 por hora por solicitud/usuario)
+    para registrar la exigencia formal en el tracking de la solicitud.
     """
     from app.requests.services import demand_delay_response
 
@@ -627,6 +764,47 @@ def calendar_events_endpoint():
 
     return jsonify(data), 200
 
+# ---------------------------------------------------------------------------
+# SLA Gate: Catálogo de Razones para el Modal Bloqueante
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/api/requests/<int:request_id>/delay-reasons', methods=['GET'])
+@login_required
+@role_required('state_admin')
+@check_permissions('manage_requests')
+def get_delay_reasons_for_request(request_id):
+    """
+    Endpoint AJAX que devuelve el catálogo de razones disponibles
+    para justificar una mora ANS en la Ficha Técnica (SLA Gate Modal).
+    """
+    from app.requests.services import get_delay_reasons
+    reasons = get_delay_reasons()
+    return jsonify({'reasons': reasons}), 200
+
+
+# ---------------------------------------------------------------------------
+# SLA Gate: Registrar Descargo Obligatorio de Retraso
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/api/requests/<int:request_id>/justify-delay', methods=['POST'])
+@login_required
+@role_required('state_admin')
+@check_permissions('manage_requests')
+@limiter.limit("2 per hour", methods=["POST"], key_func=lambda: f"justify_delay_{current_user.id}_{request.view_args.get('request_id')}")
+@limiter.limit("1 per minute", methods=["POST"], key_func=lambda: f"justify_delay_{current_user.id}_{request.view_args.get('request_id')}")
+@limiter.limit("5 per hour", methods=["POST"], key_func=lambda: f"justify_delay_user_{current_user.id}")
+def justify_delay(request_id):
+    """
+    Endpoint AJAX (SLA Gate) para registrar el descargo formal de mora ANS.
+    Cuenta con rate limit estricto por usuario y solicitud para mitigar spam.
+    Requiere reason_id (int) y justification (str, mínimo 20 caracteres).
+    Al completarse exitosamente, el bloqueo operativo de la solicitud se levanta.
+    """
+    from app.requests.services import submit_delay_justification
+
+    data = request.get_json() or {}
+    reason_id = data.get('reason_id')
+    justification_text = data.get('justification', '')
 
 # ---------------------------------------------------------------------------
 # Endpoints Alerta de Cumplimiento Post-Fecha Pautada (Spam de Cierre)
@@ -737,3 +915,16 @@ def reschedule_closure_api(request_id):
 
 
 
+    try:
+        reason_id = int(reason_id)
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'message': 'reason_id inválido.'}), 400
+
+    success, message, status_code = submit_delay_justification(
+        request_id=request_id,
+        admin_user=current_user,
+        reason_id=reason_id,
+        justification_text=justification_text
+    )
+
+    return jsonify({'success': success, 'message': message}), status_code
