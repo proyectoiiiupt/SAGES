@@ -21,3 +21,6 @@ class NotificationEvent(str, Enum):
     INSTITUTION_DATA_UPDATED = "INST_DATA_UPDATED"     # Edición de datos institucionales (notifica a afiliados)
     INSTITUTION_INACTIVATED = "INST_INACTIVATED"       # Plantel marcado como Inactivo (con motivo genérico)
     INSTITUTION_ACTIVATED = "INST_ACTIVATED"           # Plantel reactivado como Activo
+
+    # Gestión de Solicitudes de Formación
+    REQUEST_CANCELLED_BY_APPLICANT = "REQ_CANCELLED_APPLICANT"  # Desistimiento voluntario del solicitante (US-44)

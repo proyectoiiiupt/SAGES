@@ -54,6 +54,12 @@ NOTIFICATION_TEMPLATES = {
         "message_template": "El plantel \"{institution_name}\" ha sido reactivado operativamente. Los afiliados pueden gestionar y registrar solicitudes de formación con normalidad.",
         "default_type": NotificationType.SUCCESS,
         "required_context": ["institution_name"]
+    },
+    NotificationEvent.REQUEST_CANCELLED_BY_APPLICANT: {
+        "title": "Solicitud Cancelada por el Plantel: {institution_name}",
+        "message_template": "El representante del plantel \"{institution_name}\" ha cancelado la solicitud de formación \"{training_name}\". Motivo: {reason_name}. Detalle: {justification}. El expediente ha sido archivado en el histórico institucional.",
+        "default_type": NotificationType.WARNING,
+        "required_context": ["institution_name", "training_name", "reason_name", "justification"]
     }
 }
 

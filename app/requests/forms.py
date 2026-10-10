@@ -20,3 +20,24 @@ class NewRequestWizardForm(FlaskForm):
             Length(min=10, max=200, message="La justificación debe tener entre 10 y 200 caracteres.")
         ]
     )
+
+class ApplicantCancelRequestForm(FlaskForm):
+    """
+    Formulario para el desistimiento voluntario justificado del solicitante (US-44).
+    Exige la selección de un motivo de catálogo y justificación de al menos 10 caracteres.
+    """
+    reason_id = SelectField(
+        'Motivo de Desistimiento',
+        validators=[DataRequired(message="Debe seleccionar un motivo válido del catálogo.")],
+        coerce=int
+    )
+    
+    justification = TextAreaField(
+        'Justificación Formal',
+        validators=[
+            DataRequired(message="La justificación del desistimiento es obligatoria."),
+            Length(min=10, max=500, message="La justificación debe tener entre 10 y 500 caracteres.")
+        ]
+    )
+
+
