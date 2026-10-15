@@ -726,6 +726,130 @@ def claim_and_attend_request(request_id: int, admin_user) -> tuple[bool, str, di
         return False, f"Error transaccional en asignación: {str(e)}", {}
 
 # ---------------------------------------------------------------------------
+# Planificar Formación
+# ---------------------------------------------------------------------------
+
+def plan_training_session(request_id: int, planned_date, notes: str, admin_user, delay_reason_id: int = None, delay_justification: str = None) -> tuple[bool, str, dict]:
+    """
+    Planifica la fecha de una jornada formativa (US-41).
+    Valida la titularidad operativa, evalúa los límites de ANS, y transiciona a STAT-005.
+    Registra el hito en la bitácora y dispara la notificación asíncrona.
+    """
+    from app.models.request_tracking_model import RequestTracking
+    
+    # 1. Recuperar la solicitud con bloqueo pesimista
+    req = db.session.query(Request).filter(Request.id == request_id).with_for_update().first()
+    
+    if not req:
+        return False, "Solicitud no encontrada.", {}
+
+    # 2. Validación Defensiva: Titularidad Operativa
+    if req.attended_by_id != admin_user.id:
+        db.session.rollback()
+        return False, "Operación denegada. Usted no es el operador asignado a esta solicitud.", {}
+
+    # 3. Validación de Estado FSM (Máquina de Estados manual)
+    if req.status.status_code != 'STAT-004':
+        db.session.rollback()
+        return False, f"Transición ilegal. La solicitud debe estar en estado 'Pendiente' (Actual: {req.status.status_code}).", {}
+
+    # 4. Recuperar la planificación vinculada
+    planning = RequestPlanning.query.filter_by(requests_id=req.id).first()
+    if not planning:
+        db.session.rollback()
+        return False, "Error de integridad: La solicitud no posee un registro de planificación asociado.", {}
+
+    try:
+        # 5. Evaluación Transaccional del ANS (SLA)
+        is_exceeded = False
+        time_exceeded = 0
+        deadline_date = planning.execution_deadline.date() if hasattr(planning.execution_deadline, 'date') else planning.execution_deadline
+        if deadline_date and planned_date > deadline_date:
+            is_exceeded = True
+            time_exceeded = (planned_date - deadline_date).days
+            
+            # Defensive check en backend (Doble Capa)
+            if not delay_reason_id or not delay_justification:
+                db.session.rollback()
+                return False, "La fecha supera el límite de gestión ANS (10 días). Se requiere seleccionar un motivo y una justificación.", {}
+            
+            # Registrar Justificación de Retraso
+            justification_record = RequestJustification(
+                request_id=req.id,
+                reason_id=delay_reason_id,
+                justification_type='RETRASO_EJECUCION',
+                justification=delay_justification.strip()
+            )
+            db.session.add(justification_record)
+
+        # 6. Actualizar modelo de Planificación
+        planning.planned_for = planned_date
+        planning.original_planned_for = planned_date
+        planning.is_exceeded = is_exceeded
+        if is_exceeded:
+            planning.time_exceeded = time_exceeded
+
+        # 7. Avanzar el Estado de la Solicitud
+        status_planned = Status.query.filter_by(status_code='STAT-005').first()
+        if not status_planned:
+            db.session.rollback()
+            return False, "Error interno: Estado STAT-005 no encontrado en catálogo.", {}
+            
+        req.status_id = status_planned.id
+        req.updated_at = datetime.now(timezone.utc)
+
+        # 8. Asiento transversal en Bitácora
+        formatted_date = planned_date.strftime("%d/%m/%Y")
+        tracking_msg = f"Jornada formativa agendada formalmente para el día {formatted_date}."
+        if notes:
+            tracking_msg += f" Observaciones: {notes.strip()}"
+        if is_exceeded:
+            tracking_msg += f" (Notificación de ANS: La fecha supera por {time_exceeded} días el límite establecido)."
+
+        tracking = RequestTracking(
+            request_id=req.id,
+            user_id=admin_user.id,
+            messages=tracking_msg
+        )
+        db.session.add(tracking)
+
+        # 9. Commit atómico
+        db.session.commit()
+
+        # 10. Notificación por Correo Asíncrono
+        try:
+            from app.utils.email_utils import send_request_planned_email
+            applicant_person = req.institutional_staff.person
+            applicant_name = f"{applicant_person.first_name} {applicant_person.last_name}"
+            inst_name = req.institutional_staff.institution.institution_name
+            
+            send_request_planned_email(
+                to_email=applicant_person.email,
+                full_name=applicant_name,
+                institution_name=inst_name,
+                request_code=req.request_code,
+                planned_date=formatted_date,
+                notes=notes
+            )
+        except Exception as email_e:
+            import logging
+            logging.error(f"Fallo no crítico al despachar correo de planificación: {email_e}")
+
+        return True, "Fecha agendada exitosamente.", {
+            "planned_date": formatted_date,
+            "status_code": status_planned.status_code,
+            "status_name": status_planned.status_name,
+            "is_exceeded": is_exceeded
+        }
+
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logging.error(f"Error transaccional en plan_training_session: {str(e)}")
+        return False, "Ocurrió un error transaccional al agendar la solicitud.", {}
+
+
+# ---------------------------------------------------------------------------
 # US-38: Monitoreo Nacional con Semáforo y Pre-filtrado
 # ---------------------------------------------------------------------------
 

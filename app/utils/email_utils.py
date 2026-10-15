@@ -653,3 +653,91 @@ Gracias por usar el sistema SAGES.
     thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content))
     thread.start()
     return True
+
+
+def send_request_planned_email(to_email: str, full_name: str, institution_name: str, request_code: str, planned_date: str, notes: str = None) -> bool:
+    """Envía notificación por correo cuando se agenda la fecha de una jornada formativa (US-41)."""
+    import html
+    safe_name = html.escape(full_name)
+    safe_institution = html.escape(institution_name)
+    safe_code = html.escape(request_code)
+    safe_date = html.escape(planned_date)
+    safe_notes = html.escape(notes.strip()) if notes else ""
+    
+    subject = f"Fecha de Jornada Formativa Agendada - Solicitud {safe_code}"
+    
+    notes_text = f"\n\nObservaciones del administrador:\n{safe_notes}" if safe_notes else ""
+    text_content = f"""Estimado/a {safe_name},
+
+Le informamos que su solicitud de formación ({safe_code}) para la institución {safe_institution} ha sido agendada formalmente.
+
+Fecha de la Jornada Formativa: {safe_date}{notes_text}
+
+Por favor, tenga en cuenta esta fecha para las coordinaciones y logística correspondientes en su institución.
+
+Gracias por usar el sistema SAGES.
+"""
+    logo_html = get_logo_html()
+    notes_html = f"""
+    <div style="background-color: #f1f5f9; border-left: 4px solid #0ea5e9; padding: 12px 16px; margin: 20px 0; border-radius: 4px; text-align: left;">
+        <strong style="color: #0f172a; font-size: 13px;">Observaciones del Coordinador:</strong>
+        <p style="margin: 6px 0 0 0; color: #475569; font-size: 14px;">{safe_notes}</p>
+    </div>
+    """ if safe_notes else ""
+
+    html_content = f"""<!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <title>{subject}</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9fafb; color: #1f2937;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb; overflow: hidden;">
+            <tr>
+                <td style="height: 6px; background: linear-gradient(90deg, #1c3d73 0%, #0ea5e9 100%);"></td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 40px 20px 20px 20px;">
+                    {logo_html}
+                    <h1 style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.5;">Sistema de Gestión de Solicitudes de Formación</h1>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 0 40px;">
+                    <h2 style="font-size: 22px; font-weight: 700; color: #1f2937; margin: 10px 0 20px 0; text-transform: uppercase; letter-spacing: 0.5px;">JORNADA FORMATIVA AGENDADA</h2>
+                    <p style="font-size: 15px; color: #4b5563; margin: 0 0 10px 0; line-height: 1.5; text-align: left;">Estimado/a <strong>{safe_name}</strong>,</p>
+                    <p style="font-size: 15px; color: #4b5563; margin: 0 0 16px 0; line-height: 1.5; text-align: left;">
+                        Nos complace informarle que su solicitud <strong>{safe_code}</strong> para la institución <strong>{safe_institution}</strong> ha sido agendada con éxito.
+                    </p>
+                    <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
+                        <span style="display: block; font-size: 13px; color: #166534; font-weight: 600; text-transform: uppercase;">Fecha Oficial Agendada</span>
+                        <strong style="display: block; font-size: 22px; color: #15803d; margin-top: 4px;">{safe_date}</strong>
+                    </div>
+                    {notes_html}
+                    <p style="font-size: 14px; color: #64748b; margin: 20px 0 25px 0; line-height: 1.5; text-align: left;">
+                        Agradecemos tomar las previsiones pertinentes de espacio y participantes para el óptimo desarrollo de la actividad formativa.
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 30px 40px 40px 40px;">
+                    <hr style="border: 0; border-top: 1px solid #e5e7eb; margin-bottom: 25px;">
+                    <p style="font-size: 12px; color: #9ca3af; line-height: 1.6; margin: 0; text-align: justify;">
+                        Por favor, no responda a este correo automatizado.
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
+                    &copy; 2026 SAGES. Todos los derechos reservados.
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+
+    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content))
+    thread.start()
+    return True
+
