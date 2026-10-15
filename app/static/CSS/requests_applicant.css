@@ -703,3 +703,384 @@
     to { opacity: 1; transform: translateY(0); }
 }
 
+
+/* ============================================================
+   US-51 — Encuesta de Satisfacción Post-Cierre
+   ============================================================ */
+
+.survey-page-container {
+    padding: 24px;
+    max-width: 760px;
+    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* --- Cabecera institucional --------------------------------- */
+.survey-header-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+    background: linear-gradient(135deg, #019577 0%, #01755e 100%);
+    border-radius: 16px;
+    padding: 28px 32px;
+    margin-bottom: 24px;
+    box-shadow: 0 8px 24px rgba(1, 149, 119, 0.22);
+}
+
+.survey-header-icon {
+    flex-shrink: 0;
+    width: 52px;
+    height: 52px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.survey-header-icon svg {
+    width: 28px;
+    height: 28px;
+    stroke: #ffffff;
+    fill: rgba(255, 255, 255, 0.4);
+}
+
+.survey-main-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0 0 6px 0;
+    letter-spacing: -0.3px;
+}
+
+.survey-subtitle {
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.85);
+    margin: 0;
+    line-height: 1.6;
+}
+
+/* --- Tarjeta de datos del trámite -------------------------- */
+.survey-info-card {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+    border: 1px solid #e5e7eb;
+}
+
+.survey-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.survey-info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.survey-info-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6B7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.survey-info-label svg {
+    color: #019577;
+    flex-shrink: 0;
+}
+
+.survey-info-value {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #111827;
+}
+
+.survey-code-badge {
+    display: inline-block;
+    background: #f0fdf4;
+    color: #019577;
+    border: 1px solid #bbf7d0;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.82rem;
+}
+
+/* --- Tarjetas de preguntas ---------------------------------- */
+.survey-question-card {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e5e7eb;
+    display: flex;
+    gap: 18px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.survey-question-card:hover {
+    border-color: #a7f3d0;
+    box-shadow: 0 4px 14px rgba(1, 149, 119, 0.1);
+}
+
+.survey-question-card.has-error {
+    border-color: #fca5a5;
+    box-shadow: 0 4px 14px rgba(239, 68, 68, 0.1);
+}
+
+.survey-question-number {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, #019577, #01755e);
+    color: #ffffff;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    letter-spacing: 0.5px;
+}
+
+.survey-question-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.survey-question-text {
+    font-size: 0.9rem;
+    color: #374151;
+    margin: 0 0 16px 0;
+    line-height: 1.55;
+    font-weight: 500;
+}
+
+/* --- Widget de estrellas ------------------------------------ */
+.star-rating-group {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.star {
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    line-height: 0;
+    border-radius: 6px;
+    transition: transform 0.15s ease;
+}
+
+.star:focus-visible {
+    outline: 2px solid #019577;
+    outline-offset: 2px;
+}
+
+.star svg {
+    width: 32px;
+    height: 32px;
+    stroke: #d1d5db;
+    fill: transparent;
+    transition: stroke 0.15s ease, fill 0.15s ease, transform 0.15s ease;
+    display: block;
+}
+
+/* Estado hover: ilumina en ámbar */
+.star.hovered svg,
+.star-rating-group:not(.locked) .star:hover ~ .star svg {
+    stroke: #F59E0B;
+    fill: rgba(245, 158, 11, 0.15);
+}
+
+/* Estado seleccionado: dorado sólido */
+.star.selected svg {
+    stroke: #F59E0B;
+    fill: #F59E0B;
+}
+
+/* Escalar al hacer hover */
+.star:hover {
+    transform: scale(1.15);
+}
+
+/* Estado de error: borde rojo en las estrellas vacías */
+.star-rating-group.error .star:not(.selected) svg {
+    stroke: #fca5a5;
+}
+
+.star-error-msg {
+    margin-top: 8px;
+    font-size: 0.78rem;
+    color: #ef4444;
+    font-weight: 500;
+}
+
+/* --- Tarjeta de comentarios --------------------------------- */
+.survey-comment-card {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e5e7eb;
+}
+
+.survey-comment-label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 12px;
+}
+
+.survey-comment-label svg {
+    color: #019577;
+}
+
+.optional-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #6B7280;
+    background: #F3F4F6;
+    border-radius: 20px;
+    padding: 2px 8px;
+    letter-spacing: 0.3px;
+    margin-left: 4px;
+}
+
+.survey-comment-box {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 0.875rem;
+    color: #111827;
+    background: #fafafa;
+    resize: vertical;
+    min-height: 100px;
+    font-family: inherit;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    line-height: 1.55;
+}
+
+.survey-comment-box:focus {
+    outline: none;
+    border-color: #019577;
+    box-shadow: 0 0 0 3px rgba(1, 149, 119, 0.1);
+    background: #ffffff;
+}
+
+.survey-comment-box::placeholder {
+    color: #9CA3AF;
+}
+
+.comment-char-counter {
+    display: block;
+    text-align: right;
+    font-size: 0.75rem;
+    color: #9CA3AF;
+    margin-top: 6px;
+}
+
+/* --- Botón de envío ----------------------------------------- */
+.survey-submit-area {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+    margin-bottom: 40px;
+}
+
+.btn-survey-submit {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #019577 0%, #01755e 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: 12px;
+    padding: 14px 32px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(1, 149, 119, 0.3);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+    letter-spacing: 0.2px;
+}
+
+.btn-survey-submit:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(1, 149, 119, 0.38);
+}
+
+.btn-survey-submit:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.btn-survey-submit:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-survey-loading {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Animación del spinner de carga */
+@keyframes survey-spin {
+    to { transform: rotate(360deg); }
+}
+
+.btn-spinner {
+    animation: survey-spin 0.8s linear infinite;
+}
+
+/* --- Responsive --------------------------------------------- */
+@media (max-width: 640px) {
+    .survey-page-container {
+        padding: 16px;
+    }
+
+    .survey-header-banner {
+        padding: 20px;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .survey-question-card {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .star svg {
+        width: 28px;
+        height: 28px;
+    }
+
+    .survey-submit-area {
+        justify-content: stretch;
+    }
+
+    .btn-survey-submit {
+        width: 100%;
+        justify-content: center;
+    }
+}
