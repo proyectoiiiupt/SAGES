@@ -1,14 +1,15 @@
 import json
 from datetime import datetime, timedelta
-from flask import render_template, abort, flash, jsonify
+from flask import render_template, flash, jsonify, request, redirect, url_for
 from flask_login import login_required, current_user
 from sqlalchemy import func
 
 from app import db
 from app.analytics import analytics_bp
+from app.analytics.forms import ReportWizardForm
 from app.analytics.services import AnalyticsService
 from app.decorators import role_required, check_permissions
-from app.models import Request, Training
+from app.models import Request, Training, Municipality, Parish
 
 @analytics_bp.route('/', methods=['GET'])
 @analytics_bp.route('/index', methods=['GET'])
@@ -101,3 +102,64 @@ def get_executive_stats():
         "timeline": [{"date": str(row.date), "status": row.status, "count": row.count} for row in timeline_data],
         "bars": [{"training": row.name, "total": row.total} for row in uree_bars]
     }), 200
+
+@analytics_bp.route('/reportes', methods=['GET'])
+@login_required
+@role_required('super_admin', 'state_admin')
+@check_permissions('view_statistics')
+def reports_wizard():
+    """
+    Vista 3: Asistente Wizard "Generar Reportes" (Paso 1 y Paso 2).
+    """
+    try:
+        form = ReportWizardForm()
+        context = AnalyticsService.get_wizard_initial_context(current_user, request.args)
+        return render_template(
+            'analytics/reports_wizard.html',
+            form=form,
+            ctx=context
+        )
+    except Exception as e:
+        print(f"[ERROR analytics.reports_wizard]: {e}")
+        flash("Ocurrió un error al cargar el generador de reportes.", "danger")
+        return redirect(url_for('analytics.index'))
+
+@analytics_bp.route('/api/geo/municipalities/<int:state_id>', methods=['GET'])
+@login_required
+@role_required('super_admin', 'state_admin')
+def get_geo_municipalities(state_id):
+    """
+    Retorna los municipios de un estado para la cascada del wizard.
+    Si es state_admin, se valida que pertenezca a su jurisdicción.
+    """
+    user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
+    if user_role == 'state_admin':
+        from app.dashboard.services import get_user_state_info
+        state_info = get_user_state_info(current_user)
+        if not state_info or state_info.get('state_id') != state_id:
+            return jsonify([]), 403
+
+    municipalities = Municipality.query.filter_by(state_id=state_id).order_by(Municipality.name).all()
+    return jsonify([{'id': m.id, 'name': m.name} for m in municipalities])
+
+@analytics_bp.route('/api/geo/parishes/<int:municipality_id>', methods=['GET'])
+@login_required
+@role_required('super_admin', 'state_admin')
+def get_geo_parishes(municipality_id):
+    """
+    Retorna las parroquias de un municipio para la cascada del wizard.
+    Si es state_admin, se valida que pertenezca a su estado asignado.
+    """
+    user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
+    municipality = Municipality.query.get(municipality_id)
+    if not municipality:
+        return jsonify([])
+
+    if user_role == 'state_admin':
+        from app.dashboard.services import get_user_state_info
+        state_info = get_user_state_info(current_user)
+        if not state_info or state_info.get('state_id') != municipality.state_id:
+            return jsonify([]), 403
+
+    parishes = Parish.query.filter_by(municipality_id=municipality_id).order_by(Parish.name).all()
+    return jsonify([{'id': p.id, 'name': p.name} for p in parishes])

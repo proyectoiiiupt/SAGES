@@ -9,6 +9,9 @@ from app.models.parish_model import Parish
 from app.models.municipality_model import Municipality
 from app.models.state_model import State
 from app.models.training_model import Training
+from app.models.institution_type_model import InstitutionType
+from app.models.institution_scope_model import InstitutionScope
+from app.models.educational_level_model import EducationalLevel
 from app.dashboard.services import get_user_state_info
 
 class AnalyticsService:
@@ -134,4 +137,45 @@ class AnalyticsService:
             'donut': donut_dataset,
             'lines': lines_dataset,
             'bars': bars_dataset
+        }
+
+    @staticmethod
+    def get_wizard_initial_context(user, request_args):
+        """
+        [US-55 + Parámetros de Blindaje Territorial de US-56]
+        Prepara el contexto de filtros laterales y seguridad para el Asistente Wizard.
+        """
+        user_role = user.roles_assoc[0].role.name if user.roles_assoc else 'applicant'
+        state_info = get_user_state_info(user) if user_role == 'state_admin' else None
+
+        # 1. Blindaje territorial de catálogos
+        if user_role == 'super_admin':
+            states = State.query.order_by(State.name).all()
+        else:
+            states = [State.query.get(state_info['state_id'])] if state_info else []
+
+        inst_types = InstitutionType.query.order_by(InstitutionType.name).all()
+        inst_scopes = InstitutionScope.query.order_by(InstitutionScope.name).all()
+        edu_levels = EducationalLevel.query.order_by(EducationalLevel.name).all()
+
+        # 2. Captura de filtros pre-seleccionados transferidos desde la Vista 2
+        preselected = {
+            'state_id': state_info['state_id'] if user_role == 'state_admin' else request_args.get('state_id', type=int),
+            'municipality_id': request_args.get('municipality_id', type=int),
+            'parish_id': request_args.get('parish_id', type=int),
+            'institution_scope_id': request_args.get('institution_scope_id', type=int),
+            'educational_level_id': request_args.get('educational_level_id', type=int),
+            'month': request_args.get('month', type=int),
+            'date_from': request_args.get('date_from', ''),
+            'date_to': request_args.get('date_to', '')
+        }
+
+        return {
+            'user_role': user_role,
+            'user_state': state_info,
+            'states': states,
+            'institution_types': inst_types,
+            'institution_scopes': inst_scopes,
+            'educational_levels': edu_levels,
+            'preselected': preselected
         }
