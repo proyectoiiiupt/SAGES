@@ -1,6 +1,20 @@
+from datetime import date, timedelta
 from flask_wtf import FlaskForm
-from wtforms import TextAreaField, SelectField, IntegerField
-from wtforms.validators import DataRequired, Length, NumberRange, Optional
+from wtforms import DateField, TextAreaField, SelectField, IntegerField
+from wtforms.validators import DataRequired, Length, NumberRange, Optional, ValidationError
+
+def coerce_optional_int(val):
+    """
+    Coerce flexible para SelectFields que pueden recibir valores nulos, vacíos o cadenas 'None'
+    cuando se cargan dinámicamente desde el cliente.
+    """
+    if val is None or val == '' or str(val).strip() == '' or str(val).lower() == 'none':
+        return None
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return None
+
 
 class NewRequestWizardForm(FlaskForm):
     """
@@ -75,3 +89,39 @@ class SatisfactionSurveyForm(FlaskForm):
             Length(max=1000, message="Los comentarios no pueden exceder 1000 caracteres.")
         ]
     )
+
+class PlanTrainingForm(FlaskForm):
+    """
+    Formulario para planificar la fecha de la jornada (US-41).
+    Valida SLA de 10 días, exigiendo justificación si se supera.
+    """
+    planned_for = DateField('Fecha Planificada', validators=[DataRequired(message="Debe seleccionar una fecha válida.")])
+    notes = TextAreaField('Observaciones de Coordinación', validators=[Optional(), Length(max=500)])
+    delay_reason_id = SelectField('Motivo de Retraso', coerce=coerce_optional_int, validate_choice=False, validators=[Optional()])
+    delay_justification = TextAreaField('Justificación de Retraso', validators=[Optional(), Length(max=1000)])
+
+    def __init__(self, execution_deadline=None, *args, **kwargs):
+        super(PlanTrainingForm, self).__init__(*args, **kwargs)
+        self.execution_deadline = execution_deadline
+
+    def validate_planned_for(self, field):
+        if not field.data:
+            return
+
+        if field.data <= date.today():
+            raise ValidationError("La fecha debe ser estrictamente posterior al día de hoy.")
+            
+        if field.data.weekday() >= 5:  # 5 es Sábado, 6 es Domingo
+            raise ValidationError("La fecha debe ser un día hábil (lunes a viernes).")
+            
+        max_allowed_date = date.today() + timedelta(days=30)
+        if field.data > max_allowed_date:
+            raise ValidationError(f"No puede planificar solicitudes más allá del {max_allowed_date.strftime('%d/%m/%Y')}.")
+
+        deadline_date = self.execution_deadline.date() if hasattr(self.execution_deadline, 'date') else self.execution_deadline
+        if deadline_date and field.data > deadline_date:
+            # Validación Condicional de ANS
+            if not self.delay_reason_id.data or str(self.delay_reason_id.data) == '0' or str(self.delay_reason_id.data) == 'None':
+                raise ValidationError("La fecha supera el ANS de 10 días. Debe seleccionar un motivo de retraso.")
+            if not self.delay_justification.data or len(self.delay_justification.data.strip()) < 20:
+                raise ValidationError("La fecha supera el ANS de 10 días. Debe proporcionar una justificación válida (mín. 20 caracteres).")

@@ -303,7 +303,7 @@
         }
 
         // Notificación de error dentro del modal
-        function showModalError(msg) {
+        function showModalError(msg, modalId = 'sla-gate-modal', formId = 'sla-gate-form') {
             let existing = document.getElementById('sla-modal-error-toast');
             if (existing) existing.remove();
             const toast = document.createElement('div');
@@ -317,9 +317,12 @@
             </svg>
             <span>${msg}</span>
         `;
-            const modal = document.getElementById('sla-gate-modal');
-            if (modal) modal.insertBefore(toast, modal.querySelector('#sla-gate-form'));
-            setTimeout(() => { if (toast.parentNode) toast.remove(); }, 4000);
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                const form = modal.querySelector('#' + formId) || modal.children[0];
+                modal.insertBefore(toast, form);
+            }
+            setTimeout(() => { if (toast.parentNode) toast.remove(); }, 5000);
         }
 
         // Notificación de éxito (fuera del modal)
@@ -335,6 +338,313 @@
         `;
             document.body.appendChild(banner);
             setTimeout(() => requestAnimationFrame(() => banner.classList.add('visible')), 50);
+        }
+
+        // ── Modal de Planificación  ────────────────────────────────────
+        const planOpenBtn = document.getElementById('btn-open-plan-modal');
+        const planOverlay = document.getElementById('plan-gate-overlay');
+        const planCloseBtn = document.getElementById('plan-close-btn');
+        const planForm = document.getElementById('plan-gate-form');
+        const planDate = document.getElementById('plan-date');
+        const planDateErr = document.getElementById('plan-date-error');
+        const planDeadline = document.getElementById('plan-execution-deadline');
+        const planSlaWarning = document.getElementById('plan-sla-warning');
+        const planReasonGroup = document.getElementById('plan-reason-group');
+        const planJustGroup = document.getElementById('plan-justification-group');
+        const planReason = document.getElementById('plan-reason-select');
+        const planJust = document.getElementById('plan-justification');
+        const planSubmitBtn = document.getElementById('plan-submit-btn');
+
+        const planGateModal = document.getElementById('plan-gate-modal');
+        const planGridContainer = document.getElementById('plan-grid-container');
+        const planSlaColumn = document.getElementById('plan-sla-column');
+
+        if (planOpenBtn && planOverlay) {
+            let busyDates = [];
+            let currentCalendarDate = new Date();
+            let selectedDateStr = null;
+
+            planOpenBtn.addEventListener('click', function() {
+                planOverlay.classList.add('visible');
+                document.body.style.overflow = 'hidden';
+                
+                // Fetch busy dates
+                fetch('/requests/api/requests/me/busy-dates', {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success && data.busy_dates) {
+                        busyDates = data.busy_dates;
+                    }
+                    renderCalendar();
+                })
+                .catch(() => renderCalendar());
+            });
+            
+            planCloseBtn.addEventListener('click', function() {
+                planOverlay.classList.remove('visible');
+                document.body.style.overflow = '';
+                planForm.reset();
+                planDate.value = '';
+                document.getElementById('corp-selected-date-text').textContent = 'Ninguna';
+                selectedDateStr = null;
+                planSlaWarning.style.display = 'none';
+                planReasonGroup.style.display = 'none';
+                planJustGroup.style.display = 'none';
+                if(planGateModal) planGateModal.classList.remove('sla-expanded');
+                if(planGridContainer) planGridContainer.classList.remove('sla-active');
+                if(planSlaColumn) planSlaColumn.style.display = 'none';
+                
+                const charCount = document.getElementById('plan-char-count');
+                if (charCount) charCount.textContent = '0';
+                const charErr = document.getElementById('plan-char-error');
+                if (charErr) { charErr.hidden = false; charErr.style.display = 'inline'; }
+                const prog = document.getElementById('plan-char-progress');
+                if (prog) { prog.style.width = '0%'; prog.className = 'sla-char-progress progress-danger'; }
+                
+                setSubmitButtonMode(false);
+                planSubmitBtn.disabled = true;
+                if(planReason) planReason.required = false;
+                if(planJust) planJust.required = false;
+            });
+
+            // Lógica del Calendario Custom
+            const calGrid = document.getElementById('corp-cal-grid');
+            const calMonthYear = document.getElementById('corp-cal-month-year');
+            const btnPrev = document.getElementById('corp-cal-prev');
+            const btnNext = document.getElementById('corp-cal-next');
+            
+            const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+            
+            if(btnPrev) btnPrev.addEventListener('click', () => { currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1); renderCalendar(); });
+            if(btnNext) btnNext.addEventListener('click', () => { currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1); renderCalendar(); });
+
+            function renderCalendar() {
+                if(!calGrid) return;
+                calGrid.innerHTML = '';
+                
+                const year = currentCalendarDate.getFullYear();
+                const month = currentCalendarDate.getMonth();
+                calMonthYear.textContent = `${monthNames[month]} ${year}`;
+                
+                const firstDay = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                
+                const dayHeaders = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+                dayHeaders.forEach(d => {
+                    const el = document.createElement('div');
+                    el.className = 'corp-calendar-day-header';
+                    el.textContent = d;
+                    calGrid.appendChild(el);
+                });
+                
+                for (let i = 0; i < firstDay; i++) {
+                    const empty = document.createElement('div');
+                    calGrid.appendChild(empty);
+                }
+                
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                const maxDate = new Date(today);
+                maxDate.setDate(maxDate.getDate() + 30);
+                
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const dateObj = new Date(year, month, d);
+                    dateObj.setHours(0,0,0,0);
+                    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                    
+                    const dayEl = document.createElement('div');
+                    dayEl.className = 'corp-calendar-day';
+                    dayEl.textContent = d;
+                    
+                    const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+                    const isPast = dateObj <= today;
+                    const isTooFar = dateObj > maxDate;
+                    const isBusy = busyDates.includes(dateStr);
+                    const isSelected = selectedDateStr === dateStr;
+                    
+                    if (isPast || isTooFar || isWeekend) {
+                        dayEl.classList.add('corp-day-disabled');
+                        dayEl.title = 'No permitido';
+                        dayEl.addEventListener('click', () => showModalError('Fecha no permitida. Seleccione un día hábil futuro dentro de los próximos 30 días.', 'plan-gate-modal', 'plan-gate-form'));
+                    } else if (isBusy) {
+                        dayEl.classList.add('corp-day-busy');
+                        dayEl.title = 'Usted ya tiene agendamientos este día';
+                        dayEl.addEventListener('click', () => showModalError('Ya tiene una solicitud agendada para este día. Por favor elija otro.', 'plan-gate-modal', 'plan-gate-form'));
+                    } else {
+                        dayEl.classList.add('corp-day-available');
+                        if (isSelected) dayEl.classList.add('corp-day-selected');
+                        
+                        dayEl.addEventListener('click', () => {
+                            selectedDateStr = dateStr;
+                            planDate.value = dateStr; // hidden input
+                            document.getElementById('corp-selected-date-text').textContent = `${String(d).padStart(2,'0')}/${String(month+1).padStart(2,'0')}/${year}`;
+                            renderCalendar(); // re-render to highlight
+                            validateDateLogic(dateObj);
+                        });
+                    }
+                    calGrid.appendChild(dayEl);
+                }
+            }
+
+            function setSubmitButtonMode(isSla) {
+                const textEl = document.getElementById('plan-submit-btn-text');
+                if (isSla) {
+                    if (textEl) textEl.textContent = 'Justificar y Confirmar Planificación';
+                    if (planSubmitBtn) planSubmitBtn.classList.add('btn-sla-mode');
+                } else {
+                    if (textEl) textEl.textContent = 'Confirmar Planificación';
+                    if (planSubmitBtn) planSubmitBtn.classList.remove('btn-sla-mode');
+                }
+            }
+            
+            function validateDateLogic(selectedObj) {
+                // Evaluar ANS
+                if (planDeadline && planDeadline.value) {
+                    const deadline = new Date(planDeadline.value);
+                    deadline.setHours(0,0,0,0); // ensure midnight for accurate comparison
+                    if (selectedObj > deadline) {
+                        if(planGateModal) planGateModal.classList.add('sla-expanded');
+                        if(planGridContainer) planGridContainer.classList.add('sla-active');
+                        if(planSlaColumn) planSlaColumn.style.display = 'block';
+                        planSlaWarning.style.display = 'block';
+                        planReasonGroup.style.display = 'block';
+                        planJustGroup.style.display = 'block';
+                        if(planReason) planReason.required = true;
+                        if(planJust) planJust.required = true;
+                        setSubmitButtonMode(true);
+                        
+                        // Cargar razones si está vacío
+                        if (planReason && planReason.options.length <= 1) {
+                            const reqId = document.getElementById('plan-request-id').value;
+                            fetch(`/requests/api/requests/${reqId}/delay-reasons`, {
+                                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                            })
+                            .then(r => r.json())
+                            .then(data => {
+                                planReason.innerHTML = '<option value="">-- Seleccione una razón --</option>';
+                                if (data.reasons) {
+                                    data.reasons.forEach(r => {
+                                        const opt = document.createElement('option');
+                                        opt.value = r.id;
+                                        opt.textContent = r.name;
+                                        planReason.appendChild(opt);
+                                    });
+                                }
+                                validatePlanSubmit();
+                            });
+                        }
+                    } else {
+                        if(planGateModal) planGateModal.classList.remove('sla-expanded');
+                        if(planGridContainer) planGridContainer.classList.remove('sla-active');
+                        if(planSlaColumn) planSlaColumn.style.display = 'none';
+                        planSlaWarning.style.display = 'none';
+                        planReasonGroup.style.display = 'none';
+                        planJustGroup.style.display = 'none';
+                        if(planReason) planReason.required = false;
+                        if(planJust) planJust.required = false;
+                        setSubmitButtonMode(false);
+                    }
+                } else {
+                    setSubmitButtonMode(false);
+                }
+                validatePlanSubmit();
+            }
+            
+            if (planReason) planReason.addEventListener('change', validatePlanSubmit);
+            if (planJust) {
+                planJust.addEventListener('input', function() {
+                    const len = this.value.length;
+                    const charCount = document.getElementById('plan-char-count');
+                    if (charCount) charCount.textContent = len;
+
+                    const prog = document.getElementById('plan-char-progress');
+                    if (prog) {
+                        const pct = Math.min((len / 2000) * 100, 100);
+                        prog.style.width = pct + '%';
+                        prog.className = 'sla-char-progress ' + (len < 20 ? 'progress-danger' : 'progress-ok');
+                    }
+
+                    const charErr = document.getElementById('plan-char-error');
+                    if (charErr) {
+                        charErr.hidden = len >= 20;
+                        charErr.style.display = len >= 20 ? 'none' : 'inline';
+                    }
+
+                    validatePlanSubmit();
+                });
+            }
+            
+            function validatePlanSubmit() {
+                if (!planSubmitBtn) return;
+                const isSlaActive = planSlaColumn && planSlaColumn.style.display === 'block';
+                if (isSlaActive) {
+                    const hasReason = Boolean(planReason && planReason.value.trim() !== '');
+                    const hasJust = Boolean(planJust && planJust.value.trim().length >= 20);
+                    const hasDate = Boolean(planDate && planDate.value);
+                    planSubmitBtn.disabled = !(hasReason && hasJust && hasDate);
+                } else {
+                    planSubmitBtn.disabled = !(planDate && planDate.value);
+                }
+            }
+            
+            planForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(this);
+                const reqId = document.getElementById('plan-request-id').value;
+                const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+                const isSlaActive = planSlaColumn && planSlaColumn.style.display === 'block';
+
+                function restoreSubmitButton() {
+                    planSubmitBtn.disabled = false;
+                    planSubmitBtn.innerHTML = `
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                        <polyline points="22 4 12 14.01 9 11.01" />
+                    </svg>
+                    <span id="plan-submit-btn-text">${isSlaActive ? 'Justificar y Confirmar Planificación' : 'Confirmar Planificación'}</span>`;
+                }
+                
+                planSubmitBtn.disabled = true;
+                planSubmitBtn.innerHTML = `
+                <svg class="sla-spinner" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                </svg> Procesando...`;
+                
+                fetch(`/requests/api/requests/${reqId}/plan-training`, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: formData
+                })
+                .then(r => r.json().then(data => ({ status: r.status, body: data })))
+                .then(({ status, body }) => {
+                    if (status === 200 && body.success) {
+                        planOverlay.classList.remove('visible');
+                        showSuccessBanner(body.message);
+                        setTimeout(() => window.location.reload(), 1500);
+                    } else if (status === 400 && body.errors) {
+                        restoreSubmitButton();
+                        let errStr = "Revise el formulario:<br>";
+                        for (let key in body.errors) {
+                            errStr += `- ${body.errors[key].join(', ')}<br>`;
+                        }
+                        showModalError(errStr, 'plan-gate-modal', 'plan-gate-form');
+                    } else {
+                        restoreSubmitButton();
+                        showModalError(body.message || "Error interno al planificar.", 'plan-gate-modal', 'plan-gate-form');
+                    }
+                })
+                .catch(() => {
+                    restoreSubmitButton();
+                    showModalError('Error de red. Intente de nuevo.', 'plan-gate-modal', 'plan-gate-form');
+                });
+            });
         }
 
     });

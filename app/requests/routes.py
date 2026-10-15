@@ -493,6 +493,106 @@ def api_claim_and_attend(request_id):
         logging.error(f"Error en claim-and-attend (Request ID {request_id}): {e}")
         return jsonify({'success': False, 'message': 'Error interno al procesar la asignación.'}), 500
 
+# ---------------------------------------------------------------------------
+# Ruta Administrador Estadal: Planificar Jornada
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/api/requests/<int:request_id>/plan-training', methods=['POST'])
+@login_required
+@role_required('state_admin')
+@check_permissions('manage_requests')
+def api_plan_training(request_id):
+    """
+    Endpoint (API) para agendar la fecha de la jornada.
+    Valida jurisdicción, valida el formulario (fechas pasadas, fines de semana, ANS)
+    y delega en la capa de servicios.
+    """
+    from flask import jsonify, request
+    from app.requests.services import plan_training_session, get_admin_state_id
+    from app.models.request_model import Request
+    from app.models.request_planning_model import RequestPlanning
+    from app.requests.forms import PlanTrainingForm
+    from werkzeug.datastructures import MultiDict
+
+    # 1. Validación de jurisdicción (In-line security)
+    req = Request.query.get(request_id)
+    if not req:
+        return jsonify({'success': False, 'message': 'Solicitud no encontrada.'}), 404
+        
+    admin_state_id = get_admin_state_id(current_user)
+    try:
+        req_state_id = req.institutional_staff.institution.parish.municipality.state_id
+    except AttributeError:
+        req_state_id = None
+
+    if not admin_state_id or req_state_id != admin_state_id:
+        return jsonify({'success': False, 'message': 'Acceso denegado. Jurisdicción no válida.'}), 403
+
+    # 2. Recuperar el Planning para inyectar el Deadline de ANS
+    planning = RequestPlanning.query.filter_by(requests_id=request_id).first()
+    execution_deadline = planning.execution_deadline if planning else None
+
+    # 3. Soporte para FormData o JSON puro
+    if request.is_json:
+        formdata = MultiDict(request.get_json())
+        form = PlanTrainingForm(formdata=formdata, execution_deadline=execution_deadline)
+    else:
+        form = PlanTrainingForm(execution_deadline=execution_deadline)
+
+    # 4. Validación WTForms
+    if request.method == 'POST' and form.validate():
+        try:
+            success, msg, data = plan_training_session(
+                request_id=request_id,
+                planned_date=form.planned_for.data,
+                notes=form.notes.data,
+                admin_user=current_user,
+                delay_reason_id=form.delay_reason_id.data,
+                delay_justification=form.delay_justification.data
+            )
+            
+            if success:
+                return jsonify({'success': True, 'message': msg, 'data': data}), 200
+            else:
+                return jsonify({'success': False, 'message': msg}), 400
+                
+        except Exception as e:
+            import logging
+            logging.error(f"Error en api_plan_training (Request ID {request_id}): {e}")
+            return jsonify({'success': False, 'message': 'Error interno al procesar el agendamiento.'}), 500
+            
+    # Si la validación WTForms falla, estructuramos los errores
+    return jsonify({
+        'success': False, 
+        'message': 'Datos inválidos o incompletos. Verifique el formulario.', 
+        'errors': form.errors
+    }), 400
+
+@requests_bp.route('/api/requests/me/busy-dates', methods=['GET'])
+@login_required
+@role_required('state_admin')
+def api_busy_dates():
+    """
+    Devuelve las fechas en las que el administrador actual ya tiene solicitudes planificadas.
+    Calendario Interactivo.
+    """
+    from flask import jsonify
+    from app.models.request_planning_model import RequestPlanning
+    from app.models.request_model import Request
+    from app.models.status_model import Status
+    
+    # Buscar todas las planificaciones vigentes del admin actual
+    plannings = RequestPlanning.query.join(Request).join(Status, Request.status_id == Status.id).filter(
+        Request.attended_by_id == current_user.id,
+        RequestPlanning.planned_for.isnot(None),
+        Status.status_code.in_(['STAT-005', 'STAT-006']) 
+    ).all()
+    
+    # Extraemos fechas en formato YYYY-MM-DD
+    busy_dates = [p.planned_for.strftime('%Y-%m-%d') for p in plannings if p.planned_for]
+    
+    return jsonify({'success': True, 'busy_dates': busy_dates}), 200
+
 # ---------------------------------------------------------------------------  
 # Ruta Super Administrador: Tablero de Monitoreo Nacional (US-38)
 # ---------------------------------------------------------------------------
