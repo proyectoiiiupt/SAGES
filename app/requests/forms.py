@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
-from wtforms import TextAreaField, SelectField
-from wtforms.validators import DataRequired, Length
+from wtforms import TextAreaField, SelectField, IntegerField
+from wtforms.validators import DataRequired, Length, NumberRange, Optional
 
 class NewRequestWizardForm(FlaskForm):
     """
@@ -41,3 +41,37 @@ class ApplicantCancelRequestForm(FlaskForm):
     )
 
 
+class SatisfactionSurveyForm(FlaskForm):
+    """
+    Formulario de evaluación de calidad post-cierre (US-51 / SR-F-019).
+    Tres criterios numéricos obligatorios (1–5 estrellas) y comentario opcional.
+    Los valores son sincronizados desde inputs ocultos por requests_survey.js.
+    """
+    score_activity = IntegerField(
+        '¿Qué le pareció la actividad formativa?',
+        validators=[
+            DataRequired(message="Debe calificar la actividad formativa."),
+            NumberRange(min=1, max=5, message="La calificación debe estar entre 1 y 5 estrellas.")
+        ]
+    )
+    score_instructor = IntegerField(
+        '¿El facilitador explicó con claridad y resolvió dudas?',
+        validators=[
+            DataRequired(message="Debe calificar al facilitador."),
+            NumberRange(min=1, max=5, message="La calificación debe estar entre 1 y 5 estrellas.")
+        ]
+    )
+    score_admin_response = IntegerField(
+        '¿Qué tan eficiente fue la respuesta de gestión?',
+        validators=[
+            DataRequired(message="Debe calificar la respuesta de gestión."),
+            NumberRange(min=1, max=5, message="La calificación debe estar entre 1 y 5 estrellas.")
+        ]
+    )
+    comment = TextAreaField(
+        'Comentarios adicionales',
+        validators=[
+            Optional(),
+            Length(max=1000, message="Los comentarios no pueden exceder 1000 caracteres.")
+        ]
+    )

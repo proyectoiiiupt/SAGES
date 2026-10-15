@@ -1917,3 +1917,102 @@ def submit_closure_reschedule(
         import logging
         logging.getLogger(__name__).error(f"Error al reprogramar solicitud {request_id}: {e}")
         return False, "Error interno al guardar la reprogramacion. Intente nuevamente."
+
+
+# ---------------------------------------------------------------------------
+# Bloque Encuesta: Evaluación de Calidad Post-Cierre (US-51)
+# ---------------------------------------------------------------------------
+
+def submit_satisfaction_survey(request_id: int, form, user) -> tuple:
+    """
+    Persiste la evaluación de satisfacción post-cierre (US-51 / SR-F-019).
+
+    Aplica bloqueo pesimista sobre la solicitud y re-verifica la unicidad
+    para cubrir envíos concurrentes. El promedio se calcula exclusivamente
+    en el servidor; el valor enviado por el cliente es ignorado.
+
+    Retorna: (success: bool, message: str, http_status: int)
+    """
+    import html as html_lib
+    import logging
+    from app.models.rating_model import Rating
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # 1. Bloqueo pesimista sobre la fila de la solicitud
+        req = Request.query.with_for_update().get(request_id)
+        if not req:
+            return False, "Solicitud no encontrada.", 404
+
+        # 2. Re-verificación de estado en backend (STAT-007 — Completado)
+        if req.status.status_code != 'STAT-007':
+            return False, "La solicitud no se encuentra en estado Completado.", 422
+
+        # 3. Control de unicidad — anti-doble envío concurrente
+        existing = Rating.query.filter_by(request_id=request_id).first()
+        if existing:
+            return False, "Esta solicitud ya fue evaluada previamente.", 409
+
+        # 4. Sanitizar comentario para prevenir XSS
+        raw_comment = (form.comment.data or '').strip()
+        clean_comment = html_lib.escape(raw_comment) if raw_comment else None
+
+        # 5. Calcular promedio aritmético redondeado (solo en backend, nunca del cliente)
+        a = form.score_activity.data
+        b = form.score_instructor.data
+        c = form.score_admin_response.data
+        score_avg = round((a + b + c) / 3, 2)
+
+        # 6. Crear y persistir la entidad en sages.ratings
+        rating = Rating(
+            request_id=request_id,
+            user_id=user.id,
+            score_activity=a,
+            score_instructor=b,
+            score_admin_response=c,
+            score=score_avg,
+            comment=clean_comment
+        )
+        db.session.add(rating)
+        db.session.commit()
+
+        return True, "Evaluación registrada exitosamente.", 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(
+            f"Error al persistir encuesta de satisfacción (request_id={request_id}): {e}"
+        )
+        return False, "Error interno al procesar la evaluación. Intente nuevamente.", 500
+
+
+def get_pending_survey_request(user_id: int):
+    """
+    Verifica si existe alguna solicitud completada (STAT-007) de la institución
+    del solicitante que aún no posea registro de evaluación en sages.ratings.
+    Retorna la primera solicitud pendiente encontrada, o None si no hay ninguna.
+    """
+    from app.models.rating_model import Rating
+
+    user = User.query.get(user_id)
+    if not user or not user.person or not user.person.institutional_staff:
+        return None
+
+    institution_id = user.person.institutional_staff[0].institution_id
+
+    # Busca solicitudes en STAT-007 de esta institución que NO tengan rating
+    pending_request = (
+        Request.query.join(InstitutionalStaff)
+        .join(Status, Request.status_id == Status.id)
+        .outerjoin(Rating, Request.id == Rating.request_id)
+        .filter(
+            InstitutionalStaff.institution_id == institution_id,
+            Status.status_code == 'STAT-007',
+            Rating.id.is_(None)
+        )
+        .order_by(Request.id.asc())
+        .first()
+    )
+
+    return pending_request

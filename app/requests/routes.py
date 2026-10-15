@@ -1,8 +1,8 @@
-from flask import render_template, request, jsonify
+from flask import render_template, request, jsonify, redirect, url_for
 from flask_login import login_required, current_user
 from app.decorators.auth_decorators import role_required, check_permissions
 from app.requests import requests_bp
-from app.requests.services import get_applicant_active_requests
+from app.requests.services import get_applicant_active_requests, get_pending_survey_request
 from app.models.user_model import User
 from app.extensions import limiter
 
@@ -18,8 +18,15 @@ def applicant_dashboard():
     """
     Renderiza el panel de control y bandeja de solicitudes activas
     para el representante de la institución educativa.
+    Si existe alguna solicitud completada (STAT-007) pendiente por calificar,
+    redirige automáticamente al usuario a responder la encuesta (cierre obligatorio sin prórroga).
     """
-    # Obtenemos las solicitudes desde el servicio
+    # 1. Comprobación automática de encuesta pendiente
+    pending_survey_req = get_pending_survey_request(current_user.id)
+    if pending_survey_req:
+        return redirect(url_for('requests.satisfaction_survey', request_id=pending_survey_req.id))
+
+    # 2. Obtenemos las solicitudes activas desde el servicio
     active_requests = get_applicant_active_requests(current_user.id)
     
     # Validamos si la institución educativa está activa (diferente a STAT-002)
@@ -928,3 +935,72 @@ def reschedule_closure_api(request_id):
     )
 
     return jsonify({'success': success, 'message': message}), status_code
+
+
+# ---------------------------------------------------------------------------
+# Ruta Solicitante: Encuesta de Satisfacción Post-Cierre (US-51 / SR-F-019)
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/satisfaction-survey/<int:request_id>', methods=['GET', 'POST'])
+@login_required
+@role_required('applicant')
+@check_permissions('create_request')
+def satisfaction_survey(request_id):
+    """
+    GET:  Valida precondiciones (STAT-007, sin evaluación previa, titularidad
+          institucional) y renderiza satisfaction_survey.html.
+    POST: Recibe el formulario con token CSRF y persiste la evaluación llamando
+          a submit_satisfaction_survey(). Retorna JSON para el fetch de JS.
+    """
+    from flask import flash, redirect, url_for, abort
+    from app.models.request_model import Request
+    from app.models.rating_model import Rating
+    from app.requests.forms import SatisfactionSurveyForm
+    from app.requests.services import submit_satisfaction_survey
+
+    # --- 1. Verificación de titularidad institucional (Anti-IDOR) ---
+    user = User.query.get(current_user.id)
+    if not user or not user.person or not user.person.institutional_staff:
+        abort(403, description="No posee afiliación institucional válida.")
+
+    user_institution_id = user.person.institutional_staff[0].institution_id
+    req = Request.query.get_or_404(request_id)
+
+    if req.institutional_staff.institution_id != user_institution_id:
+        abort(403, description="Acceso denegado: No tiene permisos sobre esta solicitud.")
+
+    # --- 2. Validación de estado operativo (solo STAT-007) ---
+    if req.status.status_code != 'STAT-007':
+        flash("Esta solicitud no se encuentra en estado Completado.", "warning")
+        return redirect(url_for('requests.applicant_dashboard'))
+
+    # --- 3. Control de evaluación previa ---
+    already_rated = Rating.query.filter_by(request_id=request_id).first()
+    if already_rated:
+        flash("survey_already_done", "survey_done")
+        return redirect(url_for('requests.applicant_dashboard'))
+
+    form = SatisfactionSurveyForm()
+
+    # --- 4. Procesamiento POST ---
+    if request.method == 'POST':
+        if not form.validate_on_submit():
+            errors = [msg for field in form.errors.values() for msg in field]
+            return jsonify({
+                'success': False,
+                'message': errors[0] if errors else "Datos del formulario inválidos."
+            }), 400
+
+        success, message, status_code = submit_satisfaction_survey(
+            request_id=request_id,
+            form=form,
+            user=user
+        )
+        return jsonify({'success': success, 'message': message}), status_code
+
+    # --- 5. Renderizado GET ---
+    return render_template(
+        'requests/satisfaction_survey.html',
+        form=form,
+        req=req
+    )

@@ -123,4 +123,20 @@
 <!-- Vinculamos el JS interactivo y el formateador de tiempo global -->
 <script src="{{ url_for('static', filename='JS/time-formatter.js') }}"></script>
 <script src="{{ url_for('static', filename='JS/requests_applicant.js') }}"></script>
+
+{% with messages = get_flashed_messages(category_filter=["survey_done"]) %}
+{% if messages %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        Swal.fire({
+            icon: 'info',
+            title: 'Encuesta ya registrada',
+            text: 'Esta solicitud de formación ya fue evaluada previamente. ¡Muchas gracias por su colaboración!',
+            confirmButtonText: 'Entendido',
+            confirmButtonColor: '#019577'
+        });
+    });
+</script>
+{% endif %}
+{% endwith %}
 {% endblock %}
