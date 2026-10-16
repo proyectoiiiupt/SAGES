@@ -1049,3 +1049,239 @@
         align-items: flex-start;
     }
 }
+
+/* ==========================================================================
+   11. ESTILOS US-56 — CONTROL DE SEDES CON INTEGRIDAD REFERENCIAL
+   ========================================================================== */
+
+/* Código de sede PLC-XXX */
+.place-code {
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: 700;
+    font-size: 0.88rem;
+    background: #f1f5f9;
+    color: #1c3d73;
+    padding: 0.2rem 0.6rem;
+    border-radius: 5px;
+    border: 1px solid #e2e8f0;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+
+/* Badge de estatus inactivo (complementa badge-success ya existente) */
+.badge-inactive {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+}
+
+/* Botón de inactivar sede (ámbar) */
+.btn-table-action.btn-deactivate {
+    color: #d97706;
+    border-color: #fde68a;
+    background: #fffbeb;
+}
+
+.btn-table-action.btn-deactivate:hover {
+    background: #fef3c7;
+    border-color: #f59e0b;
+    color: #b45309;
+}
+
+/* Botón de activar sede (verde) */
+.btn-table-action.btn-activate {
+    color: #059669;
+    border-color: #a7f3d0;
+    background: #f0fdf4;
+}
+
+.btn-table-action.btn-activate:hover {
+    background: #dcfce7;
+    border-color: #34d399;
+    color: #047857;
+}
+
+/* Modal más ancho para el formulario de sede (3 columnas de geo) */
+.modal-card--wide {
+    max-width: 720px;
+}
+
+/* Grid de 3 columnas para selectores geográficos en cascada */
+.place-geo-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+@media (max-width: 640px) {
+    .place-geo-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .modal-card--wide {
+        max-width: 100%;
+    }
+}
+
+/* Hint de formulario (texto de ayuda bajo el campo) */
+.form-hint {
+    display: block;
+    font-size: 0.82rem;
+    color: #94a3b8;
+    margin-top: 0.3rem;
+}
+
+/* Celda vacía de tabla (estado sin datos) */
+.table-empty {
+    text-align: center;
+    padding: 2rem 1rem !important;
+    color: #94a3b8;
+    font-size: 0.95rem;
+    font-style: italic;
+}
+
+/* Selector deshabilitado en la cascada geográfica */
+.form-control:disabled {
+    background-color: #f8fafc;
+    color: #94a3b8;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* Columna "Personal Adscrito" en la tabla */
+#table-places .badge-count {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    padding: 0.25rem 0.65rem;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+/* ── CONTROLES DE PAGINACIÓN INSTITUCIONAL (Estándar SAGES) ───────────── */
+.pagination-container {
+    padding: 1.25rem 1.5rem;
+    background: #ffffff;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.pagination-info {
+    font-size: 0.85rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+}
+
+.pagination-buttons {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.pagination-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.45rem 0.85rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #334155;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.pagination-btn svg {
+    width: 15px;
+    height: 15px;
+}
+
+.pagination-btn:hover:not(:disabled):not(.disabled) {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #007865;
+}
+
+.pagination-btn:disabled,
+.pagination-btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #ffffff;
+    color: #94a3b8;
+    border-color: #e2e8f0;
+}
+
+.page-numbers {
+    display: flex;
+    gap: 0.3rem;
+    align-items: center;
+}
+
+.page-number {
+    min-width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #334155;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.page-number:hover:not(.active) {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.page-number.active {
+    background: #007865;
+    color: #ffffff;
+    border-color: #007865;
+    box-shadow: 0 2px 6px rgba(0, 120, 101, 0.25);
+    cursor: default;
+}
+
+.page-ellipsis {
+    color: #94a3b8;
+    padding: 0 4px;
+    font-weight: bold;
+}
+
+@media (max-width: 640px) {
+    .pagination-container {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 0.75rem;
+    }
+}

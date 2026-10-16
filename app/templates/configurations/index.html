@@ -324,6 +324,7 @@
 
             <!-- ══════════════════════════════════════════════════════════ -->
             <!-- SUBVISTA 4: CONTROL DE SEDES (#tab-places)                -->
+            <!-- US-56-places-management                                   -->
             <!-- ══════════════════════════════════════════════════════════ -->
             <section class="config-tab-content" id="tab-places">
                 <div class="content-card">
@@ -339,58 +340,151 @@
                     </div>
 
                     <div class="table-responsive">
-                        <table class="config-table">
+                        <table class="config-table" id="table-places">
                             <thead>
                                 <tr>
+                                    <th>Código</th>
                                     <th>Sede Operativa</th>
                                     <th>Ubicación Territorial</th>
                                     <th class="text-center">Teléfono</th>
+                                    <th class="text-center">Personal Adscrito</th>
                                     <th class="text-center">Estatus</th>
                                     <th class="text-center">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr>
+                                {% for place in places %}
+                                <tr id="place-row-{{ place.id }}">
                                     <td>
-                                        <strong>Sede Principal - San Bernardino</strong>
-                                        <span class="sub-text">Edificio CORPOELEC Caracas</span>
+                                        <code class="place-code">{{ place.place_code }}</code>
                                     </td>
-                                    <td>Distrito Capital / San Bernardino</td>
-                                    <td class="text-center">+58(212)502-0000</td>
-                                    <td class="text-center"><span class="badge-status badge-success">Activa</span></td>
+                                    <td>
+                                        <strong>{{ place.name }}</strong>
+                                    </td>
+                                    <td>{{ place.parish.municipality.state.name }} &mdash; {{ place.parish.name }}</td>
+                                    <td class="text-center">{{ place.phone or '&mdash;' }}</td>
+                                    <td class="text-center">
+                                        <span class="badge-count">{{ place.staff_count }} funcionario{{ 's' if place.staff_count != 1 else '' }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge-status {% if place.status.status_code == 'STAT-001' %}badge-success{% else %}badge-inactive{% endif %}"
+                                              id="badge-status-{{ place.id }}">
+                                            {{ place.status.status_name }}
+                                        </span>
+                                    </td>
                                     <td class="text-center">
                                         <div class="btn-group-actions">
-                                            <button type="button" class="btn-table-action btn-view-place" title="Ver detalles">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                                            </button>
-                                            <button type="button" class="btn-table-action btn-edit-place" title="Editar">
+                                            <button type="button"
+                                                    class="btn-table-action btn-edit-place"
+                                                    id="btn-edit-place-{{ place.id }}"
+                                                    title="Editar sede"
+                                                    data-id="{{ place.id }}"
+                                                    data-name="{{ place.name | e }}"
+                                                    data-state-id="{{ place.parish.municipality.state_id }}"
+                                                    data-state-name="{{ place.parish.municipality.state.name | e }}"
+                                                    data-municipality-id="{{ place.parish.municipality_id }}"
+                                                    data-municipality-name="{{ place.parish.municipality.name | e }}"
+                                                    data-parish-id="{{ place.parish_id }}"
+                                                    data-parish-name="{{ place.parish.name | e }}"
+                                                    data-address="{{ place.address | e }}"
+                                                    data-phone="{{ place.phone or '' }}">
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                            </button>
+                                            <button type="button"
+                                                    class="btn-table-action btn-toggle-place {% if place.status.status_code == 'STAT-001' %}btn-deactivate{% else %}btn-activate{% endif %}"
+                                                    id="btn-toggle-place-{{ place.id }}"
+                                                    title="{% if place.status.status_code == 'STAT-001' %}Inactivar sede{% else %}Activar sede{% endif %}"
+                                                    data-id="{{ place.id }}"
+                                                    data-name="{{ place.name | e }}"
+                                                    data-current-status="{{ place.status.status_code }}">
+                                                {% if place.status.status_code == 'STAT-001' %}
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+                                                {% else %}
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                                {% endif %}
                                             </button>
                                         </div>
                                     </td>
                                 </tr>
+                                {% else %}
                                 <tr>
-                                    <td>
-                                        <strong>Centro de Servicio Técnico - Catia</strong>
-                                        <span class="sub-text">Base de Operaciones UREE Oeste</span>
-                                    </td>
-                                    <td>Distrito Capital / Sucre</td>
-                                    <td class="text-center">+58(212)860-1234</td>
-                                    <td class="text-center"><span class="badge-status badge-success">Activa</span></td>
-                                    <td class="text-center">
-                                        <div class="btn-group-actions">
-                                            <button type="button" class="btn-table-action btn-view-place" title="Ver detalles">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                                            </button>
-                                            <button type="button" class="btn-table-action btn-edit-place" title="Editar">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                                            </button>
-                                        </div>
-                                    </td>
+                                    <td colspan="7" class="table-empty">No hay sedes registradas. Haga clic en "Registrar Sede" para agregar la primera.</td>
                                 </tr>
+                                {% endfor %}
                             </tbody>
                         </table>
                     </div>
+
+                    {# ── CONTROLES DE PAGINACIÓN DINÁMICA ────────────────────────────── #}
+                    {% if pagination and pagination.total > 0 %}
+                    <div class="pagination-container">
+                        <div class="pagination-info">
+                            <span>
+                                Mostrando registros {{ (pagination.page - 1) * pagination.per_page + 1 }}-{% if pagination.page * pagination.per_page < pagination.total %}{{ pagination.page * pagination.per_page }}{% else %}{{ pagination.total }}{% endif %} de {{ pagination.total }} registros
+                            </span>
+                        </div>
+                        <div class="pagination-controls">
+                            <div class="pagination-buttons">
+                                {# Botón Anterior #}
+                                {% if pagination.has_prev %}
+                                <a href="{{ url_for('configurations.index', page=pagination.prev_num) }}#places"
+                                   class="pagination-btn">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="15 18 9 12 15 6"></polyline>
+                                    </svg>
+                                    Anterior
+                                </a>
+                                {% else %}
+                                <button type="button" class="pagination-btn" disabled>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="15 18 9 12 15 6"></polyline>
+                                    </svg>
+                                    Anterior
+                                </button>
+                                {% endif %}
+
+                                {# Números de página con ventana deslizante #}
+                                <div class="page-numbers">
+                                    {% for p in range(1, pagination.pages + 1) %}
+                                        {% if p == 1 or p == pagination.pages or (p >= pagination.page - 1 and p <= pagination.page + 1) %}
+                                            {% if p == pagination.page %}
+                                            <button type="button" class="page-number active">
+                                                {{ p }}
+                                            </button>
+                                            {% else %}
+                                            <a href="{{ url_for('configurations.index', page=p) }}#places"
+                                               class="page-number">
+                                                {{ p }}
+                                            </a>
+                                            {% endif %}
+                                        {% elif p == pagination.page - 2 or p == pagination.page + 2 %}
+                                            <span class="page-ellipsis">...</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+
+                                {# Botón Siguiente #}
+                                {% if pagination.has_next %}
+                                <a href="{{ url_for('configurations.index', page=pagination.next_num) }}#places"
+                                   class="pagination-btn">
+                                    Siguiente
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="9 18 15 12 9 6"></polyline>
+                                    </svg>
+                                </a>
+                                {% else %}
+                                <button type="button" class="pagination-btn" disabled>
+                                    Siguiente
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="9 18 15 12 9 6"></polyline>
+                                    </svg>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
                 </div>
             </section>
 
@@ -558,6 +652,106 @@
             <button type="button" class="btn-modal-save" id="btn-save-permissions">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                 <span>Guardar Privilegios</span>
+            </button>
+        </div>
+
+    </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- MODAL UNIFICADO DE SEDES (#modal-place)                           -->
+<!-- US-56-places-management: Registro y Edición                       -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-place" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="modal-place-title">
+    <div class="modal-card modal-card--wide">
+
+        <div class="modal-header">
+            <div>
+                <h3 class="modal-title" id="modal-place-title">Registrar Nueva Sede</h3>
+                <p class="modal-subtitle">Complete los datos de la sede física operativa de CORPOELEC.</p>
+            </div>
+            <button type="button" class="btn-close-modal" id="btn-close-place-modal-x" aria-label="Cerrar modal">&times;</button>
+        </div>
+
+        <div class="modal-body">
+            <form id="form-place" novalidate>
+                <input type="hidden" id="place-id-hidden" name="place_id" value="">
+                {{ form.hidden_tag() }}
+
+                <!-- Nombre (ancho completo) -->
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label for="place_name" class="form-label">Nombre de la Sede <span style="color:#e53e3e">*</span></label>
+                    <input type="text"
+                           id="place_name"
+                           name="name"
+                           class="form-control"
+                           placeholder="Ej. Centro de Servicio Técnico &mdash; Catia"
+                           minlength="3"
+                           maxlength="200"
+                           autocomplete="off"
+                           required>
+                </div>
+
+                <!-- Selectores geográficos en cascada -->
+                <div class="place-geo-grid">
+                    <div class="form-group">
+                        <label for="place_state" class="form-label">Estado <span style="color:#e53e3e">*</span></label>
+                        <select id="place_state" name="state_id" class="form-control" required>
+                            <option value="">— Seleccione Estado —</option>
+                            {% for state in states %}
+                            <option value="{{ state.id }}">{{ state.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="place_municipality" class="form-label">Municipio <span style="color:#e53e3e">*</span></label>
+                        <select id="place_municipality" name="municipality_id" class="form-control" disabled required>
+                            <option value="">— Seleccione Municipio —</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="place_parish" class="form-label">Parroquia <span style="color:#e53e3e">*</span></label>
+                        <select id="place_parish" name="parish_id" class="form-control" disabled required>
+                            <option value="">— Seleccione Parroquia —</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Teléfono -->
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label for="place_phone" class="form-label">Teléfono Directo <span style="color:#e53e3e">*</span></label>
+                    <input type="text"
+                           id="place_phone"
+                           name="phone"
+                           class="form-control"
+                           placeholder="(0212)-1234567"
+                           maxlength="14"
+                           autocomplete="tel"
+                           required>
+                    <small class="form-hint">Formato requerido: (XXXX)-XXXXXXX &mdash; ej: (0212)-1234567</small>
+                </div>
+
+                <!-- Dirección física (ancho completo) -->
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="place_address" class="form-label">Dirección Física Detallada <span style="color:#e53e3e">*</span></label>
+                    <textarea id="place_address"
+                              name="address"
+                              class="form-control"
+                              rows="3"
+                              minlength="10"
+                              maxlength="500"
+                              placeholder="Av. Principal, Edificio..., Piso, Oficina..."
+                              required></textarea>
+                </div>
+            </form>
+        </div>
+
+        <div class="modal-footer">
+            <button type="button" class="btn-modal-cancel" id="btn-cancel-place-modal">Cancelar</button>
+            <button type="button" class="btn-modal-save" id="btn-save-place">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                <span id="btn-save-place-text">Guardar Sede</span>
             </button>
         </div>
 
