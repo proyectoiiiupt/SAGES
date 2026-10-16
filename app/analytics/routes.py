@@ -1,6 +1,7 @@
 import json
+import re
 from datetime import datetime, timedelta
-from flask import render_template, flash, jsonify, request, redirect, url_for
+from flask import render_template, flash, jsonify, request, redirect, url_for, send_file, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import func
 
@@ -8,6 +9,9 @@ from app import db
 from app.analytics import analytics_bp
 from app.analytics.forms import ReportWizardForm
 from app.analytics.services import AnalyticsService
+from app.analytics.exporters import export_to_csv, export_to_excel, export_to_pdf, send_report_email_async
+from app.binnacle.services import BinnacleService
+from app.binnacle.types import AuditModule, AuditAction, AuditStatus
 from app.decorators import role_required, check_permissions
 from app.models import Request, Training, Municipality, Parish
 
@@ -163,3 +167,110 @@ def get_geo_parishes(municipality_id):
 
     parishes = Parish.query.filter_by(municipality_id=municipality_id).order_by(Parish.name).all()
     return jsonify([{'id': p.id, 'name': p.name} for p in parishes])
+
+
+@analytics_bp.route('/export', methods=['POST'])
+@login_required
+@role_required('super_admin', 'state_admin')
+@check_permissions('view_statistics')
+def export_report():
+    """
+    Endpoint principal para generar y despachar el reporte configurado en el Wizard.
+    Aplica blindaje territorial Anti-IDOR, sanitización y auditoría forense.
+    """
+    # Capturar datos del Wizard (Paso 1 y 2)
+    report_name = request.form.get('report_name', '').strip() or "Reporte_Institucional_SAGES"
+    report_type = request.form.get('report_type', 'gestion_general')
+    export_format = request.form.get('export_format', 'pdf').lower()
+    delivery_method = request.form.get('delivery_method', 'local').lower()
+
+    include_user = request.form.get('include_user_data') in ['y', 'true', 'True', True, 'on']
+    include_req = request.form.get('include_request_details') in ['y', 'true', 'True', True, 'on']
+    include_metrics = request.form.get('include_metrics') in ['y', 'true', 'True', True, 'on']
+
+    form_config = {
+        'report_type': report_type,
+        'include_user_data': include_user,
+        'include_request_details': include_req,
+        'include_metrics': include_metrics
+    }
+
+    # Capturar filtros de segmentación de la barra lateral
+    filter_params = {
+        'state_id': request.form.get('state_id', type=int),
+        'municipality_id': request.form.get('municipality_id', type=int),
+        'parish_id': request.form.get('parish_id', type=int),
+        'institution_scope_id': request.form.get('institution_scope_id', type=int),
+        'educational_level_id': request.form.get('educational_level_id', type=int),
+        'month': request.form.get('month', type=int),
+        'date_from': request.form.get('date_from', ''),
+        'date_to': request.form.get('date_to', '')
+    }
+
+    # 1. Sanitizar el nombre del archivo resultante
+    safe_name = re.sub(r'[^a-zA-Z0-9_\-]', '_', report_name.strip())
+    timestamp_str = datetime.now().strftime('%Y%m%d_%H%M')
+
+    try:
+        # 2. Extraer datos estructurados con blindaje territorial Anti-IDOR y matrices ejecutivas
+        headers, data_rows, report_meta = AnalyticsService.build_export_dataset(current_user, form_config, filter_params)
+
+        # 3. Compilación binaria en memoria según formato
+        user_display_name = f"{current_user.person.first_name} {current_user.person.last_name}" if current_user.person else "Administrador"
+
+        if export_format == 'xlsx':
+            file_name = f"{safe_name}_{timestamp_str}.xlsx"
+            mem_file, mimetype, download_name = export_to_excel(headers, data_rows, sheet_title="SAGES", filename=file_name)
+        elif export_format == 'csv':
+            file_name = f"{safe_name}_{timestamp_str}.csv"
+            mem_file, mimetype, download_name = export_to_csv(headers, data_rows, filename=file_name)
+        else:  # PDF por defecto
+            file_name = f"{safe_name}_{timestamp_str}.pdf"
+            mem_file, mimetype, download_name = export_to_pdf(
+                headers, data_rows, title=report_name, filename=file_name,
+                user_name=user_display_name, report_meta=report_meta
+            )
+
+        # 4. Trazabilidad en Bitácora Institucional (Auditoría Forense)
+        BinnacleService.create_log_entry(
+            module=AuditModule.REQUESTS.value,
+            action_type=AuditAction.DESCARGA_REGISTRO.value,
+            description=f"Reporte emitido: '{report_name}' | Formato: {export_format.upper()} | Canal: {delivery_method.upper()}",
+            target_table='sages.requests',
+            status=AuditStatus.COMPLETADO.value
+        )
+
+        # 5. Despacho según el método elegido
+        if delivery_method == 'email':
+            user_email = current_user.person.email if current_user.person else None
+            if not user_email:
+                return jsonify({'success': False, 'message': 'El usuario autenticado no posee correo institucional registrado.'}), 400
+
+            app_obj = current_app._get_current_object()
+            send_report_email_async(
+                app=app_obj,
+                to_email=user_email,
+                user_name=user_display_name,
+                report_title=report_name,
+                file_bytes=mem_file,
+                filename=download_name,
+                mimetype=mimetype
+            )
+            return jsonify({
+                'success': True,
+                'message': f'El reporte "{report_name}" ha sido generado y enviado a su correo ({user_email}).'
+            }), 200
+
+        else:
+            # Descarga directa en el navegador
+            return send_file(
+                mem_file,
+                mimetype=mimetype,
+                as_attachment=True,
+                download_name=download_name
+            )
+
+    except Exception as e:
+        print(f"[ERROR export_report]: {e}")
+        return jsonify({'success': False, 'message': f'Error al compilar el reporte: {str(e)}'}), 500
+
