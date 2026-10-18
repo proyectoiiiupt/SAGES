@@ -348,7 +348,13 @@
                 </svg>
             </div>
             <div>
-                <h3>Registro de Desistimiento Voluntario</h3>
+                <h3>
+                    {% if req.cancellation_justification and req.cancellation_justification.justification_type == 'CANCELACION_ADMIN' %}
+                    Solicitud Cancelada por la Coordinación CORPOELEC
+                    {% else %}
+                    Registro de Desistimiento Voluntario del Plantel
+                    {% endif %}
+                </h3>
                 <span class="text-muted-small">Expediente archivado en el histórico del plantel</span>
             </div>
         </div>

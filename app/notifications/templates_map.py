@@ -60,6 +60,12 @@ NOTIFICATION_TEMPLATES = {
         "message_template": "El representante del plantel \"{institution_name}\" ha cancelado la solicitud de formación \"{training_name}\". Motivo: {reason_name}. Detalle: {justification}. El expediente ha sido archivado en el histórico institucional.",
         "default_type": NotificationType.WARNING,
         "required_context": ["institution_name", "training_name", "reason_name", "justification"]
+    },
+    NotificationEvent.REQUEST_CANCELLED_BY_ADMIN: {
+        "title": "Solicitud Cancelada por CORPOELEC: {training_name}",
+        "message_template": "La coordinación estadal ha cancelado la solicitud de formación \"{training_name}\" para el plantel \"{institution_name}\". Motivo: {reason_name}. Justificación: {justification}.",
+        "default_type": NotificationType.DANGER,
+        "required_context": ["institution_name", "training_name", "reason_name", "justification"]
     }
 }
 

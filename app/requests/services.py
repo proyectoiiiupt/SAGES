@@ -229,11 +229,11 @@ def get_applicant_request_detail(request_id: int, user_institution_id: int):
         (status_code == 'STAT-004' and not has_scheduled_date)
     ) and not req.historical
 
-    # Si se encuentra cancelada, extraer la justificación de desistimiento registrada
+    # Si se encuentra cancelada, extraer la justificación registrada (del solicitante o del admin)
     req.cancellation_justification = None
     if status_code == 'STAT-009' or req.historical:
         for just in req.justifications:
-            if just.justification_type == 'CANCELACION_SOLICITANTE':
+            if just.justification_type in ('CANCELACION_SOLICITANTE', 'CANCELACION_ADMIN'):
                 req.cancellation_justification = just
                 break
 
@@ -242,18 +242,33 @@ def get_applicant_request_detail(request_id: int, user_institution_id: int):
 
 def cancel_training_request(request_id: int, user: User, reason_id: int, justification_text: str) -> tuple[bool, str, int]:
     """
-    Procesa el desistimiento voluntario de una solicitud por parte del solicitante escolar (US-44).
-    Aplica bloqueo pesimista (with_for_update) para control estricto de concurrencia.
-    Transiciona a STAT-009 (Cancelado), archiva en histórico y asienta traza en bitácora.
+    Procesa la cancelación motivada e irreversible de una solicitud (US-44).
+    Implementación simétrica: soporta al Solicitante (etapas preliminares, mín. 10 caracteres)
+    y al Administrador Estadal / Super Administrador (etapas operativas, mín. 20 caracteres).
+    Aplica bloqueo pesimista (with_for_update), inmutabilidad FSM, trazabilidad en tracking y binnacle.
     Retorna (éxito: bool, mensaje: str, código_http: int).
     """
     from app.models.reason_model import Reason
     from app.models.request_tracking_model import RequestTracking
+    from app.binnacle.services import BinnacleService
+    from app.binnacle.types import AuditAction, AuditStatus, AuditModule
+    from app.notifications.services import NotificationService
+    from app.notifications.enums import NotificationEvent
+    from app.utils.email_utils import send_request_cancelled_email
 
-    if not user or not user.person or not user.person.institutional_staff:
-        return False, "Usuario no autorizado o sin vinculación institucional válida.", 403
 
-    user_institution_id = user.person.institutional_staff[0].institution_id
+    if not user:
+        return False, "Usuario no autenticado o sesión inválida.", 403
+
+    # Determinar roles del usuario
+    user_roles = [assoc.role.name for assoc in user.roles_assoc] if user and user.roles_assoc else []
+    is_super_admin = 'super_admin' in user_roles
+    is_state_admin = 'state_admin' in user_roles
+    is_admin = is_super_admin or is_state_admin
+    is_applicant = 'applicant' in user_roles
+
+    if not (is_admin or is_applicant):
+        return False, "Usuario no autorizado para gestionar cancelaciones de solicitudes.", 403
 
     # 1. Bloqueo pesimista de fila en BD (Pessimistic Locking)
     req = db.session.query(Request).filter(Request.id == request_id).with_for_update().first()
@@ -262,22 +277,74 @@ def cancel_training_request(request_id: int, user: User, reason_id: int, justifi
         db.session.rollback()
         return False, "Solicitud no encontrada.", 404
 
-    # 2. Control de Acceso y Aislamiento Multitenant
-    if not req.institutional_staff or req.institutional_staff.institution_id != user_institution_id:
-        db.session.rollback()
-        return False, "Acceso denegado: El requerimiento no pertenece a su institución educativa.", 403
-
-    # 3. Validación de estado preliminar cancelable (Anti-Bypass de concurrencia)
+    # 2. Protección de Inmutabilidad FSM (Expedientes completados, históricos o ya cancelados)
     current_status = req.status.status_code if req.status else ''
-    if current_status not in ['STAT-003', 'STAT-004'] or req.historical:
+    if current_status == 'STAT-007':
         db.session.rollback()
-        return False, f"La solicitud no se encuentra en una fase que permita cancelación (Estado actual: {req.status.status_name if req.status else current_status}).", 422
+        return False, "Operación rechazada: No es posible cancelar una solicitud que ya ha sido Completada (STAT-007).", 422
 
-    # Verificar que no tenga fecha pautada en planificaciones
-    has_scheduled_date = any(p.planned_for is not None for p in req.plannings)
-    if current_status == 'STAT-004' and has_scheduled_date:
+    if req.historical or current_status in ('STAT-008', 'STAT-009'):
         db.session.rollback()
-        return False, "No es posible cancelar esta solicitud porque ya cuenta con fecha pautada en el cronograma institucional.", 422
+        return False, "Este expediente ya se encuentra cerrado e histórico y no admite modificaciones.", 422
+
+    clean_justification = (justification_text or '').strip()
+
+    # 3. Bifurcación por Actor: Reglas de Fase, Aislamiento y Longitud
+    if is_admin:
+        # Aislamiento territorial para Administrador Estadal
+        if is_state_admin and not is_super_admin:
+            admin_state_id = get_admin_state_id(user)
+            try:
+                req_state_id = req.institutional_staff.institution.parish.municipality.state_id
+            except (AttributeError, IndexError):
+                req_state_id = None
+
+            if not admin_state_id or req_state_id != admin_state_id:
+                db.session.rollback()
+                return False, "Acceso denegado: El expediente pertenece a otra jurisdicción territorial.", 403
+
+        # Fases operativas permitidas para Admin (STAT-003, STAT-004, STAT-005, STAT-006)
+        if current_status not in ['STAT-003', 'STAT-004', 'STAT-005', 'STAT-006']:
+            db.session.rollback()
+            return False, f"La solicitud no se encuentra en una fase que admita cancelación administrativa (Estado actual: {req.status.status_name if req.status else current_status}).", 422
+
+        # Longitud mínima de justificación (mín. 20 caracteres)
+        if len(clean_justification) < 20:
+            db.session.rollback()
+            return False, "La justificación administrativa debe contener al menos 20 caracteres.", 400
+
+        justification_type = 'CANCELACION_ADMIN'
+
+    elif is_applicant:
+        # Aislamiento institucional para Solicitante
+        if not user.person or not user.person.institutional_staff:
+            db.session.rollback()
+            return False, "Usuario no autorizado o sin vinculación institucional válida.", 403
+
+        user_institution_id = user.person.institutional_staff[0].institution_id
+        if not req.institutional_staff or req.institutional_staff.institution_id != user_institution_id:
+            db.session.rollback()
+            return False, "Acceso denegado: El requerimiento no pertenece a su institución educativa.", 403
+
+        # Fases preliminares permitidas para Solicitante (STAT-003, STAT-004 sin fecha pautada)
+        if current_status not in ['STAT-003', 'STAT-004']:
+            db.session.rollback()
+            return False, "Jornada agendada o en ejecución. Para cancelaciones comuníquese con la Coordinación Estadal de UREE.", 422
+
+        has_scheduled_date = any(p.planned_for is not None for p in req.plannings)
+        if has_scheduled_date:
+            db.session.rollback()
+            return False, "Jornada agendada o en ejecución. Para cancelaciones comuníquese con la Coordinación Estadal de UREE.", 422
+
+        # Longitud mínima de justificación (mín. 10 caracteres)
+        if len(clean_justification) < 10:
+            db.session.rollback()
+            return False, "La justificación explicativa debe contener al menos 10 caracteres.", 400
+
+        justification_type = 'CANCELACION_SOLICITANTE'
+    else:
+        db.session.rollback()
+        return False, "Perfil de usuario no autorizado.", 403
 
     # 4. Validar existencia del motivo de catálogo
     reason = Reason.query.get(reason_id)
@@ -285,7 +352,7 @@ def cancel_training_request(request_id: int, user: User, reason_id: int, justifi
         db.session.rollback()
         return False, "El motivo de cancelación seleccionado no existe en el catálogo oficial.", 400
 
-    # 5. Buscar estado Cancelado (STAT-009)
+    # 5. Obtener estado Cancelado (STAT-009)
     status_cancelled = Status.query.filter_by(status_code='STAT-009').first()
     if not status_cancelled:
         db.session.rollback()
@@ -294,12 +361,12 @@ def cancel_training_request(request_id: int, user: User, reason_id: int, justifi
     try:
         now_utc = datetime.now(timezone.utc)
 
-        # 6. Registrar en sages.request_justifications
+        # 6. Registrar en sages.request_justifications (sin user_id por esquema)
         justification = RequestJustification(
             request_id=req.id,
             reason_id=reason.id,
-            justification_type='CANCELACION_SOLICITANTE',
-            justification=justification_text.strip()
+            justification_type=justification_type,
+            justification=clean_justification
         )
         db.session.add(justification)
 
@@ -310,11 +377,18 @@ def cancel_training_request(request_id: int, user: User, reason_id: int, justifi
         req.historical = True
 
         # 8. Asentar traza institucional en sages.request_trackings
-        applicant_name = f"{user.person.first_name} {user.person.last_name}".strip()
-        tracking_message = (
-            f"El representante del plantel educativo ({applicant_name}) ha cancelado la solicitud. "
-            f"Motivo: {reason.name}. Detalle: {justification_text.strip()}"
-        )
+        actor_name = f"{user.person.first_name} {user.person.last_name}".strip() if user.person else user.username
+        if justification_type == 'CANCELACION_ADMIN':
+            tracking_message = (
+                f"La Coordinación de CORPOELEC ({actor_name}) ha cancelado administrativamente la solicitud. "
+                f"Motivo: {reason.name}. Detalle: {clean_justification}"
+            )
+        else:
+            tracking_message = (
+                f"El representante del plantel educativo ({actor_name}) ha cancelado la solicitud. "
+                f"Motivo: {reason.name}. Detalle: {clean_justification}"
+            )
+
         tracking = RequestTracking(
             request_id=req.id,
             user_id=user.id,
@@ -323,13 +397,21 @@ def cancel_training_request(request_id: int, user: User, reason_id: int, justifi
         )
         db.session.add(tracking)
 
-        # 9. Notificación al Administrador Estadal (Campana y Correo)
-        try:
-            from app.notifications.services import NotificationService
-            from app.notifications.enums import NotificationEvent
-            from app.utils.email_utils import send_email
-            import threading
+        # 9. Asentar auditoría transversal en sages.binnacle
+        BinnacleService.create_log_entry(
+            module=AuditModule.REQUESTS.value,
+            action_type=AuditAction.CAMBIO_ESTATUS.value,
+            description=f"Solicitud {req.request_code} cancelada ({justification_type}). Motivo: {reason.name}",
+            target_table='sages.requests',
+            record_id=req.id,
+            old_values={'status_code': current_status, 'historical': False},
+            new_values={'status_code': 'STAT-009', 'historical': True},
+            status=AuditStatus.MODIFICADO.value,
+            session_instance=db.session
+        )
 
+        # 10. Notificación y correo asíncrono a la contraparte
+        try:
             inst_name = req.institutional_staff.institution.institution_name if req.institutional_staff and req.institutional_staff.institution else "Plantel Educativo"
             training_name = req.training.name if req.training else "Formación Solicitada"
 
@@ -337,56 +419,89 @@ def cancel_training_request(request_id: int, user: User, reason_id: int, justifi
                 "institution_name": inst_name,
                 "training_name": training_name,
                 "reason_name": reason.name,
-                "justification": justification_text.strip()
+                "justification": clean_justification
             }
 
-            target_user = None
-            if req.attended_by_id and req.attended_by:
-                target_user = req.attended_by
-                NotificationService.notify_user(
-                    user_id=req.attended_by_id,
-                    event=NotificationEvent.REQUEST_CANCELLED_BY_APPLICANT,
-                    context=context,
-                    db_session=db.session
-                )
-            else:
-                notifications = NotificationService.notify_role(
-                    role_name='state_admin',
-                    event=NotificationEvent.REQUEST_CANCELLED_BY_APPLICANT,
-                    context=context,
-                    db_session=db.session
-                )
-                if notifications:
-                    target_user = User.query.get(notifications[0].user_id)
+            if justification_type == 'CANCELACION_SOLICITANTE':
+                # Notificar a los administradores / operador asignado
+                target_user = None
+                if req.attended_by_id and req.attended_by:
+                    target_user = req.attended_by
+                    NotificationService.notify_user(
+                        user_id=req.attended_by_id,
+                        event=NotificationEvent.REQUEST_CANCELLED_BY_APPLICANT,
+                        context=context,
+                        db_session=db.session
+                    )
+                else:
+                    notifications = NotificationService.notify_role(
+                        role_name='state_admin',
+                        event=NotificationEvent.REQUEST_CANCELLED_BY_APPLICANT,
+                        context=context,
+                        db_session=db.session
+                    )
+                    if notifications:
+                        target_user = User.query.get(notifications[0].user_id)
 
-            admin_email = target_user.person.email if target_user and target_user.person else None
-            if admin_email:
-                subject = f"Aviso de Cancelación: Solicitud de {inst_name}"
-                body_text = (
-                    f"Estimado Administrador,\n\n"
-                    f"El representante del plantel educativo {inst_name} ha desistido y cancelado "
-                    f"la solicitud de formación '{training_name}'.\n\n"
-                    f"Motivo: {reason.name}\n"
-                    f"Detalle: {justification_text.strip()}\n\n"
-                    f"El expediente ha sido cerrado formalmente y trasladado al archivo histórico.\n\n"
-                    f"Atentamente,\nPlataforma SAGES - CORPOELEC"
-                )
-                threading.Thread(
-                    target=send_email,
-                    args=(admin_email, subject, None, body_text)
-                ).start()
+                admin_email = target_user.person.email if target_user and target_user.person else None
+                if admin_email:
+                    admin_name = f"{target_user.person.first_name} {target_user.person.last_name}".strip() if target_user.person else "Administrador"
+                    send_request_cancelled_email(
+                        to_email=admin_email,
+                        recipient_name=admin_name,
+                        institution_name=inst_name,
+                        request_code=req.request_code,
+                        training_name=training_name,
+                        reason_name=reason.name,
+                        justification=clean_justification,
+                        is_admin_cancellation=False
+                    )
+
+            else:  # CANCELACION_ADMIN
+                # Notificar a los usuarios afiliados al plantel educativo
+                if req.institutional_staff and req.institutional_staff.institution_id:
+                    NotificationService.notify_institution_affiliates(
+                        institution_id=req.institutional_staff.institution_id,
+                        event=NotificationEvent.REQUEST_CANCELLED_BY_ADMIN,
+                        context=context,
+                        redirect_url=f"/requests/my-requests/{req.id}",
+                        action_text="Ver Expediente",
+                        db_session=db.session
+                    )
+
+                # Correo al representante del requerimiento
+                applicant_email = req.institutional_staff.person.email if req.institutional_staff and req.institutional_staff.person else None
+                if applicant_email:
+                    applicant_name = f"{req.institutional_staff.person.first_name} {req.institutional_staff.person.last_name}".strip() if req.institutional_staff.person else "Representante Institucional"
+                    send_request_cancelled_email(
+                        to_email=applicant_email,
+                        recipient_name=applicant_name,
+                        institution_name=inst_name,
+                        request_code=req.request_code,
+                        training_name=training_name,
+                        reason_name=reason.name,
+                        justification=clean_justification,
+                        is_admin_cancellation=True
+                    )
+
         except Exception as notif_err:
             import logging
             logging.getLogger(__name__).warning(f"No se pudo despachar la notificación de cancelación: {notif_err}")
 
-        # 10. Confirmación de transacción
+        # 11. Confirmación de transacción
         db.session.commit()
-        return True, "Su solicitud ha sido cancelada exitosamente y trasladada a su historial.", 200
+
+        success_msg = (
+            "La solicitud ha sido cancelada formalmente y sellada como expediente histórico."
+            if is_admin else
+            "Su solicitud ha sido cancelada exitosamente y trasladada a su historial."
+        )
+        return True, success_msg, 200
 
     except Exception as e:
         db.session.rollback()
         import logging
-        logging.getLogger(__name__).error(f"Error procesando desistimiento de solicitud {req.request_code}: {e}")
+        logging.getLogger(__name__).error(f"Error procesando cancelación de solicitud {req.request_code}: {e}")
         return False, "Ocurrió un error interno en la base de datos al procesar la cancelación.", 500
 
 
@@ -553,6 +668,9 @@ def get_request_full_detail(request_id: int):
     Obtiene la radiografía completa de una solicitud (Ficha Técnica).
     Calcula dinámicamente si la solicitud está en demora por ANS.
     """
+    from app.models.reason_model import Reason
+    from app.models.request_tracking_model import RequestTracking
+
     req = Request.query.options(
         joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.person),
         joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.institution).joinedload(Institution.parish).joinedload(Parish.municipality),
@@ -560,8 +678,9 @@ def get_request_full_detail(request_id: int):
         joinedload(Request.status),
         joinedload(Request.attended_by),
         joinedload(Request.plannings),
-        joinedload(Request.justifications),
-        joinedload(Request.evidences)
+        joinedload(Request.justifications).joinedload(RequestJustification.reason),
+        joinedload(Request.evidences),
+        joinedload(Request.tracking_steps).joinedload(RequestTracking.user).joinedload(User.person)
     ).get_or_404(request_id)
 
     # Evaluación de bloqueo ANS
@@ -629,6 +748,18 @@ def get_request_full_detail(request_id: int):
         req.traffic_light_text = base_text
 
     req.closure_alert = check_closure_spam_alert(req)
+
+    # Evaluación de permisos y extracción de justificación para cancelación en vista Admin (US-44)
+    req.can_admin_cancel = (
+        status_code in ['STAT-003', 'STAT-004', 'STAT-005', 'STAT-006']
+        and not req.historical
+    )
+    req.cancellation_justification = None
+    if status_code == 'STAT-009' or req.historical:
+        for just in req.justifications:
+            if just.justification_type in ('CANCELACION_ADMIN', 'CANCELACION_SOLICITANTE'):
+                req.cancellation_justification = just
+                break
 
     return req
 

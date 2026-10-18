@@ -741,3 +741,138 @@ Gracias por usar el sistema SAGES.
     thread.start()
     return True
 
+
+def send_request_cancelled_email(
+    to_email: str,
+    recipient_name: str,
+    institution_name: str,
+    request_code: str,
+    training_name: str,
+    reason_name: str,
+    justification: str,
+    is_admin_cancellation: bool = True
+) -> bool:
+    """Envía notificación institucional por correo cuando se cancela una solicitud de formación (US-44)."""
+    import html
+    safe_name = html.escape(recipient_name or "Usuario")
+    safe_institution = html.escape(institution_name or "Plantel Educativo")
+    safe_code = html.escape(request_code or "")
+    safe_training = html.escape(training_name or "Formación Solicitada")
+    safe_reason = html.escape(reason_name or "Cancelación de trámite")
+    safe_justification = html.escape(justification.strip() if justification else "Sin justificación registrada.")
+
+    logo_html = get_logo_html()
+
+    if is_admin_cancellation:
+        subject = f"Aviso de Cancelación Institucional: Solicitud {safe_code} — SAGES UREE"
+        banner_title = "SOLICITUD DE FORMACIÓN CANCELADA"
+        intro_text = (
+            f"Le informamos que la solicitud de formación <strong>'{safe_training}'</strong> vinculada al plantel "
+            f"<strong>{safe_institution}</strong> ha sido <strong>cancelada administrativamente</strong> por la Coordinación de CORPOELEC."
+        )
+        text_content = (
+            f"Estimado/a {safe_name},\n\n"
+            f"Le informamos que la solicitud de formación '{safe_training}' ({safe_code}) para la institución "
+            f"{safe_institution} ha sido cancelada administrativamente por la Coordinación de CORPOELEC.\n\n"
+            f"Motivo Oficial: {safe_reason}\n"
+            f"Justificación Consignada:\n{safe_justification}\n\n"
+            f"El expediente ha sido archivado formalmente en el sistema.\n\n"
+            f"* Este mensaje fue generado de forma automática por el sistema SAGES. No responda a este correo.\n\n"
+            f"© 2026 SAGES — CORPOELEC. Todos los derechos reservados."
+        )
+    else:
+        subject = f"Aviso de Desistimiento: Solicitud {safe_code} — {safe_institution}"
+        banner_title = "DESISTIMIENTO DE SOLICITUD REGISTRADO"
+        intro_text = (
+            f"Le notificamos que el representante institucional del plantel <strong>{safe_institution}</strong> "
+            f"ha <strong>desistido formalmente</strong> de la solicitud de formación <strong>'{safe_training}'</strong>."
+        )
+        text_content = (
+            f"Estimado Administrador ({safe_name}),\n\n"
+            f"Le notificamos que el representante institucional del plantel educativo {safe_institution} "
+            f"ha desistido formalmente de la solicitud de formación '{safe_training}' ({safe_code}).\n\n"
+            f"Motivo Oficial: {safe_reason}\n"
+            f"Justificación Consignada:\n{safe_justification}\n\n"
+            f"El expediente ha sido trasladado al archivo histórico del sistema.\n\n"
+            f"* Este mensaje fue generado de forma automática por el sistema SAGES. No responda a este correo.\n\n"
+            f"© 2026 SAGES — CORPOELEC. Todos los derechos reservados."
+        )
+
+    html_content = f"""<!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <title>{subject}</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9fafb; color: #1f2937;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb; overflow: hidden;">
+            <tr>
+                <td style="height: 6px; background: linear-gradient(90deg, #1c3d73 0%, #1fcab0 100%);"></td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 40px 20px 20px 20px;">
+                    {logo_html}
+                    <h1 style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.5;">Sistema de Gestión de Solicitudes de Formación</h1>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 0 40px;">
+                    <h2 style="font-size: 22px; font-weight: 700; color: #1f2937; margin: 10px 0 20px 0; text-transform: uppercase; letter-spacing: 0.5px; text-align: center;">{banner_title}</h2>
+                    
+                    <p style="font-size: 15px; color: #4b5563; margin: 0 0 10px 0; line-height: 1.5; text-align: left;">
+                        Estimado/a <strong>{safe_name}</strong>,
+                    </p>
+                    <p style="font-size: 15px; color: #4b5563; margin: 0 0 20px 0; line-height: 1.6; text-align: left;">
+                        {intro_text}
+                    </p>
+
+                    <!-- Tarjeta con Resumen del Trámite (Estilo Homogéneo) -->
+                    <div style="background-color: #f3f4f6; border-radius: 8px; padding: 16px 20px; margin: 0 0 20px 0; text-align: left;">
+                        <table width="100%" cellpadding="4" cellspacing="0" style="font-size: 14px;">
+                            <tr>
+                                <td style="color: #4b5563; font-weight: 600; width: 30%;">Solicitud:</td>
+                                <td style="color: #1c3d73; font-weight: 700;">{safe_code}</td>
+                            </tr>
+                            <tr>
+                                <td style="color: #4b5563; font-weight: 600;">Plantel:</td>
+                                <td style="color: #1f2937;">{safe_institution}</td>
+                            </tr>
+                            <tr>
+                                <td style="color: #4b5563; font-weight: 600;">Formación:</td>
+                                <td style="color: #1f2937;">{safe_training}</td>
+                            </tr>
+                            <tr>
+                                <td style="color: #4b5563; font-weight: 600;">Motivo:</td>
+                                <td style="color: #1f2937; font-weight: 600;">{safe_reason}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- Recuadro Destacado de Justificación Consignada -->
+                    <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; border-radius: 4px; padding: 12px 16px; margin: 0 0 20px 0; text-align: left;">
+                        <strong style="color: #991b1b; font-size: 13px;">Justificación Consignada:</strong>
+                        <p style="margin: 6px 0 0 0; color: #475569; font-size: 14px; line-height: 1.5; white-space: pre-line;">{safe_justification}</p>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 25px 0 20px 0;">
+                    
+                    <p style="font-size: 12px; color: #9ca3af; line-height: 1.6; margin: 0 0 30px 0; text-align: left;">
+                        * Este mensaje fue generado de forma automática por el sistema SAGES. No responda a este correo.
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
+                    &copy; 2026 SAGES &mdash; CORPOELEC. Todos los derechos reservados.
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+
+    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content))
+    thread.start()
+    return True
+
+

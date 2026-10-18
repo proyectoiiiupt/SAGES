@@ -647,4 +647,204 @@
             });
         }
 
+        // ── Cancelación Motivada e Irreversible (US-44) ───────────────────────
+        const cancelModal = document.getElementById('applicantCancellationModal');
+        const openCancelBtn = document.getElementById('openCancellationModalBtn');
+        const closeCancelBtn = document.getElementById('closeCancellationModalBtn');
+        const abortCancelBtn = document.getElementById('abortCancellationBtn');
+        const cancelForm = document.getElementById('applicantCancelForm');
+        const cancelReasonSel = document.getElementById('cancel-reason-select');
+        const cancelJustification = document.getElementById('cancel-justification');
+        const cancelConfirmCheck = document.getElementById('cancel-confirm-check');
+        const cancelSubmitBtn = document.getElementById('submitCancellationBtn');
+        const cancelCharsSpan = document.getElementById('currentChars');
+        const cancelCounterWrap = document.getElementById('justificationCharCounter');
+        const cancelCharHint = document.getElementById('charLengthHint');
+
+        if (cancelModal && cancelForm) {
+            const minChars = parseInt(cancelForm.getAttribute('data-min-chars') || '20', 10);
+            const maxChars = parseInt(cancelForm.getAttribute('data-max-chars') || '1000', 10);
+            const btnText = cancelSubmitBtn ? cancelSubmitBtn.querySelector('.btn-text') : null;
+            const btnSpinner = cancelSubmitBtn ? cancelSubmitBtn.querySelector('.btn-spinner') : null;
+
+            function openCancelModal() {
+                cancelModal.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+                resetCancelForm();
+                if (cancelReasonSel) {
+                    setTimeout(() => cancelReasonSel.focus(), 100);
+                }
+            }
+
+            function closeCancelModal() {
+                cancelModal.style.display = 'none';
+                document.body.style.overflow = '';
+                resetCancelForm();
+            }
+
+            function resetCancelForm() {
+                cancelForm.reset();
+                if (cancelConfirmCheck) cancelConfirmCheck.checked = false;
+                if (cancelCharsSpan) cancelCharsSpan.textContent = '0';
+                if (cancelCounterWrap) cancelCounterWrap.classList.remove('valid');
+                if (cancelCharHint) {
+                    cancelCharHint.textContent = `Mínimo ${minChars} caracteres obligatorios (máx. ${maxChars}).`;
+                    cancelCharHint.style.color = '#6b7280';
+                }
+                if (cancelSubmitBtn) {
+                    cancelSubmitBtn.disabled = true;
+                    if (btnText) btnText.textContent = 'Confirmar Cancelación';
+                    if (btnSpinner) btnSpinner.style.display = 'none';
+                }
+            }
+
+            function validateCancelInput() {
+                const hasReason = cancelReasonSel && cancelReasonSel.value !== '' && !cancelReasonSel.value.startsWith('--');
+                const textValue = cancelJustification ? cancelJustification.value.trim() : '';
+                const charCount = textValue.length;
+
+                if (cancelCharsSpan) {
+                    cancelCharsSpan.textContent = charCount;
+                }
+
+                const isLengthValid = charCount >= minChars && charCount <= maxChars;
+                const isCheckConfirmed = cancelConfirmCheck ? cancelConfirmCheck.checked : false;
+
+                if (cancelCounterWrap) {
+                    if (isLengthValid) {
+                        cancelCounterWrap.classList.add('valid');
+                    } else {
+                        cancelCounterWrap.classList.remove('valid');
+                    }
+                }
+
+                if (cancelCharHint) {
+                    if (charCount > 0 && charCount < minChars) {
+                        cancelCharHint.textContent = `Faltan ${minChars - charCount} caracteres para alcanzar el mínimo requerido.`;
+                        cancelCharHint.style.color = '#ef4444';
+                    } else if (isLengthValid) {
+                        cancelCharHint.textContent = 'Longitud de justificación válida.';
+                        cancelCharHint.style.color = '#019577';
+                    } else {
+                        cancelCharHint.textContent = `Mínimo ${minChars} caracteres obligatorios (máx. ${maxChars}).`;
+                        cancelCharHint.style.color = '#6b7280';
+                    }
+                }
+
+                if (cancelSubmitBtn) {
+                    cancelSubmitBtn.disabled = !(hasReason && isLengthValid && isCheckConfirmed);
+                }
+            }
+
+            if (openCancelBtn) openCancelBtn.addEventListener('click', openCancelModal);
+            if (closeCancelBtn) closeCancelBtn.addEventListener('click', closeCancelModal);
+            if (abortCancelBtn) abortCancelBtn.addEventListener('click', closeCancelModal);
+
+            cancelModal.addEventListener('click', function (e) {
+                if (e.target === cancelModal) closeCancelModal();
+            });
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && cancelModal.style.display === 'flex') {
+                    closeCancelModal();
+                }
+            });
+
+            if (cancelReasonSel) cancelReasonSel.addEventListener('change', validateCancelInput);
+            if (cancelJustification) cancelJustification.addEventListener('input', validateCancelInput);
+            if (cancelConfirmCheck) cancelConfirmCheck.addEventListener('change', validateCancelInput);
+
+            if (cancelSubmitBtn) {
+                cancelSubmitBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+
+                    const reqId = cancelForm.getAttribute('data-request-id');
+                    const reasonId = cancelReasonSel.value;
+                    const justification = cancelJustification.value.trim();
+                    const isConfirmed = cancelConfirmCheck ? cancelConfirmCheck.checked : false;
+
+                    if (!reasonId || justification.length < minChars || !isConfirmed) {
+                        return;
+                    }
+
+                    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                    const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+                    cancelSubmitBtn.disabled = true;
+                    if (btnText) btnText.textContent = 'Cancelando...';
+                    if (btnSpinner) btnSpinner.style.display = 'inline-block';
+
+                    const targetUrl = cancelForm.getAttribute('data-cancel-url') || `/requests/api/requests/${reqId}/cancel`;
+
+                    fetch(targetUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({
+                            reason_id: parseInt(reasonId, 10),
+                            justification: justification,
+                            confirm_check: true
+                        })
+                    })
+                    .then(res => res.json().then(data => ({ status: res.status, body: data })))
+                    .then(({ status, body }) => {
+                        if (status === 200 && body.success) {
+                            closeCancelModal();
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({
+                                    title: '¡Solicitud Cancelada!',
+                                    text: body.message || 'La solicitud ha sido cancelada formalmente.',
+                                    icon: 'success',
+                                    confirmButtonColor: '#019577',
+                                    confirmButtonText: 'Aceptar',
+                                    allowOutsideClick: false
+                                }).then(() => {
+                                    window.location.href = '/requests/state-dashboard';
+                                });
+                            } else {
+                                alert(body.message || 'Solicitud cancelada con éxito.');
+                                window.location.href = '/requests/state-dashboard';
+                            }
+                        } else {
+                            cancelSubmitBtn.disabled = false;
+                            if (btnText) btnText.textContent = 'Confirmar Cancelación';
+                            if (btnSpinner) btnSpinner.style.display = 'none';
+
+                            const errorMsg = body.message || (body.errors ? body.errors[0] : 'Ocurrió un error al procesar la cancelación.');
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({
+                                    title: 'No se pudo cancelar',
+                                    text: errorMsg,
+                                    icon: 'error',
+                                    confirmButtonColor: '#e74c3c'
+                                });
+                            } else {
+                                alert(errorMsg);
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error al cancelar la solicitud:', err);
+                        cancelSubmitBtn.disabled = false;
+                        if (btnText) btnText.textContent = 'Confirmar Cancelación';
+                        if (btnSpinner) btnSpinner.style.display = 'none';
+
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                title: 'Error de Red',
+                                text: 'No se pudo conectar con el servidor. Intente nuevamente.',
+                                icon: 'error',
+                                confirmButtonColor: '#e74c3c'
+                            });
+                        } else {
+                            alert('No se pudo conectar con el servidor.');
+                        }
+                    });
+                });
+            }
+        }
+
     });
