@@ -329,36 +329,358 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // E) Registrar Nueva Sede
+    // =========================================================================
+    // E) CONTROL DE SEDES — US-56-places-management
+    //    Cascada geográfica, modal unificado, AJAX CRUD, toggle de estatus
+    // =========================================================================
+
+    // ── Helpers de cascada geográfica ──────────────────────────────────────
+
+    /**
+     * Reemplaza las opciones de un <select> con un array [{id, name}].
+     * @param {HTMLSelectElement} selectEl - El selector objetivo.
+     * @param {Array}             items    - Datos [{id, name}].
+     * @param {string}            placeholder - Texto de la opción vacía.
+     */
+    function fillSelect(selectEl, items, placeholder) {
+        selectEl.innerHTML = `<option value="">${placeholder}</option>`;
+        items.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value       = item.id;
+            opt.textContent = item.name;
+            selectEl.appendChild(opt);
+        });
+    }
+
+    /**
+     * Carga municipios desde la API y llena el selector.
+     * Si se provee selectedMunicipalityId, preselecciona y carga parroquias.
+     */
+    async function loadMunicipalities(stateId, selectedMunicipalityId = null, selectedParishId = null) {
+        const munSel    = document.getElementById('place_municipality');
+        const parishSel = document.getElementById('place_parish');
+        if (!munSel || !parishSel) return;
+
+        munSel.disabled    = true;
+        parishSel.disabled = true;
+        fillSelect(parishSel, [], '— Seleccione Parroquia —');
+
+        if (!stateId) {
+            fillSelect(munSel, [], '— Seleccione Municipio —');
+            return;
+        }
+
+        try {
+            const resp = await fetch(`/configurations/api/municipalities/${stateId}`);
+            if (!resp.ok) throw new Error('Error al cargar municipios');
+            const data = await resp.json();
+            fillSelect(munSel, data, '— Seleccione Municipio —');
+            munSel.disabled = false;
+
+            if (selectedMunicipalityId) {
+                munSel.value = selectedMunicipalityId;
+                await loadParishes(selectedMunicipalityId, selectedParishId);
+            }
+        } catch (err) {
+            console.error('[US-56] loadMunicipalities:', err);
+            fillSelect(munSel, [], '— Error cargando municipios —');
+        }
+    }
+
+    /**
+     * Carga parroquias desde la API y llena el selector.
+     * Si se provee selectedParishId, preselecciona la opción.
+     */
+    async function loadParishes(municipalityId, selectedParishId = null) {
+        const parishSel = document.getElementById('place_parish');
+        if (!parishSel) return;
+
+        parishSel.disabled = true;
+
+        if (!municipalityId) {
+            fillSelect(parishSel, [], '— Seleccione Parroquia —');
+            return;
+        }
+
+        try {
+            const resp = await fetch(`/configurations/api/parishes/${municipalityId}`);
+            if (!resp.ok) throw new Error('Error al cargar parroquias');
+            const data = await resp.json();
+            fillSelect(parishSel, data, '— Seleccione Parroquia —');
+            parishSel.disabled = false;
+
+            if (selectedParishId) {
+                parishSel.value = selectedParishId;
+            }
+        } catch (err) {
+            console.error('[US-56] loadParishes:', err);
+            fillSelect(parishSel, [], '— Error cargando parroquias —');
+        }
+    }
+
+    // ── Listeners de cascada ────────────────────────────────────────────────
+
+    const placeStateSelect = document.getElementById('place_state');
+    const placeMunSel      = document.getElementById('place_municipality');
+
+    if (placeStateSelect) {
+        placeStateSelect.addEventListener('change', function () {
+            loadMunicipalities(this.value);
+        });
+    }
+
+    if (placeMunSel) {
+        placeMunSel.addEventListener('change', function () {
+            loadParishes(this.value);
+        });
+    }
+
+    // ── Modal de sedes (abrir / cerrar) ────────────────────────────────────
+
+    const modalPlace       = document.getElementById('modal-place');
+    const modalPlaceTitle  = document.getElementById('modal-place-title');
+    const placeIdHidden    = document.getElementById('place-id-hidden');
+    const formPlace        = document.getElementById('form-place');
+    const btnSavePlaceText = document.getElementById('btn-save-place-text');
+
+    function openPlaceModal() {
+        if (modalPlace) modalPlace.style.display = 'flex';
+    }
+
+    function closePlaceModal() {
+        if (modalPlace) modalPlace.style.display = 'none';
+    }
+
+    // Cerrar con X y botón Cancelar
+    const btnClosePlaceX  = document.getElementById('btn-close-place-modal-x');
+    const btnCancelPlace  = document.getElementById('btn-cancel-place-modal');
+    if (btnClosePlaceX) btnClosePlaceX.addEventListener('click', closePlaceModal);
+    if (btnCancelPlace) btnCancelPlace.addEventListener('click', closePlaceModal);
+
+    // Cerrar al hacer clic fuera del card
+    if (modalPlace) {
+        modalPlace.addEventListener('click', e => {
+            if (e.target === modalPlace) closePlaceModal();
+        });
+    }
+
+    // ── Abrir en modo CREACIÓN ──────────────────────────────────────────────
+
     const btnNewPlace = document.getElementById('btn-new-place');
     if (btnNewPlace) {
         btnNewPlace.addEventListener('click', () => {
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    icon: 'info',
-                    title: 'Registro de Sedes',
-                    text: 'El formulario de alta de sedes operativas se habilitará en la siguiente fase funcional (Modo Demostración).',
-                    confirmButtonColor: '#019577',
-                    confirmButtonText: 'Cerrar'
+            if (modalPlaceTitle)  modalPlaceTitle.textContent = 'Registrar Nueva Sede';
+            if (btnSavePlaceText) btnSavePlaceText.textContent = 'Guardar Sede';
+            if (placeIdHidden)    placeIdHidden.value = '';
+            if (formPlace)        formPlace.reset();
+
+            // Resetear cascada
+            const munSel    = document.getElementById('place_municipality');
+            const parishSel = document.getElementById('place_parish');
+            if (munSel)    { fillSelect(munSel,    [], '— Seleccione Municipio —'); munSel.disabled    = true; }
+            if (parishSel) { fillSelect(parishSel, [], '— Seleccione Parroquia —'); parishSel.disabled = true; }
+
+            openPlaceModal();
+        });
+    }
+
+    // ── Abrir en modo EDICIÓN (delegado en document) ────────────────────────
+
+    document.addEventListener('click', async e => {
+        const btn = e.target.closest('.btn-edit-place');
+        if (!btn) return;
+
+        const d = btn.dataset;
+
+        if (modalPlaceTitle)  modalPlaceTitle.textContent = `Editar Sede: ${d.name}`;
+        if (btnSavePlaceText) btnSavePlaceText.textContent = 'Guardar Cambios';
+        if (placeIdHidden)    placeIdHidden.value = d.id;
+
+        // Rellenar campos simples
+        const nameInput    = document.getElementById('place_name');
+        const phoneInput   = document.getElementById('place_phone');
+        const addressInput = document.getElementById('place_address');
+        const stateSelect  = document.getElementById('place_state');
+
+        if (nameInput)    nameInput.value    = d.name    || '';
+        if (phoneInput)   phoneInput.value   = d.phone   || '';
+        if (addressInput) addressInput.value = d.address || '';
+        if (stateSelect)  stateSelect.value  = d.stateId || '';
+
+        // Cargar la cascada con preselección
+        await loadMunicipalities(d.stateId, d.municipalityId, d.parishId);
+
+        openPlaceModal();
+    });
+
+    // ── Guardado AJAX (Crear o Editar) ──────────────────────────────────────
+
+    const btnSavePlace = document.getElementById('btn-save-place');
+    if (btnSavePlace) {
+        btnSavePlace.addEventListener('click', async () => {
+            if (!formPlace) return;
+
+            const placeId = placeIdHidden ? placeIdHidden.value : '';
+            const url     = placeId
+                ? `/configurations/places/${placeId}/edit`
+                : '/configurations/places/new';
+
+            // Deshabilitar botón durante la petición
+            btnSavePlace.disabled = true;
+            if (btnSavePlaceText) btnSavePlaceText.textContent = 'Guardando...';
+
+            try {
+                const formData = new FormData(formPlace);
+
+                const resp = await fetch(url, {
+                    method: 'POST',
+                    body  : formData
                 });
+
+                const result = await resp.json();
+
+                if (result.success) {
+                    closePlaceModal();
+                    Swal.fire({
+                        icon             : 'success',
+                        title            : placeId ? 'Sede Actualizada' : 'Sede Registrada',
+                        text             : result.message,
+                        confirmButtonColor: '#019577',
+                        confirmButtonText : 'Aceptar'
+                    }).then(() => {
+                        if (window.location.hash !== '#places') {
+                            window.location.hash = '#places';
+                        }
+                        window.location.reload();
+                    });
+
+                } else {
+                    // Mostrar errores de validación
+                    let errorMsg = 'Revise los campos del formulario.';
+                    if (result.errors) {
+                        const msgs = Object.values(result.errors).flat();
+                        errorMsg   = msgs.join(' ');
+                    } else if (result.message) {
+                        errorMsg = result.message;
+                    }
+                    Swal.fire({
+                        icon             : 'warning',
+                        title            : 'Error de Validación',
+                        text             : errorMsg,
+                        confirmButtonColor: '#d97706',
+                        confirmButtonText : 'Corregir'
+                    });
+                }
+            } catch (err) {
+                console.error('[US-56] btnSavePlace fetch error:', err);
+                Swal.fire({
+                    icon : 'error',
+                    title: 'Error de Red',
+                    text : 'No fue posible comunicarse con el servidor. Intente nuevamente.'
+                });
+            } finally {
+                btnSavePlace.disabled = false;
+                if (btnSavePlaceText) {
+                    btnSavePlaceText.textContent = placeId ? 'Guardar Cambios' : 'Guardar Sede';
+                }
             }
         });
     }
 
-    // F) Acciones de la Tabla de Sedes (Ver / Editar)
-    const placeActions = document.querySelectorAll('.btn-table-action');
-    placeActions.forEach(btn => {
-        btn.addEventListener('click', () => {
-            if (typeof Swal !== 'undefined') {
+    // ── Toggle de Estatus con SweetAlert2 + manejo HTTP 409 ────────────────
+
+    document.addEventListener('click', async e => {
+        const btn = e.target.closest('.btn-toggle-place');
+        if (!btn) return;
+
+        const placeId     = btn.dataset.id;
+        const placeName   = btn.dataset.name;
+        const currentStat = btn.dataset.currentStatus;
+        const isActive    = currentStat === 'STAT-001';
+        const action      = isActive ? 'inactivar' : 'activar';
+
+        // Confirmación previa con SweetAlert2
+        const confirm = await Swal.fire({
+            icon            : 'question',
+            title           : '¿Confirmar cambio de estatus?',
+            html            : `¿Desea <strong>${action}</strong> la sede<br><strong>"${placeName}"</strong>?`,
+            showCancelButton: true,
+            confirmButtonColor: isActive ? '#d97706' : '#019577',
+            cancelButtonColor : '#94a3b8',
+            confirmButtonText : `Sí, ${action}`,
+            cancelButtonText  : 'Cancelar'
+        });
+
+        if (!confirm.isConfirmed) return;
+
+        // Obtener CSRF token del formulario del modal de sedes
+        const csrfToken = formPlace
+            ? (formPlace.querySelector('input[name="csrf_token"]') || {}).value
+            : null;
+
+        try {
+            const resp = await fetch(`/configurations/places/${placeId}/toggle-status`, {
+                method : 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {})
+                },
+                body: JSON.stringify({})
+            });
+
+            // ── HTTP 409: bloqueo por personal adscrito activo ────────────
+            if (resp.status === 409) {
+                const result = await resp.json();
                 Swal.fire({
-                    icon: 'info',
-                    title: 'Sede Operativa',
-                    text: 'La consulta y edición de sedes físicas está activa en modo prototipo demostrativo.',
-                    confirmButtonColor: '#1c3d73',
-                    confirmButtonText: 'Aceptar'
+                    icon             : 'warning',
+                    title            : 'Acción Denegada — Integridad Referencial',
+                    html             : `
+                        <p style="text-align:left; margin-bottom:10px;">${result.message}</p>
+                        <div style="background:#fef3c7; border:1px solid #fbbf24; border-radius:6px;
+                                    padding:10px 14px; text-align:left; font-size:0.88rem; color:#92400e;">
+                            <strong>Personal activo adscrito:</strong> ${result.staff_count} funcionario${result.staff_count !== 1 ? 's' : ''}
+                        </div>
+                        <p style="margin-top:10px; font-size:0.84rem; color:#94a3b8; text-align:left;">
+                            Reasigne o inactive al personal antes de inactivar esta sede.
+                        </p>`,
+                    confirmButtonColor: '#d97706',
+                    confirmButtonText : 'Entendido'
+                });
+                return;
+            }
+
+            const result = await resp.json();
+
+            if (result.success) {
+                Swal.fire({
+                    icon             : 'success',
+                    title            : 'Estatus Actualizado',
+                    text             : result.message,
+                    confirmButtonColor: '#019577',
+                    timer            : 2000,
+                    showConfirmButton : false
+                }).then(() => {
+                    if (window.location.hash !== '#places') {
+                        window.location.hash = '#places';
+                    }
+                    window.location.reload();
+                });
+            } else {
+                Swal.fire({
+                    icon : 'error',
+                    title: 'Error',
+                    text : result.message || 'No fue posible actualizar el estatus.'
                 });
             }
-        });
+
+        } catch (err) {
+            console.error('[US-56] toggleStatus fetch error:', err);
+            Swal.fire({
+                icon : 'error',
+                title: 'Error de Red',
+                text : 'No fue posible comunicarse con el servidor. Intente nuevamente.'
+            });
+        }
     });
 
 });
