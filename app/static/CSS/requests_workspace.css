@@ -1,0 +1,579 @@
+/* ==========================================================================
+   BENTO WORKSPACE & CONTEXTUAL DRAWER (SAGES v3.1)
+   Espacio de Trabajo Activo en Ejecución (Vista B.6 / US-46-actividad1)
+   SAGES — CORPOELEC (Gerencia de UREE)
+   ========================================================================== */
+
+:root {
+    --uree-primary: #019577;
+    --uree-primary-hover: #017a61;
+    --uree-primary-light: #e6f6f2;
+    --uree-primary-subtle: #d1fae5;
+    --uree-dark: #0f172a;
+    --uree-text-dark: #1e293b;
+    --uree-gray-text: #475569;
+    --uree-gray-muted: #64748b;
+    --uree-gray-light: #94a3b8;
+    --uree-border: #e2e8f0;
+    --uree-border-light: #f1f5f9;
+    --uree-bg-light: #f8fafc;
+    --uree-bg-card: #ffffff;
+    --uree-danger: #dc2626;
+    --uree-danger-light: #fee2e2;
+    --uree-warning: #d97706;
+    --uree-warning-light: #fef3c7;
+    --uree-success: #16a34a;
+    --uree-success-light: #dcfce7;
+    --uree-info: #0284c7;
+    --uree-info-light: #e0f2fe;
+    --uree-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+    --uree-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    --uree-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+}
+
+/* ==========================================================================
+   Contenedor Principal Adaptable y Fluido (100% Responsivo)
+   ========================================================================== */
+.active-workspace-container {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 16px 24px;
+    box-sizing: border-box;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    color: var(--uree-text-dark);
+}
+
+/* ==========================================================================
+   Barra de Acciones Fuera y Debajo del Banner Principal
+   ========================================================================== */
+.ws-actions-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0.85rem 0 1.25rem 0;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.ws-toolbar-left,
+.ws-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+/* Botón Volver: Rectangular con bordes levemente redondeados */
+.ws-btn-volver {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #475569;
+    border: 1px solid #cbd5e1;
+    color: #f0f1f2;
+    padding: 9px 20px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    transition: all 0.2s ease;
+}
+
+.ws-btn-volver:hover {
+    background: #475569;
+    border-color: #94a3b8;
+    color: #f0f1f2;
+    transform: translateY(-1px);
+}
+
+/* Banner Informativo de Supervisión */
+.ws-supervision-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1e40af;
+    padding: 0.65rem 1rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+/* ==========================================================================
+   Grid Principal Bento (Contexto 60% / Progreso 40%)
+   ========================================================================== */
+.ws-bento-grid {
+    display: grid;
+    grid-template-columns: 1.45fr 1fr;
+    gap: 1.35rem;
+    align-items: stretch;
+    width: 100%;
+}
+
+.ws-bento-context,
+.ws-bento-execution {
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.4rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    box-sizing: border-box;
+}
+
+/* Bordes semafóricos coherentes */
+.ws-bento-context.status-border-yellow,
+.ws-bento-execution.status-border-yellow {
+    border-color: #eab308;
+    border-left: 5px solid #eab308;
+}
+
+.ws-bento-context.status-border-red,
+.ws-bento-execution.status-border-red {
+    border-color: #ef4444;
+    border-left: 5px solid #ef4444;
+}
+
+.ws-bento-context.status-border-green,
+.ws-bento-execution.status-border-green {
+    border-color: #10b981;
+    border-left: 5px solid #10b981;
+}
+
+/* Cabecera del Plantel en Panel Izquierdo */
+.ws-school-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 0.9rem;
+    margin-bottom: 0.95rem;
+    gap: 1rem;
+}
+
+.ws-eyebrow {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    margin-bottom: 0.25rem;
+}
+
+.ws-school-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 0.35rem 0;
+    line-height: 1.3;
+}
+
+.ws-school-address {
+    font-size: 0.85rem;
+    color: #475569;
+    margin: 0;
+    line-height: 1.4;
+}
+
+.ws-dea-badge {
+    background: #e0f2fe;
+    color: #0369a1;
+    font-weight: 700;
+    font-size: 0.78rem;
+    padding: 0.35rem 0.7rem;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+
+/* Sub-tarjetas Contacto y Facilitador */
+.ws-mini-cards-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 0.95rem;
+    align-items: start;
+}
+
+.ws-mini-card-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.ws-mini-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.ws-mini-title {
+    display: block;
+    font-size: 0.95rem;
+    color: #0f172a;
+}
+
+.ws-mini-sub {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.82rem;
+    color: #475569;
+}
+
+.ws-contact-email {
+    color: #64748b;
+    word-break: break-all;
+}
+
+/* Botón Reprogramar: Rectangular con bordes levemente redondeados */
+.ws-reschedule-action {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.ws-btn-reprogramar {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #0f4c81;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 16px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(15, 76, 129, 0.2);
+}
+
+.ws-btn-reprogramar:hover {
+    background: #0c3d68;
+    transform: translateY(-1px);
+}
+
+/* Bloque Pedagógico */
+.ws-pedagogical-box {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 0.95rem 1.15rem;
+}
+
+.ws-pedagogical-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.ws-mod-badge {
+    background: #dcfce7;
+    color: #166534;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.25rem 0.65rem;
+    border-radius: 4px;
+}
+
+.ws-topic-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #065f46;
+    margin: 0.4rem 0 0.5rem 0;
+}
+
+.ws-topic-justification {
+    font-size: 0.84rem;
+    color: #334155;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 0.6rem 0.8rem;
+    border-radius: 6px;
+}
+
+/* ==========================================================================
+   Panel Derecho: PROGRESO DE SOLICITUD
+   ========================================================================== */
+.ws-section-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #1e293b;
+    letter-spacing: 0.02em;
+    margin: 0 0 0.2rem 0;
+}
+
+.ws-section-sub {
+    font-size: 0.82rem;
+    color: #64748b;
+    margin: 0;
+}
+
+.ws-progress-block {
+    margin: 0.9rem 0;
+}
+
+.ws-progress-block .progress {
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.ws-progress-block .progress-bar {
+    height: 100%;
+    background: var(--uree-primary, #019577);
+    transition: width 0.35s ease;
+}
+
+.ws-progress-labels {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-top: 0.4rem;
+}
+
+.ws-progress-labels strong {
+    color: #334155;
+}
+
+/* Checklist de Requisitos */
+.compliance-checklist {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0 1rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.compliance-check-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.compliance-check-left {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+/* Botón Adjuntar Archivo: Rectangular con bordes levemente redondeados */
+.ws-attach-btn-wrap {
+    display: flex;
+    justify-content: center;
+    margin: 0.9rem 0 1.15rem 0;
+}
+
+.ws-btn-attach-file {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--uree-primary, #019577);
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 24px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(1, 149, 119, 0.2);
+    transition: all 0.2s ease;
+}
+
+.ws-btn-attach-file:hover {
+    background: var(--uree-primary-hover, #017a62);
+    transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   Botón Formalizar y Marcar como Completada (Solución Profesional Bloqueado)
+   ========================================================================== */
+.ws-closure-footer {
+    margin-top: auto;
+    padding-top: 0.75rem;
+}
+
+.ws-btn-complete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: none;
+    transition: all 0.2s ease;
+}
+
+/* Estado habilitado para completar */
+.ws-btn-complete:not(:disabled) {
+    background-color: var(--uree-primary, #019577) !important;
+    color: #ffffff !important;
+    cursor: pointer !important;
+    box-shadow: 0 2px 5px rgba(1, 149, 119, 0.25) !important;
+}
+
+.ws-btn-complete:not(:disabled):hover {
+    background-color: var(--uree-primary-hover, #017a62) !important;
+    transform: translateY(-1px);
+}
+
+/* Estado Bloqueado: Diseño sólido rectangular coherente con SAGES */
+.ws-btn-complete:disabled {
+    background-color: #94a3b8 !important;
+    color: #ffffff !important;
+    cursor: not-allowed !important;
+    opacity: 0.92 !important;
+    border: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+.ws-btn-complete:disabled svg {
+    stroke: #ffffff !important;
+}
+
+/* Botón en modo supervisión (no titular) */
+.ws-btn-complete-locked {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    background-color: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #cbd5e1;
+    cursor: not-allowed;
+}
+
+/* ==========================================================================
+   Botón Inferior: Cancelar Solicitud (Rectangular con bordes leves)
+   ========================================================================== */
+.ws-bottom-cancel-row {
+    margin-top: 1.5rem;
+    display: flex;
+    justify-content: flex-start;
+}
+
+.ws-btn-cancel-request {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #dc2626;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 24px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
+    transition: all 0.2s ease;
+}
+
+.ws-btn-cancel-request:hover {
+    background: #b91c1c;
+    transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   Comportamiento Responsivo Global
+   ========================================================================== */
+@media (max-width: 1024px) {
+    .ws-bento-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .active-workspace-container {
+        padding: 12px 14px;
+    }
+
+    .ws-actions-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    .ws-toolbar-left,
+    .ws-toolbar-right {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+
+    .ws-btn-volver,
+    #btn-open-sla-gate {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .ws-mini-cards-row {
+        grid-template-columns: 1fr;
+    }
+
+    .ws-school-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .ws-bottom-cancel-row {
+        width: 100%;
+    }
+
+    .ws-btn-cancel-request {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* ==========================================================================
+   Utilidades
+   ========================================================================== */
+.d-flex { display: flex !important; }
+.d-none { display: none !important; }
+.flex-column { flex-direction: column !important; }
+.justify-content-between { justify-content: space-between !important; }
+.align-items-center { align-items: center !important; }
+.text-center { text-align: center !important; }
+.gap-1 { gap: 4px !important; }
+.gap-2 { gap: 8px !important; }
+.gap-3 { gap: 16px !important; }
+.mt-2 { margin-top: 8px !important; }
+.mb-2 { margin-bottom: 8px !important; }
+.mb-3 { margin-bottom: 12px !important; }
+.text-danger { color: var(--uree-danger) !important; }
+.text-muted { color: var(--uree-gray-muted) !important; }
+.text-dark { color: #0f172a !important; }
+.small { font-size: 0.82rem !important; }
