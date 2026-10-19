@@ -447,6 +447,81 @@ def state_request_detail(id):
 
     return render_template('requests/state_request_detail.html', req=req, reschedule_reasons=reschedule_reasons)
 
+
+# ---------------------------------------------------------------------------
+# Ruta Administrador Estadal: Espacio de Trabajo Activo en Ejecución
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/<int:id>/active-workspace', methods=['GET'])
+@login_required
+@role_required('state_admin', 'super_admin')
+@check_permissions('manage_requests')
+def active_workspace_view(id):
+    """
+    Renderiza el Espacio de Trabajo Activo en Ejecución (active_workspace.html)
+    """
+    from flask import render_template, abort, flash, redirect, url_for
+    from app.requests.services import get_admin_state_id, get_active_workspace_context
+    
+    # 1. Determinar rol y permisos del usuario en sesión
+    user_roles = [assoc.role.name for assoc in current_user.roles_assoc] if current_user and current_user.roles_assoc else []
+    is_super_admin = 'super_admin' in user_roles
+
+    # 2. Obtiene jurisdicción territorial si es state_admin
+    admin_state_id = None
+    if not is_super_admin:
+        admin_state_id = get_admin_state_id(current_user)
+        if not admin_state_id:
+            flash("Acceso denegado: Su perfil no posee una asignación territorial válida.", "danger")
+            abort(403)
+
+    # 3. Invoca al servicio para obtener el contexto y ejecutar transiciones FSM automáticas
+    ctx = get_active_workspace_context(id, current_user=current_user)
+
+    status = ctx.get('status')
+    if status == 'not_found':
+        abort(404)
+    elif status == 'error':
+        flash(ctx.get('message', 'Error interno al cargar el expediente en el espacio de trabajo.'), 'danger')
+        abort(500)
+    elif status == 'redirect_history':
+        flash(ctx.get('message', 'Este expediente ya se encuentra culminado o archivado.'), 'info')
+        if is_super_admin:
+            return redirect(url_for('requests.national_monitoring'))
+        return redirect(url_for('requests.state_admin_dashboard'))
+    elif status == 'redirect_inbox':
+        flash(ctx.get('message', 'La solicitud debe ser atendida y planificada antes de ingresar a ejecución.'), 'warning')
+        if is_super_admin:
+            return redirect(url_for('requests.national_monitoring'))
+        return redirect(url_for('requests.state_admin_dashboard'))
+
+    req = ctx['request']
+
+    # 4. Escudo Territorial Transversal para state_admin (Anti-IDOR)
+    if not is_super_admin:
+        try:
+            req_state_id = req.institutional_staff.institution.parish.municipality.state_id
+        except (AttributeError, IndexError):
+            req_state_id = None
+
+        if req_state_id != admin_state_id:
+            flash("Violación de Acceso: El expediente solicitado pertenece a otra jurisdicción territorial.", "danger")
+            abort(403)
+
+    # 5. Determinación de titularidad de atención
+    is_owner = (req.attended_by_id == current_user.id)
+    if not is_super_admin and not is_owner and req.attended_by_id is not None:
+        flash("Atención: Usted está visualizando este espacio de trabajo en modo de consulta, ya que se encuentra asignado a otro facilitador.", "warning")
+
+    return render_template(
+        'requests/active_workspace.html',
+        ctx=ctx,
+        req=req,
+        is_owner=is_owner,
+        is_super_admin=is_super_admin
+    )
+
+
 # ---------------------------------------------------------------------------
 # Bloque Administrador Estadal: Tomar Solicitud
 # ---------------------------------------------------------------------------
@@ -913,6 +988,21 @@ def justify_delay(request_id):
     reason_id = data.get('reason_id')
     justification_text = data.get('justification', '')
 
+    try:
+        reason_id = int(reason_id)
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'message': 'reason_id inválido.'}), 400
+
+    success, message, status_code = submit_delay_justification(
+        request_id=request_id,
+        admin_user=current_user,
+        reason_id=reason_id,
+        justification_text=justification_text
+    )
+
+    return jsonify({'success': success, 'message': message}), status_code
+
+
 # ---------------------------------------------------------------------------
 # Endpoints Alerta de Cumplimiento Post-Fecha Pautada (Spam de Cierre)
 # ---------------------------------------------------------------------------
@@ -1018,23 +1108,6 @@ def reschedule_closure_api(request_id):
     )
     status_code = 200 if success else 400
     return jsonify({'success': success, 'message': msg}), status_code
-
-
-
-
-    try:
-        reason_id = int(reason_id)
-    except (ValueError, TypeError):
-        return jsonify({'success': False, 'message': 'reason_id inválido.'}), 400
-
-    success, message, status_code = submit_delay_justification(
-        request_id=request_id,
-        admin_user=current_user,
-        reason_id=reason_id,
-        justification_text=justification_text
-    )
-
-    return jsonify({'success': success, 'message': message}), status_code
 
 
 # ---------------------------------------------------------------------------

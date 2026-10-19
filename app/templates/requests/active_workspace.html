@@ -1,0 +1,384 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}SAGES - Espacio de Trabajo Activo | {{ req.request_code }}{% endblock %}
+
+{% block extra_css %}
+<!-- Estilos base de Ficha Técnica (para el Banner Principal y el Modal SLA Gate) -->
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_detail.css') }}">
+<!-- Estilos específicos del Espacio de Trabajo Activo -->
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_workspace.css') }}?v=3.1">
+{% endblock %}
+
+{% block content %}
+<div class="active-workspace-container" id="active-workspace-root" 
+     data-request-id="{{ req.id }}" 
+     data-status-code="{{ req.status.status_code }}"
+     data-progress-pct="{{ ctx.evidence_metrics.request_progress_pct }}"
+     data-can-complete="{{ 'true' if ctx.evidence_metrics.can_complete else 'false' }}"
+     data-has-photo="{{ 'true' if ctx.evidence_metrics.has_photo_evidence else 'false' }}"
+     data-has-pdf="{{ 'true' if ctx.evidence_metrics.has_pdf_evidence else 'false' }}">
+
+    <!-- 1. BANNER PRINCIPAL (Exactamente el mismo de state_request_detail.html) -->
+    <div class="detail-main-header status-border-{{ req.traffic_light_color }}">
+        <div class="request-id-block">
+            <h1>
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#019577" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                Código: {{ req.request_code }}
+            </h1>
+            <div class="request-meta">
+                <span>
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    Radicada el: <strong class="local-datetime" data-utc="{{ req.created_at.isoformat() }}"
+                        data-format="standard"></strong>
+                </span>
+            </div>
+        </div>
+
+        <div class="request-status-block">
+            <span class="status-badge-lg badge-{{ req.traffic_light_color }}">
+                {% if 'Excedido' in req.traffic_light_text or '+' in req.traffic_light_text or 'Quedan' in req.traffic_light_text %}
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                {% else %}
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 8 12 12 14 15"></polyline>
+                </svg>
+                {% endif %}
+                {{ req.traffic_light_text }}
+            </span>
+        </div>
+    </div>
+
+    <!-- 2. BARRA DE BOTONES DEBAJO Y FUERA DEL BANNER -->
+    <div class="ws-actions-toolbar">
+        <!-- Izquierda: Botón Volver -->
+        <div class="ws-toolbar-left">
+            <a href="{{ url_for('requests.state_request_detail', id=req.id) }}" class="ws-btn-volver">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                <span>Volver</span>
+            </a>
+        </div>
+
+        <!-- Derecha: Botón Mágico Justificar Retraso (si aplica) + Bitácora de Campo -->
+        <div class="ws-toolbar-right">
+            {% if req.has_delay_block %}
+            <button type="button" id="btn-open-sla-gate" class="btn-action-danger" data-request-id="{{ req.id }}">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                Justificar Retraso
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if not is_owner %}
+    <div class="ws-supervision-banner">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <span><strong>Modo Supervisión:</strong> Expediente asignado a <strong>{{ ctx.facilitator_data.facilitator_name }}</strong>. Solo lectura.</span>
+    </div>
+    {% endif %}
+
+    <!-- 3. BENTO WORKSPACE PRINCIPAL -->
+    <div class="ws-bento-grid">
+
+        <!-- COLUMNA IZQUIERDA: FICHA UNIFICADA DE CONTEXTO -->
+        <div class="ws-bento-context status-border-{{ req.traffic_light_color }}">
+            <!-- Bloque Principal del Plantel -->
+            <div class="ws-school-header">
+                <div>
+                    <span class="ws-eyebrow">INSTITUCIÓN EDUCATIVA BENEFICIARIA</span>
+                    <h2 class="ws-school-title">{{ ctx.institution_data.name }}</h2>
+                    <p class="ws-school-address">
+                        📍 {{ ctx.institution_data.address }}, Pqa. {{ ctx.institution_data.parish_name }}, Mun. {{ ctx.institution_data.municipality_name }} (Edo. {{ ctx.institution_data.state_name }})
+                    </p>
+                </div>
+                <span class="ws-dea-badge">DEA: {{ ctx.institution_data.dea_code }}</span>
+            </div>
+
+            <!-- Sub-tarjetas Bento: Contacto Escolar (con correo) y Facilitador (con botón Reprogramar debajo) -->
+            <div class="ws-mini-cards-row">
+                <div class="ws-mini-card">
+                    <span class="ws-eyebrow">CONTACTO SOLICITANTE DEL PLANTEL</span>
+                    <strong class="ws-mini-title">{{ ctx.institution_data.contact_name }}</strong>
+                    <span class="ws-mini-sub">📞 {{ ctx.institution_data.contact_phone }}</span>
+                    <span class="ws-mini-sub ws-contact-email">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                            <polyline points="22,6 12,13 2,6"></polyline>
+                        </svg>
+                        {{ ctx.institution_data.contact_email }}
+                    </span>
+                </div>
+
+                <div class="ws-mini-card-wrapper">
+                    <div class="ws-mini-card">
+                        <span class="ws-eyebrow">CRONOGRAMA Y FACILITADOR</span>
+                        <strong class="ws-mini-title">{{ ctx.facilitator_data.facilitator_name }}</strong>
+                        <span class="ws-mini-sub">
+                            🗓️ Pautada: <strong>{{ ctx.facilitator_data.planned_for_str }}</strong> 
+                            (Reprog: {{ ctx.facilitator_data.rescheduled_count }})
+                        </span>
+                    </div>
+                    <!-- Botón Reprogramar (debajo de la fecha de planificación, sin funcionalidad por los momentos) -->
+                    <div class="ws-reschedule-action">
+                        <button type="button" class="ws-btn-reprogramar" id="btn-reprogramar-placeholder">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            <span>Reprogramar</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bloque Pedagógico Integrado -->
+            <div class="ws-pedagogical-box">
+                <div class="ws-pedagogical-top">
+                    <span class="ws-eyebrow">PLAN FORMATIVO</span>
+                    <span class="ws-mod-badge">{{ ctx.pedagogical_data.module_code }} — {{ ctx.pedagogical_data.module_name }}</span>
+                </div>
+                <h3 class="ws-topic-title">{{ ctx.pedagogical_data.training_name }}</h3>
+                <div class="ws-topic-justification">
+                    <strong>Necesidad del plantel:</strong> "{{ ctx.pedagogical_data.description }}"
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMNA DERECHA: PROGRESO DE SOLICITUD Y CIERRE -->
+        <div class="ws-bento-execution status-border-{{ req.traffic_light_color }}">
+            <div class="ws-execution-header">
+                <div>
+                    <h2 class="ws-section-title">PROGRESO DE SOLICITUD</h2>
+                    <p class="ws-section-sub">Requisitos obligatorios para certificar la formación</p>
+                </div>
+            </div>
+
+            <!-- Barra de Progreso Real de la Solicitud -->
+            {% set pct = ctx.evidence_metrics.request_progress_pct %}
+            <div class="ws-progress-block">
+                <div class="progress">
+                    <div class="progress-bar {% if pct == 100 %}bg-success{% endif %}" id="compliance-progress-bar" style="width: {{ pct }}%;"></div>
+                </div>
+                <div class="ws-progress-labels">
+                    <span>Progreso probatorio</span>
+                    <strong id="compliance-pct-text">{{ pct }}% completado</strong>
+                </div>
+            </div>
+
+            <!-- Checklist Compacto -->
+            <ul class="compliance-checklist" id="compliance-checklist">
+                <li class="compliance-check-item" id="check-photo-item">
+                    <div class="compliance-check-left">
+                        <span id="check-photo-icon-wrap">
+                            {% if ctx.evidence_metrics.has_photo_evidence %}
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                            {% else %}
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="8" y1="12" x2="16" y2="12"></line>
+                            </svg>
+                            {% endif %}
+                        </span>
+                        <span>Fotografías de la actividad</span>
+                    </div>
+                    <span class="badge badge-light" id="photo-counter-badge">
+                        <span id="photo-count-val">{{ ctx.evidence_metrics.photo_count }}</span> foto(s)
+                    </span>
+                </li>
+
+                <li class="compliance-check-item" id="check-pdf-item">
+                    <div class="compliance-check-left">
+                        <span id="check-pdf-icon-wrap">
+                            {% if ctx.evidence_metrics.has_pdf_evidence %}
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                            {% else %}
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="8" y1="12" x2="16" y2="12"></line>
+                            </svg>
+                            {% endif %}
+                        </span>
+                        <span>Archivos PDF</span>
+                    </div>
+                    <span class="badge badge-light" id="pdf-counter-badge">
+                        <span id="pdf-count-val">{{ ctx.evidence_metrics.pdf_count }}</span> PDF(s)
+                    </span>
+                </li>
+            </ul>
+
+            <!-- Botón para Cargar Archivos (Inactivo por ahora, reservado para modal en otra tarea) -->
+            <div class="ws-attach-btn-wrap">
+                <button type="button" class="ws-btn-attach-file" id="btn-attach-file-placeholder">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                    </svg>
+                    <span>Adjuntar Evidencia</span>
+                </button>
+            </div>
+
+            <!-- Botón de Cierre Directo -->
+            <div class="ws-closure-footer">
+                {% if is_owner %}
+                <button type="button" 
+                        id="btn-complete-request" 
+                        class="ws-btn-complete"
+                        {% if not ctx.evidence_metrics.can_complete %}disabled{% endif %}
+                        data-request-id="{{ req.id }}">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    <span>Formalizar y Marcar como Completada</span>
+                </button>
+                {% else %}
+                <button type="button" class="ws-btn-complete-locked" disabled>
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    <span>Cierre reservado al facilitador titular</span>
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 4. BOTÓN INFERIOR: CANCELAR SOLICITUD (Sin funcionalidad por el momento) -->
+    <div class="ws-bottom-cancel-row">
+        <button type="button" class="ws-btn-cancel-request" id="btn-cancel-request-placeholder">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+            <span>Cancelar Solicitud</span>
+        </button>
+    </div>
+
+    <!-- 5. SLA GATE: Modal Bloqueante de Justificación de Retraso ANS (Misma lógica de state_request_detail.html) -->
+    {% if req.has_delay_block %}
+    <div id="sla-gate-overlay" class="sla-gate-overlay" role="dialog" aria-modal="true" aria-labelledby="sla-gate-title">
+        <div class="sla-gate-modal" id="sla-gate-modal">
+            <div class="sla-modal-header">
+                <div class="sla-modal-icon-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                        <line x1="12" y1="9" x2="12" y2="13" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                </div>
+                <div class="sla-modal-header-text">
+                    <h2 id="sla-gate-title">Justificación Obligatoria de Retraso ANS</h2>
+                    <p>Este expediente supera los plazos normativos. Debe registrar un descargo formal para continuar.</p>
+                </div>
+            </div>
+
+            <div class="sla-alert-banner">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>
+                    Estado: <strong>{{ req.traffic_light_text }}</strong>
+                </span>
+            </div>
+
+            <form id="sla-gate-form" novalidate>
+                <input type="hidden" id="sla-request-id" value="{{ req.id }}">
+
+                <div class="sla-field-group">
+                    <label for="sla-reason-select" class="sla-label">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4" />
+                            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                        </svg>
+                        Razón del Retraso <span class="sla-required">*</span>
+                    </label>
+                    <select id="sla-reason-select" name="reason_id" class="sla-select" required>
+                        <option value="">Cargando razones...</option>
+                    </select>
+                    <span id="sla-reason-error" class="sla-field-error" hidden>Debe seleccionar una razón.</span>
+                </div>
+
+                <div class="sla-field-group">
+                    <label for="sla-justification" class="sla-label">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                        Descargo Formal <span class="sla-required">*</span>
+                    </label>
+                    <textarea id="sla-justification" name="justification" class="sla-textarea" rows="5" maxlength="2000"
+                        placeholder="Explique detalladamente los motivos del retraso normativo (mínimo 20 caracteres)..."
+                        required></textarea>
+                    <div class="sla-textarea-footer">
+                        <span id="sla-char-error" class="sla-field-error" hidden>Mínimo 20 caracteres requeridos.</span>
+                        <span id="sla-char-counter" class="sla-char-counter"><span id="sla-char-count">0</span> / 2000</span>
+                    </div>
+                    <div class="sla-progress-wrap">
+                        <div id="sla-char-progress" class="sla-char-progress"></div>
+                    </div>
+                </div>
+
+                <div class="sla-modal-footer">
+                    <div class="sla-footer-note">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        </svg>
+                        Este descargo formal quedará registrado en el expediente.
+                    </div>
+                    <button type="submit" id="sla-submit-btn" class="sla-btn-submit" disabled>
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                            <polyline points="22 4 12 14.01 9 11.01" />
+                        </svg>
+                        Registrar Descargo y Desbloquear
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Reutilizamos el script de state_request_detail.js para que el modal SLA Gate funcione idéntico -->
+<script src="{{ url_for('static', filename='js/state_request_detail.js') }}"></script>
+<!-- Script de interactividad del Espacio de Trabajo Activo -->
+<script src="{{ url_for('static', filename='JS/requests_active_workspace.js') }}?v=3.1"></script>
+{% endblock %}

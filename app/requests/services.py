@@ -2140,3 +2140,292 @@ def get_pending_survey_request(user_id: int):
     )
 
     return pending_request
+
+# ---------------------------------------------------------------------------
+# Bloque Espacio de Trabajo Activo en Ejecución (Vista B.6 / US-46-actividad1)
+# ---------------------------------------------------------------------------
+
+def get_request_active_planning(req):
+    """
+    Retorna la planificación activa o más reciente asociada a la solicitud.
+    """
+    if not req or not req.plannings:
+        return None
+    plans_with_date = [p for p in req.plannings if p.planned_for is not None]
+    if plans_with_date:
+        return max(plans_with_date, key=lambda p: (p.planned_for, p.id))
+    return req.plannings[-1] if req.plannings else None
+
+
+def compute_workspace_evidence_metrics(evidences):
+    """
+    Calcula el balance y categorización de evidencias probatorias custodiadas
+    """
+    if not evidences:
+        return {
+            'total_evidences': 0,
+            'pdf_count': 0,
+            'photo_count': 0,
+            'has_pdf_evidence': False,
+            'has_photo_evidence': False,
+            'can_complete': False
+        }
+
+    pdf_count = 0
+    photo_count = 0
+
+    for ev in evidences:
+        fmt = (ev.format or '').strip().upper()
+        name = (ev.file_name or '').strip().lower()
+        if fmt == 'PDF' or name.endswith('.pdf'):
+            pdf_count += 1
+        elif fmt in ('JPG', 'JPEG', 'PNG') or any(name.endswith(ext) for ext in ('.jpg', '.jpeg', '.png')):
+            photo_count += 1
+
+    total = len(evidences)
+    has_pdf = (pdf_count > 0)
+    has_photo = (photo_count > 0)
+
+    return {
+        'total_evidences': total,
+        'pdf_count': pdf_count,
+        'photo_count': photo_count,
+        'has_pdf_evidence': has_pdf,
+        'has_photo_evidence': has_photo,
+        'can_complete': (has_pdf and has_photo)
+    }
+
+
+def get_active_workspace_context(request_id: int, current_user=None) -> dict:
+    """
+    Recupera y estructura el contexto integral para el Espacio de Trabajo Activo
+    """
+    import logging
+    from app.models.request_tracking_model import RequestTracking
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # 1. Consulta optimizada con joinedload
+        req = Request.query.options(
+            joinedload(Request.status),
+            joinedload(Request.training).joinedload(Training.training_module),
+            joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.institution)
+                .joinedload(Institution.parish).joinedload(Parish.municipality).joinedload(Municipality.state),
+            joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.person),
+            joinedload(Request.attended_by).joinedload(User.person),
+            joinedload(Request.plannings),
+            joinedload(Request.justifications),
+            joinedload(Request.evidences)
+        ).get(request_id)
+
+        if not req:
+            return {
+                'status': 'not_found',
+                'message': 'Expediente de solicitud no encontrado en el sistema.'
+            }
+
+        # 2. Verificar si la solicitud ya está cerrada o archivada (Modo Histórico)
+        status_code = req.status.status_code if req.status else ''
+        if status_code in ('STAT-007', 'STAT-009') or req.historical:
+            return {
+                'status': 'redirect_history',
+                'request_id': req.id,
+                'message': 'Este expediente ya se encuentra culminado o archivado en modo de solo lectura.'
+            }
+
+        # 3. Si la solicitud está en STAT-003 (Nuevo sin atender), debe ser atendida en la consola
+        if status_code == 'STAT-003':
+            return {
+                'status': 'redirect_inbox',
+                'request_id': req.id,
+                'message': 'La solicitud aún no ha sido aprobada ni asignada a un facilitador.'
+            }
+
+        active_planning = get_request_active_planning(req)
+        today_utc = datetime.now(timezone.utc).date()
+
+        # 4. Transición automática desatendida por llegada de la fecha pautada a STAT-006 (En Proceso)
+        # Aplica si está en STAT-005 (Planificada) o STAT-004 con fecha agendada
+        if active_planning and active_planning.planned_for and active_planning.planned_for <= today_utc:
+            if status_code in ('STAT-004', 'STAT-005'):
+                status_in_process = Status.query.filter_by(status_code='STAT-006').first()
+                if status_in_process and req.status_id != status_in_process.id:
+                    req.status_id = status_in_process.id
+                    req.updated_at = datetime.now(timezone.utc)
+
+                    actor_id = current_user.id if (current_user and current_user.is_authenticated) else (req.attended_by_id or 1)
+                    auto_tracking = RequestTracking(
+                        request_id=req.id,
+                        user_id=actor_id,
+                        messages="Llegada la fecha programada, la solicitud pasa formalmente a estado 'En Proceso' para ejecución presencial y carga de evidencias."
+                    )
+                    db.session.add(auto_tracking)
+                    db.session.commit()
+
+                    # Refrescar en memoria el estatus actual
+                    req.status = status_in_process
+                    status_code = 'STAT-006'
+
+        # 5. Métricas de recaudos y evidencias digitales
+        evidence_metrics = compute_workspace_evidence_metrics(req.evidences)
+
+        # 5.1 Evaluación de Bloqueo ANS (has_delay_block) y Semáforo (idéntico a Ficha Técnica)
+        vzla_tz = timezone(timedelta(hours=-4))
+        now_local = datetime.now(vzla_tz)
+        has_delay_block = False
+        hours_diff = 0
+
+        if status_code == 'STAT-003':
+            if req.created_at:
+                hours_diff = (now_local - req.created_at.astimezone(vzla_tz)).total_seconds() / 3600
+                if hours_diff > 72:
+                    has_delay_block = True
+        elif status_code in ['STAT-004', 'STAT-005', 'STAT-006']:
+            if req.updated_at:
+                hours_diff = (now_local - req.updated_at.astimezone(vzla_tz)).total_seconds() / 3600
+                if hours_diff > 240:
+                    has_delay_block = True
+
+        if has_delay_block and req.justifications:
+            for just in req.justifications:
+                if just.justification_type in ['RETRASO', 'REPROGRAMACION', 'RETRASO_ATENCION', 'RETRASO_EJECUCION']:
+                    has_delay_block = False
+                    break
+
+        req.has_delay_block = has_delay_block
+
+        base_text = req.status.status_name if req.status else 'En Proceso'
+        if status_code in ['STAT-007', 'STAT-008', 'STAT-009']:
+            req.traffic_light_color = 'green'
+            req.traffic_light_text = base_text
+        elif status_code == 'STAT-003':
+            req.traffic_light_color = 'red'
+            if req.created_at:
+                if hours_diff > 72:
+                    req.traffic_light_text = f'{base_text} (Límite Excedido)'
+                elif hours_diff > 48:
+                    req.traffic_light_text = f'{base_text} (+2 días sin atender)'
+                elif hours_diff > 24:
+                    req.traffic_light_text = f'{base_text} (+1 día sin atender)'
+                else:
+                    req.traffic_light_text = base_text
+            else:
+                req.traffic_light_text = base_text
+        elif status_code in ['STAT-004', 'STAT-005', 'STAT-006']:
+            req.traffic_light_color = 'yellow'
+            if req.updated_at:
+                days_elapsed = int(hours_diff / 24)
+                days_remaining = 10 - days_elapsed
+                if days_remaining < 0:
+                    req.traffic_light_text = f'{base_text} (Límite Excedido)'
+                elif days_remaining <= 3:
+                    req.traffic_light_text = f'{base_text} (Quedan {days_remaining} días)'
+                else:
+                    req.traffic_light_text = base_text
+            else:
+                req.traffic_light_text = base_text
+        else:
+            req.traffic_light_color = 'yellow'
+            req.traffic_light_text = base_text
+
+        # 5.2 Cálculo del Progreso Real de la Solicitud (Nuevo -> Pendiente -> Planificada -> En Proceso -> 100% con Evidencias)
+        if evidence_metrics['can_complete'] or status_code == 'STAT-007':
+            request_progress_pct = 100
+        elif status_code == 'STAT-006':
+            if evidence_metrics['has_photo_evidence'] or evidence_metrics['has_pdf_evidence']:
+                request_progress_pct = 85
+            else:
+                request_progress_pct = 75
+        elif status_code == 'STAT-005':
+            request_progress_pct = 60
+        elif status_code == 'STAT-004':
+            request_progress_pct = 40
+        elif status_code == 'STAT-003':
+            request_progress_pct = 20
+        else:
+            request_progress_pct = 0
+
+        evidence_metrics['request_progress_pct'] = request_progress_pct
+
+        # 7. Estructuración de datos institucionales seguros
+        inst = req.institutional_staff.institution if req.institutional_staff else None
+        parish = inst.parish if inst else None
+        municipality = parish.municipality if parish else None
+        state = municipality.state if municipality else None
+        contact_person = req.institutional_staff.person if req.institutional_staff else None
+
+        contact_full_name = "No especificado"
+        contact_phone = "No registrado"
+        contact_email = "No registrado"
+        if contact_person:
+            contact_full_name = f"{contact_person.first_name or ''} {contact_person.last_name or ''}".strip() or "Contacto Institucional"
+            contact_phone = contact_person.mobile or contact_person.phone or "No registrado"
+            contact_email = contact_person.email or "No registrado"
+
+        institution_data = {
+            'name': inst.institution_name if inst else "Institución Educativa",
+            'dea_code': (inst.plantel_code or inst.institution_code) if inst else "S/D",
+            'state_name': state.name if state else "No asignado",
+            'municipality_name': municipality.name if municipality else "No asignado",
+            'parish_name': parish.name if parish else "No asignado",
+            'address': inst.address if inst else "Dirección no registrada",
+            'phone': inst.phone if (inst and inst.phone) else "No registrado",
+            'contact_name': contact_full_name,
+            'contact_phone': contact_phone,
+            'contact_email': contact_email
+        }
+
+        # 8. Estructuración de datos pedagógicos UREE
+        training = req.training
+        module = training.training_module if training else None
+        pedagogical_data = {
+            'training_id': training.id if training else None,
+            'training_name': training.name if training else "Tema Formativo UREE",
+            'module_code': module.module_code if module else "MOD-001",
+            'module_name': module.name if module else "UREE",
+            'description': req.description or "Sin descripción pedagógica adicional."
+        }
+
+        # 9. Estructuración de datos del facilitador / titular
+        facilitator_name = "Coordinación Regional UREE"
+        facilitator_email = "uree@corpoelec.gob.ve"
+        if req.attended_by:
+            u = req.attended_by
+            p = u.person if u else None
+            if p:
+                full_name = f"{p.first_name or ''} {p.last_name or ''}".strip()
+                facilitator_name = full_name or getattr(u, 'user_name', 'Operador UREE')
+                facilitator_email = p.email or facilitator_email
+            else:
+                facilitator_name = getattr(u, 'user_name', 'Administrador UREE')
+
+        planned_date_str = active_planning.planned_for.strftime('%d/%m/%Y') if (active_planning and active_planning.planned_for) else "Por coordinar"
+
+        facilitator_data = {
+            'attended_by_id': req.attended_by_id,
+            'facilitator_name': facilitator_name,
+            'facilitator_email': facilitator_email,
+            'planned_for_date': active_planning.planned_for if active_planning else None,
+            'planned_for_str': planned_date_str,
+            'rescheduled_count': active_planning.rescheduled_count or 0 if active_planning else 0,
+            'original_planned_for': active_planning.original_planned_for if active_planning else None
+        }
+
+        return {
+            'status': 'success',
+            'request': req,
+            'active_planning': active_planning,
+            'institution_data': institution_data,
+            'pedagogical_data': pedagogical_data,
+            'facilitator_data': facilitator_data,
+            'evidence_metrics': evidence_metrics
+        }
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al generar contexto del espacio de trabajo activo (request_id={request_id}): {e}", exc_info=True)
+        return {
+            'status': 'error',
+            'message': 'Error interno al procesar el expediente en el espacio de trabajo.'
+        }
