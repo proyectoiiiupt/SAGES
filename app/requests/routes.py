@@ -263,11 +263,11 @@ def applicant_request_view(id):
 def applicant_cancel_request(id):
     """
     Endpoint AJAX para procesar el desistimiento voluntario del solicitante (US-44).
-    Aplica validación de motivo y justificación (>= 10 chars), ejecuta la transacción
+    Aplica validación de motivo, justificación (>= 10 chars) y casilla confirm_check, ejecuta la transacción
     con bloqueo pesimista en base de datos y retorna respuesta JSON estructurada.
     """
     from app.requests.services import cancel_training_request
-    from app.requests.forms import ApplicantCancelRequestForm
+    from app.requests.forms import CancelRequestForm
     from app.models.reason_model import Reason
 
     user = User.query.get(current_user.id)
@@ -276,19 +276,19 @@ def applicant_cancel_request(id):
 
     # Soporte tanto para payload JSON como para FormData
     if request.is_json:
-        json_data = request.get_json() or {}
-        form = ApplicantCancelRequestForm(data=json_data)
+        json_data = request.get_json(silent=True) or {}
+        form = CancelRequestForm(min_length=10, data=json_data)
     else:
-        form = ApplicantCancelRequestForm()
+        form = CancelRequestForm(min_length=10)
 
     reasons = Reason.query.all()
     form.reason_id.choices = [(r.id, r.name) for r in reasons]
 
     if not form.validate():
-        errors = [f"{field}: {', '.join(errs)}" for field, errs in form.errors.items()]
+        errors = [msg for field_errs in form.errors.values() for msg in field_errs]
         return jsonify({
             'success': False,
-            'message': 'Datos del formulario de desistimiento inválidos.',
+            'message': errors[0] if errors else 'Datos del formulario de desistimiento inválidos.',
             'errors': errors
         }), 400
 
@@ -430,14 +430,13 @@ def state_request_detail(id):
             flash("Violación de Acceso: El expediente solicitado pertenece a otra jurisdicción territorial.", "danger")
             abort(403)
         
-        # 4. Regla de Negocio: Exclusión de Trámites Cerrados en consola operativa estadal
-        if req.historical:
-            flash("Este expediente ya se encuentra cerrado (Histórico) y no admite más gestiones operativas.", "warning")
-            return redirect(url_for('requests.state_admin_dashboard'))
-
     from app.models.reason_model import Reason
+    from app.requests.forms import CancelRequestForm
     from app.requests.services import check_closure_spam_alert
     reschedule_reasons = Reason.query.order_by(Reason.id.asc()).all()
+
+    cancel_form = CancelRequestForm(min_length=20)
+    cancel_form.reason_id.choices = [(r.id, r.name) for r in reschedule_reasons]
 
     # Solo se activa el spam si el usuario es el administrador asignado a la solicitud
     if not is_super_admin:
@@ -445,7 +444,57 @@ def state_request_detail(id):
     else:
         req.closure_alert = {'should_trigger': False}
 
-    return render_template('requests/state_request_detail.html', req=req, reschedule_reasons=reschedule_reasons)
+    return render_template(
+        'requests/state_request_detail.html',
+        req=req,
+        reschedule_reasons=reschedule_reasons,
+        reasons=reschedule_reasons,
+        cancel_form=cancel_form
+    )
+
+
+@requests_bp.route('/api/requests/<int:id>/cancel', methods=['POST'])
+@login_required
+@role_required('state_admin', 'super_admin')
+@check_permissions('manage_requests')
+def admin_cancel_request(id):
+    """
+    Endpoint AJAX para procesar la cancelación administrativa motivada (US-44).
+    Exige motivo oficial, justificación (>= 20 caracteres) y casilla confirm_check.
+    """
+    from app.requests.services import cancel_training_request
+    from app.requests.forms import CancelRequestForm
+    from app.models.reason_model import Reason
+
+    user = User.query.get(current_user.id)
+    if not user:
+        return jsonify({'success': False, 'message': 'Sesión de usuario inválida.'}), 403
+
+    if request.is_json:
+        json_data = request.get_json(silent=True) or {}
+        form = CancelRequestForm(min_length=20, data=json_data)
+    else:
+        form = CancelRequestForm(min_length=20)
+
+    reasons = Reason.query.order_by(Reason.id.asc()).all()
+    form.reason_id.choices = [(r.id, r.name) for r in reasons]
+
+    if not form.validate():
+        errors = [msg for field_errs in form.errors.values() for msg in field_errs]
+        return jsonify({
+            'success': False,
+            'message': errors[0] if errors else 'Datos del formulario de cancelación inválidos.',
+            'errors': errors
+        }), 400
+
+    success, message, status_code = cancel_training_request(
+        request_id=id,
+        user=user,
+        reason_id=form.reason_id.data,
+        justification_text=form.justification.data
+    )
+
+    return jsonify({'success': success, 'message': message}), status_code
 
 # ---------------------------------------------------------------------------
 # Bloque Administrador Estadal: Tomar Solicitud

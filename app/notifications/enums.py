@@ -24,3 +24,4 @@ class NotificationEvent(str, Enum):
 
     # Gestión de Solicitudes de Formación
     REQUEST_CANCELLED_BY_APPLICANT = "REQ_CANCELLED_APPLICANT"  # Desistimiento voluntario del solicitante (US-44)
+    REQUEST_CANCELLED_BY_ADMIN = "REQ_CANCELLED_ADMIN"          # Cancelación administrativa motivada por CORPOELEC (US-44)

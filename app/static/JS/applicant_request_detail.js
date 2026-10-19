@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const cancelForm = document.getElementById('applicantCancelForm');
     const reasonSelect = document.getElementById('cancel-reason-select');
     const justificationTextarea = document.getElementById('cancel-justification');
+    const confirmCheckbox = document.getElementById('cancel-confirm-check');
     const submitBtn = document.getElementById('submitCancellationBtn');
     const currentCharsSpan = document.getElementById('currentChars');
     const charCounterWrap = document.getElementById('justificationCharCounter');
@@ -25,6 +26,8 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
     }
 
+    const minChars = parseInt(cancelForm.getAttribute('data-min-chars') || '10', 10);
+    const maxChars = parseInt(cancelForm.getAttribute('data-max-chars') || '500', 10);
     const btnText = submitBtn ? submitBtn.querySelector('.btn-text') : null;
     const btnSpinner = submitBtn ? submitBtn.querySelector('.btn-spinner') : null;
 
@@ -48,10 +51,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function resetFormValidation() {
         cancelForm.reset();
+        if (confirmCheckbox) confirmCheckbox.checked = false;
         if (currentCharsSpan) currentCharsSpan.textContent = '0';
         if (charCounterWrap) charCounterWrap.classList.remove('valid');
         if (charHint) {
-            charHint.textContent = 'Mínimo 10 caracteres obligatorios (máx. 500).';
+            charHint.textContent = `Mínimo ${minChars} caracteres obligatorios (máx. ${maxChars}).`;
             charHint.style.color = '#6b7280';
         }
         if (submitBtn) {
@@ -71,7 +75,8 @@ document.addEventListener('DOMContentLoaded', function () {
             currentCharsSpan.textContent = charCount;
         }
 
-        const isLengthValid = charCount >= 10 && charCount <= 500;
+        const isLengthValid = charCount >= minChars && charCount <= maxChars;
+        const isConfirmChecked = confirmCheckbox ? confirmCheckbox.checked : false;
 
         if (charCounterWrap) {
             if (isLengthValid) {
@@ -82,21 +87,21 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (charHint) {
-            if (charCount > 0 && charCount < 10) {
-                charHint.textContent = `Faltan ${10 - charCount} caracteres para alcanzar el mínimo requerido.`;
+            if (charCount > 0 && charCount < minChars) {
+                charHint.textContent = `Faltan ${minChars - charCount} caracteres para alcanzar el mínimo requerido.`;
                 charHint.style.color = '#ef4444';
             } else if (isLengthValid) {
                 charHint.textContent = 'Longitud de justificación válida.';
                 charHint.style.color = '#019577';
             } else {
-                charHint.textContent = 'Mínimo 10 caracteres obligatorios (máx. 500).';
+                charHint.textContent = `Mínimo ${minChars} caracteres obligatorios (máx. ${maxChars}).`;
                 charHint.style.color = '#6b7280';
             }
         }
 
         // Habilitar o deshabilitar botón de confirmación
         if (submitBtn) {
-            submitBtn.disabled = !(hasReason && isLengthValid);
+            submitBtn.disabled = !(hasReason && isLengthValid && isConfirmChecked);
         }
     }
 
@@ -135,6 +140,10 @@ document.addEventListener('DOMContentLoaded', function () {
         justificationTextarea.addEventListener('input', validateInput);
     }
 
+    if (confirmCheckbox) {
+        confirmCheckbox.addEventListener('change', validateInput);
+    }
+
     // 5. Envío Asíncrono del Desistimiento (AJAX Fetch)
     submitBtn.addEventListener('click', async function (event) {
         event.preventDefault();
@@ -142,8 +151,9 @@ document.addEventListener('DOMContentLoaded', function () {
         const requestId = cancelForm.getAttribute('data-request-id');
         const reasonId = reasonSelect.value;
         const justification = justificationTextarea.value.trim();
+        const isConfirmed = confirmCheckbox ? confirmCheckbox.checked : false;
 
-        if (!reasonId || justification.length < 10) {
+        if (!reasonId || justification.length < minChars || !isConfirmed) {
             return;
         }
 
@@ -157,12 +167,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (btnText) btnText.textContent = 'Procesando...';
         if (btnSpinner) btnSpinner.style.display = 'inline-block';
 
-        const endpointUrl = `/requests/api/applicant/${requestId}/cancel`;
+        const endpointUrl = cancelForm.getAttribute('data-cancel-url') || `/requests/api/applicant/${requestId}/cancel`;
 
         const formData = new FormData();
         formData.append('csrf_token', csrfToken);
         formData.append('reason_id', reasonId);
         formData.append('justification', justification);
+        formData.append('confirm_check', 'y');
 
         try {
             const response = await fetch(endpointUrl, {

@@ -1,4 +1,7 @@
-<!-- Modal Interactivo de Desistimiento Voluntario del Solicitante (US-44) -->
+{% set is_admin_actor = user_role in ['state_admin', 'super_admin'] %}
+{% set min_chars = 20 if is_admin_actor else 10 %}
+{% set max_chars = 1000 if is_admin_actor else 500 %}
+<!-- Modal Interactivo de Cancelación Motivada e Irreversible (US-44) -->
 <div class="cancellation-modal-backdrop" id="applicantCancellationModal" tabindex="-1" role="dialog" aria-labelledby="cancelModalTitle" aria-hidden="true" style="display: none;">
     <div class="cancellation-modal-dialog" role="document">
         <div class="cancellation-modal-content">
@@ -13,8 +16,10 @@
                         </svg>
                     </div>
                     <div>
-                        <h2 class="cancellation-modal-title" id="cancelModalTitle">Desistimiento de Formación</h2>
-                        <span class="cancellation-modal-subtitle">Formación: <strong>{{ req.training.name }}</strong></span>
+                        <h2 class="cancellation-modal-title" id="cancelModalTitle">
+                            {{ "Cancelación Administrativa de Solicitud" if is_admin_actor else "Desistimiento de Formación" }}
+                        </h2>
+                        <span class="cancellation-modal-subtitle">Formación: <strong>{{ req.training.name if req.training else 'Tema Formativo' }}</strong></span>
                     </div>
                 </div>
                 <button type="button" class="cancellation-modal-close" id="closeCancellationModalBtn" aria-label="Cerrar modal">
@@ -38,12 +43,22 @@
                     </div>
                     <div class="cancellation-alert-content">
                         <strong>Acción Definitiva e Irreversible</strong>
-                        <p>Al confirmar el desistimiento, el requerimiento se cerrará formalmente (Estatus: Cancelado) y se trasladará a su archivo histórico. Esta acción no podrá reactivarse.</p>
+                        <p>
+                            {% if is_admin_actor %}
+                            Al confirmar la cancelación, el requerimiento se cerrará formalmente (Estatus: Cancelado) y se trasladará al archivo histórico institucional. Esta acción es definitiva e irreversible.
+                            {% else %}
+                            Al confirmar el desistimiento, el requerimiento se cerrará formalmente (Estatus: Cancelado) y se trasladará a su archivo histórico. Esta acción no podrá reactivarse.
+                            {% endif %}
+                        </p>
                     </div>
                 </div>
 
                 <!-- Formulario de Cancelación -->
-                <form id="applicantCancelForm" class="cancellation-form" novalidate data-request-id="{{ req.id }}">
+                <form id="applicantCancelForm" class="cancellation-form" novalidate 
+                      data-request-id="{{ req.id }}" 
+                      data-min-chars="{{ min_chars }}"
+                      data-max-chars="{{ max_chars }}"
+                      data-cancel-url="{{ url_for('requests.admin_cancel_request', id=req.id) if is_admin_actor else url_for('requests.applicant_cancel_request', id=req.id) }}">
                     {{ cancel_form.csrf_token }}
 
                     <!-- Selector de Motivo Oficial -->
@@ -67,11 +82,20 @@
                                 Justificación Explicativa <span class="required-star">*</span>
                             </label>
                             <span class="char-counter" id="justificationCharCounter">
-                                <span id="currentChars">0</span> / 10 mín.
+                                <span id="currentChars">0</span> / {{ min_chars }} mín.
                             </span>
                         </div>
-                        <textarea id="cancel-justification" name="justification" class="modal-textarea-field" rows="4" maxlength="500" placeholder="Describa formalmente las razones del plantel educativo para desistir de la jornada formativa (mínimo 10 caracteres)..." required></textarea>
-                        <span class="field-hint" id="charLengthHint">Mínimo 10 caracteres obligatorios (máx. 500).</span>
+                        <textarea id="cancel-justification" name="justification" class="modal-textarea-field" rows="4" maxlength="{{ max_chars }}" 
+                                  placeholder="{{ 'Describa formalmente las razones institucionales para cancelar administrativamente la solicitud (mínimo 20 caracteres)...' if is_admin_actor else 'Describa formalmente las razones del plantel educativo para desistir de la jornada formativa (mínimo 10 caracteres)...' }}" required></textarea>
+                        <span class="field-hint" id="charLengthHint">Mínimo {{ min_chars }} caracteres obligatorios (máx. {{ max_chars }}).</span>
+                    </div>
+
+                    <!-- Casilla de Verificación Obligatoria -->
+                    <div class="form-group-modal">
+                        <label for="cancel-confirm-check" class="modal-checkbox-label" style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 0.9rem; color: #334155;">
+                            <input type="checkbox" id="cancel-confirm-check" name="confirm_check" value="y" required style="margin-top: 3px;">
+                            <span>He revisado la información y confirmo la anulación definitiva e irreversible de esta solicitud. <span class="required-star">*</span></span>
+                        </label>
                     </div>
                 </form>
             </div>

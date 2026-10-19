@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 from flask_wtf import FlaskForm
-from wtforms import DateField, TextAreaField, SelectField, IntegerField
+from wtforms import DateField, TextAreaField, SelectField, IntegerField, BooleanField
 from wtforms.validators import DataRequired, Length, NumberRange, Optional, ValidationError
 
 def coerce_optional_int(val):
@@ -35,24 +35,44 @@ class NewRequestWizardForm(FlaskForm):
         ]
     )
 
-class ApplicantCancelRequestForm(FlaskForm):
+class CancelRequestForm(FlaskForm):
     """
-    Formulario para el desistimiento voluntario justificado del solicitante (US-44).
-    Exige la selección de un motivo de catálogo y justificación de al menos 10 caracteres.
+    Formulario simétrico para la cancelación motivada de solicitudes (US-44).
+    Soporta validación tanto para el solicitante (mín. 10 caracteres) como
+    para el administrador estadal / super administrador (mín. 20 caracteres).
     """
     reason_id = SelectField(
-        'Motivo de Desistimiento',
-        validators=[DataRequired(message="Debe seleccionar un motivo válido del catálogo.")],
+        'Motivo de Cancelación',
+        validators=[DataRequired(message="Debe seleccionar un motivo válido del catálogo oficial.")],
         coerce=int
     )
-    
+
     justification = TextAreaField(
         'Justificación Formal',
         validators=[
-            DataRequired(message="La justificación del desistimiento es obligatoria."),
-            Length(min=10, max=500, message="La justificación debe tener entre 10 y 500 caracteres.")
+            DataRequired(message="La justificación explicativa es obligatoria."),
+            Length(min=10, max=1000, message="La justificación debe tener entre 10 y 1000 caracteres.")
         ]
     )
+
+    confirm_check = BooleanField(
+        'Confirmación de Anulación',
+        validators=[DataRequired(message="Debe marcar la casilla confirmando la anulación irreversible.")]
+    )
+
+    def __init__(self, min_length: int = 10, *args, **kwargs):
+        super(CancelRequestForm, self).__init__(*args, **kwargs)
+        self.min_length = min_length
+
+    def validate_justification(self, field):
+        text_val = (field.data or '').strip()
+        if len(text_val) < self.min_length:
+            raise ValidationError(
+                f"La justificación debe contener al menos {self.min_length} caracteres válidos."
+            )
+
+# Alias de retrocompatibilidad para las vistas y rutas del solicitante
+ApplicantCancelRequestForm = CancelRequestForm
 
 
 class SatisfactionSurveyForm(FlaskForm):
