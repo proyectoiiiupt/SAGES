@@ -314,18 +314,18 @@
                                         </button>
                                     {% endif %}
 
-                                    <!-- Botón Secundario Inspeccionar Expediente (deshabilitado: ruta pendiente) -->
-                                    <span
+                                    <!-- Botón Secundario Inspeccionar Expediente -->
+                                    <a
+                                        href="{{ url_for('requests.admin_request_detail', request_id=req.id) }}"
                                         class="btn-action-audit btn-inspect-expediente"
-                                        title="Ficha forense — próximamente disponible"
-                                        style="opacity: 0.45; cursor: not-allowed; pointer-events: none;"
+                                        title="Inspeccionar Ficha Forense de Auditoría"
                                     >
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
                                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                             <circle cx="12" cy="12" r="3"></circle>
                                         </svg>
                                         Ficha
-                                    </span>
+                                    </a>
                                 </div>
                             </td>
                         </tr>
