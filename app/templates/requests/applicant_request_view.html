@@ -5,6 +5,8 @@
 {% block extra_css %}
 <!-- Hoja de estilos especializada del módulo de solicitante y ficha técnica -->
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/applicant_request_detail.css') }}">
+<!-- Bitácora de seguimiento transversal -->
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/tracking_timeline.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -26,7 +28,7 @@
         </div>
     </div>
 
-    <!-- 2. Barra Superior de Navegación -->
+    <!-- 2. Barra Superior de Navegación y Acciones -->
     <div class="view-navigation-bar">
         <div class="nav-left">
             <a href="{{ url_for('requests.applicant_dashboard') }}" class="btn-back-nav">
@@ -37,7 +39,15 @@
                 Volver a Mis Solicitudes
             </a>
         </div>
-
+        <div class="nav-right">
+            <button type="button" class="ws-action-btn" id="btn-toggle-bitacora" title="Abrir bitácora y novedades de coordinación">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <span>Bitácora de Coordinación</span>
+                <span class="ws-counter-pill" id="ws-topbar-note-count">{{ req.timeline_steps|length if req.timeline_steps else 0 }}</span>
+            </button>
+        </div>
     </div>
 
     <!-- 3. Tarjeta de Encabezado Principal y Estatus -->
@@ -333,9 +343,6 @@
         </div>
     </div>
 
-    <!-- 9. Trazabilidad y Bitácora Institucional (US-45) -->
-    {% include 'requests/partials/_tracking_timeline.html' ignore missing %}
-
     <!-- 10. Bloque de Cancelación / Desistimiento Registrado (Si está archivada) -->
     {% if req.status.status_code == 'STAT-009' or req.cancellation_justification %}
     <div class="cancellation-summary-card">
@@ -421,6 +428,18 @@
 
 </div>
 
+<!-- Drawer Lateral Deslizable para la Bitácora Transversal (US-45) -->
+<div class="ws-drawer-backdrop" id="bitacora-backdrop" style="display: none;"></div>
+<aside class="ws-side-drawer" id="bitacora-drawer" aria-label="Bitácora de coordinación">
+    <div class="ws-drawer-header">
+        <h3>Bitácora de Coordinación y Novedades</h3>
+        <button type="button" class="ws-drawer-close" id="btn-close-bitacora" aria-label="Cerrar bitácora">&times;</button>
+    </div>
+    <div class="ws-drawer-body">
+        {% include "requests/partials/_tracking_timeline.html" %}
+    </div>
+</aside>
+
 <!-- Inclusión del Modal Parcial de Desistimiento -->
 {% include 'requests/partials/_cancellation_modal.html' %}
 {% endblock %}
@@ -428,4 +447,6 @@
 {% block extra_js %}
 <!-- Script interactivo para el control del modal, validación cliente y AJAX -->
 <script src="{{ url_for('static', filename='JS/applicant_request_detail.js') }}"></script>
+<!-- Script transversal de interactividad de la Bitácora de Seguimiento (US-45) -->
+<script src="{{ url_for('static', filename='JS/tracking_timeline.js') }}"></script>
 {% endblock %}

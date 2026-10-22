@@ -237,6 +237,9 @@ def get_applicant_request_detail(request_id: int, user_institution_id: int):
                 req.cancellation_justification = just
                 break
 
+    # Cargar cronología estructurada para la bitácora transversal
+    req.timeline_steps = get_request_timeline(request_id)
+
     return req
 
 
@@ -2725,7 +2728,8 @@ def get_active_workspace_context(request_id: int, current_user=None) -> dict:
             'institution_data': institution_data,
             'pedagogical_data': pedagogical_data,
             'facilitator_data': facilitator_data,
-            'evidence_metrics': evidence_metrics
+            'evidence_metrics': evidence_metrics,
+            'tracking_steps': get_request_timeline(request_id)
         }
 
     except Exception as e:
@@ -3163,3 +3167,196 @@ def get_safe_evidence_path(evidence_id: int, user) -> tuple:
 
     return (safe_dir, safe_file, mimetype, file_name), None, 200
  
+ # ---------------------------------------------------------------------------
+# Bloque Bitácora de Seguimiento Transversal y Trazabilidad (US-45)
+# ---------------------------------------------------------------------------
+
+def get_request_timeline(request_id: int) -> list:
+    """
+    Recupera y formatea la cronología completa de la solicitud (sages.request_trackings),
+    ordenada de forma ascendente (created_at ASC).
+    Diferencia hitos automáticos del sistema de notas humanas con su autor y cargo institucional.
+    """
+    from app.models.request_tracking_model import RequestTracking
+    from app.models.role_user_model import RoleUser
+    from app.models.role_model import Role
+
+    trackings = RequestTracking.query.options(
+        joinedload(RequestTracking.user).joinedload(User.person),
+        joinedload(RequestTracking.user).joinedload(User.roles_assoc).joinedload(RoleUser.role)
+    ).filter(
+        RequestTracking.request_id == request_id
+    ).order_by(
+        RequestTracking.created_at.asc(),
+        RequestTracking.id.asc()
+    ).all()
+
+    vzla_tz = timezone(timedelta(hours=-4))
+    formatted_steps = []
+
+    for step in trackings:
+        clean_msg = (step.messages or '').strip()
+        is_system = False
+        if clean_msg.startswith("Sistema:") or clean_msg.startswith("Llegada la fecha programada"):
+            is_system = True
+
+        author_name = "Sistema SAGES"
+        author_role = "Automático"
+
+        if not is_system and step.user:
+            u = step.user
+            p = u.person if u else None
+            if p:
+                full_name = f"{p.first_name or ''} {p.last_name or ''}".strip()
+                author_name = full_name or getattr(u, 'user_name', 'Usuario SAGES')
+            else:
+                author_name = getattr(u, 'user_name', 'Usuario SAGES')
+
+            # Determinar cargo o rol
+            user_roles = [ra.role.name for ra in u.roles_assoc if ra.role] if u.roles_assoc else []
+            if 'super_admin' in user_roles:
+                author_role = "Gerencia UREE (Super Admin)"
+            elif 'state_admin' in user_roles:
+                author_role = "Facilitador / Administrador UREE"
+            elif 'applicant' in user_roles:
+                author_role = "Directivo / Solicitante del Plantel"
+            else:
+                author_role = "Operador SAGES"
+
+        if step.created_at:
+            dt_local = step.created_at.astimezone(vzla_tz) if step.created_at.tzinfo else step.created_at
+            created_str = dt_local.strftime('%d/%m/%Y %I:%M %p')
+        else:
+            created_str = "Fecha no registrada"
+
+        formatted_steps.append({
+            'id': step.id,
+            'user_id': step.user_id,
+            'author': author_name,
+            'author_role': author_role,
+            'message': clean_msg,
+            'created_at': step.created_at.isoformat() if step.created_at else None,
+            'created_at_str': created_str,
+            'is_system': is_system
+        })
+
+    return formatted_steps
+
+
+def add_tracking_note(request_id: int, note_text: str, user: User) -> tuple:
+    """
+    Sanitiza, valida y persiste una observación o nota humana en sages.request_trackings.
+    Retorna (success: bool, message: str, note_data: dict).
+    """
+    import logging
+    from markupsafe import escape
+    from app.models.request_tracking_model import RequestTracking
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        text_clean = (note_text or '').strip()
+        if not text_clean:
+            return False, "El contenido de la observación no puede estar vacío.", {}
+
+        if len(text_clean) > 1000:
+            return False, "La observación no debe exceder los 1000 caracteres.", {}
+
+        req = Request.query.get(request_id)
+        if not req:
+            return False, "Expediente de solicitud no encontrado.", {}
+
+        if req.historical or (req.status and req.status.status_code == 'STAT-009'):
+            return False, "No se pueden asentar notas en un expediente archivado o cancelado.", {}
+
+        # Sanitización estricta contra inyecciones XSS
+        sanitized_message = str(escape(text_clean))
+
+        now_utc = datetime.now(timezone.utc)
+        new_step = RequestTracking(
+            request_id=request_id,
+            user_id=user.id,
+            messages=sanitized_message,
+            created_at=now_utc
+        )
+        db.session.add(new_step)
+        db.session.commit()
+
+        # Determinar rol y nombre
+        vzla_tz = timezone(timedelta(hours=-4))
+        dt_local = now_utc.astimezone(vzla_tz)
+        created_str = dt_local.strftime('%d/%m/%Y %I:%M %p')
+
+        p = user.person if user else None
+        author_name = f"{p.first_name or ''} {p.last_name or ''}".strip() if p else getattr(user, 'user_name', 'Usuario SAGES')
+
+        user_roles = [ra.role.name for ra in user.roles_assoc if ra.role] if (user and user.roles_assoc) else []
+        if 'super_admin' in user_roles:
+            author_role = "Gerencia UREE (Super Admin)"
+        elif 'state_admin' in user_roles:
+            author_role = "Facilitador / Administrador UREE"
+        elif 'applicant' in user_roles:
+            author_role = "Directivo / Solicitante del Plantel"
+        else:
+            author_role = "Operador SAGES"
+
+        note_data = {
+            'id': new_step.id,
+            'user_id': user.id,
+            'author': author_name,
+            'author_role': author_role,
+            'message': sanitized_message,
+            'created_at': now_utc.isoformat(),
+            'created_at_str': created_str,
+            'is_system': False
+        }
+
+        return True, "Nota asentada exitosamente en la bitácora.", note_data
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al registrar nota en tracking (request_id={request_id}): {e}", exc_info=True)
+        return False, "Error interno al asentar la observación.", {}
+
+
+def log_system_milestone(request_id: int, message_text: str, user_id: int = None) -> bool:
+    """
+    Estampa un hito formal del sistema en sages.request_trackings.
+    Garantiza que user_id no sea nulo respetando la integridad referencial.
+    """
+    import logging
+    from flask_login import current_user
+    from app.models.request_tracking_model import RequestTracking
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        clean_msg = (message_text or '').strip()
+        if not clean_msg:
+            return False
+
+        if not clean_msg.startswith("Sistema:"):
+            clean_msg = f"Sistema: {clean_msg}"
+
+        resolved_user_id = user_id
+        if not resolved_user_id:
+            if current_user and getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'id', None):
+                resolved_user_id = current_user.id
+            else:
+                req = Request.query.get(request_id)
+                resolved_user_id = (req.attended_by_id if (req and req.attended_by_id) else 1)
+
+        milestone = RequestTracking(
+            request_id=request_id,
+            user_id=resolved_user_id,
+            messages=clean_msg,
+            created_at=datetime.now(timezone.utc)
+        )
+        db.session.add(milestone)
+        db.session.commit()
+        return True
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error al registrar hito del sistema (request_id={request_id}): {e}", exc_info=True)
+        return False

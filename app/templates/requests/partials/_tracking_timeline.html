@@ -1,0 +1,139 @@
+{# ==========================================================================
+   COMPONENTE PARCIAL: BITÁCORA DE SEGUIMIENTO TRANSVERSAL (US-45)
+   SAGES — CORPOELEC (Gerencia de UREE)
+   Usado en:
+     - active_workspace.html (Drawer lateral para Facilitador / Administrador)
+     - applicant_request_view.html (Sección integrada para Solicitante del Plantel)
+   ========================================================================== #}
+
+{% set steps = tracking_steps if tracking_steps is defined else (ctx.tracking_steps if ctx is defined and ctx.tracking_steps is defined else (req.timeline_steps if req is defined and req.timeline_steps is defined else [])) %}
+{% set current_req = req if req is defined else (ctx.req if ctx is defined and ctx.req is defined else None) %}
+{% set current_request_id = current_req.id if current_req else (req_id if req_id is defined else 0) %}
+{% set is_archived = current_req.historical or (current_req.status and current_req.status.status_code == 'STAT-009') if current_req else False %}
+
+<div class="card tracking-timeline-card">
+    <div class="card-header timeline-card-header">
+        <div class="card-header-left">
+            <div class="card-icon timeline-card-icon">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                </svg>
+            </div>
+            <div>
+                <h2 class="card-title timeline-card-title">Bitácora de Campo y Seguimiento</h2>
+                <span class="timeline-card-subtitle">Cronología de hitos y novedades registradas</span>
+            </div>
+        </div>
+        <span class="badge timeline-counter-badge" id="tracking-counter-badge">
+            {{ steps|length }} eventos
+        </span>
+    </div>
+
+    <div class="card-body timeline-card-body">
+        <!-- Contenedor con Scroll de Eventos -->
+        <div class="timeline-scroll-container" id="timeline-scroll-box">
+            <div class="timeline-steps-list" id="timeline-steps-list" {% if not steps or steps|length == 0 %}style="display: none;"{% endif %}>
+                {% for step in steps %}
+                    {% if step.is_system %}
+                    <!-- Hito Automático del Sistema -->
+                    <div class="timeline-milestone" data-step-id="{{ step.id }}">
+                        <div class="milestone-badge">
+                            <div class="milestone-icon">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                    <polyline points="9 12 11 14 15 10"></polyline>
+                                </svg>
+                            </div>
+                            <div class="milestone-content">
+                                <div class="milestone-header">
+                                    <span class="milestone-tag">Hito del Sistema</span>
+                                    <span class="timeline-time local-datetime" data-utc="{{ step.created_at }}" data-format="standard">
+                                        {{ step.created_at_str }}
+                                    </span>
+                                </div>
+                                <p class="milestone-text">{{ step.message }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <!-- Observación / Nota Humana -->
+                    <div class="timeline-item" data-step-id="{{ step.id }}">
+                        <div class="avatar-circle" title="{{ step.author }}">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="12" cy="7" r="4"></circle>
+                            </svg>
+                        </div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <div class="timeline-author-group">
+                                    <span class="timeline-author">{{ step.author }}</span>
+                                    {% if step.author_role %}
+                                    <span class="timeline-role-pill">{{ step.author_role }}</span>
+                                    {% endif %}
+                                </div>
+                                <span class="timeline-time local-datetime" data-utc="{{ step.created_at }}" data-format="standard">
+                                    <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 3px;">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <polyline points="12 6 12 12 16 14"></polyline>
+                                    </svg>
+                                    {{ step.created_at_str }}
+                                </span>
+                            </div>
+                            <p class="timeline-text">{{ step.message }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+
+            <!-- Estado Vacío -->
+            <div class="timeline-empty-state text-center py-4" id="timeline-empty-state" {% if steps and steps|length > 0 %}style="display: none;"{% endif %}>
+                <div class="empty-icon-wrap">
+                    <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                </div>
+                <p class="small text-muted mb-0">No se han registrado observaciones ni notas en este expediente aún.</p>
+            </div>
+        </div>
+
+        <!-- Sección de Entrada Rápida de Notas -->
+        {% if not is_archived %}
+        <div class="timeline-input-section">
+            <label for="tracking-quick-note" class="info-label mb-2 d-flex align-items-center gap-1">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                <span>Registrar Nota / Incidencia de Seguimiento</span>
+            </label>
+            <div class="textarea-wrapper">
+                <textarea id="tracking-quick-note" class="timeline-textarea" rows="2" 
+                    placeholder="Escriba aquí observaciones de campo, cantidad preliminar de asistentes o incidencias..." 
+                    maxlength="500"></textarea>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                <span class="text-muted tracking-char-counter" id="tracking-char-count">0 / 500 caracteres</span>
+                <button type="button" id="btn-save-tracking-note" class="btn-save-tracking-note" data-request-id="{{ current_request_id }}">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                    <span>Asentar Nota</span>
+                </button>
+            </div>
+        </div>
+        {% else %}
+        <div class="timeline-archived-notice">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <span>Expediente cerrado: La bitácora se encuentra en modo histórico de solo lectura.</span>
+        </div>
+        {% endif %}
+    </div>
+</div>

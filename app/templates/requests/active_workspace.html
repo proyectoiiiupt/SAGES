@@ -9,6 +9,8 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/request_planning.css') }}">
 <!-- Estilos específicos del Espacio de Trabajo Activo -->
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_workspace.css') }}?v=3.1">
+<!-- Bitácora de seguimiento transversal -->
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/tracking_timeline.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -90,6 +92,14 @@
                 Justificar Retraso
             </button>
             {% endif %}
+
+            <button type="button" class="ws-action-btn" id="btn-toggle-bitacora" title="Abrir bitácora de novedades y seguimiento">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <span>Bitácora de Campo</span>
+                <span class="ws-counter-pill" id="ws-topbar-note-count">{{ ctx.tracking_steps|length if ctx and ctx.tracking_steps else 0 }}</span>
+            </button>
         </div>
     </div>
 
@@ -289,7 +299,19 @@
         </button>
     </div>
 
-    <!-- 5. SLA GATE: Modal Bloqueante de Justificación de Retraso ANS (Misma lógica de state_request_detail.html) -->
+    <!-- 5. DRAWER LATERAL DESLIZABLE PARA LA BITÁCORA TRANSVERSAL (US-45) -->
+    <div class="ws-drawer-backdrop" id="bitacora-backdrop" style="display: none;"></div>
+    <aside class="ws-side-drawer" id="bitacora-drawer" aria-label="Bitácora de seguimiento">
+        <div class="ws-drawer-header">
+            <h3>Bitácora de Campo y Novedades</h3>
+            <button type="button" class="ws-drawer-close" id="btn-close-bitacora" aria-label="Cerrar bitácora">&times;</button>
+        </div>
+        <div class="ws-drawer-body">
+            {% include "requests/partials/_tracking_timeline.html" %}
+        </div>
+    </aside>
+
+    <!-- 6. SLA GATE: Modal Bloqueante de Justificación de Retraso ANS (Misma lógica de state_request_detail.html) -->
     {% if req.has_delay_block %}
     <div id="sla-gate-overlay" class="sla-gate-overlay" role="dialog" aria-modal="true" aria-labelledby="sla-gate-title">
         <div class="sla-gate-modal" id="sla-gate-modal">
@@ -389,4 +411,6 @@
 <script src="{{ url_for('static', filename='JS/requests_active_workspace.js') }}?v=3.1"></script>
 <!-- Script de control del modal de reprogramación -->
 <script src="{{ url_for('static', filename='js/requests_process_inbox.js') }}"></script>
+<!-- Script transversal de interactividad de la Bitácora de Seguimiento (US-45) -->
+<script src="{{ url_for('static', filename='JS/tracking_timeline.js') }}"></script>
 {% endblock %}
