@@ -1,4 +1,4 @@
-from flask import render_template, request, jsonify, redirect, url_for
+from flask import render_template, request, jsonify, redirect, url_for, send_from_directory, abort, current_app
 from flask_login import login_required, current_user
 from app.decorators.auth_decorators import role_required, check_permissions
 from app.requests import requests_bp
@@ -940,6 +940,63 @@ def demand_delay_response_endpoint(request_id):
 
     success, message, status_code = demand_delay_response(request_id, current_user)
     return jsonify({'success': success, 'message': message}), status_code
+
+
+# ---------------------------------------------------------------------------
+# Rutas Super Administrador: Ficha Detallada de Auditoría Forense y Visor de Evidencias (US-45-actividad2 / Vista A.3)
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/audit-detail/<int:request_id>', methods=['GET'])
+@login_required
+@role_required('super_admin')
+@check_permissions('manage_requests')
+def admin_request_detail(request_id):
+    """
+    Renderiza la Ficha Forense de Auditoría y Trazabilidad Nacional (Vista A.3)
+    para el Super Administrador. Radiografía técnica inalterable con bitácora,
+    tiempos normativos, metadatos y visor modal de evidencias probatorias.
+    """
+    from app.requests.services import get_forensic_audit_detail
+
+    audit_data = get_forensic_audit_detail(request_id)
+    return render_template(
+        'requests/audit_detail.html',
+        audit=audit_data,
+        req=audit_data['request']
+    )
+
+
+@requests_bp.route('/evidence/<int:evidence_id>/view', methods=['GET'])
+@login_required
+def serve_request_evidence(evidence_id):
+    """
+    Controlador seguro de entrega documental para evidencias de cierre y fiscalización.
+    Aplica controles RBAC, sandbox y blindaje estricto anti-Path Traversal con send_from_directory.
+    Soporta visualización inline o descarga forzada (?download=1).
+    """
+    from app.requests.services import get_safe_evidence_path
+
+    res, error_msg, status_code = get_safe_evidence_path(evidence_id, current_user)
+    if error_msg:
+        abort(status_code, description=error_msg)
+
+    safe_dir, safe_file, mimetype, original_name = res
+    download_requested = request.args.get('download', '0') in ('1', 'true', 'yes')
+
+    response = send_from_directory(
+        safe_dir,
+        safe_file,
+        mimetype=mimetype,
+        as_attachment=download_requested,
+        download_name=original_name
+    )
+
+    # Encabezados de seguridad adicionales
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    if not download_requested:
+        response.headers['Content-Disposition'] = f'inline; filename="{original_name}"'
+
+    return response
 
 
 # ---------------------------------------------------------------------------
