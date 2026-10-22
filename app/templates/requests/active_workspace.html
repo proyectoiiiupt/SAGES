@@ -5,6 +5,8 @@
 {% block extra_css %}
 <!-- Estilos base de Ficha Técnica (para el Banner Principal y el Modal SLA Gate) -->
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_detail.css') }}">
+<!-- Estilos del Calendario Corporativo de Planificación/Reprogramación -->
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/request_planning.css') }}">
 <!-- Estilos específicos del Espacio de Trabajo Activo -->
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_workspace.css') }}?v=3.1">
 {% endblock %}
@@ -139,13 +141,13 @@
                         <span class="ws-eyebrow">CRONOGRAMA Y FACILITADOR</span>
                         <strong class="ws-mini-title">{{ ctx.facilitator_data.facilitator_name }}</strong>
                         <span class="ws-mini-sub">
-                            🗓️ Pautada: <strong>{{ ctx.facilitator_data.planned_for_str }}</strong> 
-                            (Reprog: {{ ctx.facilitator_data.rescheduled_count }})
+                            🗓️ Pautada: <strong id="ws-planned-date-display">{{ ctx.facilitator_data.planned_for_str }}</strong> 
+                            <span id="ws-rescheduled-count-badge" class="badge-reprogrammed" style="{% if not ctx.facilitator_data.rescheduled_count or ctx.facilitator_data.rescheduled_count == 0 %}display:none;{% endif %} margin-left: 4px; background: #fef3c7; color: #b45309; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">(Reprog: <span id="ws-rescheduled-count-num">{{ ctx.facilitator_data.rescheduled_count }}</span>)</span>
                         </span>
                     </div>
-                    <!-- Botón Reprogramar (debajo de la fecha de planificación, sin funcionalidad por los momentos) -->
+                    <!-- Botón Reprogramar -->
                     <div class="ws-reschedule-action">
-                        <button type="button" class="ws-btn-reprogramar" id="btn-reprogramar-placeholder">
+                        <button type="button" class="ws-btn-reprogramar" id="btn-open-reschedule-modal" data-request-id="{{ req.id }}" style="cursor: pointer;">
                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="12" cy="12" r="10"></circle>
                                 <polyline points="12 6 12 12 16 14"></polyline>
@@ -373,6 +375,10 @@
     </div>
     {% endif %}
 
+    {% if req.status.status_code in ['STAT-005', 'STAT-006'] and not req.historical %}
+        {% include 'requests/partials/_reschedule_modal.html' %}
+    {% endif %}
+
 </div>
 {% endblock %}
 
@@ -381,4 +387,6 @@
 <script src="{{ url_for('static', filename='js/state_request_detail.js') }}"></script>
 <!-- Script de interactividad del Espacio de Trabajo Activo -->
 <script src="{{ url_for('static', filename='JS/requests_active_workspace.js') }}?v=3.1"></script>
+<!-- Script de control del modal de reprogramación -->
+<script src="{{ url_for('static', filename='js/requests_process_inbox.js') }}"></script>
 {% endblock %}

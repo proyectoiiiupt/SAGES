@@ -66,8 +66,15 @@ NOTIFICATION_TEMPLATES = {
         "message_template": "La coordinación estadal ha cancelado la solicitud de formación \"{training_name}\" para el plantel \"{institution_name}\". Motivo: {reason_name}. Justificación: {justification}.",
         "default_type": NotificationType.DANGER,
         "required_context": ["institution_name", "training_name", "reason_name", "justification"]
+    },
+    NotificationEvent.REQUEST_RESCHEDULED: {
+        "title": "Jornada Formativa Reprogramada: {training_name}",
+        "message_template": "La coordinación de CORPOELEC ha reprogramado la jornada formativa \"{training_name}\" para el día {new_date}. Motivo oficial: {reason_name}. Explicación técnica: {justification}.",
+        "default_type": NotificationType.WARNING,
+        "required_context": ["institution_name", "training_name", "new_date", "reason_name", "justification"]
     }
 }
+
 
 def resolve_notification_payload(event: NotificationEvent, context: dict = None) -> dict:
     template = NOTIFICATION_TEMPLATES.get(event)

@@ -981,8 +981,183 @@ def plan_training_session(request_id: int, planned_date, notes: str, admin_user,
 
 
 # ---------------------------------------------------------------------------
+# Reprogramar Jornada Formativa (US-42 / SR-F-022)
+# ---------------------------------------------------------------------------
+
+def reschedule_training_session(
+    request_id: int,
+    new_date,
+    reason_id: int,
+    justification: str,
+    admin_user
+) -> tuple[bool, str, dict]:
+    """
+    Modifica la fecha agendada (planned_for) de una solicitud en estado Planificada (STAT-005)
+    o En Proceso (STAT-006) por causa mayor debidamente justificada (US-42 / SR-F-022).
+    
+    Operaciones:
+      1. Bloqueo pesimista con verificación de titularidad y estado FSM.
+      2. Actualiza sages.request_plannings (planned_for y rescheduled_count += 1, original_planned_for intacto).
+      3. Inserta asiento en sages.request_justifications (justification_type='REPROGRAMACION').
+      4. Inserta traza indeleble en sages.requests_trackings.
+      5. Confirma atómicamente la transacción (commit).
+      6. Emite notificación al solicitante y envía correo institucional asíncrono.
+    """
+    from app.models.request_tracking_model import RequestTracking
+    from app.models.request_planning_model import RequestPlanning
+    from app.models.request_justification_model import RequestJustification
+    from app.models.reason_model import Reason
+    from datetime import date as date_cls
+
+    # 1. Recuperar la solicitud con bloqueo pesimista
+    req = db.session.query(Request).filter(Request.id == request_id).with_for_update().first()
+    if not req:
+        return False, "Solicitud no encontrada.", {}
+
+    # 2. Validación de Titularidad Operativa y Permisos
+    user_roles = [assoc.role.name for assoc in admin_user.roles_assoc] if admin_user and admin_user.roles_assoc else []
+    is_super_admin = 'super_admin' in user_roles
+
+    if not is_super_admin and req.attended_by_id != admin_user.id:
+        db.session.rollback()
+        return False, "Operación denegada. Solo el operador responsable puede reprogramar esta solicitud.", {}
+
+    # 3. Validación de Estado FSM (Solo STAT-005 o STAT-006)
+    if not req.status or req.status.status_code not in ['STAT-005', 'STAT-006']:
+        db.session.rollback()
+        current_code = req.status.status_code if req.status else 'Desconocido'
+        return False, f"Transición ilegal. Solo se pueden reprogramar solicitudes planificadas o en proceso (Actual: {current_code}).", {}
+
+    # 4. Recuperar la planificación satélite asociada
+    planning = RequestPlanning.query.filter_by(requests_id=req.id).first()
+    if not planning:
+        db.session.rollback()
+        return False, "Error de integridad: La solicitud no posee un registro de planificación asociado.", {}
+
+    # 5. Validar fecha estrictamente futura en día hábil
+    if hasattr(new_date, 'date'):
+        parsed_date = new_date.date()
+    else:
+        parsed_date = new_date
+
+    if parsed_date <= date_cls.today():
+        db.session.rollback()
+        return False, "La nueva fecha debe ser estrictamente posterior al día de hoy.", {}
+
+    if parsed_date.weekday() >= 5:
+        db.session.rollback()
+        return False, "La nueva fecha debe ser un día hábil (de lunes a viernes).", {}
+
+    # 6. Validar motivo catalogado en sages.reasons
+    reason = Reason.query.get(reason_id)
+    if not reason:
+        db.session.rollback()
+        return False, "El motivo de reprogramación seleccionado no existe en el catálogo oficial.", {}
+
+    # 7. Validar justificación técnica mínima
+    clean_justification = (justification or '').strip()
+    if len(clean_justification) < 20:
+        db.session.rollback()
+        return False, "La justificación explicativa debe contener al menos 20 caracteres válidos.", {}
+
+    try:
+        # 8. Modificar entidad satélite RequestPlanning
+        # Regla de Auditoría: original_planned_for se conserva intacto
+        planning.planned_for = parsed_date
+        planning.rescheduled_count = (planning.rescheduled_count or 0) + 1
+
+        # 9. Asentar registro en sages.request_justifications (Tipo REPROGRAMACION)
+        justification_record = RequestJustification(
+            request_id=req.id,
+            reason_id=reason.id,
+            justification_type='REPROGRAMACION',
+            justification=clean_justification
+        )
+        db.session.add(justification_record)
+
+        # 10. Asentar hito transversal en sages.requests_trackings
+        formatted_date = parsed_date.strftime("%d/%m/%Y")
+        actor_name = f"{admin_user.person.first_name} {admin_user.person.last_name}".strip() if admin_user.person else admin_user.username
+        tracking_msg = (
+            f"Jornada formativa reprogramada para el día {formatted_date} por {actor_name}. "
+            f"Motivo: {reason.name}. Explicación técnica: {clean_justification}"
+        )
+        tracking = RequestTracking(
+            request_id=req.id,
+            user_id=admin_user.id,
+            messages=tracking_msg
+        )
+        db.session.add(tracking)
+
+        # 11. Actualizar timestamp de modificación en la solicitud
+        req.updated_at = datetime.now(timezone.utc)
+
+        # 12. Commit atómico
+        db.session.commit()
+
+        # 13. Despacho de notificaciones y correo institucional (bloque protegido)
+        try:
+            from app.notifications.services import NotificationService
+            from app.notifications.enums import NotificationEvent
+            from app.utils.email_utils import send_request_rescheduled_email
+
+            training_name = req.training.name if req.training else "Tema Formativo"
+            inst_name = req.institutional_staff.institution.institution_name if req.institutional_staff and req.institutional_staff.institution else "Plantel Educativo"
+
+            context = {
+                "institution_name": inst_name,
+                "training_name": training_name,
+                "new_date": formatted_date,
+                "reason_name": reason.name,
+                "justification": clean_justification
+            }
+
+            # Notificar en sistema a los afiliados del plantel
+            if req.institutional_staff and req.institutional_staff.institution_id:
+                NotificationService.notify_institution_affiliates(
+                    institution_id=req.institutional_staff.institution_id,
+                    event=NotificationEvent.REQUEST_RESCHEDULED,
+                    context=context,
+                    redirect_url=f"/requests/my-requests/{req.id}",
+                    action_text="Ver Expediente",
+                    db_session=db.session
+                )
+
+            # Notificar por correo asíncrono al solicitante
+            if req.institutional_staff and req.institutional_staff.person and req.institutional_staff.person.email:
+                applicant_p = req.institutional_staff.person
+                applicant_name = f"{applicant_p.first_name} {applicant_p.last_name}".strip()
+                send_request_rescheduled_email(
+                    to_email=applicant_p.email,
+                    full_name=applicant_name,
+                    institution_name=inst_name,
+                    request_code=req.request_code,
+                    new_planned_date=formatted_date,
+                    reason_name=reason.name,
+                    justification=clean_justification
+                )
+        except Exception as notify_err:
+            import logging
+            logging.getLogger(__name__).error(f"Fallo no crítico al despachar comunicaciones de reprogramación (ID {req.id}): {notify_err}")
+
+        return True, "Fecha de jornada formativa reprogramada exitosamente.", {
+            "new_planned_for": formatted_date,
+            "raw_new_date": parsed_date.isoformat(),
+            "rescheduled_count": planning.rescheduled_count,
+            "reason_name": reason.name
+        }
+
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logging.getLogger(__name__).error(f"Error transaccional en reschedule_training_session (ID {request_id}): {e}")
+        return False, "Ocurrió un error transaccional interno al reprogramar la jornada.", {}
+
+
+# ---------------------------------------------------------------------------
 # US-38: Monitoreo Nacional con Semáforo y Pre-filtrado
 # ---------------------------------------------------------------------------
+
 
 def _evaluate_traffic_light(req: Request, now_dt: datetime) -> dict:
     """

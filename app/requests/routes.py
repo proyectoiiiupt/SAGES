@@ -562,13 +562,19 @@ def active_workspace_view(id):
     if not is_super_admin and not is_owner and req.attended_by_id is not None:
         flash("Atención: Usted está visualizando este espacio de trabajo en modo de consulta, ya que se encuentra asignado a otro facilitador.", "warning")
 
+    from app.models.reason_model import Reason
+    reschedule_reasons = Reason.query.order_by(Reason.name.asc()).all()
+
     return render_template(
         'requests/active_workspace.html',
         ctx=ctx,
         req=req,
         is_owner=is_owner,
-        is_super_admin=is_super_admin
+        is_super_admin=is_super_admin,
+        reschedule_reasons=reschedule_reasons,
+        reasons=reschedule_reasons
     )
+
 
 
 # ---------------------------------------------------------------------------
@@ -1160,8 +1166,85 @@ def reschedule_closure_api(request_id):
 
 
 # ---------------------------------------------------------------------------
+# Ruta Administrador Estadal: Reprogramar Jornada Formativa (US-42 / SR-F-022)
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/api/<int:id>/reschedule', methods=['POST'])
+@requests_bp.route('/api/requests/<int:id>/reschedule', methods=['POST'])
+@login_required
+@role_required('state_admin', 'super_admin')
+@check_permissions('manage_requests')
+def api_reschedule_training(id):
+    """
+    Endpoint AJAX para la reprogramación técnica de una solicitud planificada (US-42 / SR-F-022).
+    Aplica escudo IDOR territorial, valida formulario WTForms con regla de días hábiles futuros,
+    catálogo de motivos y justificación mínima de 20 caracteres.
+    """
+    from flask import jsonify, request
+    from werkzeug.datastructures import MultiDict
+    from app.models.request_model import Request
+    from app.models.reason_model import Reason
+    from app.requests.forms import RescheduleRequestForm
+    from app.requests.services import get_admin_state_id, reschedule_training_session
+
+    # 1. Recuperar la solicitud y verificar existencia
+    req = Request.query.get(id)
+    if not req:
+        return jsonify({'success': False, 'message': 'Solicitud no encontrada.'}), 404
+
+    # 2. Escudo territorial contra IDOR
+    user_roles = [assoc.role.name for assoc in current_user.roles_assoc] if current_user and current_user.roles_assoc else []
+    is_super_admin = 'super_admin' in user_roles
+
+    if not is_super_admin:
+        admin_state_id = get_admin_state_id(current_user)
+        try:
+            req_state_id = req.institutional_staff.institution.parish.municipality.state_id
+        except (AttributeError, IndexError):
+            req_state_id = None
+
+        if not admin_state_id or req_state_id != admin_state_id:
+            return jsonify({'success': False, 'message': 'Acceso denegado: Violación de jurisdicción territorial.'}), 403
+
+    # 3. Procesamiento y carga de formulario (JSON o FormData)
+    if request.is_json:
+        formdata = MultiDict(request.get_json())
+        form = RescheduleRequestForm(formdata=formdata)
+    else:
+        form = RescheduleRequestForm()
+
+    # Poblar opciones del SelectField con el catálogo oficial
+    form.reason_id.choices = [(r.id, r.name) for r in Reason.query.order_by(Reason.name.asc()).all()]
+
+    # 4. Validación WTForms
+    if form.validate():
+        try:
+            success, msg, data = reschedule_training_session(
+                request_id=id,
+                new_date=form.new_planned_for.data,
+                reason_id=form.reason_id.data,
+                justification=form.justification.data,
+                admin_user=current_user
+            )
+            status_code = 200 if success else 400
+            return jsonify({'success': success, 'message': msg, 'data': data}), status_code
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Error en api_reschedule_training (ID {id}): {e}")
+            return jsonify({'success': False, 'message': 'Error interno al procesar la reprogramación.'}), 500
+
+    # Si la validación falla, estructurar errores para el cliente
+    return jsonify({
+        'success': False,
+        'message': 'Datos de reprogramación inválidos o incompletos. Verifique los campos requeridos.',
+        'errors': form.errors
+    }), 400
+
+
+# ---------------------------------------------------------------------------
 # Ruta Solicitante: Encuesta de Satisfacción Post-Cierre (US-51 / SR-F-019)
 # ---------------------------------------------------------------------------
+
 
 @requests_bp.route('/satisfaction-survey/<int:request_id>', methods=['GET', 'POST'])
 @login_required

@@ -339,6 +339,19 @@
                             {{ req.description }}
                         </div>
                     </li>
+                    {% if req.plannings and req.plannings[0].planned_for %}
+                    <li class="info-item" style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed #e2e8f0;">
+                        <span class="info-label" style="display: flex; align-items: center; justify-content: space-between;">
+                            <span>Fecha de Jornada Agendada</span>
+                            <span id="detail-rescheduled-count-badge" class="badge-reprogrammed" style="{% if not req.plannings[0].rescheduled_count or req.plannings[0].rescheduled_count == 0 %}display:none;{% endif %} background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">
+                                Reprogramada (<span id="detail-rescheduled-count-num">{{ req.plannings[0].rescheduled_count }}</span> vez/veces)
+                            </span>
+                        </span>
+                        <strong class="info-value" id="detail-planned-date-display" style="font-size: 1.05rem; color: #0284c7; display: block; margin-top: 4px;">
+                            {{ req.plannings[0].planned_for.strftime('%d/%m/%Y') }}
+                        </strong>
+                    </li>
+                    {% endif %}
                 </ul>
             </div>
 
