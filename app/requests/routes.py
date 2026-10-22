@@ -372,6 +372,7 @@ def state_admin_dashboard():
     from app.models.reason_model import Reason
 
     blocking_closure_req = get_blocking_closure_request_for_user(current_user.id)
+
     reschedule_reasons = []
     if blocking_closure_req:
         reschedule_reasons = Reason.query.order_by(Reason.id.asc()).all()
@@ -1366,3 +1367,111 @@ def satisfaction_survey(request_id):
         form=form,
         req=req
     )
+
+
+# ---------------------------------------------------------------------------
+# Endpoints API: Bitácora de Seguimiento Transversal (US-45)
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/api/requests/<int:id>/tracking-note', methods=['POST'])
+@login_required
+def api_add_tracking_note(id):
+    """
+    Endpoint AJAX para registrar una observación o nota humana en la bitácora transversal (US-45).
+    Aplica verificación estricta Anti-IDOR (solicitante del plantel, facilitador regional o super_admin)
+    y sanitización contra inyecciones XSS.
+    """
+    from app.models.request_model import Request
+    from app.requests.services import get_admin_state_id, add_tracking_note
+
+    req = Request.query.get(id)
+    if not req:
+        return jsonify({'success': False, 'message': 'Expediente no encontrado.'}), 404
+
+    # Verificación de roles y jurisdicción (Anti-IDOR)
+    user_roles = [assoc.role.name for assoc in current_user.roles_assoc] if current_user.roles_assoc else []
+    is_super_admin = 'super_admin' in user_roles
+    is_state_admin = 'state_admin' in user_roles
+    is_applicant = 'applicant' in user_roles
+
+    if not is_super_admin:
+        if is_state_admin:
+            admin_state_id = get_admin_state_id(current_user)
+            try:
+                req_state_id = req.institutional_staff.institution.parish.municipality.state_id
+            except AttributeError:
+                req_state_id = None
+            if not admin_state_id or req_state_id != admin_state_id:
+                return jsonify({'success': False, 'message': 'Violación territorial: No tiene permiso sobre este expediente.'}), 403
+        elif is_applicant:
+            user = User.query.get(current_user.id)
+            if not user or not user.person or not user.person.institutional_staff:
+                return jsonify({'success': False, 'message': 'No posee afiliación institucional válida.'}), 403
+            user_inst_id = user.person.institutional_staff[0].institution_id
+            if not req.institutional_staff or req.institutional_staff.institution_id != user_inst_id:
+                return jsonify({'success': False, 'message': 'Acceso denegado: El expediente no pertenece a su institución.'}), 403
+        else:
+            return jsonify({'success': False, 'message': 'Rol no autorizado para interactuar en la bitácora.'}), 403
+
+    data = request.get_json(silent=True) or {}
+    message_text = data.get('message', '')
+
+    success, message, note_data = add_tracking_note(
+        request_id=id,
+        note_text=message_text,
+        user=current_user
+    )
+
+    status_code = 201 if success else 400
+    return jsonify({
+        'success': success,
+        'message': message,
+        'note': note_data
+    }), status_code
+
+
+@requests_bp.route('/api/requests/<int:id>/trackings', methods=['GET'])
+@login_required
+def api_get_request_trackings(id):
+    """
+    Endpoint AJAX para recuperar la cronología completa de la bitácora en JSON (US-45).
+    Aplica verificación estricta Anti-IDOR.
+    """
+    from app.models.request_model import Request
+    from app.requests.services import get_admin_state_id, get_request_timeline
+
+    req = Request.query.get(id)
+    if not req:
+        return jsonify({'success': False, 'message': 'Expediente no encontrado.'}), 404
+
+    # Verificación de roles y jurisdicción (Anti-IDOR)
+    user_roles = [assoc.role.name for assoc in current_user.roles_assoc] if current_user.roles_assoc else []
+    is_super_admin = 'super_admin' in user_roles
+    is_state_admin = 'state_admin' in user_roles
+    is_applicant = 'applicant' in user_roles
+
+    if not is_super_admin:
+        if is_state_admin:
+            admin_state_id = get_admin_state_id(current_user)
+            try:
+                req_state_id = req.institutional_staff.institution.parish.municipality.state_id
+            except AttributeError:
+                req_state_id = None
+            if not admin_state_id or req_state_id != admin_state_id:
+                return jsonify({'success': False, 'message': 'Violación territorial: No tiene permiso sobre este expediente.'}), 403
+        elif is_applicant:
+            user = User.query.get(current_user.id)
+            if not user or not user.person or not user.person.institutional_staff:
+                return jsonify({'success': False, 'message': 'No posee afiliación institucional válida.'}), 403
+            user_inst_id = user.person.institutional_staff[0].institution_id
+            if not req.institutional_staff or req.institutional_staff.institution_id != user_inst_id:
+                return jsonify({'success': False, 'message': 'Acceso denegado: El expediente no pertenece a su institución.'}), 403
+        else:
+            return jsonify({'success': False, 'message': 'Rol no autorizado para consultar la bitácora.'}), 403
+
+    timeline = get_request_timeline(id)
+    return jsonify({
+        'success': True,
+        'trackings': timeline,
+        'count': len(timeline)
+    }), 200
