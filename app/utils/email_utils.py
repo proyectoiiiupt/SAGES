@@ -876,3 +876,115 @@ def send_request_cancelled_email(
     return True
 
 
+def send_request_rescheduled_email(
+    to_email: str,
+    full_name: str,
+    institution_name: str,
+    request_code: str,
+    new_planned_date: str,
+    reason_name: str,
+    justification: str = None
+) -> bool:
+    """
+    Envía notificación formal por correo electrónico cuando la fecha de una jornada formativa
+    es reprogramada por causa mayor o imprevistos de fuerza mayor (US-42 / SR-F-022).
+    """
+    import html
+    safe_name = html.escape(full_name)
+    safe_institution = html.escape(institution_name)
+    safe_code = html.escape(request_code)
+    safe_new_date = html.escape(new_planned_date)
+    safe_reason = html.escape(reason_name)
+    safe_justification = html.escape(justification.strip()) if justification else ""
+
+    subject = f"Reprogramación de Fecha: Jornada Formativa - Solicitud {safe_code}"
+
+    text_content = f"""Estimado/a {safe_name},
+
+Le informamos que la jornada formativa de su solicitud {safe_code} para la institución {safe_institution} ha sido REPROGRAMADA formalmente ante imprevistos sobrevenidos o de fuerza mayor.
+
+Nueva Fecha Pautada: {safe_new_date}
+Motivo Oficial: {safe_reason}
+Justificación Técnica: {safe_justification}
+
+Agradecemos actualizar su agenda institucional y coordinar la logística correspondiente para recibir al equipo facilitador en esta nueva fecha.
+
+Sistema de Gestión de Solicitudes SAGES - CORPOELEC.
+"""
+
+    logo_html = get_logo_html()
+
+    html_content = f"""<!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <title>{subject}</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9fafb; color: #1f2937;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb; overflow: hidden;">
+            <tr>
+                <td style="height: 6px; background: linear-gradient(90deg, #1c3d73 0%, #1fcab0 100%);"></td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 40px 20px 20px 20px;">
+                    {logo_html}
+                    <h1 style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.5;">Sistema de Gestión de Solicitudes de Formación</h1>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 0 40px;">
+                    <h2 style="font-size: 20px; font-weight: 700; color: #b45309; margin: 10px 0 20px 0; text-transform: uppercase; letter-spacing: 0.5px;">AVISO DE REPROGRAMACIÓN DE JORNADA</h2>
+                    <p style="font-size: 15px; color: #4b5563; margin: 0 0 10px 0; line-height: 1.5; text-align: left;">Estimado/a <strong>{safe_name}</strong>,</p>
+                    <p style="font-size: 15px; color: #4b5563; margin: 0 0 16px 0; line-height: 1.5; text-align: left;">
+                        Le notificamos que la jornada formativa correspondiente a la solicitud <strong>{safe_code}</strong> para el plantel <strong>{safe_institution}</strong> ha sido reprogramada formalmente en nuestro cronograma institucional.
+                    </p>
+
+                    <!-- Banner de Nueva Fecha -->
+                    <div style="background-color: #fefce8; border: 1px solid #fef08a; border-radius: 8px; padding: 18px; margin: 20px 0; text-align: center;">
+                        <span style="display: block; font-size: 13px; color: #854d0e; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Nueva Fecha Fijada para la Visita</span>
+                        <strong style="display: block; font-size: 24px; color: #a16207; margin-top: 6px;">{safe_new_date}</strong>
+                    </div>
+
+                    <!-- Ficha del Motivo Oficial -->
+                    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 18px; margin: 0 0 16px 0; text-align: left;">
+                        <span style="display: block; font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase;">Causa de Contingencia:</span>
+                        <strong style="display: block; font-size: 14px; color: #1e293b; margin-top: 2px;">{safe_reason}</strong>
+                    </div>
+
+                    <!-- Recuadro de Justificación Técnica -->
+                    {f'''
+                    <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; border-radius: 4px; padding: 12px 16px; margin: 0 0 20px 0; text-align: left;">
+                        <strong style="color: #92400e; font-size: 13px;">Explicación Técnica Circunstanciada:</strong>
+                        <p style="margin: 6px 0 0 0; color: #475569; font-size: 14px; line-height: 1.5; white-space: pre-line;">{safe_justification}</p>
+                    </div>
+                    ''' if safe_justification else ''}
+
+                    <p style="font-size: 14px; color: #64748b; margin: 20px 0 25px 0; line-height: 1.5; text-align: left;">
+                        Agradecemos realizar los ajustes correspondientes en la disponibilidad de sus instalaciones y la convocatoria de los participantes.
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 20px 40px 30px 40px;">
+                    <hr style="border: 0; border-top: 1px solid #e5e7eb; margin-bottom: 20px;">
+                    <p style="font-size: 12px; color: #9ca3af; line-height: 1.6; margin: 0; text-align: justify;">
+                        Por favor, no responda a este correo automatizado. Para consultas operativas, contacte a su coordinación estadal de CORPOELEC.
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
+                    &copy; 2026 SAGES &mdash; CORPOELEC. Todos los derechos reservados.
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+
+    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content))
+    thread.start()
+    return True
+
+
+

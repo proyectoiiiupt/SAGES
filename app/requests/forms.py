@@ -145,3 +145,41 @@ class PlanTrainingForm(FlaskForm):
                 raise ValidationError("La fecha supera el ANS de 10 días. Debe seleccionar un motivo de retraso.")
             if not self.delay_justification.data or len(self.delay_justification.data.strip()) < 20:
                 raise ValidationError("La fecha supera el ANS de 10 días. Debe proporcionar una justificación válida (mín. 20 caracteres).")
+
+
+class RescheduleRequestForm(FlaskForm):
+    """
+    Formulario para la reprogramación técnica de fecha por contingencia o causa mayor (US-42 / SR-F-022).
+    Exige una nueva fecha estrictamente futura en día hábil, selección de motivo del catálogo oficial
+    (sages.reasons) y una justificación técnica circunstanciada (mínimo 20 caracteres reales).
+    """
+    new_planned_for = DateField(
+        'Nueva Fecha de Formación',
+        validators=[DataRequired(message="Debe seleccionar una nueva fecha para la jornada.")]
+    )
+    reason_id = SelectField(
+        'Motivo de la Reprogramación',
+        coerce=coerce_optional_int,
+        validators=[DataRequired(message="Debe seleccionar un motivo válido del catálogo oficial.")]
+    )
+    justification = TextAreaField(
+        'Justificación Circunstanciada',
+        validators=[
+            DataRequired(message="La justificación técnica de la contingencia es obligatoria."),
+            Length(min=20, max=1000, message="La justificación debe tener entre 20 y 1000 caracteres.")
+        ]
+    )
+
+    def validate_new_planned_for(self, field):
+        if not field.data:
+            return
+        if field.data <= date.today():
+            raise ValidationError("La nueva fecha debe ser estrictamente posterior al día de hoy.")
+        if field.data.weekday() >= 5:  # 5 es Sábado, 6 es Domingo
+            raise ValidationError("La fecha debe ser un día hábil (lunes a viernes).")
+
+    def validate_justification(self, field):
+        text_val = (field.data or '').strip()
+        if len(text_val) < 20:
+            raise ValidationError("La justificación circunstanciada debe contener al menos 20 caracteres válidos.")
+
