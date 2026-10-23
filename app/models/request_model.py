@@ -7,11 +7,13 @@ class Request(db.Model):
     __table_args__ = (
         Index('uq_request_anti_duplicidad', 'institutional_staff_id', 'training_id', 
               unique=True, postgresql_where=text("historical = false")),
+        Index('uq_requests_verification_token', 'verification_token', unique=True),
         {'schema': 'sages'}
     )
 
     id = db.Column(db.BigInteger, primary_key=True)
     request_code = db.Column(db.String(50), unique=True, nullable=False)
+    verification_token = db.Column(db.String(64), unique=True, nullable=True, index=True)
     institutional_staff_id = db.Column(db.BigInteger, db.ForeignKey('sages.institutional_staff.id'), nullable=False)
     training_id = db.Column(db.BigInteger, db.ForeignKey('sages.trainings.id'), nullable=False)
     description = db.Column(db.Text, nullable=False)
