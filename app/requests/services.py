@@ -121,6 +121,7 @@ def create_training_request(user_id: int, training_id: int, description: str) ->
         
     # 3. Transacción atómica
     try:
+        from app.utils.qr_generator import generate_verification_token
         new_request = Request(
             request_code=_generate_request_code(),
             institutional_staff_id=institutional_staff_id,
@@ -130,6 +131,8 @@ def create_training_request(user_id: int, training_id: int, description: str) ->
             historical=False
         )
         db.session.add(new_request)
+        db.session.flush()
+        new_request.verification_token = generate_verification_token(new_request.request_code, new_request.id)
         db.session.commit()
         
         # 4. Compilación de PDF y Despacho Asíncrono de Correo
@@ -3360,3 +3363,128 @@ def log_system_milestone(request_id: int, message_text: str, user_id: int = None
         db.session.rollback()
         logger.error(f"Error al registrar hito del sistema (request_id={request_id}): {e}", exc_info=True)
         return False
+
+
+# ---------------------------------------------------------------------------
+# Portal Público de Validación de Autenticidad QR (US-52)
+# ---------------------------------------------------------------------------
+
+def validate_document_qr_token(token: str) -> dict | None:
+    """
+    US-52: Portal Público de Verificación de Autenticidad mediante Código QR.
+    Consulta relacional ultrarrápida filtrando por verification_token indexado (uq_requests_verification_token).
+    Aplica carga ansiosa profunda (joinedload) en un solo viaje a la base de datos (< 20 ms).
+    Retorna un diccionario estructurado y sanitizado con datos públicos institucionales,
+    garantizando ofuscación estricta de datos sensibles (cero cédulas, teléfonos o correos privados).
+    Si el token no existe o no coincide, retorna None.
+    """
+    if not token or len(token) != 64:
+        return None
+
+    from app.models.training_module_model import TrainingModule
+    from app.models.person_model import Person
+
+    req = db.session.query(Request).options(
+        joinedload(Request.status),
+        joinedload(Request.training).joinedload(Training.training_module),
+        joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.institution).joinedload(Institution.parish).joinedload(Parish.municipality).joinedload(Municipality.state),
+        joinedload(Request.attended_by).joinedload(User.person),
+        joinedload(Request.plannings)
+    ).filter(Request.verification_token == token).first()
+
+    if not req:
+        return None
+
+    # Zona horaria de Venezuela (UTC-4)
+    vzla_tz = timezone(timedelta(hours=-4))
+
+    # 1. Datos de la Institución Educativa
+    institution = None
+    if req.institutional_staff and req.institutional_staff.institution:
+        institution = req.institutional_staff.institution
+
+    inst_name = institution.institution_name if institution else "Institución Educativa No Especificada"
+    plantel_code = getattr(institution, 'plantel_code', None) or "No asignado"
+
+    parish_name = "No especificada"
+    muni_name = "No especificado"
+    state_name = "Nacional"
+    if institution and institution.parish:
+        parish_name = institution.parish.name or "No especificada"
+        if institution.parish.municipality:
+            muni_name = institution.parish.municipality.name or "No especificado"
+            if institution.parish.municipality.state:
+                state_name = institution.parish.municipality.state.name or "Nacional"
+
+    # 2. Datos Formativos
+    training_name = req.training.name if req.training else "Formación en Uso Eficiente de la Energía"
+    module_name = req.training.training_module.name if (req.training and req.training.training_module) else "Programa Rector UREE"
+
+    # 3. Estatus Operativo Institucional
+    status_code = req.status.status_code if req.status else "STAT-003"
+    status_name = req.status.status_name if req.status else "Nuevo"
+
+    status_badges = {
+        'STAT-003': ('badge-nuevo', 'Nuevo'),
+        'STAT-004': ('badge-pendiente', 'Pendiente'),
+        'STAT-005': ('badge-planificada', 'Planificada'),
+        'STAT-006': ('badge-proceso', 'En Proceso'),
+        'STAT-007': ('badge-completado', 'Completado'),
+        'STAT-008': ('badge-rechazado', 'Rechazado'),
+        'STAT-009': ('badge-cancelado', 'Cancelado')
+    }
+    badge_class, _ = status_badges.get(status_code, ('badge-info', status_name))
+
+    # 4. Fechas Oficiales Formateadas
+    MONTHS_ES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", 
+                 "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+
+    def _fmt_date(dt):
+        if not dt:
+            return None
+        dt_local = dt.astimezone(vzla_tz) if dt.tzinfo else dt
+        return f"{dt_local.day} de {MONTHS_ES[dt_local.month - 1]} del {dt_local.year}"
+
+    official_date_label = "Fecha Oficial de Radicación"
+    if req.finished_at and status_code == 'STAT-007':
+        official_date_str = _fmt_date(req.finished_at)
+        official_date_label = "Fecha Oficial de Culminación"
+    elif req.created_at:
+        official_date_str = _fmt_date(req.created_at)
+        official_date_label = "Fecha Oficial de Radicación"
+    else:
+        official_date_str = "Fecha no registrada"
+
+    # 5. Facilitador o Coordinación Responsable UREE
+    facilitator_name = None
+    if req.attended_by and req.attended_by.person:
+        p = req.attended_by.person
+        facilitator_name = f"{p.first_name or ''} {p.last_name or ''}".strip()
+    elif req.attended_by:
+        facilitator_name = req.attended_by.user_name
+
+    # Formateo estético del token para la credencial (bloques de 4 caracteres)
+    token_upper = token[:16].upper()
+    formatted_token = f"{token_upper[:4]}-{token_upper[4:8]}-{token_upper[8:12]}-{token_upper[12:16]}"
+
+    return {
+        'request_code': req.request_code,
+        'institution_name': inst_name,
+        'plantel_code': plantel_code,
+        'location': f"{state_name} / {muni_name} / {parish_name}",
+        'state_name': state_name,
+        'municipality_name': muni_name,
+        'parish_name': parish_name,
+        'training_name': training_name,
+        'module_name': module_name,
+        'status_code': status_code,
+        'status_name': status_name,
+        'status_badge_class': badge_class,
+        'official_date': official_date_str,
+        'official_date_label': official_date_label,
+        'facilitator_name': facilitator_name or "Coordinación Estadal UREE",
+        'responsible_office': f"Gerencia General de UREE — Coordinación {state_name}",
+        'token_display': formatted_token,
+        'is_completed': (status_code == 'STAT-007')
+    }
+

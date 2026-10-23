@@ -1475,3 +1475,60 @@ def api_get_request_trackings(id):
         'trackings': timeline,
         'count': len(timeline)
     }), 200
+
+
+# ---------------------------------------------------------------------------
+# Portal Público de Validación de Autenticidad QR (US-52)
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/verify/<string:token>', methods=['GET'])
+@limiter.limit("30 per minute")
+def verify_document_token(token: str):
+    """
+    US-52: Portal público y ligero de certificación de autenticidad documental mediante Código QR.
+    - Acceso abierto sin sesión (@login_required OMITIDO).
+    - Rate limiting estricto por IP (máximo 30 peticiones/minuto) para mitigar fuerza bruta / scraping.
+    - Validación rápida de formato hexadecimal de 64 caracteres (fast-fail).
+    - Renderiza credencial institucional verde si el documento es genuino (HTTP 200).
+    - Renderiza alerta roja institucional si el token es inexistente o fue alterado (HTTP 404).
+    """
+    import re
+    from datetime import datetime, timezone, timedelta
+    from app.requests.services import validate_document_qr_token
+
+    # Marca de tiempo de la consulta en tiempo real (Hora legal de Venezuela UTC-4)
+    vzla_tz = timezone(timedelta(hours=-4))
+    now_vzla = datetime.now(vzla_tz)
+    query_timestamp = now_vzla.strftime("%d/%m/%Y a las %I:%M:%S %p")
+
+    # 1. Fast-Fail: Validación sintáctica de 64 caracteres alfanuméricos hexadecimales
+    clean_token = (token or '').strip()
+    if not re.fullmatch(r'^[a-fA-F0-9]{64}$', clean_token):
+        return render_template(
+            'public/verify_document.html',
+            is_valid=False,
+            token=clean_token,
+            query_timestamp=query_timestamp,
+            error_message="El formato del código escaneado no cumple con el estándar criptográfico institucional."
+        ), 404
+
+    # 2. Búsqueda indexada en base de datos
+    document_data = validate_document_qr_token(clean_token)
+
+    # 3. Respuesta según legitimidad
+    if not document_data:
+        return render_template(
+            'public/verify_document.html',
+            is_valid=False,
+            token=clean_token,
+            query_timestamp=query_timestamp,
+            error_message="El código de verificación escaneado no corresponde a ningún registro auténtico emitido por la Corporación Eléctrica Nacional (CORPOELEC). Si sospecha de una falsificación, comuníquese con la Gerencia General de UREE."
+        ), 404
+
+    return render_template(
+        'public/verify_document.html',
+        is_valid=True,
+        doc=document_data,
+        query_timestamp=query_timestamp
+    ), 200
+
