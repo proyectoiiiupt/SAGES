@@ -9,6 +9,8 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/request_planning.css') }}">
 <!-- Estilos específicos del Espacio de Trabajo Activo -->
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_workspace.css') }}?v=3.1">
+<!-- Estilos modulares de la Zona de Evidencias Digitales -->
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_evidences.css') }}?v=1.0">
 <!-- Bitácora de seguimiento transversal -->
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/tracking_timeline.css') }}">
 {% endblock %}
@@ -249,15 +251,29 @@
                 </li>
             </ul>
 
-            <!-- Botón para Cargar Archivos (Inactivo por ahora, reservado para modal en otra tarea) -->
-            <div class="ws-attach-btn-wrap">
-                <button type="button" class="ws-btn-attach-file" id="btn-attach-file-placeholder">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+            <!-- Botonera de Acción de Evidencias (US-46) -->
+            <div class="ws-evidence-actions-wrap">
+                {% if is_owner and req.status.status_code == 'STAT-006' and not req.historical %}
+                <button type="button" class="ws-btn-attach-file" id="btn-open-upload-modal" title="Adjuntar fotografías o actas de ejecución">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
                     </svg>
                     <span>Adjuntar Evidencia</span>
                 </button>
+                {% endif %}
+
+                <button type="button" class="ws-btn-view-evidences" id="btn-open-gallery-modal" title="Ver galería de evidencias probatorias">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    <span>Ver Evidencias</span>
+                    <span class="ws-counter-pill" id="ws-evidence-pill">{{ (ctx.evidences|length) if (ctx and ctx.evidences) else 0 }}</span>
+                </button>
             </div>
+
 
             <!-- Botón de Cierre Directo -->
             <div class="ws-closure-footer">
@@ -401,6 +417,13 @@
         {% include 'requests/partials/_reschedule_modal.html' %}
     {% endif %}
 
+    <!-- Modales de Carga Drag & Drop y Galería de Evidencias (US-46) -->
+    {% include 'requests/partials/_evidence_dropzone.html' %}
+
+    <!-- Modal de Inspección Forense de Evidencias Digitales (US-45 / US-46) -->
+    {% include 'requests/partials/_evidence_modal.html' %}
+
+
 </div>
 {% endblock %}
 
@@ -413,4 +436,6 @@
 <script src="{{ url_for('static', filename='js/requests_process_inbox.js') }}"></script>
 <!-- Script transversal de interactividad de la Bitácora de Seguimiento (US-45) -->
 <script src="{{ url_for('static', filename='JS/tracking_timeline.js') }}"></script>
+<!-- Controlador reactivo de Drag & Drop y Evidencias Digitales (US-46) -->
+<script src="{{ url_for('static', filename='JS/requests_evidences.js') }}?v=1.0"></script>
 {% endblock %}

@@ -1,0 +1,973 @@
+/* ==========================================================================
+   REQUESTS EVIDENCES - ZONA DRAG & DROP Y GALERÍA DOCUMENTAL
+   Estilos específicos, modulares y desacoplados para el módulo de evidencias
+   ========================================================================== */
+
+/* 1. Botonera Compacta en la Tarjeta del Espacio de Trabajo (Bento Sidebar) */
+.ws-evidence-actions-wrap {
+    display: flex;
+    gap: 8px;
+    margin: 1rem 0 0.5rem 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.ws-btn-attach-file {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 8px 12px;
+    background-color: #019577;
+    color: #ffffff !important;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(1, 149, 119, 0.2);
+    text-decoration: none;
+}
+
+.ws-btn-attach-file:hover {
+    background-color: #017a61;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(1, 149, 119, 0.3);
+}
+
+.ws-btn-view-evidences {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 8px 12px;
+    background-color: #ffffff;
+    color: #334155 !important;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    text-decoration: none;
+}
+
+.ws-btn-view-evidences:hover {
+    background-color: #f8fafc;
+    border-color: #94a3b8;
+    color: #0f172a !important;
+    transform: translateY(-1px);
+}
+
+.ws-counter-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #e2e8f0;
+    color: #334155;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 9999px;
+    margin-left: 2px;
+}
+
+.evidence-management-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* 2. Zona Interactiva Drag & Drop */
+.evidence-dropzone {
+    border: 2px dashed #94a3b8;
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 1.75rem 1.25rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+    user-select: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.evidence-dropzone:hover {
+    border-color: #019577;
+    background: #f0fdf9;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(1, 149, 119, 0.08);
+}
+
+.evidence-dropzone:focus-visible {
+    border-color: #019577;
+    box-shadow: 0 0 0 3px rgba(1, 149, 119, 0.2);
+}
+
+.evidence-dropzone.dragover {
+    border-color: #019577;
+    background: #ecfdf5;
+    border-style: solid;
+    transform: scale(1.01);
+    box-shadow: 0 8px 20px rgba(1, 149, 119, 0.15);
+}
+
+.evidence-dz-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.65rem;
+    pointer-events: none;
+}
+
+.evidence-dz-icon-box {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: #e6f6f2;
+    color: #019577;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.25s ease, background 0.25s ease;
+}
+
+.evidence-dropzone:hover .evidence-dz-icon-box,
+.evidence-dropzone.dragover .evidence-dz-icon-box {
+    transform: scale(1.08);
+    background: #019577;
+    color: #ffffff;
+}
+
+.evidence-dz-text-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.evidence-dz-title {
+    margin: 0;
+    font-size: 0.98rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.evidence-dz-subtitle {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.evidence-dz-action-text {
+    color: #019577;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.evidence-dz-hint {
+    font-size: 0.76rem;
+    color: #94a3b8;
+    margin-top: 0.2rem;
+    display: block;
+}
+
+/* 3. Banner de Bloqueo / Modo Supervisión / Modo Histórico */
+.evidence-dropzone-locked {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    color: #475569;
+    font-size: 0.86rem;
+}
+
+.evidence-locked-content {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    color: #475569;
+}
+
+.evidence-locked-content svg {
+    flex-shrink: 0;
+    stroke: #64748b;
+}
+
+/* 4. Barra de Progreso de Subida Reactiva */
+.evidence-upload-progress {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    animation: fadeIn 0.2s ease;
+}
+
+.evidence-progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.82rem;
+}
+
+.evidence-progress-name {
+    color: #334155;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 80%;
+}
+
+.evidence-progress-percentage {
+    color: #019577;
+    font-weight: 700;
+}
+
+.evidence-progress-track {
+    width: 100%;
+    height: 6px;
+    background: #f1f5f9;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.evidence-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #019577, #10b981);
+    width: 0%;
+    border-radius: 3px;
+    transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 5. Cabecera de la Galería de Custodia */
+.evidence-gallery-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.evidence-gallery-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.evidence-gallery-title-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #1e293b;
+}
+
+.evidence-gallery-title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+/* 6. Cuadrícula de Tarjetas de Evidencias */
+.evidence-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* 7. Tarjeta Individual de Evidencia */
+.evidence-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s;
+    position: relative;
+}
+
+.evidence-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+    border-color: #cbd5e1;
+}
+
+.evidence-card.card-enter {
+    animation: cardFadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.evidence-card.card-exit {
+    animation: cardFadeOut 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Área de Previsualización / Viewport de la Tarjeta */
+.evidence-card-preview {
+    height: 110px;
+    width: 100%;
+    background: #f8fafc;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.evidence-card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.evidence-card:hover .evidence-card-img {
+    transform: scale(1.05);
+}
+
+.evidence-card-pdf-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    background: linear-gradient(135deg, #fff1f2 0%, #fee2e2 100%);
+    transition: background 0.2s ease;
+}
+
+.evidence-card:hover .evidence-card-pdf-placeholder {
+    background: linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%);
+}
+
+.evidence-pdf-badge {
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: #dc2626;
+    letter-spacing: 0.5px;
+}
+
+/* Overlay Interactivo al Hover */
+.evidence-card-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.65);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    backdrop-filter: blur(2px);
+    color: #ffffff;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.evidence-card-preview:hover .evidence-card-overlay {
+    opacity: 1;
+}
+
+/* Metadatos de la Tarjeta */
+.evidence-card-meta {
+    padding: 9px 10px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex-grow: 1;
+}
+
+.evidence-card-filename {
+    margin: 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.evidence-card-subinfo {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.evidence-format-pill {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.3px;
+}
+
+.evidence-format-pill.pill-pdf {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.evidence-format-pill.pill-image {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.evidence-weight-text {
+    font-size: 0.74rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.evidence-date-text {
+    font-size: 0.70rem;
+    color: #94a3b8;
+    margin-top: 1px;
+}
+
+/* Acciones de la Tarjeta (Descarga y Eliminación) */
+.evidence-card-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    padding: 6px 10px;
+    border-top: 1px solid #f1f5f9;
+    background: #fafbfc;
+}
+
+.evidence-action-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    text-decoration: none;
+}
+
+.evidence-action-btn.btn-download {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.evidence-action-btn.btn-download:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+    transform: translateY(-1px);
+}
+
+.evidence-action-btn.btn-delete {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.evidence-action-btn.btn-delete:hover {
+    background: #fca5a5;
+    color: #991b1b;
+    transform: translateY(-1px);
+}
+
+/* 8. Estado Vacío de la Galería */
+.evidence-empty-state {
+    padding: 2.25rem 1.25rem;
+    text-align: center;
+    background: #f8fafc;
+    border: 1px dashed #e2e8f0;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.evidence-empty-icon-wrap {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    background: #f1f5f9;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.35rem;
+}
+
+.evidence-empty-title {
+    margin: 0;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #334155;
+}
+
+.evidence-empty-desc {
+    margin: 0;
+    font-size: 0.82rem;
+    color: #64748b;
+    max-width: 380px;
+    line-height: 1.4;
+}
+
+/* 9. Animaciones */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes cardFadeIn {
+    from { opacity: 0; transform: scale(0.92) translateY(6px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes cardFadeOut {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0; transform: scale(0.9) translateY(4px); }
+}
+
+/* 10. Responsividad en Pantallas Pequeñas */
+@media (max-width: 640px) {
+    .evidence-gallery-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .evidence-dropzone {
+        padding: 1.25rem 0.85rem;
+    }
+
+    .evidence-card-preview {
+        height: 95px;
+    }
+}
+
+/* 11. Modales Dedicados: Carga Drag & Drop y Galería Documental */
+.evidence-popup-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9990;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+.evidence-popup-backdrop.show {
+    display: flex !important;
+    opacity: 1;
+    visibility: visible;
+}
+
+.evidence-popup-dialog {
+    background: #ffffff;
+    border-radius: 12px;
+    width: 100%;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    transform: translateY(12px) scale(0.98);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.evidence-popup-backdrop.show .evidence-popup-dialog {
+    transform: translateY(0) scale(1);
+}
+
+.evidence-popup-dialog-upload {
+    max-width: 540px;
+    border-radius: 16px;
+}
+
+.evidence-popup-dialog-gallery {
+    max-width: 820px;
+}
+
+/* Cabecera Estilo Pre-Registro con Gradiente */
+.evidence-modal-header-gradient {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.15rem 1.5rem;
+    background: linear-gradient(90deg, #1fcab0, #1c3d73);
+    position: relative;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+}
+
+.evidence-modal-header-gradient h5 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #ffffff;
+    text-align: center;
+}
+
+.evidence-modal-header-gradient .evidence-popup-close {
+    position: absolute;
+    right: 1.25rem;
+    color: #ffffff;
+    font-size: 1.4rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 2px 6px;
+    transition: background 0.2s;
+}
+
+.evidence-modal-header-gradient .evidence-popup-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+}
+
+.evidence-popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e2e8f0;
+    background-color: #f8fafc;
+}
+
+.evidence-popup-title-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.evidence-popup-title-group h5 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.evidence-popup-close {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: #64748b;
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 2px 8px;
+    transition: all 0.15s ease;
+}
+
+.evidence-popup-close:hover {
+    color: #0f172a;
+    background-color: #e2e8f0;
+}
+
+.evidence-popup-body {
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-height: calc(90vh - 75px);
+}
+
+/* Info Alert como en Pre-Registro */
+.evidence-info-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    background: rgba(31, 202, 176, 0.08);
+    border: 1px solid rgba(31, 202, 176, 0.25);
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 0.25rem;
+}
+
+.evidence-info-alert svg {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    color: #1fcab0;
+    margin-top: 1px;
+}
+
+.evidence-info-alert p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #334155;
+    line-height: 1.45;
+}
+
+/* Dropzone idle & preview como en Pre-Registro */
+.evidence-dz-box {
+    border: 2px dashed #cbd5e1;
+    border-radius: 14px;
+    padding: 1.75rem 1.25rem;
+    text-align: center;
+    cursor: pointer;
+    background: #f9fafb;
+    transition: all 0.2s ease;
+}
+
+.evidence-dz-box:hover,
+.evidence-dz-box.dragover {
+    border-color: #1fcab0;
+    background: rgba(31, 202, 176, 0.04);
+}
+
+.evidence-dz-icon-circle {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    background: rgba(31, 202, 176, 0.1);
+    color: #1fcab0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+}
+
+.evidence-dz-icon-circle.icon-ok {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10b981;
+}
+
+.evidence-dz-clear-btn {
+    background: none;
+    border: none;
+    color: #ef4444;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+    margin-top: 0.5rem;
+}
+
+.evidence-dz-clear-btn:hover {
+    color: #dc2626;
+}
+
+/* Botón Confirmar Archivo */
+.btn-confirm-upload {
+    padding: 8px 18px;
+    background: linear-gradient(90deg, #1fcab0, #019577);
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(1, 149, 119, 0.25);
+}
+
+.btn-confirm-upload:hover:not(:disabled) {
+    background: linear-gradient(90deg, #17b39c, #017a61);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(1, 149, 119, 0.35);
+}
+
+.btn-confirm-upload:disabled {
+    background: #cbd5e1 !important;
+    color: #94a3b8 !important;
+    cursor: not-allowed !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+.evidence-popup-footer-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.btn-popup-upload-more {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background-color: #019577;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-popup-upload-more:hover {
+    background-color: #017a61;
+}
+
+.btn-view-evidences-link {
+    background: none;
+    border: none;
+    color: #019577;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    transition: background 0.15s ease;
+}
+
+.btn-view-evidences-link:hover {
+    background-color: #e6f6f2;
+    text-decoration: underline;
+}
+
+/* SweetAlert2 siempre por encima de cualquier modal */
+.swal2-container {
+    z-index: 100050 !important;
+}
+
+/* 12. Modal de Vista Previa Responsivo (Swal2 Preview) */
+.swal2-evidence-preview-popup {
+    width: 94vw !important;
+    max-width: 860px !important;
+    border-radius: 14px !important;
+    padding: 1.25rem 1.25rem 1rem 1.25rem !important;
+    box-sizing: border-box !important;
+}
+
+.evidence-preview-frame-wrap {
+    margin-top: 10px;
+    width: 100%;
+    height: 60vh;
+    min-height: 320px;
+    max-height: 520px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+}
+
+.evidence-preview-frame-wrap iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+}
+
+.evidence-preview-img-wrap {
+    margin-top: 10px;
+    width: 100%;
+    height: 60vh;
+    min-height: 250px;
+    max-height: 520px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #cbd5e1;
+    background: #0f172a;
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+.evidence-preview-img-wrap img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 4px;
+}
+
+.evidence-preview-meta-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #e2e8f0;
+    font-size: 13px;
+    color: #64748b;
+}
+
+.evidence-preview-meta-text {
+    font-weight: 600;
+    color: #1e293b;
+    word-break: break-all;
+}
+
+.evidence-preview-download-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #019577;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.15s ease;
+}
+
+.evidence-preview-download-link:hover {
+    color: #017a61;
+    text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+    .swal2-evidence-preview-popup {
+        width: 96vw !important;
+        padding: 0.85rem 0.75rem 0.75rem 0.75rem !important;
+    }
+
+    .swal2-evidence-preview-popup .swal2-title {
+        font-size: 1.05rem !important;
+        padding: 0 0 0.4rem 0 !important;
+    }
+
+    .evidence-preview-frame-wrap {
+        height: 52vh;
+        min-height: 260px;
+    }
+
+    .evidence-preview-img-wrap {
+        height: 48vh;
+        min-height: 200px;
+        padding: 6px;
+    }
+
+    .evidence-preview-meta-footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+        font-size: 12px;
+    }
+}
+
+
+
