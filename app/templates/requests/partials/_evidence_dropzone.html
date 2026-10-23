@@ -1,0 +1,255 @@
+{#
+    _evidence_dropzone.html
+    -----------------------
+    Componente modular institucional de Zona Drag & Drop y Galería de Custodia Documental.
+#}
+
+<div class="evidence-management-container" id="evidence-management-container" 
+     data-request-id="{{ req.id }}" 
+     data-can-upload="{{ 'true' if (is_owner and req.status.status_code == 'STAT-006' and not req.historical) else 'false' }}">
+
+    <!-- ===================================================================== -->
+    <!-- 1. MODAL DE CARGA: ESTILO PRE-REGISTRO (#evidenceUploadModal)          -->
+    <!-- ===================================================================== -->
+    {% if is_owner and req.status.status_code == 'STAT-006' and not req.historical %}
+    <div class="evidence-popup-backdrop" id="evidenceUploadModal" role="dialog" aria-modal="true" style="display: none;">
+        <div class="evidence-popup-dialog evidence-popup-dialog-upload">
+            <!-- Cabecera Gradiente con Título y Botón Cerrar -->
+            <div class="evidence-modal-header-gradient">
+                <h5>Adjuntar Evidencia</h5>
+                <button type="button" class="evidence-popup-close" id="btn-close-upload-modal" aria-label="Cerrar modal">&times;</button>
+            </div>
+            
+            <div class="evidence-popup-body">
+                <!-- Tooltip Informativo Estilo Pre-Registro -->
+                <div class="evidence-info-alert">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p>Para certificar la ejecución de la formación presencial, adjunte fotografías (.jpg, .png) o el acta de culminación firmada (.pdf) con un peso máximo de 5 MB por archivo.</p>
+                </div>
+
+                <!-- Zona Drag & Drop Interactiva con Estado Idle y Preview -->
+                <div id="evidence-dropzone" class="evidence-dz-box" role="button" tabindex="0" 
+                     aria-label="Arrastre su archivo aquí o haga clic para seleccionar">
+                    
+                    <!-- Estado Idle: Sin archivo seleccionado -->
+                    <div id="dz-idle" class="evidence-dz-content">
+                        <div class="evidence-dz-icon-circle">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="34" height="34" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                            </svg>
+                        </div>
+                        <p class="evidence-dz-title" style="margin:0; font-weight:600; font-size:0.95rem; color:#1f2937;">Arrastre su archivo aquí</p>
+                        <p class="evidence-dz-subtitle" style="margin:2px 0 0 0; font-size:0.83rem; color:#6b7280;">o haga clic para buscar en su dispositivo</p>
+                        <span class="evidence-dz-hint" style="margin-top:4px; font-size:0.75rem; color:#94a3b8;">PDF, JPG, PNG &bull; Máx. 5MB</span>
+                    </div>
+
+                    <!-- Estado Preview: Archivo cargado pendiente de confirmar (Como en Pre-Registro) -->
+                    <div id="dz-preview" class="evidence-dz-content" style="display: none;">
+                        <div class="evidence-dz-icon-circle icon-ok">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="32" height="32" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                        <p id="dz-file-name" class="evidence-dz-title" style="margin:0; font-weight:700; font-size:0.95rem; color:#0f172a; word-break:break-all;"></p>
+                        <p id="dz-file-size" class="evidence-dz-subtitle" style="margin:2px 0 0 0; font-size:0.82rem; color:#64748b;"></p>
+                        <button type="button" id="btn-dz-clear" class="evidence-dz-clear-btn">Quitar archivo</button>
+                    </div>
+
+                    <!-- Input File Oculto -->
+                    <input type="file" id="evidence-file-input" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" aria-hidden="true">
+                </div>
+
+                <!-- Barra de Progreso de Subida Reactiva -->
+                <div id="evidence-upload-progress" class="evidence-upload-progress" style="display: none; margin-top: 10px;" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                    <div class="evidence-progress-info">
+                        <span id="evidence-upload-filename" class="evidence-progress-name">Subiendo evidencia probatoria...</span>
+                        <span id="evidence-upload-pct" class="evidence-progress-percentage">0%</span>
+                    </div>
+                    <div class="evidence-progress-track">
+                        <div id="evidence-progress-bar" class="evidence-progress-fill" style="width: 0%;"></div>
+                    </div>
+                </div>
+
+                <!-- Footer de Acciones del Modal de Carga -->
+                <div class="evidence-popup-footer-actions" style="margin-top: 14px;">
+                    <button type="button" class="btn-view-evidences-link" id="btn-switch-to-gallery">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                        <span>Ver lista de evidencias</span>
+                    </button>
+
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="btn-clear" id="btn-cancel-upload-modal" style="padding: 8px 16px; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: #475569; font-weight: 500; cursor: pointer;">Cancelar</button>
+                        <button type="button" class="btn-confirm-upload" id="btn-confirm-upload" disabled>Confirmar archivo</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ===================================================================== -->
+    <!-- 2. MODAL DE CONSULTA: GALERÍA DE CUSTODIA PROBATORIA (#evidenceGalleryModal) -->
+    <!-- ===================================================================== -->
+    <div class="evidence-popup-backdrop" id="evidenceGalleryModal" role="dialog" aria-modal="true" style="display: none;">
+        <div class="evidence-popup-dialog evidence-popup-dialog-gallery">
+            <div class="evidence-popup-header">
+                <div class="evidence-popup-title-group">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#019577" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                    <h5>Evidencias Custodiadas del Expediente</h5>
+                    <span class="badge badge-light" id="evidence-gallery-count-badge">
+                        <span id="evidence-count-val">{{ (ctx.evidences|length) if (ctx and ctx.evidences) else 0 }}</span> archivo(s)
+                    </span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    {% if is_owner and req.status.status_code == 'STAT-006' and not req.historical %}
+                    <button type="button" class="btn-popup-upload-more" id="btn-switch-to-upload">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        <span>Adjuntar más</span>
+                    </button>
+                    {% endif %}
+                    <button type="button" class="evidence-popup-close" id="btn-close-gallery-modal" aria-label="Cerrar galería">&times;</button>
+                </div>
+            </div>
+
+            <div class="evidence-popup-body">
+                {% if not (is_owner and req.status.status_code == 'STAT-006' and not req.historical) %}
+                <div class="evidence-dropzone-locked" style="margin-bottom: 12px;">
+                    <div class="evidence-locked-content">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                        <span>
+                            {% if req.historical or req.status.status_code in ['STAT-007', 'STAT-008', 'STAT-009'] %}
+                                Expediente concluido o archivado. La custodia de evidencias probatorias es inmutable.
+                            {% else %}
+                                Modo supervisión: Solo el facilitador titular asignado puede cargar o retirar evidencias.
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Grid de Tarjetas de Evidencias -->
+                <div class="evidence-gallery-grid" id="evidence-gallery-grid">
+                    {% if ctx and ctx.evidences %}
+                        {% for ev in ctx.evidences %}
+                        <div class="evidence-card" id="evidence-card-{{ ev.id }}" data-evidence-id="{{ ev.id }}">
+                            <!-- Viewport / Miniatura de la tarjeta -->
+                            <div class="evidence-card-preview" 
+                                 data-action="preview" 
+                                 data-evidence-id="{{ ev.id }}"
+                                 data-file-url="{{ ev.view_url }}"
+                                 data-file-name="{{ ev.file_name }}"
+                                 data-file-size="{{ ev.file_weight_str }}"
+                                 data-format="{{ ev.format }}"
+                                 role="button"
+                                 tabindex="0"
+                                 title="Clic para inspeccionar {{ ev.file_name }}">
+                                {% if ev.is_image %}
+                                <img src="{{ ev.view_url }}" alt="{{ ev.file_name }}" class="evidence-card-img" loading="lazy">
+                                <div class="evidence-card-overlay">
+                                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                    <span>Inspeccionar</span>
+                                </div>
+                                {% else %}
+                                <div class="evidence-card-pdf-placeholder">
+                                    <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#dc2626" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                        <line x1="9" y1="13" x2="15" y2="13"></line>
+                                        <line x1="9" y1="17" x2="15" y2="17"></line>
+                                    </svg>
+                                    <span class="evidence-pdf-badge">PDF</span>
+                                </div>
+                                <div class="evidence-card-overlay">
+                                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                    <span>Leer</span>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Metadatos de la tarjeta -->
+                            <div class="evidence-card-meta">
+                                <p class="evidence-card-filename" title="{{ ev.file_name }}">{{ ev.file_name }}</p>
+                                <div class="evidence-card-subinfo">
+                                    <span class="evidence-format-pill {{ 'pill-pdf' if ev.is_pdf else 'pill-image' }}">{{ ev.format }}</span>
+                                    <span class="evidence-weight-text">{{ ev.file_weight_str }}</span>
+                                </div>
+                                <span class="evidence-date-text">{{ ev.created_at }}</span>
+                            </div>
+
+                            <!-- Acciones de la tarjeta -->
+                            <div class="evidence-card-actions">
+                                <a href="{{ ev.download_url }}" class="evidence-action-btn btn-download" title="Descargar soporte original" download target="_blank">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="7 10 12 15 17 10"></polyline>
+                                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                                    </svg>
+                                </a>
+                                {% if is_owner and req.status.status_code == 'STAT-006' and not req.historical %}
+                                <button type="button" 
+                                        class="evidence-action-btn btn-delete" 
+                                        data-action="delete"
+                                        data-evidence-id="{{ ev.id }}"
+                                        data-file-name="{{ ev.file_name }}"
+                                        title="Eliminar evidencia probatoria">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                                    </svg>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
+                <!-- Estado Vacío cuando no existan evidencias -->
+                <div id="evidence-empty-state" class="evidence-empty-state" 
+                     {% if ctx and ctx.evidences and ctx.evidences|length > 0 %}style="display: none;"{% endif %}>
+                    <div class="evidence-empty-icon-wrap">
+                        <svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                            <polyline points="21 15 16 10 5 21"></polyline>
+                        </svg>
+                    </div>
+                    <p class="evidence-empty-title">Sin evidencias custodiadas</p>
+                    <p class="evidence-empty-desc">
+                        {% if is_owner and req.status.status_code == 'STAT-006' and not req.historical %}
+                        Haga clic en "Adjuntar más" o arrastre fotografías (.jpg, .png) o actas (.pdf) para registrar la ejecución.
+                        {% else %}
+                        No se registraron evidencias probatorias en este expediente.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

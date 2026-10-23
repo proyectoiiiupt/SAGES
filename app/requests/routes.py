@@ -1532,3 +1532,67 @@ def verify_document_token(token: str):
         query_timestamp=query_timestamp
     ), 200
 
+# ---------------------------------------------------------------------------
+# Endpoints API: Custodia y Gestión de Evidencias Digitales 
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/api/<int:id>/evidences/upload', methods=['POST'])
+@requests_bp.route('/api/requests/<int:id>/evidences/upload', methods=['POST'])
+@login_required
+@role_required('state_admin', 'super_admin')
+def api_upload_request_evidence(id):
+    """
+    Endpoint AJAX para la subida y custodia segura de evidencias probatorias.
+    """
+    from app.requests.services import attach_request_evidence
+
+    if 'file' not in request.files and 'evidence' not in request.files and not request.files:
+        return jsonify({
+            'success': False,
+            'message': 'No se ha proporcionado ningún archivo para adjuntar.'
+        }), 400
+
+    file_obj = request.files.get('file') or request.files.get('evidence')
+    if not file_obj and request.files:
+        file_obj = next(iter(request.files.values()), None)
+
+    if not file_obj or not file_obj.filename or file_obj.filename.strip() == '':
+        return jsonify({
+            'success': False,
+            'message': 'Debe seleccionar un archivo válido para adjuntar como evidencia.'
+        }), 400
+
+    success, message, payload, status_code = attach_request_evidence(
+        request_id=id,
+        file_obj=file_obj,
+        user=current_user
+    )
+
+    return jsonify({
+        'success': success,
+        'message': message,
+        'evidence': payload
+    }), status_code
+
+
+@requests_bp.route('/api/evidences/<int:evidence_id>', methods=['DELETE'])
+@requests_bp.route('/api/requests/evidences/<int:evidence_id>', methods=['DELETE'])
+@requests_bp.route('/api/evidences/<int:evidence_id>/delete', methods=['POST'])
+@login_required
+@role_required('state_admin', 'super_admin')
+def api_delete_request_evidence(evidence_id):
+    """
+    Endpoint AJAX para la supresión controlada de una evidencia probatoria.
+    """
+    from app.requests.services import delete_request_evidence
+
+    success, message, payload, status_code = delete_request_evidence(
+        evidence_id=evidence_id,
+        user=current_user
+    )
+
+    return jsonify({
+        'success': success,
+        'message': message,
+        'data': payload
+    }), status_code

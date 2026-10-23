@@ -2724,6 +2724,29 @@ def get_active_workspace_context(request_id: int, current_user=None) -> dict:
             'original_planned_for': active_planning.original_planned_for if active_planning else None
         }
 
+        from flask import url_for
+        formatted_evidences = []
+        for ev in (req.evidences or []):
+            weight = ev.file_weight or 0
+            w_str = f"{weight / 1024 / 1024:.2f} MB" if weight >= 1048576 else f"{weight / 1024:.1f} KB"
+            created_dt = ev.created_at.astimezone(timezone(timedelta(hours=-4))) if ev.created_at else None
+            try:
+                v_url = url_for('requests.serve_request_evidence', evidence_id=ev.id)
+            except RuntimeError:
+                v_url = f"/requests/evidence/{ev.id}/view"
+            formatted_evidences.append({
+                'id': ev.id,
+                'file_name': ev.file_name,
+                'file_path': ev.file_path,
+                'format': (ev.format or '').upper(),
+                'file_weight': weight,
+                'file_weight_str': w_str,
+                'created_at': ev.created_at,
+                'created_at_str': created_dt.strftime('%d/%m/%Y %I:%M %p') if created_dt else '',
+                'view_url': v_url,
+                'download_url': f"{v_url}?download=1"
+            })
+
         return {
             'status': 'success',
             'request': req,
@@ -2732,6 +2755,7 @@ def get_active_workspace_context(request_id: int, current_user=None) -> dict:
             'pedagogical_data': pedagogical_data,
             'facilitator_data': facilitator_data,
             'evidence_metrics': evidence_metrics,
+            'evidences': formatted_evidences,
             'tracking_steps': get_request_timeline(request_id)
         }
 
@@ -3487,4 +3511,308 @@ def validate_document_qr_token(token: str) -> dict | None:
         'token_display': formatted_token,
         'is_completed': (status_code == 'STAT-007')
     }
+    
+# ---------------------------------------------------------------------------
+# Bloque Evidencias Digitales de Ejecución
+# ---------------------------------------------------------------------------
+
+def attach_request_evidence(request_id: int, file_obj, user) -> tuple:
+    """
+    Adjunta y custodia de manera segura un archivo de soporte (fotografía o acta PDF)
+    para una solicitud que se encuentra en ejecución presencial (STAT-006).
+
+    Aplica:
+      - Validación de existencia y estado FSM (estrictamente STAT-006).
+      - Control de titularidad y territorialidad (facilitador asignado o super_admin).
+      - Validación de Magic Bytes y límite de 5 MB mediante file_handler.py.
+      - Almacenamiento seguro en UPLOAD_FOLDER/requests/<request_id>/.
+      - Persistencia en sages.request_evidences (ruta relativa normalizada con '/').
+      - Asentamiento automático de hito en la bitácora transversal (requests_trackings).
+      - Registro de auditoría en BinnacleService (CARGAR_EVIDENCIA).
+      - Recálculo dinámico de métricas (progreso probatorio y can_complete).
+
+    Retorna: (success: bool, message: str, payload: dict, status_code: int)
+    """
+    import os
+    import uuid
+    import logging
+    from flask import current_app, url_for
+    from app.models.request_evidence_model import RequestEvidence
+    from app.models.request_tracking_model import RequestTracking
+    from app.utils.file_handler import save_evidence_file, FileValidationError
+    from app.binnacle.services import BinnacleService
+    from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # 1. Recuperar la solicitud con sus relaciones requeridas
+        req = Request.query.options(
+            joinedload(Request.status),
+            joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.institution).joinedload(Institution.parish).joinedload(Parish.municipality)
+        ).get(request_id)
+
+        if not req:
+            return False, "Expediente de solicitud no encontrado.", {}, 404
+
+        # 2. Validación de Estado FSM (Solo STAT-006 activo)
+        CLOSED_STATUSES = {'STAT-007', 'STAT-008', 'STAT-009'}
+        status_code = req.status.status_code if req.status else ''
+        if req.historical or status_code in CLOSED_STATUSES:
+            return False, "El expediente se encuentra concluido o archivado. No se admiten nuevas evidencias probatorias.", {}, 422
+
+        if status_code != 'STAT-006':
+            status_label = req.status.status_name if req.status else status_code
+            return False, f"Solo se pueden adjuntar evidencias en estado 'En Proceso' (estado actual: {status_label}).", {}, 422
+
+        # 3. Control de Acceso y Titularidad (RBAC + Anti-IDOR)
+        user_roles = [assoc.role.name for assoc in user.roles_assoc] if (user and user.roles_assoc) else []
+        is_super = 'super_admin' in user_roles
+        is_state = 'state_admin' in user_roles
+
+        if not (is_super or is_state):
+            return False, "No posee privilegios autorizados para adjuntar soportes probatorios.", {}, 403
+
+        if is_state and not is_super:
+            admin_state_id = get_admin_state_id(user)
+            req_state_id = None
+            try:
+                req_state_id = req.institutional_staff.institution.parish.municipality.state_id
+            except AttributeError:
+                req_state_id = None
+
+            if not admin_state_id or req_state_id != admin_state_id:
+                return False, "Violación territorial: La solicitud pertenece a otra jurisdicción estadal.", {}, 403
+
+            if req.attended_by_id and req.attended_by_id != user.id:
+                return False, "Modo supervisión: Solo el facilitador titular asignado puede adjuntar evidencias a este expediente.", {}, 403
+
+        # 4. Procesamiento seguro de archivo con file_handler
+        sub_folder = f"requests/{request_id}"
+        unique_token = uuid.uuid4().hex[:12]
+        now_utc = datetime.now(timezone.utc)
+        ts_str = now_utc.strftime('%Y%m%d_%H%M%S')
+        custom_name = f"evidencia_{unique_token}_{ts_str}"
+
+        try:
+            evidence_data = save_evidence_file(
+                file_obj=file_obj,
+                sub_folder=sub_folder,
+                custom_name=custom_name
+            )
+        except FileValidationError as fve:
+            return False, str(fve), {}, 400
+        except Exception as e:
+            logger.error(f"Error físico al resguardar evidencia en disco (req={request_id}): {e}", exc_info=True)
+            return False, "Error al escribir el archivo probatorio en el almacenamiento seguro.", {}, 500
+
+        # 5. Persistencia en base de datos
+        new_evidence = RequestEvidence(
+            request_id=request_id,
+            file_name=evidence_data['file_name'],
+            file_path=evidence_data['file_path'].replace('\\', '/'),
+            format=evidence_data['format'].upper(),
+            file_weight=evidence_data['file_weight']
+        )
+        db.session.add(new_evidence)
+        db.session.flush()
+
+        # 6. Formateo de peso y estampa en bitácora transversal
+        weight_bytes = evidence_data['file_weight']
+        weight_str = f"{weight_bytes / 1024 / 1024:.2f} MB" if weight_bytes >= 1048576 else f"{weight_bytes / 1024:.1f} KB"
+
+        user_person = user.person if user else None
+        author_name = f"{user_person.first_name} {user_person.last_name}".strip() if (user_person and user_person.first_name) else (getattr(user, 'user_name', 'Facilitador UREE'))
+
+        tracking_msg = f"Evidencia digital adjuntada por {author_name}. Archivo: {new_evidence.file_name} ({new_evidence.format}, {weight_str})."
+        tracking_entry = RequestTracking(
+            request_id=request_id,
+            user_id=user.id,
+            messages=tracking_msg,
+            created_at=now_utc
+        )
+        db.session.add(tracking_entry)
+
+        # 7. Auditoría en BinnacleService
+        BinnacleService.create_log_entry(
+            module=AuditModule.REQUESTS.value,
+            action_type=AuditAction.CARGAR_EVIDENCIA.value,
+            description=f"Carga de evidencia en solicitud {req.request_code}: {new_evidence.file_name} ({new_evidence.format})",
+            target_table='sages.request_evidences',
+            record_id=new_evidence.id,
+            status=AuditStatus.COMPLETADO.value
+        )
+
+        db.session.commit()
+
+        # 8. Recalcular métricas probatorias reactivas
+        all_evidences = RequestEvidence.query.filter_by(request_id=request_id).all()
+        metrics = compute_workspace_evidence_metrics(all_evidences)
+        if metrics['can_complete']:
+            progress_pct = 100
+        else:
+            progress_pct = 85 if (metrics['has_photo_evidence'] or metrics['has_pdf_evidence']) else 75
+        metrics['request_progress_pct'] = progress_pct
+
+        try:
+            view_url = url_for('requests.serve_request_evidence', evidence_id=new_evidence.id)
+        except RuntimeError:
+            view_url = f"/requests/evidence/{new_evidence.id}/view"
+        download_url = f"{view_url}?download=1"
+
+        created_vzla = new_evidence.created_at.astimezone(timezone(timedelta(hours=-4))) if new_evidence.created_at else now_utc.astimezone(timezone(timedelta(hours=-4)))
+        created_str = created_vzla.strftime('%d/%m/%Y %I:%M %p')
+
+        payload = {
+            'id': new_evidence.id,
+            'request_id': request_id,
+            'file_name': new_evidence.file_name,
+            'file_path': new_evidence.file_path,
+            'format': new_evidence.format,
+            'file_weight': new_evidence.file_weight,
+            'file_weight_str': weight_str,
+            'created_at_str': created_str,
+            'view_url': view_url,
+            'download_url': download_url,
+            'metrics': metrics
+        }
+
+        return True, "Evidencia digital adjuntada y custodiada exitosamente.", payload, 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Fallo no controlado en attach_request_evidence (request_id={request_id}): {e}", exc_info=True)
+        return False, "Ocurrió un error inesperado al procesar la evidencia probatoria.", {}, 500
+
+
+def delete_request_evidence(evidence_id: int, user) -> tuple:
+    """
+    Elimina de forma controlada una evidencia probatoria previamente adjuntada,
+    realizando el borrado físico del archivo y asentando la traza en bitácora.
+    """
+    import os
+    import logging
+    from flask import current_app
+    from app.models.request_evidence_model import RequestEvidence
+    from app.models.request_tracking_model import RequestTracking
+    from app.binnacle.services import BinnacleService
+    from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # 1. Recuperar evidencia y solicitud asociada
+        evidence = RequestEvidence.query.options(
+            joinedload(RequestEvidence.request).joinedload(Request.status),
+            joinedload(RequestEvidence.request).joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.institution).joinedload(Institution.parish).joinedload(Parish.municipality)
+        ).filter_by(id=evidence_id).first()
+
+        if not evidence:
+            return False, "El registro de evidencia no fue encontrado.", {}, 404
+
+        req = evidence.request
+        if not req:
+            return False, "Expediente asociado no encontrado.", {}, 404
+
+        # 2. Control de inmutabilidad
+        CLOSED_STATUSES = {'STAT-007', 'STAT-008', 'STAT-009'}
+        status_code = req.status.status_code if req.status else ''
+        if req.historical or status_code in CLOSED_STATUSES:
+            return False, "No se pueden retirar evidencias de un expediente que ya se encuentra concluido o archivado.", {}, 422
+
+        if status_code != 'STAT-006':
+            return False, "Solo se pueden retirar evidencias en solicitudes que permanecen 'En Proceso'.", {}, 422
+
+        # 3. Control de Acceso y Titularidad
+        user_roles = [assoc.role.name for assoc in user.roles_assoc] if (user and user.roles_assoc) else []
+        is_super = 'super_admin' in user_roles
+        is_state = 'state_admin' in user_roles
+
+        if not (is_super or is_state):
+            return False, "No posee privilegios para retirar soportes probatorios.", {}, 403
+
+        if is_state and not is_super:
+            admin_state_id = get_admin_state_id(user)
+            req_state_id = None
+            try:
+                req_state_id = req.institutional_staff.institution.parish.municipality.state_id
+            except AttributeError:
+                req_state_id = None
+
+            if not admin_state_id or req_state_id != admin_state_id:
+                return False, "Violación territorial: La solicitud pertenece a otra jurisdicción estadal.", {}, 403
+
+            if req.attended_by_id and req.attended_by_id != user.id:
+                return False, "Modo supervisión: Solo el facilitador titular asignado puede retirar evidencias de este expediente.", {}, 403
+
+        # 4. Eliminación física en el sistema de almacenamiento
+        base_upload = current_app.config.get('UPLOAD_FOLDER', 'uploads')
+        raw_path = (evidence.file_path or '').replace('\\', '/').lstrip('/')
+        file_name = evidence.file_name or os.path.basename(raw_path)
+        request_id = req.id
+        evidence_file_name = evidence.file_name
+
+        candidate_paths = [
+            os.path.join(base_upload, raw_path),
+            os.path.join(base_upload, 'requests', str(request_id), file_name)
+        ]
+
+        for cand_path in candidate_paths:
+            if os.path.isfile(cand_path):
+                try:
+                    os.remove(cand_path)
+                except OSError as oe:
+                    logger.warning(f"No se pudo eliminar el archivo físico {cand_path}: {oe}")
+                break
+
+        # 5. Eliminación en base de datos
+        db.session.delete(evidence)
+
+        # 6. Asentamiento en bitácora transversal
+        now_utc = datetime.now(timezone.utc)
+        user_person = user.person if user else None
+        author_name = f"{user_person.first_name} {user_person.last_name}".strip() if (user_person and user_person.first_name) else (getattr(user, 'user_name', 'Facilitador UREE'))
+
+        tracking_msg = f"Evidencia digital retirada por {author_name}. Archivo: {evidence_file_name}."
+        tracking_entry = RequestTracking(
+            request_id=request_id,
+            user_id=user.id,
+            messages=tracking_msg,
+            created_at=now_utc
+        )
+        db.session.add(tracking_entry)
+
+        # 7. Auditoría en BinnacleService
+        BinnacleService.create_log_entry(
+            module=AuditModule.REQUESTS.value,
+            action_type=AuditAction.ACTUALIZAR.value,
+            description=f"Eliminación de evidencia en solicitud {req.request_code}: {evidence_file_name}",
+            target_table='sages.request_evidences',
+            record_id=evidence_id,
+            status=AuditStatus.COMPLETADO.value
+        )
+
+        db.session.commit()
+
+        # 8. Recalcular métricas probatorias actualizadas
+        remaining_evidences = RequestEvidence.query.filter_by(request_id=request_id).all()
+        metrics = compute_workspace_evidence_metrics(remaining_evidences)
+        if metrics['can_complete']:
+            progress_pct = 100
+        else:
+            progress_pct = 85 if (metrics['has_photo_evidence'] or metrics['has_pdf_evidence']) else 75
+        metrics['request_progress_pct'] = progress_pct
+
+        payload = {
+            'deleted_evidence_id': evidence_id,
+            'request_id': request_id,
+            'metrics': metrics
+        }
+
+        return True, "Evidencia probatoria eliminada correctamente.", payload, 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Fallo no controlado en delete_request_evidence (evidence_id={evidence_id}): {e}", exc_info=True)
+        return False, "Ocurrió un error inesperado al retirar la evidencia.", {}, 500
 
