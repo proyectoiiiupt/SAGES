@@ -987,4 +987,137 @@ Sistema de Gestión de Solicitudes SAGES - CORPOELEC.
     return True
 
 
+def send_training_completed_survey_email(
+    to_email: str,
+    full_name: str,
+    institution_name: str,
+    request_code: str,
+    survey_url: str,
+    training_name: str = None
+) -> bool:
+    """
+    Envía notificación institucional por correo al solicitante tras culminar la formación (US-48 / SR-F-019).
+    Agradece la participación, suministra el enlace directo a la Encuesta de Satisfacción (US-51)
+    e informa sobre la disponibilidad del Informe Técnico Final en el panel institucional.
+    """
+    import html
+    safe_name = html.escape(full_name or "Representante Institucional")
+    safe_institution = html.escape(institution_name or "Plantel Educativo")
+    safe_code = html.escape(request_code or "")
+    safe_survey_url = html.escape(survey_url or "#")
+    safe_training = html.escape(training_name or "Formación Comunitaria UREE")
+
+    subject = f"Jornada de Formación Culminada — Encuesta de Satisfacción: Solicitud {safe_code}"
+
+    text_content = (
+        f"Estimado/a {safe_name},\n\n"
+        f"Le informamos que la jornada formativa '{safe_training}' para el plantel educativo "
+        f"{safe_institution} ha sido ejecutada y formalmente completada por nuestro equipo facilitador (Solicitud: {safe_code}).\n\n"
+        f"En la Gerencia de Uso Racional y Eficiente de la Energía (UREE) de CORPOELEC valoramos enormemente su opinión y "
+        f"compromiso con la cultura energética. Para nosotros es fundamental conocer su experiencia y nivel de satisfacción.\n\n"
+        f"Por favor, tómese un minuto para evaluar la jornada ingresando en el siguiente enlace:\n"
+        f"{survey_url}\n\n"
+        f"Asimismo, le notificamos que el Informe Técnico Final certificado con Código QR ya se encuentra "
+        f"disponible para consulta y descarga en su panel de autogestión.\n\n"
+        f"* Este mensaje fue generado de forma automática por el sistema SAGES. No responda a este correo.\n\n"
+        f"© 2026 SAGES — CORPOELEC. Todos los derechos reservados."
+    )
+
+    logo_html = get_logo_html()
+
+    html_content = f"""<!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <title>{subject}</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9fafb; color: #1f2937;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb; overflow: hidden;">
+            <tr>
+                <td style="height: 6px; background: linear-gradient(90deg, #1c3d73 0%, #019577 50%, #1fcab0 100%);"></td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 40px 20px 20px 20px;">
+                    {logo_html}
+                    <h1 style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.5;">Sistema de Gestión de Solicitudes de Formación</h1>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 0 40px;">
+                    <h2 style="font-size: 22px; font-weight: 700; color: #019577; margin: 10px 0 20px 0; text-transform: uppercase; letter-spacing: 0.5px; text-align: center;">¡JORNADA FORMATIVA CULMINADA!</h2>
+                    
+                    <p style="font-size: 15px; color: #4b5563; margin: 0 0 10px 0; line-height: 1.5; text-align: left;">
+                        Estimado/a <strong>{safe_name}</strong>,
+                    </p>
+                    <p style="font-size: 15px; color: #4b5563; margin: 0 0 20px 0; line-height: 1.6; text-align: left;">
+                        Le informamos que la capacitación <strong>'{safe_training}'</strong> solicitada para la institución <strong>{safe_institution}</strong> ha sido ejecutada y formalizada exitosamente por la Coordinación de CORPOELEC.
+                    </p>
+
+                    <!-- Tarjeta Resumen del Trámite -->
+                    <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px 20px; margin: 0 0 25px 0; text-align: left;">
+                        <table width="100%" cellpadding="4" cellspacing="0" style="font-size: 14px;">
+                            <tr>
+                                <td style="color: #166534; font-weight: 600; width: 32%;">Código Trámite:</td>
+                                <td style="color: #1c3d73; font-weight: 700;">{safe_code}</td>
+                            </tr>
+                            <tr>
+                                <td style="color: #166534; font-weight: 600;">Plantel:</td>
+                                <td style="color: #1f2937;">{safe_institution}</td>
+                            </tr>
+                            <tr>
+                                <td style="color: #166534; font-weight: 600;">Formación:</td>
+                                <td style="color: #1f2937;">{safe_training}</td>
+                            </tr>
+                            <tr>
+                                <td style="color: #166534; font-weight: 600;">Estatus Final:</td>
+                                <td style="color: #019577; font-weight: 700;">Completado (Archivado)</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- Llamado a la Acción: Encuesta de Satisfacción -->
+                    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 25px 20px; margin: 0 0 25px 0; text-align: center;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 17px; color: #1e293b; font-weight: 700;">
+                            Su opinión es clave para la mejora continua
+                        </h3>
+                        <p style="font-size: 14px; color: #64748b; line-height: 1.5; margin: 0 0 20px 0;">
+                            Para la Gerencia de Uso Racional y Eficiente de la Energía (UREE) es de vital importancia conocer la calidad del taller y el desempeño del facilitador.
+                        </p>
+                        <a href="{safe_survey_url}" 
+                           style="display: inline-block; background: linear-gradient(90deg, #019577 0%, #1fcab0 100%); color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; letter-spacing: 0.5px; box-shadow: 0 4px 6px rgba(1, 149, 119, 0.25);">
+                            Evaluar Jornada de Formación
+                        </a>
+                    </div>
+
+                    <!-- Aviso de Informe Técnico con QR -->
+                    <div style="background-color: #f1f5f9; border-left: 4px solid #1c3d73; border-radius: 4px; padding: 12px 16px; margin: 0 0 25px 0; text-align: left;">
+                        <strong style="color: #1c3d73; font-size: 13px;">Informe Técnico Final Certificado:</strong>
+                        <p style="margin: 4px 0 0 0; color: #475569; font-size: 13px; line-height: 1.5;">
+                            El expediente digital y el Informe Técnico Oficial provisto con Código QR de verificación criptográfica ya se encuentran habilitados para consulta y descarga en su panel de solicitudes.
+                        </p>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 25px 0 20px 0;">
+                    
+                    <p style="font-size: 12px; color: #9ca3af; line-height: 1.6; margin: 0 0 30px 0; text-align: left;">
+                        * Este mensaje fue generado de forma automática por el sistema SAGES. No responda a este correo.
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
+                    &copy; 2026 SAGES &mdash; CORPOELEC. Todos los derechos reservados.
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+
+    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content))
+    thread.start()
+    return True
+
+
+
 

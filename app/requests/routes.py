@@ -1306,39 +1306,57 @@ def api_reschedule_training(id):
 
 
 @requests_bp.route('/satisfaction-survey/<int:request_id>', methods=['GET', 'POST'])
-@login_required
-@role_required('applicant')
-@check_permissions('create_request')
 def satisfaction_survey(request_id):
     """
     GET:  Valida precondiciones (STAT-007, sin evaluación previa, titularidad
           institucional) y renderiza satisfaction_survey.html.
+          Aplica Opción 2: Autenticación estricta con redirección inteligente vía 'next'.
+          NUNCA autologuea al usuario, garantizando máxima seguridad de la cuenta.
     POST: Recibe el formulario con token CSRF y persiste la evaluación llamando
           a submit_satisfaction_survey(). Retorna JSON para el fetch de JS.
     """
-    from flask import flash, redirect, url_for, abort
+    from flask import flash, redirect, url_for, request, jsonify, render_template
+    from flask_login import current_user
     from app.models.request_model import Request
     from app.models.rating_model import Rating
+    from app.models.user_model import User
     from app.requests.forms import SatisfactionSurveyForm
     from app.requests.services import submit_satisfaction_survey
 
-    # --- 1. Verificación de titularidad institucional (Anti-IDOR) ---
+    # --- 1. Verificación de Autenticación y Rol (Opción 2: Login Seguro con Next) ---
+    target_next = url_for('requests.satisfaction_survey', request_id=request_id)
+
+    if not current_user.is_authenticated:
+        flash("Para evaluar esta jornada formativa, por favor inicia sesión con las credenciales de tu institución educativa.", "info")
+        return redirect(url_for('auth.login', next=target_next))
+
+    has_applicant_role = any(
+        (assoc.role.name == 'applicant') for assoc in (current_user.roles_assoc or [])
+    )
+    if not has_applicant_role:
+        role_name = current_user.roles_assoc[0].role.name if (current_user.roles_assoc and len(current_user.roles_assoc) > 0) else 'state_admin'
+        flash("Has iniciado sesión como funcionario de CORPOELEC. Esta encuesta de satisfacción corresponde exclusivamente a la institución educativa solicitante.", "info")
+        return redirect(url_for(f'home_{role_name}'))
+
     user = User.query.get(current_user.id)
     if not user or not user.person or not user.person.institutional_staff:
-        abort(403, description="No posee afiliación institucional válida.")
+        flash("Su usuario no posee afiliación institucional activa para evaluar solicitudes.", "warning")
+        return redirect(url_for('home_applicant'))
 
+    # --- 2. Verificación de titularidad institucional (Anti-IDOR) ---
     user_institution_id = user.person.institutional_staff[0].institution_id
     req = Request.query.get_or_404(request_id)
 
     if req.institutional_staff.institution_id != user_institution_id:
-        abort(403, description="Acceso denegado: No tiene permisos sobre esta solicitud.")
+        flash("Acceso restringido: Esta jornada de formación pertenece a otra institución educativa.", "warning")
+        return redirect(url_for('requests.applicant_dashboard'))
 
-    # --- 2. Validación de estado operativo (solo STAT-007) ---
+    # --- 3. Validación de estado operativo (solo STAT-007) ---
     if req.status.status_code != 'STAT-007':
         flash("Esta solicitud no se encuentra en estado Completado.", "warning")
         return redirect(url_for('requests.applicant_dashboard'))
 
-    # --- 3. Control de evaluación previa ---
+    # --- 4. Control de evaluación previa ---
     already_rated = Rating.query.filter_by(request_id=request_id).first()
     if already_rated:
         flash("survey_already_done", "survey_done")
@@ -1346,7 +1364,7 @@ def satisfaction_survey(request_id):
 
     form = SatisfactionSurveyForm()
 
-    # --- 4. Procesamiento POST ---
+    # --- 5. Procesamiento POST ---
     if request.method == 'POST':
         if not form.validate_on_submit():
             errors = [msg for field in form.errors.values() for msg in field]
@@ -1362,7 +1380,7 @@ def satisfaction_survey(request_id):
         )
         return jsonify({'success': success, 'message': message}), status_code
 
-    # --- 5. Renderizado GET ---
+    # --- 6. Renderizado GET ---
     return render_template(
         'requests/satisfaction_survey.html',
         form=form,
@@ -1477,6 +1495,32 @@ def api_get_request_trackings(id):
         'count': len(timeline)
     }), 200
 
+# ---------------------------------------------------------------------------
+# Endpoint API: Finalización Formal y Archivado Histórico (US-48 / SR-F-019)
+# ---------------------------------------------------------------------------
+
+@requests_bp.route('/api/<int:id>/complete', methods=['POST'])
+@requests_bp.route('/api/requests/<int:id>/complete', methods=['POST'])
+@login_required
+@role_required('state_admin', 'super_admin')
+@check_permissions('manage_requests')
+def api_complete_training_request(id):
+    """
+    Endpoint AJAX para la culminación formal y pase a archivo histórico de una solicitud.
+    """
+    from flask import jsonify
+    from app.requests.services import complete_training_request
+
+    success, message, payload, status_code = complete_training_request(
+        request_id=id,
+        admin_user=current_user
+    )
+
+    return jsonify({
+        'success': success,
+        'message': message,
+        'data': payload
+    }), status_code
 
 # ---------------------------------------------------------------------------
 # Portal Público de Validación de Autenticidad QR (US-52)

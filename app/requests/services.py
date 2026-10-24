@@ -3413,6 +3413,173 @@ def log_system_milestone(request_id: int, message_text: str, user_id: int = None
         return False
 
 
+def complete_training_request(request_id: int, admin_user) -> tuple:
+    """
+    Formaliza el cierre y archivado definitivo de una solicitud de formación.
+    """
+    import logging
+    from flask import url_for
+    from app.models.request_tracking_model import RequestTracking
+    from app.binnacle.services import BinnacleService
+    from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # 1. Recuperación con bloqueo pesimista de fila (Pessimistic Locking puro en PostgreSQL)
+        req = db.session.query(Request).filter(Request.id == request_id).with_for_update().first()
+
+        if not req:
+            return False, "Expediente de solicitud no encontrado.", {}, 404
+
+        # 2. Control de Estado FSM e Inmutabilidad (Flujo Unidireccional e Irreversible)
+        CLOSED_STATUSES = {'STAT-007', 'STAT-008', 'STAT-009'}
+        status_code = req.status.status_code if req.status else ''
+
+        if req.historical or status_code in CLOSED_STATUSES:
+            db.session.rollback()
+            return False, "La solicitud ya se encuentra culminada o archivada de forma definitiva.", {}, 422
+
+        if status_code != 'STAT-006':
+            status_label = req.status.status_name if req.status else 'No especificado'
+            db.session.rollback()
+            return False, f"Solo se pueden formalizar solicitudes en estado 'En Proceso' (estado actual: {status_label}).", {}, 422
+
+        # 3. Control de Acceso y Titularidad (RBAC + Anti-IDOR + Territorialidad)
+        user_roles = [assoc.role.name for assoc in admin_user.roles_assoc] if (admin_user and admin_user.roles_assoc) else []
+        is_super = 'super_admin' in user_roles
+        is_state = 'state_admin' in user_roles
+
+        if not (is_super or is_state):
+            db.session.rollback()
+            return False, "No posee privilegios autorizados para culminar expedientes de formación.", {}, 403
+
+        if is_state and not is_super:
+            admin_state_id = get_admin_state_id(admin_user)
+            req_state_id = None
+            try:
+                req_state_id = req.institutional_staff.institution.parish.municipality.state_id
+            except (AttributeError, IndexError):
+                req_state_id = None
+
+            if not admin_state_id or req_state_id != admin_state_id:
+                db.session.rollback()
+                return False, "Violación territorial: La solicitud pertenece a otra jurisdicción estadal.", {}, 403
+
+            if req.attended_by_id and req.attended_by_id != admin_user.id:
+                db.session.rollback()
+                return False, "Acceso restringido: Solo el facilitador titular asignado puede formalizar la culminación de este expediente.", {}, 403
+
+        # 4. Verificación de Recaudos Probatorios en Base de Datos (SR-F-018)
+        evidence_metrics = compute_workspace_evidence_metrics(req.evidences)
+        if not evidence_metrics['can_complete']:
+            db.session.rollback()
+            missing_items = []
+            if not evidence_metrics['has_photo_evidence']:
+                missing_items.append("al menos una fotografía (.jpg, .png)")
+            if not evidence_metrics['has_pdf_evidence']:
+                missing_items.append("el acta de asistencia firmada (.pdf)")
+            missing_msg = " y ".join(missing_items)
+            return False, f"Recaudos incompletos: Para culminar la solicitud debe adjuntar {missing_msg} en base de datos.", {}, 422
+
+        # 5. Obtención del Estatus Destino STAT-007 (Completado)
+        status_completed = Status.query.filter_by(status_code='STAT-007').first()
+        if not status_completed:
+            db.session.rollback()
+            logger.error("Error crítico de configuración: Código de estado STAT-007 no existe en la tabla sages.status.")
+            return False, "Error interno del sistema: Estado STAT-007 no configurado en la base de datos.", {}, 500
+
+        now_utc = datetime.now(timezone.utc)
+
+        # 6. Mutación Atómica de la Solicitud Principal (sages.requests)
+        req.status_id = status_completed.id
+        req.finished_at = now_utc
+        req.historical = True
+        req.updated_at = now_utc
+
+        # 7. Actualización de la Planificación Satélite (sages.request_plannings)
+        if req.plannings:
+            plans_with_date = [p for p in req.plannings if p.planned_for]
+            target_plan = max(plans_with_date, key=lambda p: p.planned_for) if plans_with_date else req.plannings[-1]
+            target_plan.attended = True
+            target_plan.attended_at = now_utc
+
+        # 8. Asentamiento del Hito de Culminación en la Bitácora Transversal (sages.requests_trackings)
+        admin_person = getattr(admin_user, 'person', None)
+        admin_name = f"{admin_person.first_name} {admin_person.last_name}".strip() if (admin_person and admin_person.first_name) else getattr(admin_user, 'user_name', 'Administrador UREE')
+        
+        tracking_msg = (
+            f"Capacitación ejecutada y validada exitosamente por el Administrador {admin_name}. "
+            f"Expediente archivado de forma definitiva en el historial de la UREE."
+        )
+        tracking_entry = RequestTracking(
+            request_id=req.id,
+            user_id=admin_user.id,
+            messages=tracking_msg,
+            created_at=now_utc
+        )
+        db.session.add(tracking_entry)
+
+        # 9. Asentamiento en la Bitácora de Auditoría y Seguridad (BinnacleService)
+        BinnacleService.create_log_entry(
+            module=AuditModule.REQUESTS.value,
+            action_type=AuditAction.ACTUALIZAR.value,
+            description=f"Culminación formal y archivado histórico de la solicitud {req.request_code} (STAT-007)",
+            target_table='sages.requests',
+            record_id=req.id,
+            status=AuditStatus.COMPLETADO.value
+        )
+
+        # 10. Resolución de datos para correo ANTES del commit
+        applicant_person = req.institutional_staff.person if req.institutional_staff else None
+        applicant_email = applicant_person.email if applicant_person else None
+        applicant_name = f"{applicant_person.first_name} {applicant_person.last_name}".strip() if (applicant_person and applicant_person.first_name) else "Representante Institucional"
+        inst_name = req.institutional_staff.institution.institution_name if (req.institutional_staff and req.institutional_staff.institution) else "Plantel Educativo"
+        training_name = req.training.name if req.training else "Formación Comunitaria UREE"
+        req_code = req.request_code
+        req_id = req.id
+
+        try:
+            survey_url = url_for('requests.satisfaction_survey', request_id=req_id, _external=True)
+        except Exception:
+            survey_url = f"/requests/satisfaction-survey/{req_id}"
+
+        # 11. Confirmación de la Transacción en Base de Datos (Atomic Commit)
+        db.session.commit()
+
+        # 12. Despacho Asíncrono de Correo con Enlace a la Encuesta (Posterior al commit exitoso)
+        if applicant_email:
+            try:
+                from app.utils.email_utils import send_training_completed_survey_email
+                send_training_completed_survey_email(
+                    to_email=applicant_email,
+                    full_name=applicant_name,
+                    institution_name=inst_name,
+                    request_code=req_code,
+                    survey_url=survey_url,
+                    training_name=training_name
+                )
+            except Exception as email_err:
+                logger.warning(f"No se pudo despachar el correo de encuesta para la solicitud {req_code}: {email_err}")
+
+        # 13. Payload de Éxito
+        payload = {
+            'request_id': req_id,
+            'request_code': req_code,
+            'status_code': 'STAT-007',
+            'status_name': status_completed.status_name,
+            'historical': True,
+            'finished_at': now_utc.isoformat(),
+            'redirect_url': '/requests/state-dashboard'
+        }
+
+        return True, "Felicidades la Solicitud ha sido Finalizada con Éxito.", payload, 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Fallo no controlado en complete_training_request (request_id={request_id}): {e}", exc_info=True)
+        return False, "Ocurrió un error inesperado al procesar la culminación del expediente.", {}, 500
+
 # ---------------------------------------------------------------------------
 # Portal Público de Validación de Autenticidad QR (US-52)
 # ---------------------------------------------------------------------------
