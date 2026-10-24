@@ -2243,6 +2243,7 @@ def submit_closure_evidences(request_id: int, files, user_id: int) -> tuple:
 
         req.status_id = status_completed.id
         req.finished_at = now_utc
+        req.historical = True
 
         if req.plannings:
             plans_with_date = [p for p in req.plannings if p.planned_for]
@@ -2966,7 +2967,7 @@ def get_forensic_audit_detail(request_id: int) -> dict:
 
     # 4. Galería de Evidencias Custodiadas
     formatted_evidences = []
-    for ev in (req.evidences or []):
+    for ev_idx, ev in enumerate(req.evidences or [], 1):
         ev_vzla = ev.created_at.astimezone(vzla_tz) if ev.created_at else now_vzla
         fmt = (ev.format or 'PDF').upper()
         if fmt == 'JPEG':
@@ -2978,9 +2979,32 @@ def get_forensic_audit_detail(request_id: int) -> dict:
         else:
             weight_str = f"{max(1, round(weight / 1024))} KB"
 
-        display_filename = ev.file_name or 'soporte_documental'
-        if '_' in display_filename and len(display_filename.split('_', 1)[0]) >= 30:
-            display_filename = display_filename.split('_', 1)[1]
+        # Limpieza de nombre de archivo institucional (cero códigos técnicos o hashes de BD)
+        import re as _re, os as _os
+        raw_name = (ev.file_name or '').strip()
+        base, ext_part = _os.path.splitext(raw_name)
+        if not ext_part and fmt:
+            ext_part = '.' + fmt.lower()
+
+        # Caso 1: Si viene con prefijo hash o UUID seguido de guion bajo
+        parts = base.split('_', 1)
+        if len(parts) == 2 and _re.match(r'^[0-9a-fA-F\-]{8,}$', parts[0]):
+            clean_name = parts[1] + ext_part
+        else:
+            clean_name = raw_name
+
+        # Caso 2: Si el nombre base es un hash, código puramente numérico o término genérico
+        clean_base, clean_ext = _os.path.splitext(clean_name)
+        if (
+            not clean_name
+            or clean_base.isdigit()
+            or _re.match(r'^[0-9a-fA-F\-]{8,}$', clean_base)
+            or clean_base.lower() in ('file', 'evidence', 'soporte', 'upload', 'blob', 'image', 'imagen', 'documento', 'archivo')
+        ):
+            ext_label = clean_ext if clean_ext else ext_part
+            clean_name = f"Soporte Documental N°{ev_idx}{ext_label}"
+
+        display_filename = clean_name
 
         formatted_evidences.append({
             'id': ev.id,
@@ -3815,4 +3839,374 @@ def delete_request_evidence(evidence_id: int, user) -> tuple:
         db.session.rollback()
         logger.error(f"Fallo no controlado en delete_request_evidence (evidence_id={evidence_id}): {e}", exc_info=True)
         return False, "Ocurrió un error inesperado al retirar la evidencia.", {}, 500
+
+
+# ---------------------------------------------------------------------------
+# Bloque Repositorio Histórico y Consulta de Expedientes Archivados (US-50)
+# ---------------------------------------------------------------------------
+
+def get_historical_requests(user: User, filters: dict = None, page: int = 1, per_page: int = 10):
+    """
+    Consulta paginada del repositorio centralizado de expedientes archivados (US-50).
+    Aplica filtro estructural forzoso: WHERE requests.historical == TRUE y estatus de cierre
+    (STAT-007: Completado, STAT-009: Cancelado).
+    Aplica aislamiento multitenant según el rol del usuario (Anti-IDOR):
+    - applicant: solo planteles vinculados a su usuario.
+    - state_admin: solo instituciones de su estado territorial asignado (state_id).
+    - super_admin: selector nacional irrestricto con pre-filtrado por sede/estado.
+    Carga ansiosa profunda (joinedload) para eliminar el problema N+1.
+    Retorna objeto de paginación SQLAlchemy ordenado por finished_at DESC.
+    """
+    from sqlalchemy import or_, and_, func
+    from datetime import datetime, timedelta, timezone, date
+    from app.models.request_model import Request
+    from app.models.status_model import Status
+    from app.models.institutional_staff_model import InstitutionalStaff
+    from app.models.institution_model import Institution
+    from app.models.parish_model import Parish
+    from app.models.municipality_model import Municipality
+    from app.models.state_model import State
+    from app.models.training_model import Training
+    from app.models.training_module_model import TrainingModule
+    from app.models.user_model import User
+    from app.models.person_model import Person
+
+    filters = filters or {}
+    user_roles = [assoc.role.name for assoc in user.roles_assoc] if (user and user.roles_assoc) else []
+
+    # 1. Base query con JOINs requeridos
+    query = Request.query.join(
+        Status, Request.status_id == Status.id
+    ).join(
+        InstitutionalStaff, Request.institutional_staff_id == InstitutionalStaff.id
+    ).join(
+        Institution, InstitutionalStaff.institution_id == Institution.id
+    ).join(
+        Parish, Institution.parish_id == Parish.id
+    ).join(
+        Municipality, Parish.municipality_id == Municipality.id
+    ).join(
+        State, Municipality.state_id == State.id
+    ).join(
+        Training, Request.training_id == Training.id
+    )
+
+    # 2. Filtro estructural obligatorio: Expedientes archivados (STAT-007 y STAT-009)
+    query = query.filter(
+        or_(
+            Request.historical.is_(True),
+            Status.status_code.in_(['STAT-007', 'STAT-009'])
+        ),
+        Status.status_code.in_(['STAT-007', 'STAT-009'])
+    )
+
+    # 3. Aislamiento por Tenancy / Rol
+    if 'applicant' in user_roles and 'super_admin' not in user_roles and 'state_admin' not in user_roles:
+        if not user.person or not user.person.institutional_staff:
+            return Request.query.filter(Request.id == -1).paginate(page=1, per_page=per_page, error_out=False)
+        user_inst_id = user.person.institutional_staff[0].institution_id
+        query = query.filter(InstitutionalStaff.institution_id == user_inst_id)
+
+    elif 'state_admin' in user_roles and 'super_admin' not in user_roles:
+        admin_state_id = get_admin_state_id(user)
+        if not admin_state_id:
+            return Request.query.filter(Request.id == -1).paginate(page=1, per_page=per_page, error_out=False)
+        query = query.filter(Municipality.state_id == admin_state_id)
+
+    elif 'super_admin' in user_roles:
+        # Super admin puede filtrar opcionalmente por estado
+        state_filter = filters.get('state_id')
+        if state_filter and str(state_filter).isdigit() and int(state_filter) > 0:
+            query = query.filter(Municipality.state_id == int(state_filter))
+
+    # 4. Filtros opcionales de interfaz
+    # Filtro por Estatus (si el usuario elige específicamente Completado o Cancelado)
+    status_filter = filters.get('status') or filters.get('status_code')
+    if status_filter:
+        if str(status_filter).isdigit():
+            query = query.filter(Request.status_id == int(status_filter))
+        elif status_filter in ('STAT-007', 'STAT-009'):
+            query = query.filter(Status.status_code == status_filter)
+
+    # Filtro por Municipio
+    mun_filter = filters.get('municipality_id')
+    if mun_filter and str(mun_filter).isdigit():
+        query = query.filter(Municipality.id == int(mun_filter))
+
+    # Filtro por Módulo / Tema Formativo
+    module_filter = filters.get('module_id')
+    if module_filter and str(module_filter).isdigit():
+        query = query.filter(Training.training_module_id == int(module_filter))
+
+    training_filter = filters.get('training_id')
+    if training_filter and str(training_filter).isdigit():
+        query = query.filter(Training.id == int(training_filter))
+
+    # Filtro de Búsqueda de Texto
+    search_query = (filters.get('search') or '').strip()
+    if search_query:
+        pattern = f"%{search_query}%"
+        query = query.filter(
+            or_(
+                Institution.institution_name.ilike(pattern),
+                Institution.plantel_code.ilike(pattern),
+                Request.request_code.ilike(pattern),
+                Training.name.ilike(pattern),
+                Municipality.name.ilike(pattern)
+            )
+        )
+
+    # Filtros de Rango de Fecha (finished_at)
+    date_from = filters.get('date_from')
+    if date_from:
+        try:
+            if isinstance(date_from, str):
+                df = datetime.strptime(date_from, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            else:
+                df = date_from
+            query = query.filter(Request.finished_at >= df)
+        except Exception:
+            pass
+
+    date_to = filters.get('date_to')
+    if date_to:
+        try:
+            if isinstance(date_to, str):
+                dt = (datetime.strptime(date_to, "%Y-%m-%d") + timedelta(days=1)).replace(tzinfo=timezone.utc)
+            else:
+                dt = date_to + timedelta(days=1)
+            query = query.filter(Request.finished_at < dt)
+        except Exception:
+            pass
+
+    # 5. Carga ansiosa profunda (joinedload) para evitar N+1
+    query = query.options(
+        joinedload(Request.status),
+        joinedload(Request.training).joinedload(Training.training_module),
+        joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.person),
+        joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.institution).joinedload(Institution.parish).joinedload(Parish.municipality).joinedload(Municipality.state),
+        joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.institution).joinedload(Institution.institution_type),
+        joinedload(Request.attended_by).joinedload(User.person)
+    )
+
+    # 6. Ordenamiento y Paginación
+    return query.order_by(
+        Request.finished_at.desc().nullslast(),
+        Request.id.desc()
+    ).paginate(page=page, per_page=per_page, error_out=False)
+
+
+def get_historical_request_detail(request_id: int, user: User) -> dict:
+    """
+    Obtiene la ficha técnica histórica integral de solo lectura de una solicitud archivada (US-50).
+    Aplica carga ansiosa profunda (joinedload) sobre todas las relaciones satélites.
+    Verifica los permisos territoriales e institucionales del usuario solicitante.
+    """
+    from flask import abort, url_for
+    from app.models.request_model import Request
+    from app.models.training_module_model import TrainingModule
+    from app.models.person_model import Person
+    from app.models.request_evidence_model import RequestEvidence
+    from app.models.request_tracking_model import RequestTracking
+    from app.models.request_justification_model import RequestJustification
+    from app.models.rating_model import Rating
+    from app.utils.qr_generator import generate_verification_token
+    from datetime import datetime, timezone, timedelta
+
+    req = db.session.query(Request).options(
+        joinedload(Request.status),
+        joinedload(Request.training).joinedload(Training.training_module),
+        joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.person),
+        joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.institution).joinedload(Institution.parish).joinedload(Parish.municipality).joinedload(Municipality.state),
+        joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.institution).joinedload(Institution.institution_type),
+        joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.institution).joinedload(Institution.institution_scope),
+        joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.institution).joinedload(Institution.institution_dependency),
+        joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.position),
+        joinedload(Request.attended_by).joinedload(User.person),
+        joinedload(Request.plannings),
+        joinedload(Request.justifications).joinedload(RequestJustification.reason),
+        joinedload(Request.evidences),
+        joinedload(Request.tracking_steps).joinedload(RequestTracking.user).joinedload(User.person),
+        joinedload(Request.ratings)
+    ).filter(Request.id == request_id).first_or_404()
+
+    # Validar que sea un expediente archivado
+    status_code = req.status.status_code if req.status else ''
+    if status_code not in ('STAT-007', 'STAT-009') and not req.historical:
+        abort(400, description="El expediente seleccionado aún no se encuentra archivado en el histórico.")
+
+    # Validar Aislamiento Territorial / Tenancy
+    user_roles = [assoc.role.name for assoc in user.roles_assoc] if (user and user.roles_assoc) else []
+    if 'applicant' in user_roles and 'super_admin' not in user_roles and 'state_admin' not in user_roles:
+        user_inst_id = user.person.institutional_staff[0].institution_id if (user.person and user.person.institutional_staff) else None
+        req_inst_id = req.institutional_staff.institution_id if req.institutional_staff else None
+        if user_inst_id != req_inst_id:
+            abort(403, description="Acceso denegado: No tiene permisos sobre este expediente institucional.")
+    elif 'state_admin' in user_roles and 'super_admin' not in user_roles:
+        admin_state_id = get_admin_state_id(user)
+        try:
+            req_state_id = req.institutional_staff.institution.parish.municipality.state_id
+        except AttributeError:
+            req_state_id = None
+        if admin_state_id != req_state_id:
+            abort(403, description="Violación de Acceso: El expediente pertenece a otra jurisdicción territorial.")
+
+    vzla_tz = timezone(timedelta(hours=-4))
+    finished_vzla = req.finished_at.astimezone(vzla_tz) if req.finished_at else (req.updated_at.astimezone(vzla_tz) if req.updated_at else None)
+
+    # Identificación institucional
+    staff = req.institutional_staff
+    inst = staff.institution if staff else None
+    institution_data = {
+        'name': inst.institution_name if inst else 'N/A',
+        'code_dea': inst.plantel_code if (inst and hasattr(inst, 'plantel_code')) else 'N/A',
+        'state': inst.parish.municipality.state.name if (inst and inst.parish and inst.parish.municipality and inst.parish.municipality.state) else 'N/A',
+        'municipality': inst.parish.municipality.name if (inst and inst.parish and inst.parish.municipality) else 'N/A',
+        'parish': inst.parish.name if (inst and inst.parish) else 'N/A',
+        'address': inst.address if inst else 'N/A',
+        'type': inst.institution_type.name if (inst and inst.institution_type) else 'Educativo',
+        'contact_person': f"{staff.person.first_name} {staff.person.last_name}" if (staff and staff.person) else 'N/A',
+        'position': staff.position.name if (staff and staff.position) else 'Directivo'
+    }
+
+    # Datos pedagógicos
+    training = req.training
+    pedagogical_data = {
+        'module_name': training.training_module.name if (training and training.training_module) else 'N/A',
+        'training_name': training.name if training else 'N/A',
+        'description': req.description or 'Sin justificación registrada.'
+    }
+
+    # Facilitador responsable
+    attended_user = req.attended_by
+    if attended_user and attended_user.person:
+        p = attended_user.person
+        facilitator_data = {
+            'name': f"{p.first_name} {p.last_name}".strip(),
+            'phone': p.mobile or p.phone or 'No registrado',
+            'email': p.email or 'No registrado',
+            'role': 'Coordinador / Facilitador UREE'
+        }
+    else:
+        facilitator_data = {
+            'name': 'Personal Técnico CORPOELEC',
+            'phone': 'N/A',
+            'email': 'N/A',
+            'role': 'Coordinación UREE'
+        }
+
+    # Datos de Cancelación (STAT-009)
+    cancellation_data = None
+    if status_code == 'STAT-009' or req.historical:
+        for just in req.justifications:
+            if just.justification_type in ('CANCELACION_ADMIN', 'CANCELACION_SOLICITANTE'):
+                cancellation_data = {
+                    'type': just.justification_type,
+                    'type_label': 'Cancelación Administrativa por Coordinación' if just.justification_type == 'CANCELACION_ADMIN' else 'Desistimiento Voluntario del Plantel',
+                    'reason': just.reason.name if just.reason else 'Causa de fuerza mayor',
+                    'justification': just.justification,
+                    'created_at': finished_vzla
+                }
+                break
+
+    # Evidencias custodiadas con URLs seguras
+    evidences_list = []
+    for ev_idx, ev in enumerate(req.evidences or [], 1):
+        fmt = (ev.format or '').upper()
+        if fmt == 'JPEG':
+            fmt = 'JPG'
+        is_img = fmt in ('JPG', 'JPEG', 'PNG', 'WEBP')
+        is_pdf = fmt == 'PDF'
+
+        weight = ev.file_weight or 0
+        if weight >= 1024 * 1024:
+            weight_str = f"{weight / (1024 * 1024):.2f} MB"
+        else:
+            weight_str = f"{max(1, round(weight / 1024))} KB"
+
+        # Limpieza de nombre de archivo institucional (cero códigos técnicos o hashes de BD)
+        import re as _re, os as _os
+        raw_name = (ev.file_name or '').strip()
+        base, ext_part = _os.path.splitext(raw_name)
+        if not ext_part and fmt:
+            ext_part = '.' + fmt.lower()
+
+        # Caso 1: Si viene con prefijo hash o UUID seguido de guion bajo
+        parts = base.split('_', 1)
+        if len(parts) == 2 and _re.match(r'^[0-9a-fA-F\-]{8,}$', parts[0]):
+            clean_name = parts[1] + ext_part
+        else:
+            clean_name = raw_name
+
+        # Caso 2: Si el nombre base es un hash, código puramente numérico o término genérico
+        clean_base, clean_ext = _os.path.splitext(clean_name)
+        if (
+            not clean_name
+            or clean_base.isdigit()
+            or _re.match(r'^[0-9a-fA-F\-]{8,}$', clean_base)
+            or clean_base.lower() in ('file', 'evidence', 'soporte', 'upload', 'blob', 'image', 'imagen', 'documento', 'archivo')
+        ):
+            ext_label = clean_ext if clean_ext else ext_part
+            clean_name = f"Soporte Documental N°{ev_idx}{ext_label}"
+
+        display_filename = clean_name
+
+        evidences_list.append({
+            'id': ev.id,
+            'file_name': display_filename,
+            'format': fmt,
+            'file_weight': weight,
+            'file_weight_str': weight_str,
+            'is_image': is_img,
+            'is_pdf': is_pdf,
+            'created_at': ev.created_at.astimezone(vzla_tz) if ev.created_at else None,
+            'view_url': url_for('requests.serve_request_evidence', evidence_id=ev.id),
+            'download_url': url_for('requests.serve_request_evidence', evidence_id=ev.id) + '?download=1'
+        })
+
+    # Datos de Cierre y Planificación
+    active_plan = None
+    if req.plannings:
+        plans = [p for p in req.plannings if p.planned_for]
+        if plans:
+            active_plan = max(plans, key=lambda p: p.planned_for)
+
+    # Evaluación y Encuesta (Rating)
+    rating_data = None
+    if req.ratings:
+        r = req.ratings[0]
+        rating_data = {
+            'score': r.score,
+            'score_activity': r.score_activity,
+            'score_instructor': r.score_instructor,
+            'score_admin_response': r.score_admin_response,
+            'comment': r.comment
+        }
+
+    token = generate_verification_token(req.request_code, req.id)
+    token_display = f"{token[:4].upper()}-{token[4:8].upper()}-{token[8:12].upper()}-{token[12:16].upper()}"
+
+    # Resumen consolidado de la labor formativa
+    summary_text = (
+        f"Jornada de formación comunitaria en {pedagogical_data['training_name']} impartida a la comunidad "
+        f"educativa de {institution_data['name']}. Actividad coordinada y certificada por la División de Uso "
+        f"Racional y Eficiente de la Energía (UREE) de CORPOELEC."
+    )
+
+    return {
+        'request': req,
+        'institution_data': institution_data,
+        'pedagogical_data': pedagogical_data,
+        'facilitator_data': facilitator_data,
+        'cancellation_data': cancellation_data,
+        'evidences': evidences_list,
+        'active_plan': active_plan,
+        'rating_data': rating_data,
+        'finished_at_vzla': finished_vzla,
+        'summary_text': summary_text,
+        'token': token,
+        'token_display': token_display,
+        'can_download_report': (status_code == 'STAT-007'),
+        'timeline_steps': get_request_timeline(request_id)
+    }
 
