@@ -46,7 +46,10 @@ def login():
         role_name = 'applicant'
         if current_user.roles_assoc and len(current_user.roles_assoc) > 0:
             role_name = current_user.roles_assoc[0].role.name
-        return redirect(url_for(f'home_{role_name}'))
+        next_page = request.args.get('next')
+        if next_page and not is_safe_url(next_page):
+            next_page = None
+        return redirect(next_page or url_for(f'home_{role_name}'))
 
     if request.method == 'POST':
         if request.is_json:
@@ -135,19 +138,22 @@ def login():
             except Exception as e:
                 print(f"Error enviando notificacion de bienvenida: {e}")
             
+            next_page = request.args.get('next')
+            if next_page and not is_safe_url(next_page):
+                next_page = None
+
+            redirect_target = next_page or url_for(f'home_{role_name}')
+
             if is_api:
                 return jsonify({
                     "message": msg, 
                     "user_id": user.id, 
                     "role": role_name,
-                    "redirect_url": url_for(f'home_{role_name}')
+                    "redirect_url": redirect_target
                 }), 200
             else:
                 flash(msg, 'success')
-                next_page = request.args.get('next')
-                if next_page and not is_safe_url(next_page):
-                    next_page = None
-                return redirect(next_page or url_for(f'home_{role_name}'))
+                return redirect(redirect_target)
         else:
             BinnacleService.log_security_event(
                 action_type=AuditAction.LOGIN_FALLIDO.value,

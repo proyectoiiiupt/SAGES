@@ -357,4 +357,22 @@
         }
     });
 </script>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        {% for category, message in messages %}
+        Swal.fire({
+            icon: '{{ "warning" if category == "warning" else ("error" if category == "danger" else "info") }}',
+            title: '{{ "Acceso Restringido" if category == "warning" else "Información Institucional" }}',
+            text: {{ message | tojson }},
+            confirmButtonText: 'Entendido',
+            confirmButtonColor: '#019577'
+        });
+        {% endfor %}
+    });
+</script>
+{% endif %}
+{% endwith %}
 {% endblock %}

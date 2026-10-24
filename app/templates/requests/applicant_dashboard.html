@@ -139,4 +139,20 @@
 </script>
 {% endif %}
 {% endwith %}
+
+{% with warnings = get_flashed_messages(category_filter=["warning"]) %}
+{% if warnings %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Acceso Restringido',
+            text: {{ warnings[0] | tojson }},
+            confirmButtonText: 'Entendido',
+            confirmButtonColor: '#019577'
+        });
+    });
+</script>
+{% endif %}
+{% endwith %}
 {% endblock %}
