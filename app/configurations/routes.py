@@ -8,7 +8,7 @@ alternancia de estatus y APIs geográficas en cascada.
 from flask import render_template, request, jsonify, abort
 from flask_login import login_required, current_user
 from app.configurations import configurations_bp
-from app.decorators import role_required
+from app.decorators import role_required, check_permissions
 from app.configurations.forms import PlaceForm
 from app.configurations.services import (
     get_places_with_staff_count,
@@ -16,7 +16,8 @@ from app.configurations.services import (
     update_place,
     toggle_place_status,
     get_municipalities_by_state,
-    get_parishes_by_municipality
+    get_parishes_by_municipality,
+    get_roles_and_permissions_data
 )
 from app.models.state_model import State
 
@@ -28,11 +29,13 @@ from app.models.state_model import State
 @configurations_bp.route('/', methods=['GET'])
 @login_required
 @role_required('super_admin')
+@check_permissions('system_configuration')
 def index():
     """
     Ruta base del módulo de configuraciones.
-    Renderiza la interfaz con todas las subvistas, incluyendo el listado de
-    sedes paginado con conteo de personal adscrito y el formulario de alta.
+    Renderiza la interfaz con todas las subvistas, incluyendo la matriz de
+    roles y permisos RBAC (US-53), el listado de sedes paginado con conteo
+    de personal adscrito y el formulario de alta (US-56).
     """
     page       = request.args.get('page', 1, type=int)
     per_page   = 10
@@ -40,13 +43,20 @@ def index():
     states     = State.query.order_by(State.name).all()
     form       = PlaceForm()
 
+    # US-53: Consulta pasiva de roles, usuarios activos y matriz de permisos
+    roles_data = get_roles_and_permissions_data()
+
     return render_template(
         'configurations/index.html',
         pagination=pagination,
         places=pagination.items if pagination else [],
         states=states,
         form=form,
-        per_page=per_page
+        per_page=per_page,
+        roles_summary=roles_data['roles_summary'],
+        permission_categories=roles_data['permission_categories'],
+        role_permissions_map=roles_data['role_permissions_map'],
+        critical_permissions=roles_data['critical_permissions']
     )
 
 

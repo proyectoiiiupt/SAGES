@@ -79,47 +79,92 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnCancelModal = document.getElementById('btn-cancel-modal');
     const btnSavePermissions = document.getElementById('btn-save-permissions');
 
-    const openModal = (roleName, roleCode) => {
+    // Parsear datos de la matriz RBAC embebidos en la vista (US-53)
+    let rolesMatrixData = {};
+    try {
+        const rawMatrix = document.getElementById('roles-matrix-data');
+        if (rawMatrix && rawMatrix.textContent) {
+            rolesMatrixData = JSON.parse(rawMatrix.textContent);
+        }
+    } catch (err) {
+        console.warn('SAGES: Error al parsear roles-matrix-data:', err);
+    }
+
+    let criticalPermissions = ['view_home', 'view_admin_panel', 'manage_users', 'system_configuration'];
+    try {
+        const rawCritical = document.getElementById('critical-permissions-data');
+        if (rawCritical && rawCritical.textContent) {
+            criticalPermissions = JSON.parse(rawCritical.textContent);
+        }
+    } catch (err) {
+        // Fallback predeterminado
+    }
+
+    const openModal = (roleName, roleCode, roleId) => {
         if (!modalPermissions) return;
 
         if (modalTitle) {
-            modalTitle.textContent = `Matriz de Permisos — ${roleName}`;
+            modalTitle.textContent = `Editar Permisos de Rol: ${roleName}`;
         }
 
-        // Configuración condicional según rol (Regla Anti-Lockout para super_admin)
-        const isSuperAdmin = roleCode === 'super_admin';
+        // Regla Anti-Lockout para super_admin
+        const isSuperAdmin = (roleCode === 'super_admin' || roleName === 'Super Administrador');
         
-        // Elementos que deben estar bloqueados para super_admin
-        const protectedCheckboxes = [
-            'chk-admin-panel',
-            'chk-manage-users',
-            'chk-sys-config'
-        ];
+        // Permisos asignados al rol seleccionado
+        const assignedPerms = rolesMatrixData[roleCode] || rolesMatrixData[roleId] || [];
 
-        protectedCheckboxes.forEach(id => {
-            const chk = document.getElementById(id);
-            if (chk) {
-                chk.disabled = isSuperAdmin;
-                if (isSuperAdmin) chk.checked = true;
+        // Configurar casillas de verificación dinámicamente
+        const permCheckboxes = modalPermissions.querySelectorAll('.perm-checkbox');
+        permCheckboxes.forEach(chk => {
+            const permView = chk.dataset.permView;
+            const isCritical = criticalPermissions.includes(permView);
+            const isAssigned = assignedPerms.includes(permView);
+            const parentItem = document.getElementById(`perm-item-${permView}`);
+            const lockTag = document.getElementById(`tag-lock-${permView}`);
+
+            if (isSuperAdmin && isCritical) {
+                // Bloqueo estricto sobre privilegios vitales del Super Administrador
+                chk.checked = true;
+                chk.disabled = true;
+                if (parentItem) {
+                    parentItem.classList.add('locked', 'checkbox-locked');
+                }
+                if (lockTag) {
+                    lockTag.style.display = 'inline-flex';
+                }
+            } else {
+                // Otros roles o permisos no críticos
+                chk.checked = isAssigned;
+                chk.disabled = false;
+                if (parentItem) {
+                    parentItem.classList.remove('locked', 'checkbox-locked');
+                }
+                if (lockTag) {
+                    lockTag.style.display = 'none';
+                }
             }
         });
 
-        // Mostrar modal
         modalPermissions.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
     };
 
     const closeModal = () => {
         if (modalPermissions) {
             modalPermissions.style.display = 'none';
+            document.body.style.overflow = '';
         }
     };
 
-    // Botones "Gestionar" en la tabla de roles — sin acción (prototipo UI)
+    // Conectar botones "Gestionar" en la tabla de roles
     const manageButtons = document.querySelectorAll('.btn-manage-role');
     manageButtons.forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
-            // Sin acción en esta fase del prototipo
+            const roleId = btn.dataset.roleId || '';
+            const roleCode = btn.dataset.roleCode || '';
+            const roleName = btn.dataset.roleName || 'Rol';
+            openModal(roleName, roleCode, roleId);
         });
     });
 
@@ -135,6 +180,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // Cierre accesible con tecla Escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modalPermissions && modalPermissions.style.display === 'flex') {
+            closeModal();
+        }
+    });
 
     // =========================================================================
     // 4. SIMULACIONES INTERACTIVAS CON SWEETALERT2

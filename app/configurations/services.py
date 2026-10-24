@@ -16,6 +16,12 @@ from app.models.municipality_model import Municipality
 from app.models.parish_model import Parish
 from app.models.state_model import State
 from sqlalchemy.orm import joinedload
+from sqlalchemy import func
+from app.models.role_model import Role
+from app.models.role_user_model import RoleUser
+from app.models.user_model import User
+from app.models.permission_model import Permission
+from app.models.permission_role_model import PermissionRole
 from app.binnacle.services import BinnacleService
 from app.binnacle.types import AuditModule, AuditAction, AuditStatus
 
@@ -383,4 +389,203 @@ def get_places_with_staff_count(page: int = 1, per_page: int = 10):
         ).count()
 
     return pagination
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CONSULTAS DE SOLO LECTURA: ROLES Y MATRIZ DE PERMISOS (US-53)
+# ─────────────────────────────────────────────────────────────────────────────
+
+ROLE_CONFIG = {
+    'super_admin': {
+        'display_name': 'Super Administrador',
+        'access_level': 'Acceso Total',
+        'badge_class': 'badge-success',
+        'icon_color': 'bg-purple',
+        'icon_type': 'shield'
+    },
+    'state_admin': {
+        'display_name': 'Administrador Estadal',
+        'access_level': 'Aprobación Regional',
+        'badge_class': 'badge-info',
+        'icon_color': 'bg-blue',
+        'icon_type': 'users'
+    },
+    'applicant': {
+        'display_name': 'Solicitante (Comunitario)',
+        'access_level': 'Lectura y Carga',
+        'badge_class': 'badge-neutral',
+        'icon_color': 'bg-teal',
+        'icon_type': 'user'
+    }
+}
+
+PERMISSION_DESCRIPTIONS = {
+    'view_home': 'Acceso y navegación general en la pantalla de inicio del sistema.',
+    'view_admin_panel': 'Visualización del panel administrativo y métricas globales.',
+    'system_configuration': 'Gestión de configuraciones globales y matriz de privilegios.',
+    'view_statistics': 'Consulta y exportación de reportes e indicadores estadísticos.',
+    'manage_users': 'Administración integral del padrón de usuarios y perfiles.',
+    'register_users': 'Registro y alta de nuevos colaboradores y administradores.',
+    'manage_institution': 'Gestión de instituciones educativas y sedes vinculadas.',
+    'view_my_institution': 'Visualización de datos de la institución adscrita.',
+    'assign_to_states': 'Asignación y delimitación territorial por estados.',
+    'view_training_catalog': 'Exploración del catálogo general de módulos de formación.',
+    'upload_training': 'Carga, edición y publicación de contenidos formativos.',
+    'assign_to_educational_levels': 'Asociación de temas según nivel educativo.',
+    'manage_requests': 'Revisión, aprobación y gestión operativa de solicitudes.',
+    'create_request': 'Creación y despacho de nuevas solicitudes comunitarias.'
+}
+
+CRITICAL_SUPER_ADMIN_PERMISSIONS = {
+    'view_home',
+    'view_admin_panel',
+    'manage_users',
+    'system_configuration'
+}
+
+
+def get_roles_and_permissions_data() -> dict:
+    """
+    US-53: Consulta pasiva de roles, conteo de usuarios activos por rol,
+    catálogo maestro de permisos organizados por módulos funcionales y
+    mapa de permisos asignados a cada rol.
+
+    Returns:
+        dict: Estructura con roles_summary, permission_categories,
+              role_permissions_map y critical_permissions.
+    """
+    # 1. Determinar ID del estado activo (STAT-001)
+    status_act = _get_active_status()
+    active_status_id = status_act.id if status_act else 1
+
+    # 2. Conteo de usuarios activos agrupados por rol
+    active_counts_query = (
+        db.session.query(
+            RoleUser.role_id,
+            func.count(User.id).label('total_users')
+        )
+        .join(User, RoleUser.user_id == User.id)
+        .filter(User.status_id == active_status_id)
+        .group_by(RoleUser.role_id)
+        .all()
+    )
+    active_users_map = {row.role_id: row.total_users for row in active_counts_query}
+
+    # 3. Consultar roles ordenados por jerarquía (id)
+    roles = Role.query.order_by(Role.id.asc()).all()
+
+    # 4. Consultar catálogo maestro de permisos
+    all_permissions = Permission.query.order_by(Permission.id.asc()).all()
+    permissions_by_view = {p.view: p for p in all_permissions}
+
+    # 5. Organizar permisos por categorías temáticas requeridas
+    categories_spec = [
+        {
+            'key': 'panel_sistema',
+            'title': 'Módulo Panel y Sistema',
+            'views': ['view_home', 'view_admin_panel', 'system_configuration', 'view_statistics']
+        },
+        {
+            'key': 'usuarios',
+            'title': 'Módulo Usuarios y Cuentas',
+            'views': ['manage_users', 'register_users']
+        },
+        {
+            'key': 'instituciones',
+            'title': 'Módulo Instituciones y Sedes',
+            'views': ['manage_institution', 'view_my_institution', 'assign_to_states']
+        },
+        {
+            'key': 'formacion',
+            'title': 'Módulo Formación y Temas',
+            'views': ['view_training_catalog', 'upload_training', 'assign_to_educational_levels', 'manage_requests', 'create_request']
+        }
+    ]
+
+    permission_categories = []
+    categorized_views = set()
+
+    for cat in categories_spec:
+        cat_perms = []
+        for v in cat['views']:
+            if v in permissions_by_view:
+                p = permissions_by_view[v]
+                cat_perms.append({
+                    'id': p.id,
+                    'code': p.permission_code,
+                    'view': p.view,
+                    'name': p.name,
+                    'description': PERMISSION_DESCRIPTIONS.get(p.view, 'Permiso de operación en la plataforma.'),
+                    'is_critical': p.view in CRITICAL_SUPER_ADMIN_PERMISSIONS
+                })
+                categorized_views.add(v)
+        permission_categories.append({
+            'key': cat['key'],
+            'title': cat['title'],
+            'permissions': cat_perms
+        })
+
+    # Permisos adicionales si existieren en la BD fuera de la especificación inicial
+    uncategorized = [p for p in all_permissions if p.view not in categorized_views]
+    if uncategorized:
+        permission_categories.append({
+            'key': 'otros',
+            'title': 'Módulos Adicionales',
+            'permissions': [
+                {
+                    'id': p.id,
+                    'code': p.permission_code,
+                    'view': p.view,
+                    'name': p.name,
+                    'description': PERMISSION_DESCRIPTIONS.get(p.view, 'Permiso del sistema.'),
+                    'is_critical': p.view in CRITICAL_SUPER_ADMIN_PERMISSIONS
+                } for p in uncategorized
+            ]
+        })
+
+    # 6. Mapeo de permisos asignados a cada rol
+    role_permissions_map = {}
+    roles_summary = []
+
+    for role in roles:
+        assigned_views = [
+            assoc.permission.view
+            for assoc in role.permissions_assoc
+            if assoc.permission
+        ]
+        # Permitir indexar tanto por nombre clave de rol como por su ID numérico
+        role_permissions_map[role.name] = assigned_views
+        role_permissions_map[str(role.id)] = assigned_views
+
+        cfg = ROLE_CONFIG.get(role.name, {
+            'display_name': role.name.replace('_', ' ').title(),
+            'access_level': 'Estándar',
+            'badge_class': 'badge-neutral',
+            'icon_color': 'bg-blue',
+            'icon_type': 'user'
+        })
+
+        roles_summary.append({
+            'role': role,
+            'id': role.id,
+            'code': role.role_code,
+            'name': role.name,
+            'display_name': cfg['display_name'],
+            'description': role.description,
+            'active_users': active_users_map.get(role.id, 0),
+            'access_level': cfg['access_level'],
+            'badge_class': cfg['badge_class'],
+            'icon_color': cfg['icon_color'],
+            'icon_type': cfg['icon_type'],
+            'permissions_count': len(assigned_views),
+            'assigned_views': assigned_views
+        })
+
+    return {
+        'roles_summary': roles_summary,
+        'permission_categories': permission_categories,
+        'role_permissions_map': role_permissions_map,
+        'critical_permissions': list(CRITICAL_SUPER_ADMIN_PERMISSIONS)
+    }
+
 

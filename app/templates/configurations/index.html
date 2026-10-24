@@ -105,66 +105,49 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                {% for r_item in roles_summary %}
                                 <tr>
                                     <td>
                                         <div class="role-cell">
-                                            <span class="role-icon-box bg-purple">
+                                            <span class="role-icon-box {{ r_item.icon_color }}">
+                                                {% if r_item.icon_type == 'shield' %}
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                                            </span>
-                                            <div>
-                                                <strong>Super Administrador</strong>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="text-center"><span class="badge-count">2</span></td>
-                                    <td class="text-center"><span class="badge-status badge-success">Acceso Total</span></td>
-                                    <td class="text-center">
-                                        <button type="button" class="btn-action btn-manage-role" data-role-name="Super Administrador" data-role-code="super_admin">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-                                            Gestionar
-                                        </button>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="role-cell">
-                                            <span class="role-icon-box bg-blue">
+                                                {% elif r_item.icon_type == 'users' %}
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
-                                            </span>
-                                            <div>
-                                                <strong>Administrador Estadal</strong>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="text-center"><span class="badge-count">8</span></td>
-                                    <td class="text-center"><span class="badge-status badge-info">Aprobación Regional</span></td>
-                                    <td class="text-center">
-                                        <button type="button" class="btn-action btn-manage-role" data-role-name="Administrador Estadal" data-role-code="state_admin">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-                                            Gestionar
-                                        </button>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="role-cell">
-                                            <span class="role-icon-box bg-teal">
+                                                {% else %}
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                                {% endif %}
                                             </span>
                                             <div>
-                                                <strong>Solicitante (Comunitario)</strong>
+                                                <strong>{{ r_item.display_name }}</strong>
+                                                <small style="display: block; color: var(--cfg-muted); font-size: 0.78rem;">{{ r_item.code }} &bull; {{ r_item.permissions_count }} permisos activos</small>
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="text-center"><span class="badge-count">45</span></td>
-                                    <td class="text-center"><span class="badge-status badge-neutral">Lectura y Carga</span></td>
                                     <td class="text-center">
-                                        <button type="button" class="btn-action btn-manage-role" data-role-name="Solicitante (Comunitario)" data-role-code="applicant">
+                                        <span class="badge-count" title="Usuarios activos adscritos a este rol">{{ r_item.active_users }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge-status {{ r_item.badge_class }}">{{ r_item.access_level }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" 
+                                                class="btn-action btn-manage-role" 
+                                                data-role-id="{{ r_item.id }}" 
+                                                data-role-code="{{ r_item.name }}" 
+                                                data-role-name="{{ r_item.display_name }}">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                                             Gestionar
                                         </button>
                                     </td>
                                 </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted" style="padding: 2rem;">
+                                        No se encontraron roles configurados en el sistema.
+                                    </td>
+                                </tr>
+                                {% endfor %}
                             </tbody>
                         </table>
                     </div>
@@ -508,143 +491,34 @@
         </div>
 
         <div class="modal-body">
-            
-            <!-- Grupo 1: Módulos Generales -->
+            {% for cat in permission_categories %}
             <div class="perm-group">
-                <span class="perm-group-header">Módulos Generales</span>
+                <span class="perm-group-header">{{ cat.title }}</span>
                 <div class="perm-grid">
-                    <label class="perm-checkbox-item locked">
-                        <input type="checkbox" checked disabled>
+                    {% for perm in cat.permissions %}
+                    <label class="perm-checkbox-item" id="perm-item-{{ perm.view }}" data-perm-view="{{ perm.view }}">
+                        <input type="checkbox" 
+                               class="perm-checkbox" 
+                               id="chk-perm-{{ perm.view }}" 
+                               data-perm-view="{{ perm.view }}" 
+                               data-critical="{{ 'true' if perm.is_critical else 'false' }}">
                         <span class="perm-box"></span>
                         <div class="perm-info">
-                            <strong>Ver Inicio (view_home)</strong>
-                            <span class="perm-lock-tag">
+                            <div class="perm-header-line">
+                                <strong>{{ perm.name }}</strong>
+                                <span class="perm-view-code">({{ perm.view }})</span>
+                            </div>
+                            <p class="perm-desc-text">{{ perm.description }}</p>
+                            <span class="perm-lock-tag" id="tag-lock-{{ perm.view }}" style="display: none;">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                                 Protegido
                             </span>
                         </div>
                     </label>
-
-                    <label class="perm-checkbox-item locked" id="perm-item-admin-panel">
-                        <input type="checkbox" checked disabled id="chk-admin-panel">
-                        <span class="perm-box"></span>
-                        <div class="perm-info">
-                            <strong>Panel Administrativo (view_admin_panel)</strong>
-                            <span class="perm-lock-tag" id="tag-admin-panel">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                                Protegido
-                            </span>
-                        </div>
-                    </label>
-
-                    <label class="perm-checkbox-item">
-                        <input type="checkbox" checked id="chk-statistics">
-                        <span class="perm-box"></span>
-                        <div class="perm-info">
-                            <strong>Ver Estadísticas (view_statistics)</strong>
-                        </div>
-                    </label>
+                    {% endfor %}
                 </div>
             </div>
-
-            <!-- Grupo 2: Gestión de Formación -->
-            <div class="perm-group">
-                <span class="perm-group-header">Gestión de Formación</span>
-                <div class="perm-grid">
-                    <label class="perm-checkbox-item">
-                        <input type="checkbox" checked id="chk-training-catalog">
-                        <span class="perm-box"></span>
-                        <div class="perm-info">
-                            <strong>Catálogo de Formación (view_training_catalog)</strong>
-                        </div>
-                    </label>
-
-                    <label class="perm-checkbox-item">
-                        <input type="checkbox" checked id="chk-upload-training">
-                        <span class="perm-box"></span>
-                        <div class="perm-info">
-                            <strong>Cargar Formación (upload_training)</strong>
-                        </div>
-                    </label>
-
-                    <label class="perm-checkbox-item">
-                        <input type="checkbox" checked id="chk-edu-levels">
-                        <span class="perm-box"></span>
-                        <div class="perm-info">
-                            <strong>Asignar a Niveles Educ. (assign_to_educational_levels)</strong>
-                        </div>
-                    </label>
-                </div>
-            </div>
-
-            <!-- Grupo 3: Administración Territorial e Institucional -->
-            <div class="perm-group">
-                <span class="perm-group-header">Administración Territorial e Institucional</span>
-                <div class="perm-grid">
-                    <label class="perm-checkbox-item">
-                        <input type="checkbox" checked id="chk-assign-states">
-                        <span class="perm-box"></span>
-                        <div class="perm-info">
-                            <strong>Asignar a Estados (assign_to_states)</strong>
-                        </div>
-                    </label>
-
-                    <label class="perm-checkbox-item">
-                        <input type="checkbox" checked id="chk-manage-inst">
-                        <span class="perm-box"></span>
-                        <div class="perm-info">
-                            <strong>Gestionar Institución (manage_institution)</strong>
-                        </div>
-                    </label>
-
-                    <label class="perm-checkbox-item">
-                        <input type="checkbox" id="chk-my-inst">
-                        <span class="perm-box"></span>
-                        <div class="perm-info">
-                            <strong>Ver Mi Institución (view_my_institution)</strong>
-                        </div>
-                    </label>
-                </div>
-            </div>
-
-            <!-- Grupo 4: Usuarios y Seguridad -->
-            <div class="perm-group">
-                <span class="perm-group-header">Usuarios y Seguridad Global</span>
-                <div class="perm-grid">
-                    <label class="perm-checkbox-item locked" id="perm-item-users">
-                        <input type="checkbox" checked disabled id="chk-manage-users">
-                        <span class="perm-box"></span>
-                        <div class="perm-info">
-                            <strong>Gestionar Usuarios (manage_users)</strong>
-                            <span class="perm-lock-tag" id="tag-manage-users">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                                Protegido
-                            </span>
-                        </div>
-                    </label>
-
-                    <label class="perm-checkbox-item">
-                        <input type="checkbox" checked id="chk-register-users">
-                        <span class="perm-box"></span>
-                        <div class="perm-info">
-                            <strong>Registrar Usuarios (register_users)</strong>
-                        </div>
-                    </label>
-
-                    <label class="perm-checkbox-item locked" id="perm-item-sys-config">
-                        <input type="checkbox" checked disabled id="chk-sys-config">
-                        <span class="perm-box"></span>
-                        <div class="perm-info">
-                            <strong>Configuración del Sistema (system_configuration)</strong>
-                            <span class="perm-lock-tag" id="tag-sys-config">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                                Protegido
-                            </span>
-                        </div>
-                    </label>
-                </div>
-            </div>
-
+            {% endfor %}
         </div>
 
         <div class="modal-footer">
@@ -761,6 +635,13 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- Datos embebidos para Matriz RBAC (US-53) -->
+<script id="roles-matrix-data" type="application/json">
+{{ role_permissions_map | tojson | safe }}
+</script>
+<script id="critical-permissions-data" type="application/json">
+{{ critical_permissions | tojson | safe }}
+</script>
 <script src="{{ url_for('static', filename='JS/sweetalert2.all.min.js') }}"></script>
 <script src="{{ url_for('static', filename='JS/configurations.js') }}"></script>
 {% endblock %}

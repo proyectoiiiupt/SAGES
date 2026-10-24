@@ -906,29 +906,62 @@
     cursor: pointer;
 }
 
+.perm-info {
+    flex: 1;
+}
+
+.perm-header-line {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
 .perm-info strong {
-    display: block;
-    font-size: 0.98rem;
+    font-size: 0.95rem;
     color: var(--cfg-text);
+}
+
+.perm-view-code {
+    font-size: 0.74rem;
+    color: #64748b;
+    font-family: monospace;
+    background: #f1f5f9;
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+}
+
+.perm-desc-text {
+    font-size: 0.82rem;
+    color: #64748b;
+    margin: 0.25rem 0 0 0;
+    line-height: 1.35;
 }
 
 .perm-lock-tag {
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    font-size: 0.84rem;
+    font-size: 0.8rem;
     font-weight: 700;
     color: #b45309;
     background: #fef3c7;
     padding: 0.15rem 0.5rem;
     border-radius: 4px;
-    margin-top: 0.3rem;
+    margin-top: 0.35rem;
 }
 
-.perm-checkbox-item.locked {
+.perm-checkbox-item.locked,
+.perm-checkbox-item.checkbox-locked {
     background-color: #f8fafc;
     cursor: not-allowed;
-    opacity: 0.85;
+    opacity: 0.75;
+    border-color: #e2e8f0;
+}
+
+.perm-checkbox-item.locked input[type="checkbox"],
+.perm-checkbox-item.checkbox-locked input[type="checkbox"] {
+    cursor: not-allowed;
 }
 
 .modal-footer {
