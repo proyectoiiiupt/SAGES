@@ -62,7 +62,7 @@ function formatAllLocalTimes() {
                     month: 'long',
                     day: 'numeric'
                 }).format(date);
-            } else if (formatType === 'date-only') {
+            } else if (formatType === 'date-only' || formatType === 'date') {
                 formattedStr = new Intl.DateTimeFormat('es-VE', {
                     year: 'numeric',
                     month: '2-digit',

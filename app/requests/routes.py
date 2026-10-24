@@ -1,6 +1,7 @@
 from flask import render_template, request, jsonify, redirect, url_for, send_from_directory, abort, current_app
 from flask_login import login_required, current_user
 from app.decorators.auth_decorators import role_required, check_permissions
+from functools import wraps
 from app.requests import requests_bp
 from app.requests.services import get_applicant_active_requests, get_pending_survey_request
 from app.models.user_model import User
@@ -1596,3 +1597,306 @@ def api_delete_request_evidence(evidence_id):
         'message': message,
         'data': payload
     }), status_code
+
+
+# ---------------------------------------------------------------------------
+# Rutas Historial de Solicitudes y Descarga de Informe Técnico con QR (US-50)
+# ---------------------------------------------------------------------------
+
+def verify_request_access(f):
+    """
+    Decorador de acceso compartido para las rutas históricas del expediente (US-50).
+    Valida que el usuario autenticado tenga permiso sobre el expediente cuyo 'id'
+    viene como parámetro de URL:
+      - applicant:   solo su mismo plantel institucional.
+      - state_admin: solo su jurisdicción territorial (state_id).
+      - super_admin: acceso irrestricto a nivel nacional.
+    Responde 401 sin sesión, 404 si el expediente no existe, 403 si no tiene acceso.
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        from app.models.request_model import Request as Req
+        from app.models.user_model import User
+        from flask_login import current_user
+        from flask import abort, jsonify, request as flask_request
+
+        if not current_user.is_authenticated:
+            return abort(401)
+
+        request_id = kwargs.get('id')
+        if not request_id:
+            return abort(400)
+
+        req = Req.query.get(request_id)
+        if not req:
+            return abort(404)
+
+        user_roles = [
+            assoc.role.name for assoc in current_user.roles_assoc
+        ] if current_user.roles_assoc else []
+
+        is_super_admin = 'super_admin' in user_roles
+        is_state_admin = 'state_admin' in user_roles
+        is_applicant = 'applicant' in user_roles
+
+        if is_super_admin:
+            return f(*args, **kwargs)
+
+        if is_state_admin:
+            try:
+                req_state_id = req.institutional_staff.institution.parish.municipality.state_id
+            except AttributeError:
+                req_state_id = None
+            user = User.query.get(current_user.id)
+            try:
+                admin_state_id = user.person.company_staff[0].place.parish.municipality.state_id
+            except (AttributeError, IndexError):
+                admin_state_id = None
+            if not admin_state_id or req_state_id != admin_state_id:
+                if flask_request.is_json or (
+                    flask_request.accept_mimetypes.accept_json
+                    and not flask_request.accept_mimetypes.accept_html
+                ):
+                    return jsonify({"error": "Violación territorial: No tiene permiso sobre este expediente."}), 403
+                abort(403, description="Violación territorial: No tiene permiso sobre este expediente.")
+            return f(*args, **kwargs)
+
+        if is_applicant:
+            user = User.query.get(current_user.id)
+            try:
+                user_inst_id = user.person.institutional_staff[0].institution_id
+            except (AttributeError, IndexError):
+                user_inst_id = None
+            req_inst_id = req.institutional_staff.institution_id if req.institutional_staff else None
+            if not user_inst_id or user_inst_id != req_inst_id:
+                if flask_request.is_json or (
+                    flask_request.accept_mimetypes.accept_json
+                    and not flask_request.accept_mimetypes.accept_html
+                ):
+                    return jsonify({"error": "Acceso denegado: No tiene permisos sobre este expediente institucional."}), 403
+                abort(403, description="Acceso denegado: No tiene permisos sobre este expediente institucional.")
+            return f(*args, **kwargs)
+
+        if flask_request.is_json or (
+            flask_request.accept_mimetypes.accept_json
+            and not flask_request.accept_mimetypes.accept_html
+        ):
+            return jsonify({"error": "Acceso denegado: Rol no reconocido."}), 403
+        abort(403, description="Acceso denegado: Rol no reconocido.")
+
+    return decorated_function
+
+
+@requests_bp.route('/history', methods=['GET'])
+@login_required
+@role_required('applicant')
+@check_permissions('create_request')
+def applicant_history():
+    """
+    Renderiza la vista de expedientes archivados para el directivo escolar (US-50).
+    Aplica aislamiento institucional estricto. Modo solo lectura.
+    """
+    from app.requests.services import get_historical_requests
+    from app.models.status_model import Status
+
+    page = request.args.get('page', 1, type=int)
+    filters = {
+        'search': request.args.get('search', ''),
+        'status': request.args.get('status', ''),
+        'date_from': request.args.get('date_from', ''),
+        'date_to': request.args.get('date_to', '')
+    }
+
+    pagination = get_historical_requests(current_user, filters=filters, page=page, per_page=10)
+    statuses = Status.query.filter(Status.status_code.in_(['STAT-007', 'STAT-009'])).all()
+
+    return render_template(
+        'requests/applicant_history.html',
+        pagination=pagination,
+        requests=pagination.items,
+        filters=filters,
+        statuses=statuses
+    )
+
+
+@requests_bp.route('/state-history', methods=['GET'])
+@login_required
+@role_required('state_admin', 'super_admin')
+@check_permissions('manage_requests')
+def state_admin_history():
+    """
+    Renderiza la vista de expedientes archivados para la administración estadal y nacional (US-50).
+    Aplica aislamiento territorial para state_admin y filtro nacional para super_admin.
+    """
+    from app.requests.services import get_historical_requests, get_admin_state_id
+    from app.models.status_model import Status
+    from app.models.municipality_model import Municipality
+    from app.models.state_model import State
+
+    user_roles = [assoc.role.name for assoc in current_user.roles_assoc] if current_user.roles_assoc else []
+    is_super_admin = 'super_admin' in user_roles
+
+    page = request.args.get('page', 1, type=int)
+    filters = {
+        'search': request.args.get('search', ''),
+        'status': request.args.get('status', ''),
+        'municipality_id': request.args.get('municipality_id', ''),
+        'state_id': request.args.get('state_id', ''),
+        'date_from': request.args.get('date_from', ''),
+        'date_to': request.args.get('date_to', '')
+    }
+
+    pagination = get_historical_requests(current_user, filters=filters, page=page, per_page=10)
+    statuses = Status.query.filter(Status.status_code.in_(['STAT-007', 'STAT-009'])).all()
+
+    states = []
+    if is_super_admin:
+        states = State.query.order_by(State.name.asc()).all()
+        selected_state = int(filters['state_id']) if (filters['state_id'] and str(filters['state_id']).isdigit()) else None
+        if selected_state:
+            municipalities = Municipality.query.filter_by(state_id=selected_state).order_by(Municipality.name.asc()).all()
+        else:
+            municipalities = Municipality.query.order_by(Municipality.name.asc()).all()
+    else:
+        admin_state_id = get_admin_state_id(current_user)
+        municipalities = Municipality.query.filter_by(state_id=admin_state_id).order_by(Municipality.name.asc()).all() if admin_state_id else []
+
+    return render_template(
+        'requests/state_history.html',
+        pagination=pagination,
+        requests=pagination.items,
+        filters=filters,
+        statuses=statuses,
+        municipalities=municipalities,
+        states=states,
+        is_super_admin=is_super_admin
+    )
+
+
+@requests_bp.route('/history/<int:id>', methods=['GET'])
+@requests_bp.route('/state-history/<int:id>', methods=['GET'])
+@login_required
+@verify_request_access
+def historical_request_detail(id):
+    """
+    Renderiza la ficha técnica histórica de solo lectura (US-50).
+    Presenta resumen de la labor formativa, galería de evidencias custodiadas
+    y botón de descarga del informe técnico con validación criptográfica QR.
+    Totalmente libre de formularios o botones de mutación de datos.
+    """
+    from app.requests.services import get_historical_request_detail
+
+    detail = get_historical_request_detail(id, current_user)
+    user_roles = [assoc.role.name for assoc in current_user.roles_assoc] if current_user.roles_assoc else []
+    is_applicant = 'applicant' in user_roles and 'super_admin' not in user_roles and 'state_admin' not in user_roles
+
+    back_url = url_for('requests.applicant_history') if is_applicant else url_for('requests.state_admin_history')
+
+    return render_template(
+        'requests/state_history_detail.html',
+        detail=detail,
+        req=detail['request'],
+        is_applicant=is_applicant,
+        back_url=back_url
+    )
+
+
+@requests_bp.route('/download-report/<int:id>', methods=['GET'])
+@login_required
+@verify_request_access
+def download_request_report(id):
+    """
+    Compila y descarga el Informe Técnico Final Oficial en formato PDF (US-50 / SR-F-026).
+    Valida estrictamente estado STAT-007 (Completado).
+    Estampa Código QR de validación y asienta evento en la bitácora forense.
+    """
+    from app.models.request_model import Request
+    from app.utils.pdf_generator import generate_completion_report_pdf
+    from app.binnacle.services import BinnacleService
+    from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+
+    req = Request.query.get_or_404(id)
+
+    # Restricción de Negocio: Solo solicitudes completadas
+    if req.status.status_code != 'STAT-007':
+        abort(422, description="El Informe Técnico Oficial solo está disponible para solicitudes completadas (STAT-007).")
+
+    try:
+        pdf_buffer = generate_completion_report_pdf(req)
+
+        # Registro de Auditoría Forense
+        try:
+            BinnacleService.create_log_entry(
+                module=AuditModule.REQUESTS.value,
+                action_type=AuditAction.DESCARGA_REGISTRO.value,
+                description=f"Descarga de Informe Técnico Oficial para la solicitud {req.request_code}",
+                target_table="sages.requests",
+                record_id=req.id,
+                status=AuditStatus.COMPLETADO.value
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"No se pudo registrar la descarga en binnacle para solicitud {req.id}: {e}")
+
+        import re as _re
+        inst_name = req.institutional_staff.institution.institution_name if (req.institutional_staff and req.institutional_staff.institution) else "Institucional"
+        clean_name = _re.sub(r'[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]+', '_', inst_name).strip('_')[:35]
+        doc_filename = f"Informe_Tecnico_{clean_name}.pdf" if clean_name else "Informe_Tecnico_Oficial.pdf"
+
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=doc_filename
+        )
+
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error generando informe PDF para solicitud {req.id}: {e}", exc_info=True)
+        abort(500, description="Error interno al compilar el informe técnico oficial. Intente nuevamente.")
+
+
+@requests_bp.route('/verify/<token>', methods=['GET'])
+def verify_request_token(token):
+    """
+    Portal público de validación de autenticidad criptográfica QR (US-50 / SR-F-026).
+    Accesible sin autenticación previa mediante escaneo móvil.
+    Valida la integridad del token HMAC-SHA256 y despliega la certificación oficial.
+    """
+    from app.models.request_model import Request
+    from app.models.training_model import Training
+    from app.models.training_module_model import TrainingModule
+    from app.models.institutional_staff_model import InstitutionalStaff
+    from app.models.institution_model import Institution
+    from app.models.parish_model import Parish
+    from app.models.municipality_model import Municipality
+    from app.models.state_model import State
+    from app.utils.qr_generator import generate_verification_token
+    from sqlalchemy.orm import joinedload
+    from datetime import datetime, timezone, timedelta
+
+    # Buscar entre los expedientes históricos el que coincida con el hash HMAC
+    candidates = Request.query.options(
+        joinedload(Request.status),
+        joinedload(Request.training).joinedload(Training.training_module),
+        joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.institution).joinedload(Institution.parish).joinedload(Parish.municipality).joinedload(Municipality.state),
+        joinedload(Request.attended_by).joinedload(User.person)
+    ).filter(Request.historical == True).all()
+
+    matched_req = None
+    for candidate in candidates:
+        if generate_verification_token(candidate.request_code, candidate.id) == token:
+            matched_req = candidate
+            break
+
+    vzla_tz = timezone(timedelta(hours=-4))
+    now_vzla = datetime.now(vzla_tz)
+
+    return render_template(
+        'requests/verify_report.html',
+        req=matched_req,
+        token=token,
+        verified=(matched_req is not None),
+        checked_at=now_vzla
+    )
+

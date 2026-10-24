@@ -33,8 +33,7 @@
                 plantel escolar.</p>
         </div>
         <div class="dashboard-actions-bar">
-            <!-- Usamos URLs estáticas momentáneamente para no generar BuildError -->
-            <a href="/requests/history" class="btn-secondary">Historial</a>
+            <a href="{{ url_for('requests.applicant_history') }}" class="btn-secondary">Historial</a>
             {% if institution_active %}
             <a href="{{ url_for('requests.new_request_wizard') }}" class="btn-primary">Registrar Nueva Solicitud +</a>
             {% else %}
