@@ -9,6 +9,7 @@ from flask import render_template, request, jsonify, abort
 from flask_login import login_required, current_user
 from app.configurations import configurations_bp
 from app.decorators import role_required
+from app.extensions import limiter
 from app.configurations.forms import PlaceForm
 from app.configurations.services import (
     get_places_with_staff_count,
@@ -16,7 +17,10 @@ from app.configurations.services import (
     update_place,
     toggle_place_status,
     get_municipalities_by_state,
-    get_parishes_by_municipality
+    get_parishes_by_municipality,
+    get_role_permissions,
+    get_all_roles_matrix,
+    update_role_permissions
 )
 from app.models.state_model import State
 
@@ -39,6 +43,7 @@ def index():
     pagination = get_places_with_staff_count(page=page, per_page=per_page)
     states     = State.query.order_by(State.name).all()
     form       = PlaceForm()
+    roles_matrix = get_all_roles_matrix()
 
     return render_template(
         'configurations/index.html',
@@ -46,7 +51,8 @@ def index():
         places=pagination.items if pagination else [],
         states=states,
         form=form,
-        per_page=per_page
+        per_page=per_page,
+        roles_matrix=roles_matrix
     )
 
 
@@ -214,3 +220,71 @@ def _inject_dynamic_choices(form: PlaceForm) -> None:
 
     form.municipality_id.choices = [(mun_id, mun.name if mun else '')] if mun_id else [(0, '')]
     form.parish_id.choices       = [(parish_id, par.name if par else '')] if parish_id else [(0, '')]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ENDPOINTS DE GESTIÓN DE MATRIZ DE PERMISOS (RBAC) - US-54 / US-57
+# ─────────────────────────────────────────────────────────────────────────────
+
+@configurations_bp.route('/roles/<int:role_id>/permissions', methods=['GET'])
+@login_required
+@role_required('super_admin')
+def get_role_permissions_endpoint(role_id):
+    """
+    Retorna los privilegios actualmente asignados a un rol para poblar el modal.
+
+    Returns:
+        JSON 200: {"success": True, "data": {"role_id": int, "role_code": str, "permission_ids": [...]}}
+        JSON 404: {"success": False, "message": "..."}
+    """
+    try:
+        data = get_role_permissions(role_id)
+        return jsonify({'success': True, 'data': data}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al consultar permisos: {str(e)}'}), 404
+
+
+@configurations_bp.route('/roles/<int:role_id>/permissions', methods=['POST'])
+@login_required
+@role_required('super_admin')
+@limiter.limit("20 per minute", methods=['POST'], key_func=lambda: str(current_user.id))
+def update_role_permissions_endpoint(role_id):
+    """
+    Sincroniza atómicamente la matriz de permisos para un rol específico.
+    Protegido contra CSRF, sesión autenticada, rol super_admin y Rate Limiting.
+
+    Payload JSON esperado:
+        {"permission_ids": [1, 2, 5, ...]}
+
+    Returns:
+        JSON 200: {"success": True, "message": "Niveles de acceso actualizados exitosamente.", "deltas": {...}}
+        JSON 400: {"success": False, "message": "Cuerpo de la petición inválido o ID de rol erróneo."}
+        JSON 500: {"success": False, "message": "Ocurrió un error al persistir los cambios."}
+    """
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict) or 'permission_ids' not in payload or not isinstance(payload['permission_ids'], list):
+        return jsonify({
+            'success': False,
+            'message': 'Cuerpo de la petición inválido. Se requiere "permission_ids" como lista.'
+        }), 400
+
+    try:
+        result = update_role_permissions(role_id, payload['permission_ids'], current_user.id)
+        return jsonify({
+            'success': True,
+            'message': 'Niveles de acceso actualizados exitosamente.',
+            'deltas': result
+        }), 200
+
+    except ValueError as ve:
+        return jsonify({
+            'success': False,
+            'message': str(ve)
+        }), 400
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': 'Ocurrió un error al persistir los cambios.'
+        }), 500
+
