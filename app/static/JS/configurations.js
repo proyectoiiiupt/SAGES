@@ -79,33 +79,82 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnCancelModal = document.getElementById('btn-cancel-modal');
     const btnSavePermissions = document.getElementById('btn-save-permissions');
 
-    const openModal = (roleName, roleCode) => {
+    const openModal = async (roleId, roleName, roleCode) => {
         if (!modalPermissions) return;
 
         if (modalTitle) {
             modalTitle.textContent = `Matriz de Permisos — ${roleName}`;
         }
 
-        // Configuración condicional según rol (Regla Anti-Lockout para super_admin)
-        const isSuperAdmin = roleCode === 'super_admin';
-        
-        // Elementos que deben estar bloqueados para super_admin
-        const protectedCheckboxes = [
-            'chk-admin-panel',
-            'chk-manage-users',
-            'chk-sys-config'
+        modalPermissions.dataset.roleId = roleId;
+        modalPermissions.dataset.roleCode = roleCode;
+
+        const isSuperAdmin = (roleCode === 'super_admin');
+
+        // Configuración de elementos protegidos por la Regla Anti-Lockout
+        const protectedItems = [
+            { chkId: 'chk-view-home', tagId: 'tag-home', parentId: 'perm-item-home' },
+            { chkId: 'chk-admin-panel', tagId: 'tag-admin-panel', parentId: 'perm-item-admin-panel' },
+            { chkId: 'chk-manage-users', tagId: 'tag-manage-users', parentId: 'perm-item-users' },
+            { chkId: 'chk-sys-config', tagId: 'tag-sys-config', parentId: 'perm-item-sys-config' }
         ];
 
-        protectedCheckboxes.forEach(id => {
-            const chk = document.getElementById(id);
-            if (chk) {
-                chk.disabled = isSuperAdmin;
-                if (isSuperAdmin) chk.checked = true;
+        // Desmarcar todos los checkboxes inicialmente mientras se consultan los datos
+        const allCheckboxes = modalPermissions.querySelectorAll('input[type="checkbox"]');
+        allCheckboxes.forEach(chk => {
+            chk.checked = false;
+            chk.disabled = false;
+        });
+
+        // Aplicar estado visual inicial de bloqueo para super_admin
+        protectedItems.forEach(item => {
+            const chk = document.getElementById(item.chkId);
+            const tag = document.getElementById(item.tagId);
+            const parent = document.getElementById(item.parentId);
+
+            if (chk && isSuperAdmin) {
+                chk.checked = true;
+                chk.disabled = true;
+            }
+            if (tag) tag.style.display = isSuperAdmin ? 'inline-flex' : 'none';
+            if (parent) {
+                if (isSuperAdmin) parent.classList.add('locked');
+                else parent.classList.remove('locked');
             }
         });
 
-        // Mostrar modal
+        // Mostrar modal reactivamente
         modalPermissions.style.display = 'flex';
+
+        // Consultar los permisos vigentes del rol desde el backend vía AJAX
+        try {
+            const resp = await fetch(`/configurations/roles/${roleId}/permissions`);
+            if (resp.ok) {
+                const res = await resp.json();
+                if (res.success && res.data && Array.isArray(res.data.permission_ids)) {
+                    const activeIds = new Set(res.data.permission_ids.map(Number));
+                    allCheckboxes.forEach(chk => {
+                        const val = Number(chk.value);
+                        if (activeIds.has(val)) {
+                            chk.checked = true;
+                        }
+                    });
+
+                    // Re-asegurar Regla Anti-Lockout si es super_admin
+                    if (isSuperAdmin) {
+                        protectedItems.forEach(item => {
+                            const chk = document.getElementById(item.chkId);
+                            if (chk) {
+                                chk.checked = true;
+                                chk.disabled = true;
+                            }
+                        });
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('[RBAC] Error al cargar permisos del rol:', e);
+        }
     };
 
     const closeModal = () => {
@@ -114,12 +163,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Botones "Gestionar" en la tabla de roles — sin acción (prototipo UI)
+    // Botones "Gestionar" en la tabla de roles
     const manageButtons = document.querySelectorAll('.btn-manage-role');
     manageButtons.forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
-            // Sin acción en esta fase del prototipo
+            const roleId = btn.dataset.roleId;
+            const roleName = btn.dataset.roleName || 'Rol';
+            const roleCode = btn.dataset.roleCode || '';
+            if (roleId) {
+                openModal(roleId, roleName, roleCode);
+            }
         });
     });
 
@@ -137,21 +191,96 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // =========================================================================
-    // 4. SIMULACIONES INTERACTIVAS CON SWEETALERT2
+    // 4. GUARDADO DE PRIVILEGIOS CON FETCH API Y CSRF (#btn-save-permissions)
     // =========================================================================
-
-    // A) Guardar Privilegios en el Modal
     if (btnSavePermissions) {
-        btnSavePermissions.addEventListener('click', () => {
-            closeModal();
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Privilegios actualizados',
-                    text: 'La matriz de permisos ha sido guardada satisfactoriamente (Modo Demostración).',
-                    confirmButtonColor: '#019577',
-                    confirmButtonText: 'Entendido'
+        btnSavePermissions.addEventListener('click', async () => {
+            const roleId = modalPermissions ? modalPermissions.dataset.roleId : null;
+            if (!roleId) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'No se pudo identificar el rol a modificar.',
+                        confirmButtonColor: '#019577'
+                    });
+                }
+                return;
+            }
+
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+            // Recopilar IDs numéricos de las casillas marcadas
+            const checkedBoxes = modalPermissions.querySelectorAll('input[type="checkbox"]:checked');
+            const selectedIds = Array.from(checkedBoxes)
+                .map(chk => parseInt(chk.value, 10))
+                .filter(val => !isNaN(val));
+
+            // Indicador de espera y bloqueo del botón
+            const originalBtnHtml = btnSavePermissions.innerHTML;
+            btnSavePermissions.disabled = true;
+            btnSavePermissions.innerHTML = `
+                <svg style="animation: spin 1s linear infinite;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="2" x2="12" y2="6"></line>
+                    <line x1="12" y1="18" x2="12" y2="22"></line>
+                    <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                    <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                    <line x1="2" y1="12" x2="6" y2="12"></line>
+                    <line x1="18" y1="12" x2="22" y2="12"></line>
+                    <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                    <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+                </svg>
+                <span>Guardando...</span>
+            `;
+
+            try {
+                const response = await fetch(`/configurations/roles/${roleId}/permissions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ permission_ids: selectedIds })
                 });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    closeModal();
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: '¡Permisos Actualizados!',
+                            text: 'Los cambios ya están en vigor para los usuarios correspondientes.',
+                            confirmButtonColor: '#019577',
+                            confirmButtonText: 'Aceptar'
+                        });
+                    }
+                } else {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error al actualizar',
+                            text: data.message || 'Ocurrió un error al persistir los cambios.',
+                            confirmButtonColor: '#019577',
+                            confirmButtonText: 'Entendido'
+                        });
+                    }
+                }
+            } catch (err) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error de conexión',
+                        text: 'No se pudo comunicar con el servidor. Intente nuevamente.',
+                        confirmButtonColor: '#019577',
+                        confirmButtonText: 'Entendido'
+                    });
+                }
+            } finally {
+                btnSavePermissions.disabled = false;
+                btnSavePermissions.innerHTML = originalBtnHtml;
             }
         });
     }

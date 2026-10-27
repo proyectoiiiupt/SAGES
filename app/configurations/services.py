@@ -15,6 +15,9 @@ from app.models.status_model import Status
 from app.models.municipality_model import Municipality
 from app.models.parish_model import Parish
 from app.models.state_model import State
+from app.models.role_model import Role
+from app.models.permission_model import Permission
+from app.models.permission_role_model import PermissionRole
 from sqlalchemy.orm import joinedload
 from app.binnacle.services import BinnacleService
 from app.binnacle.types import AuditModule, AuditAction, AuditStatus
@@ -383,4 +386,159 @@ def get_places_with_staff_count(page: int = 1, per_page: int = 10):
         ).count()
 
     return pagination
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SERVICIO DE GESTIÓN DE ROLES Y PERMISOS (RBAC) - US-54 / US-57
+# ─────────────────────────────────────────────────────────────────────────────
+
+PROTECTED_SUPER_ADMIN_VIEWS = {
+    'view_home',
+    'view_admin_panel',
+    'manage_users',
+    'system_configuration'
+}
+
+
+def get_role_permissions(role_id: int) -> dict:
+    """
+    Retorna los identificadores de permisos asignados a un rol específico.
+
+    Args:
+        role_id (int): Identificador del rol.
+
+    Returns:
+        dict: Información del rol y lista de IDs de permisos asignados.
+    """
+    role = Role.query.get_or_404(role_id)
+    assigned_ids = [pr.permission_id for pr in role.permissions_assoc]
+    return {
+        'role_id': role.id,
+        'role_code': role.role_code,
+        'role_name': role.name,
+        'permission_ids': assigned_ids
+    }
+
+
+def get_all_roles_matrix() -> list:
+    """
+    Retorna la lista de roles del sistema junto a sus IDs de permisos asignados
+    y el conteo de usuarios vinculados, ordenados por id.
+
+    Returns:
+        list[dict]: Estructura lista para renderizar la matriz en el frontend.
+    """
+    roles = Role.query.order_by(Role.id).all()
+    matrix = []
+    for r in roles:
+        matrix.append({
+            'id': r.id,
+            'role_code': r.role_code,
+            'name': r.name,
+            'description': r.description,
+            'permission_ids': [pr.permission_id for pr in r.permissions_assoc],
+            'users_count': len(r.users_assoc)
+        })
+    return matrix
+
+
+def update_role_permissions(role_id: int, submitted_permission_ids: list, current_user_id: int) -> dict:
+    """
+    Sincroniza atómicamente los privilegios asignados a un rol en sages.permissions_roles.
+
+    Aplica la Regla de Integridad Anti-Lockout para garantizar que el rol super_admin
+    nunca pierda el acceso a sus vistas críticas.
+    Registra la auditoría forense con los deltas exactos en sages.binnacle.
+
+    Args:
+        role_id (int): ID del rol en sages.roles.
+        submitted_permission_ids (list): Lista de IDs de permisos solicitados por el cliente.
+        current_user_id (int): ID del usuario que ejecuta la mutación.
+
+    Returns:
+        dict: Resumen de la operación con conteos y deltas.
+
+    Raises:
+        ValueError: Si el rol no existe o los datos son inválidos.
+        Exception: Error de base de datos con rollback automático.
+    """
+    try:
+        role = Role.query.get(role_id)
+        if not role:
+            raise ValueError(f"El rol con ID {role_id} no existe en el sistema.")
+
+        # 1. Verificación de permisos válidos (descartar IDs inexistentes o manipulados)
+        clean_submitted_ids = []
+        for pid in submitted_permission_ids:
+            try:
+                clean_submitted_ids.append(int(pid))
+            except (ValueError, TypeError):
+                continue
+
+        valid_permissions = Permission.query.filter(Permission.id.in_(clean_submitted_ids)).all() if clean_submitted_ids else []
+        final_ids = {p.id for p in valid_permissions}
+
+        # 2. Aplicación de la Regla Anti-Lockout para Super Administrador
+        if role.name == 'super_admin':
+            protected_perms = Permission.query.filter(Permission.view.in_(PROTECTED_SUPER_ADMIN_VIEWS)).all()
+            protected_ids = {p.id for p in protected_perms}
+            # Inyectar forzosamente los permisos protegidos si el cliente los omitió
+            final_ids.update(protected_ids)
+
+        # 3. Obtener permisos actuales para cálculo de deltas
+        current_permission_roles = PermissionRole.query.filter_by(role_id=role.id).all()
+        current_ids = {pr.permission_id for pr in current_permission_roles}
+
+        added_ids = final_ids - current_ids
+        removed_ids = current_ids - final_ids
+
+        # 4. Sincronización en bloque atómico
+        if removed_ids:
+            PermissionRole.query.filter(
+                PermissionRole.role_id == role.id,
+                PermissionRole.permission_id.in_(removed_ids)
+            ).delete(synchronize_session=False)
+
+        for pid in added_ids:
+            db.session.add(PermissionRole(role_id=role.id, permission_id=pid))
+
+        db.session.flush()
+
+        # 5. Registro de Auditoría Forense con Deltas
+        BinnacleService.create_log_entry(
+            module=AuditModule.CONFIGURATIONS.value,
+            action_type=AuditAction.ACTUALIZAR.value,
+            description=f"Actualización de matriz de permisos para el rol {role.name}",
+            status=AuditStatus.COMPLETADO.value,
+            target_table="sages.permissions_roles",
+            record_id=role.id,
+            old_values={
+                "permissions_count": len(current_ids),
+                "removed_ids": sorted(list(removed_ids))
+            },
+            new_values={
+                "permissions_count": len(final_ids),
+                "added_ids": sorted(list(added_ids))
+            }
+        )
+
+        db.session.commit()
+        logger.info(
+            f"[RBAC] Permisos actualizados para rol {role.name} (ID: {role.id}) "
+            f"por usuario {current_user_id}. Añadidos: {len(added_ids)}, Removidos: {len(removed_ids)}"
+        )
+
+        return {
+            "role_id": role.id,
+            "role_name": role.name,
+            "permissions_count": len(final_ids),
+            "added_ids": sorted(list(added_ids)),
+            "removed_ids": sorted(list(removed_ids))
+        }
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"[RBAC] Error al actualizar permisos del rol {role_id}: {str(e)}")
+        raise
+
 
