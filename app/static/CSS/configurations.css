@@ -1291,3 +1291,186 @@
     to { transform: rotate(360deg); }
 }
 
+/* ==========================================================================
+   16. SECCIÓN RESPALDOS (US-60-database-backup-monitoring)
+   ========================================================================== */
+
+/* ── Cuadrícula de KPI Cards ── */
+.backup-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.backup-kpi-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    background: var(--cfg-card-bg);
+    border: 1px solid var(--cfg-border);
+    border-radius: var(--cfg-radius);
+    padding: 1.1rem 1.25rem;
+    box-shadow: var(--cfg-shadow);
+}
+
+/* ── Iconos de KPI ── */
+.kpi-icon-wrapper {
+    width: 46px;
+    height: 46px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.kpi-icon-wrapper svg {
+    width: 22px;
+    height: 22px;
+}
+
+.kpi-icon-wrapper.bg-green-light {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.kpi-icon-wrapper.bg-green-light svg {
+    stroke: #16a34a;
+}
+
+.kpi-icon-wrapper.bg-blue-light {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+.kpi-icon-wrapper.bg-blue-light svg {
+    stroke: #2563eb;
+}
+
+/* ── Textos de KPI ── */
+.kpi-text-block {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.kpi-label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--cfg-muted);
+    margin-bottom: 0.15rem;
+}
+
+.kpi-main-val {
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--cfg-text);
+    line-height: 1.3;
+}
+
+/* Modificadores de estado para kpi-main-val */
+.kpi-main-val--muted {
+    color: #64748b;
+}
+
+.kpi-sub-val {
+    display: block;
+    font-size: 0.80rem;
+    font-weight: 500;
+    color: var(--cfg-muted);
+    margin-top: 0.1rem;
+}
+
+/* Modificadores de color para kpi-sub-val */
+.kpi-sub-val--success {
+    color: #16a34a;
+}
+
+.kpi-sub-val--warning {
+    color: #ca8a04;
+}
+
+/* ── Panel de Tarjetas de Política (action-card) ── */
+.backup-actions-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.action-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    background: var(--cfg-card-bg);
+    border: 1px solid var(--cfg-border);
+    border-radius: var(--cfg-radius);
+    padding: 1.1rem 1.25rem;
+    box-shadow: var(--cfg-shadow);
+}
+
+/* Variante con borde izquierdo acento teal (política zero trust) */
+.action-card--teal {
+    border-left: 4px solid var(--cfg-accent);
+}
+
+/* Variante con borde izquierdo azul (procedimiento de restauración) */
+.action-card--blue {
+    border-left: 4px solid #0284c7;
+}
+
+.action-info {
+    width: 100%;
+}
+
+/* Fila de ícono + título dentro de action-card */
+.action-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.4rem;
+}
+
+.action-card-title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.action-card-body {
+    line-height: 1.5;
+    color: #475569;
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+/* Modificador: añade margin-bottom al párrafo (cuando hay bloque de código debajo) */
+.action-card-body--mb {
+    margin-bottom: 0.75rem;
+}
+
+/* ==========================================================================
+   17. HELPERS DE FORMULARIOS (modal-place y otros formularios del módulo)
+   ========================================================================== */
+
+/* Margin-bottom estándar para grupos de formulario */
+.form-group--mb {
+    margin-bottom: 1rem;
+}
+
+/* Sin margin-bottom (último elemento del formulario) */
+.form-group--no-mb {
+    margin-bottom: 0;
+}
+
+/* Asterisco de campo requerido */
+.label-required {
+    color: #e53e3e;
+}
+

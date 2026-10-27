@@ -20,7 +20,8 @@ from app.configurations.services import (
     get_parishes_by_municipality,
     get_role_permissions,
     get_all_roles_matrix,
-    update_role_permissions
+    update_role_permissions,
+    get_last_backup_log
 )
 from app.models.state_model import State
 
@@ -44,6 +45,7 @@ def index():
     states     = State.query.order_by(State.name).all()
     form       = PlaceForm()
     roles_matrix = get_all_roles_matrix()
+    last_backup = get_last_backup_log()
 
     return render_template(
         'configurations/index.html',
@@ -52,7 +54,8 @@ def index():
         states=states,
         form=form,
         per_page=per_page,
-        roles_matrix=roles_matrix
+        roles_matrix=roles_matrix,
+        last_backup=last_backup
     )
 
 
