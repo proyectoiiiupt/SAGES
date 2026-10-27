@@ -18,6 +18,7 @@ from app.models.state_model import State
 from app.models.role_model import Role
 from app.models.permission_model import Permission
 from app.models.permission_role_model import PermissionRole
+from app.models.binnacle_model import Binnacle
 from sqlalchemy.orm import joinedload
 from app.binnacle.services import BinnacleService
 from app.binnacle.types import AuditModule, AuditAction, AuditStatus
@@ -542,3 +543,18 @@ def update_role_permissions(role_id: int, submitted_permission_ids: list, curren
         raise
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# MONITOREO DE RESPALDOS AUTOMATIZADOS (US-60)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def get_last_backup_log():
+    """
+    Recupera el registro más reciente de volcado o respaldo exitoso desde la bitácora.
+    """
+    try:
+        return Binnacle.query.filter_by(
+            action_type=AuditAction.RESPALDO_AUTOMATICO_EXITOSO.value
+        ).order_by(Binnacle.created_at.desc()).first()
+    except Exception as e:
+        logger.error(f"[Respaldos] Error al consultar el último respaldo en bitácora: {str(e)}")
+        return None
