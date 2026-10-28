@@ -14,7 +14,10 @@ from app.models.institution_type_model import InstitutionType
 from app.models.institution_scope_model import InstitutionScope
 from app.models.educational_level_model import EducationalLevel
 from app.models.institution_level_model import InstitutionLevel
+from app.models.request_planning_model import RequestPlanning
 from app.dashboard.services import get_user_state_info
+from app.binnacle.services import BinnacleService
+from app.binnacle.types import AuditModule, AuditAction, AuditStatus
 
 class AnalyticsService:
     @staticmethod
@@ -592,5 +595,145 @@ class AnalyticsService:
             }
 
         return headers, data_rows, report_meta
+
+    @staticmethod
+    def get_scoped_base_query(user, filters):
+        """
+        [Parámetros heredados de US-56]
+        Construye la consulta base de solicitudes blindada contra IDOR.
+        Si el usuario es state_admin, sobrescribe obligatoriamente cualquier state_id recibido.
+        """
+        query = db.session.query(Request).select_from(Request)\
+            .join(Request.institutional_staff)\
+            .join(InstitutionalStaff.institution)\
+            .join(Institution.parish)\
+            .join(Parish.municipality)\
+            .join(Municipality.state)
+
+        user_role = user.roles_assoc[0].role.name if user.roles_assoc else 'applicant'
+
+        # 1. Blindaje Territorial Forzoso
+        if user_role == 'state_admin':
+            state_info = get_user_state_info(user)
+            authorized_state = state_info['state_id'] if state_info else 0
+            query = query.filter(State.id == authorized_state)
+        elif user_role == 'super_admin':
+            requested_state = filters.get('state_id')
+            if requested_state:
+                query = query.filter(State.id == requested_state)
+        else:
+            return query.filter(Request.id == 0)
+
+        # 2. Filtros Territoriales Dependientes
+        if filters.get('municipality_id'):
+            query = query.filter(Municipality.id == filters['municipality_id'])
+        if filters.get('parish_id'):
+            query = query.filter(Parish.id == filters['parish_id'])
+
+        # 3. Filtros Temporales
+        if filters.get('date_from'):
+            query = query.filter(Request.created_at >= filters['date_from'])
+        if filters.get('date_to'):
+            query = query.filter(Request.created_at <= filters['date_to'])
+
+        # 4. Clasificación Institucional (SR-F-023)
+        if filters.get('institution_scope_id'):
+            query = query.filter(Institution.institution_scope_id == filters['institution_scope_id'])
+        if filters.get('institution_type_id'):
+            query = query.filter(Institution.institution_type_id == filters['institution_type_id'])
+
+        return query
+
+    @staticmethod
+    def get_indicators_timeline(user, filters):
+        """
+        Calcula las series temporales para las 3 tarjetas de líneas continuas:
+        Generadas, Atendidas y Comparativa Consolidada.
+        """
+        base_q = AnalyticsService.get_scoped_base_query(user, filters)
+
+        # Agrupación directa en PostgreSQL por día
+        date_bucket = func.date_trunc('day', Request.created_at).label('hitorange')
+
+        timeline_data = base_q.outerjoin(Request.plannings)\
+            .join(Request.status)\
+            .with_entities(
+                date_bucket,
+                func.count(Request.id).label('generadas'),
+                func.count(
+                    case((
+                        and_(Status.status_code == 'STAT-007', RequestPlanning.attended == True),
+                        Request.id
+                    ))
+                ).label('atendidas')
+            )\
+            .group_by('hitorange')\
+            .order_by('hitorange').all()
+
+        labels = [item.hitorange.strftime('%d %b') if item.hitorange else '' for item in timeline_data]
+        generadas_series = [item.generadas for item in timeline_data]
+        atendidas_series = [item.atendidas for item in timeline_data]
+
+        total_gen = sum(generadas_series)
+        total_atn = sum(atendidas_series)
+        tasa_resolucion = round((total_atn / total_gen * 100), 1) if total_gen > 0 else 0.0
+
+        return {
+            'labels': labels,
+            'generadas': generadas_series,
+            'atendidas': atendidas_series,
+            'summary': {
+                'total_generadas': total_gen,
+                'total_atendidas': total_atn,
+                'tasa_resolucion': f"{tasa_resolucion}%"
+            }
+        }
+
+    @staticmethod
+    def get_indicators_initial_context(user):
+        """
+        Prepara los datos del mes en curso y catálogos protegidos para la Vista 2.
+        """
+        now = datetime.now(timezone.utc)
+        user_role = user.roles_assoc[0].role.name if user.roles_assoc else 'applicant'
+        state_info = get_user_state_info(user) if user_role == 'state_admin' else None
+
+        # Catálogos geográficos respetando permisos
+        if user_role == 'super_admin':
+            states = State.query.order_by(State.name).all()
+        else:
+            states = [State.query.get(state_info['state_id'])] if state_info else []
+
+        inst_types = InstitutionType.query.order_by(InstitutionType.name).all()
+        inst_scopes = InstitutionScope.query.order_by(InstitutionScope.name).all()
+        edu_levels = EducationalLevel.query.order_by(EducationalLevel.name).all()
+
+        # Datos del mes corriente por defecto
+        primer_dia_mes = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
+        filtros_iniciales = {
+            'date_from': primer_dia_mes,
+            'date_to': now,
+            'state_id': state_info['state_id'] if state_info else None
+        }
+        timeline_data = AnalyticsService.get_indicators_timeline(user, filtros_iniciales)
+
+        # Registro en Bitácora Institucional
+        BinnacleService.create_log_entry(
+            module=AuditModule.REQUESTS.value,
+            action_type=AuditAction.CONSULTA_DETALLE.value,
+            description=f"Acceso a consola de indicadores de gestión ({state_info['state_name'] if state_info else 'Nivel Nacional'})",
+            status=AuditStatus.COMPLETADO.value
+        )
+
+        return {
+            'user_role': user_role,
+            'user_state': state_info,
+            'states': states,
+            'institution_types': inst_types,
+            'institution_scopes': inst_scopes,
+            'educational_levels': edu_levels,
+            'initial_data': timeline_data
+        }
+
 
 
