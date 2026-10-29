@@ -285,18 +285,347 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // B) Guardar Cambios en Datos Corporativos
+    // =========================================================================
+    // B) DATOS CORPORATIVOS E IDENTIDAD VISUAL (US-58)
+    //    Previsualización FileReader, Validación Magic Bytes/Tamaño y Envío AJAX
+    // =========================================================================
     const btnSaveCorporate = document.getElementById('btn-save-corporate');
+    const formCorporate = document.getElementById('form-corporate');
+
+    const logoFileInput = document.getElementById('logo_file');
+    const iconFileInput = document.getElementById('icon_file');
+
+    const btnBrowseLogo = document.getElementById('btn-browse-logo');
+    const btnBrowseIcon = document.getElementById('btn-browse-icon');
+
+    const previewLogoBox = document.getElementById('preview-logo-box');
+    const previewIconBox = document.getElementById('preview-icon-box');
+
+    const previewLogoImg = document.getElementById('preview-logo-img');
+    const previewIconImg = document.getElementById('preview-icon-img');
+
+    const logoFileName = document.getElementById('logo-file-name');
+    const iconFileName = document.getElementById('icon-file-name');
+
+    const dropzoneLogo = document.getElementById('dropzone-logo');
+    const dropzoneIcon = document.getElementById('dropzone-icon');
+
+    // ── 1. Disparadores de Carga de Archivos ─────────────────────────────────
+    if (btnBrowseLogo && logoFileInput) {
+        btnBrowseLogo.addEventListener('click', (e) => {
+            e.stopPropagation();
+            logoFileInput.click();
+        });
+    }
+    if (previewLogoBox && logoFileInput) {
+        previewLogoBox.addEventListener('click', () => logoFileInput.click());
+    }
+
+    if (btnBrowseIcon && iconFileInput) {
+        btnBrowseIcon.addEventListener('click', (e) => {
+            e.stopPropagation();
+            iconFileInput.click();
+        });
+    }
+    if (previewIconBox && iconFileInput) {
+        previewIconBox.addEventListener('click', () => iconFileInput.click());
+    }
+
+    // ── 2. Soporte Opcional de Drag and Drop en Dropzones ───────────────────
+    [
+        { dropzone: dropzoneLogo, input: logoFileInput },
+        { dropzone: dropzoneIcon, input: iconFileInput }
+    ].forEach(({ dropzone, input }) => {
+        if (!dropzone || !input) return;
+
+        ['dragenter', 'dragover'].forEach(evtName => {
+            dropzone.addEventListener(evtName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.add('dragover');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(evtName => {
+            dropzone.addEventListener(evtName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.remove('dragover');
+            });
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                input.files = e.dataTransfer.files;
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        });
+    });
+
+    // ── 3. Previsualización Reactiva con FileReader (Logo) ───────────────────
+    const MAX_LOGO_BYTES = 2 * 1024 * 1024; // 2 MB
+    if (logoFileInput) {
+        logoFileInput.addEventListener('change', () => {
+            const file = logoFileInput.files[0];
+            if (!file) return;
+
+            // Validación preliminar de extensión / tipo
+            const isPng = file.type === 'image/png' || file.name.toLowerCase().endsWith('.png');
+            if (!isPng) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Formato no permitido',
+                        text: 'El logotipo institucional debe ser una imagen PNG auténtica (.png).',
+                        confirmButtonColor: '#019577'
+                    });
+                }
+                logoFileInput.value = '';
+                if (logoFileName) logoFileName.textContent = '';
+                return;
+            }
+
+            // Validación de peso máximo en cliente
+            if (file.size > MAX_LOGO_BYTES) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Archivo demasiado pesado',
+                        text: `El logotipo no puede exceder los 2 MB (${(file.size / (1024 * 1024)).toFixed(2)} MB detectados).`,
+                        confirmButtonColor: '#019577'
+                    });
+                }
+                logoFileInput.value = '';
+                if (logoFileName) logoFileName.textContent = '';
+                return;
+            }
+
+            // Lectura y renderizado reactivo inmediato
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                if (previewLogoImg) {
+                    previewLogoImg.src = e.target.result;
+                }
+                if (logoFileName) {
+                    logoFileName.textContent = `Archivo seleccionado: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // ── 4. Previsualización Reactiva con FileReader (Favicon) ────────────────
+    const MAX_ICON_BYTES = 512 * 1024; // 512 KB
+    if (iconFileInput) {
+        iconFileInput.addEventListener('change', () => {
+            const file = iconFileInput.files[0];
+            if (!file) return;
+
+            const isAllowedExt = file.name.toLowerCase().endsWith('.png') || file.name.toLowerCase().endsWith('.ico');
+            if (!isAllowedExt) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Formato no permitido',
+                        text: 'El favicon debe estar en formato ICO (.ico) o PNG (.png).',
+                        confirmButtonColor: '#019577'
+                    });
+                }
+                iconFileInput.value = '';
+                if (iconFileName) iconFileName.textContent = '';
+                return;
+            }
+
+            if (file.size > MAX_ICON_BYTES) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Archivo demasiado pesado',
+                        text: `El favicon no puede exceder los 512 KB (${(file.size / 1024).toFixed(1)} KB detectados).`,
+                        confirmButtonColor: '#019577'
+                    });
+                }
+                iconFileInput.value = '';
+                if (iconFileName) iconFileName.textContent = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                if (previewIconImg) {
+                    previewIconImg.src = e.target.result;
+                }
+                if (iconFileName) {
+                    iconFileName.textContent = `Archivo seleccionado: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // ── 5. Envío Asíncrono de Formulario y Persistencia ───────────────────────
     if (btnSaveCorporate) {
-        btnSaveCorporate.addEventListener('click', () => {
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Configuración guardada',
-                    text: 'Los datos corporativos han sido actualizados satisfactoriamente (Modo Demostración).',
-                    confirmButtonColor: '#019577',
-                    confirmButtonText: 'Aceptar'
+        btnSaveCorporate.addEventListener('click', async () => {
+            const corpName = document.getElementById('corp-name');
+            const corpRif = document.getElementById('corp-rif');
+            const corpPhone = document.getElementById('corp-phone');
+            const corpAddress = document.getElementById('corp-address');
+
+            const nameVal = corpName ? corpName.value.trim() : '';
+            const rifVal = corpRif ? corpRif.value.trim().toUpperCase() : '';
+            const phoneVal = corpPhone ? corpPhone.value.trim() : '';
+            const addressVal = corpAddress ? corpAddress.value.trim() : '';
+
+            // Validación en cliente: Campos obligatorios
+            if (!nameVal || !rifVal || !phoneVal || !addressVal) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Campos requeridos',
+                        text: 'Todos los campos institucionales de texto son obligatorios.',
+                        confirmButtonColor: '#019577'
+                    });
+                }
+                return;
+            }
+
+            // Validación sintáctica de RIF venezolano: ^[JGVEP]-\d{8}-\d{1}$
+            const rifRegex = /^[JGVEP]-\d{8}-\d{1}$/;
+            if (!rifRegex.test(rifVal)) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Formato de RIF Inválido',
+                        text: 'El RIF institucional debe cumplir con el formato fiscal venezolano (Ej: G-20007870-9).',
+                        confirmButtonColor: '#019577'
+                    });
+                }
+                if (corpRif) corpRif.focus();
+                return;
+            }
+
+            // Obtención del token CSRF
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfInput = formCorporate ? formCorporate.querySelector('input[name="csrf_token"]') : null;
+            const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : (csrfInput ? csrfInput.value : '');
+
+            // Construir payload multipart/form-data
+            const formData = new FormData();
+            formData.append('company_name', nameVal);
+            formData.append('rif', rifVal);
+            formData.append('central_phone', phoneVal);
+            formData.append('fiscal_address', addressVal);
+            if (csrfToken) {
+                formData.append('csrf_token', csrfToken);
+            }
+
+            if (logoFileInput && logoFileInput.files && logoFileInput.files.length > 0) {
+                formData.append('logo_file', logoFileInput.files[0]);
+            }
+            if (iconFileInput && iconFileInput.files && iconFileInput.files.length > 0) {
+                formData.append('icon_file', iconFileInput.files[0]);
+            }
+
+            // Indicador de carga interactivo en el botón
+            const originalBtnHtml = btnSaveCorporate.innerHTML;
+            btnSaveCorporate.disabled = true;
+            btnSaveCorporate.innerHTML = `
+                <svg style="animation: spin 1s linear infinite; width: 16px; height: 16px; margin-right: 6px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+                    <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path>
+                </svg>
+                <span>Guardando Cambios...</span>
+            `;
+
+            try {
+                const response = await fetch('/configurations/corporate', {
+                    method: 'POST',
+                    headers: {
+                        ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {})
+                    },
+                    body: formData
                 });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    if (typeof Swal !== 'undefined') {
+                        await Swal.fire({
+                            icon: 'success',
+                            title: 'Datos Corporativos Actualizados',
+                            text: data.message || 'La información oficial y los recursos visuales han sido actualizados exitosamente.',
+                            confirmButtonColor: '#019577',
+                            confirmButtonText: 'Aceptar'
+                        });
+                    }
+
+                    // Forzar invalidación de caché en imágenes activas del DOM
+                    if (data.cache_buster) {
+                        const buster = `?v=${data.cache_buster}`;
+
+                        // Refrescar logotipos en sidebar, header y previsualización
+                        document.querySelectorAll('.logo-full, #preview-logo-img, .preview-logo').forEach(img => {
+                            const baseSrc = img.src.split('?')[0];
+                            img.src = `${baseSrc}${buster}`;
+                        });
+
+                        // Refrescar íconos en sidebar, loader y favicon
+                        document.querySelectorAll('.logo-icon, .loader-icon, #preview-icon-img, .preview-icon').forEach(img => {
+                            const baseSrc = img.src.split('?')[0];
+                            img.src = `${baseSrc}${buster}`;
+                        });
+
+                        const faviconLink = document.querySelector('link[rel="icon"]');
+                        if (faviconLink) {
+                            const baseHref = faviconLink.href.split('?')[0];
+                            faviconLink.href = `${baseHref}${buster}`;
+                        }
+                    }
+
+                    // Limpiar selección de inputs de archivos
+                    if (logoFileInput) logoFileInput.value = '';
+                    if (iconFileInput) iconFileInput.value = '';
+                    if (logoFileName) logoFileName.textContent = '';
+                    if (iconFileName) iconFileName.textContent = '';
+
+                } else if (response.status === 422 && data.errors) {
+                    // Desglose de errores de validación de campos
+                    const errorMessages = Object.entries(data.errors)
+                        .map(([field, msgs]) => `• ${field}: ${msgs.join(', ')}`)
+                        .join('\n');
+
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Inconsistencias en el Formulario',
+                            text: errorMessages || data.message || 'Verifique los campos ingresados.',
+                            confirmButtonColor: '#019577'
+                        });
+                    }
+                } else {
+                    // Errores de Magic Bytes, peso de archivo o BD
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error de Validación',
+                            text: data.message || 'No fue posible actualizar los datos corporativos.',
+                            confirmButtonColor: '#019577'
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error('[Branding] Error en petición fetch:', err);
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error de Conexión',
+                        text: 'No se pudo comunicar con el servidor. Verifique su conexión y vuelva a intentarlo.',
+                        confirmButtonColor: '#019577'
+                    });
+                }
+            } finally {
+                btnSaveCorporate.disabled = false;
+                btnSaveCorporate.innerHTML = originalBtnHtml;
             }
         });
     }

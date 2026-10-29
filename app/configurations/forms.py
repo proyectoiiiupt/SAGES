@@ -1,11 +1,64 @@
 """
 Formularios WTForms del Módulo de Configuraciones Globales (SAGES)
-Tarea: US-56-places-management
-Proporciona validación de campos para el registro y edición de sedes operativas.
+Tareas:
+  - US-56-places-management: Registro y edición de sedes operativas.
+  - US-58-corporate-branding: Configuración de datos corporativos e identidad visual.
 """
 from flask_wtf import FlaskForm
-from wtforms import StringField, SelectField, TextAreaField
-from wtforms.validators import DataRequired, Length, Regexp
+from wtforms import StringField, SelectField, TextAreaField, FileField
+from wtforms.validators import DataRequired, Length, Regexp, Optional
+
+
+class CorporateDataForm(FlaskForm):
+    """
+    Formulario declarativo para actualizar la información corporativa oficial de CORPOELEC
+    y gestionar la identidad visual (logotipo y favicon/ícono).
+    """
+
+    company_name = StringField(
+        'Nombre de la Organización',
+        filters=[lambda x: x.strip() if x else ''],
+        validators=[
+            DataRequired(message='La razón social de la organización es obligatoria.'),
+            Length(min=3, max=200, message='La razón social debe tener entre 3 y 200 caracteres.')
+        ]
+    )
+
+    rif = StringField(
+        'RIF Institucional',
+        filters=[lambda x: x.strip().upper() if x else ''],
+        validators=[
+            DataRequired(message='El RIF institucional es obligatorio.'),
+            Regexp(
+                r'^[JGVEP]-\d{8}-\d{1}$',
+                message='Formato de RIF inválido. Debe cumplir con el estándar venezolano (ej: G-20007870-9).'
+            )
+        ]
+    )
+
+    central_phone = StringField(
+        'Teléfono Central',
+        filters=[lambda x: x.strip() if x else ''],
+        validators=[
+            DataRequired(message='El teléfono central es obligatorio.'),
+            Regexp(
+                r'^(?:\+58|0)?(?:\(?[24]\d{2,3}\)?)[- ]?\d{3}[- ]?\d{4}$|^\(?\d{4}\)?[- ]?\d{7}$',
+                message='Formato de teléfono inválido. Use formato venezolano (ej: 0212-5021111 o +58(212)502-1111).'
+            )
+        ]
+    )
+
+    fiscal_address = TextAreaField(
+        'Dirección Fiscal Central',
+        filters=[lambda x: x.strip() if x else ''],
+        validators=[
+            DataRequired(message='La dirección fiscal central es obligatoria.'),
+            Length(min=10, max=500, message='La dirección fiscal debe tener entre 10 y 500 caracteres.')
+        ]
+    )
+
+    logo_file = FileField('Logotipo del Sistema')
+    icon_file = FileField('Favicon / Ícono Institucional')
 
 
 class PlaceForm(FlaskForm):

@@ -262,50 +262,77 @@
                         </div>
                     </div>
 
-                    <form id="form-corporate" class="corporate-form-grid" onsubmit="return false;">
-                        
+                    <form id="form-corporate" class="corporate-form-grid" enctype="multipart/form-data" onsubmit="return false;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <!-- Inputs de archivo ocultos para carga segura -->
+                        <input type="file" id="logo_file" name="logo_file" accept=".png,image/png" style="display: none;">
+                        <input type="file" id="icon_file" name="icon_file" accept=".png,.ico,image/png,image/x-icon,image/vnd.microsoft.icon" style="display: none;">
+
                         <!-- Columna 1: Campos Institucionales -->
                         <div class="form-inputs-col">
                             <div class="form-group">
-                                <label for="corp-name" class="form-label">Nombre de la Organización</label>
-                                <input type="text" id="corp-name" class="form-control" value="Corporación Eléctrica Nacional, S.A (CORPOELEC)" readonly>
+                                <label for="corp-name" class="form-label">Nombre de la Organización <span class="required-indicator">*</span></label>
+                                <input type="text" id="corp-name" name="company_name" class="form-control" value="{{ (corporate_form.company_name.data if corporate_form else '') or 'Corporación Eléctrica Nacional (CORPOELEC)' }}" required maxlength="200" placeholder="Ej. Corporación Eléctrica Nacional (CORPOELEC)">
+                                <small class="form-hint">Razón social oficial que figurará en membretes y oficios.</small>
                             </div>
 
                             <div class="form-group">
-                                <label for="corp-rif" class="form-label">RIF Institucional</label>
-                                <input type="text" id="corp-rif" class="form-control" value="G-20007870-9" readonly>
+                                <label for="corp-rif" class="form-label">RIF Institucional <span class="required-indicator">*</span></label>
+                                <input type="text" id="corp-rif" name="rif" class="form-control" value="{{ (corporate_form.rif.data if corporate_form else '') or 'G-20007870-9' }}" required maxlength="12" placeholder="Ej. G-20007870-9" style="text-transform: uppercase;">
+                                <small class="form-hint">Formato fiscal venezolano: [J, G, V, E, P]-XXXXXXXX-X</small>
                             </div>
 
                             <div class="form-group">
-                                <label for="corp-phone" class="form-label">Teléfono Central</label>
-                                <input type="text" id="corp-phone" class="form-control" value="+58(212)502-1111">
+                                <label for="corp-phone" class="form-label">Teléfono Central <span class="required-indicator">*</span></label>
+                                <input type="text" id="corp-phone" name="central_phone" class="form-control" value="{{ (corporate_form.central_phone.data if corporate_form else '') or '0212-5021111' }}" required maxlength="25" placeholder="Ej. (0212)-5021111 o 0212-5021111">
+                                <small class="form-hint">Línea telefónica directa de la sede central.</small>
                             </div>
 
                             <div class="form-group">
-                                <label for="corp-address" class="form-label">Dirección Fiscal Central</label>
-                                <textarea id="corp-address" class="form-control textarea-address" rows="3">Av. Vollmer, Edif. CORPOELEC, San Bernardino, Caracas</textarea>
+                                <label for="corp-address" class="form-label">Dirección Fiscal Central <span class="required-indicator">*</span></label>
+                                <textarea id="corp-address" name="fiscal_address" class="form-control textarea-address" rows="3" required maxlength="500" placeholder="Dirección física completa de la sede principal">{{ (corporate_form.fiscal_address.data if corporate_form else '') or 'Av. Vollmer, Edif. CORPOELEC, San Bernardino, Caracas' }}</textarea>
+                                <small class="form-hint">Ubicación física legal de la sede principal.</small>
                             </div>
                         </div>
 
                         <!-- Columna 2: Carga y Previsualización de Logotipos -->
                         <div class="form-uploads-col">
-                            
+
                             <!-- Dropzone Logo -->
-                            <div class="upload-box">
-                                <span class="upload-label">Logotipo del Sistema</span>
-                                <div class="dropzone-preview">
-                                    <img src="{{ url_for('static', filename='img/logo_corpoelec.png') }}" alt="Logo CORPOELEC" class="preview-logo">
+                            <div class="upload-box" id="dropzone-logo">
+                                <div class="upload-header-row">
+                                    <span class="upload-label">Logotipo del Sistema</span>
+                                    <button type="button" class="btn-upload-trigger" id="btn-browse-logo">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                        <span>Examinar</span>
+                                    </button>
                                 </div>
-                                <span class="upload-hint">Dimensión recomendada: 120×40 px (PNG transparente)</span>
+                                <div class="dropzone-preview" id="preview-logo-box" title="Haga clic para cambiar el logotipo">
+                                    <img src="{{ url_for('static', filename='img/logo_corpoelec.png') }}" alt="Logo CORPOELEC" class="preview-logo" id="preview-logo-img">
+                                </div>
+                                <div class="upload-meta">
+                                    <span class="upload-hint">Dimensión recomendada: 120×40 px (PNG transparente, máx. 2 MB)</span>
+                                    <span class="upload-filename" id="logo-file-name"></span>
+                                </div>
                             </div>
 
                             <!-- Dropzone Favicon -->
-                            <div class="upload-box">
-                                <span class="upload-label">Favicon / Ícono Institucional</span>
-                                <div class="dropzone-preview preview-square">
-                                    <img src="{{ url_for('static', filename='img/icon_corpoelec.png') }}" alt="Ícono CORPOELEC" class="preview-icon">
+                            <div class="upload-box" id="dropzone-icon">
+                                <div class="upload-header-row">
+                                    <span class="upload-label">Favicon / Ícono Institucional</span>
+                                    <button type="button" class="btn-upload-trigger" id="btn-browse-icon">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                        <span>Examinar</span>
+                                    </button>
                                 </div>
-                                <span class="upload-hint">Dimensión recomendada: 32×32 px (ICO o PNG)</span>
+                                <div class="dropzone-preview preview-square" id="preview-icon-box" title="Haga clic para cambiar el favicon">
+                                    <img src="{{ url_for('static', filename='img/icon_corpoelec.png') }}" alt="Ícono CORPOELEC" class="preview-icon" id="preview-icon-img">
+                                </div>
+                                <div class="upload-meta">
+                                    <span class="upload-hint">Dimensión recomendada: 32×32 px (ICO o PNG, máx. 512 KB)</span>
+                                    <span class="upload-filename" id="icon-file-name"></span>
+                                </div>
                             </div>
 
                         </div>

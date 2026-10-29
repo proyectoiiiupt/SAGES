@@ -23,6 +23,13 @@ from sqlalchemy.orm import joinedload
 from app.binnacle.services import BinnacleService
 from app.binnacle.types import AuditModule, AuditAction, AuditStatus
 
+from datetime import datetime, timezone
+import os
+import uuid
+import time
+import shutil
+from flask import current_app
+
 logger = logging.getLogger(__name__)
 
 
@@ -558,3 +565,205 @@ def get_last_backup_log():
     except Exception as e:
         logger.error(f"[Respaldos] Error al consultar el último respaldo en bitácora: {str(e)}")
         return None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GESTIÓN DE DATOS CORPORATIVOS E IDENTIDAD VISUAL (US-58)
+# ─────────────────────────────────────────────────────────────────────────────
+
+SIGNATURE_PNG = b'\x89PNG\r\n\x1a\n'
+SIGNATURE_ICO = b'\x00\x00\x01\x00'
+
+MAX_LOGO_SIZE = 2 * 1024 * 1024      # 2 MB para logotipo
+MAX_ICON_SIZE = 512 * 1024           # 512 KB para favicon/icono
+
+
+class FileValidationError(ValueError):
+    """Error de validación binaria o de tamaño en archivo multimedia corporativo."""
+    pass
+
+
+def get_corporate_branding_data() -> dict:
+    """
+    Recupera los datos vigentes de la entidad corporativa CORPOELEC (COMP-001)
+    y su sede principal asociada (PLC-001) para la precarga del formulario.
+    """
+    company = Company.query.filter_by(company_code='COMP-001').first()
+    main_place = Place.query.filter_by(place_code='PLC-001').first()
+
+    rif_full = ''
+    if company:
+        if company.identification_type and company.rif:
+            rif_full = f"{company.identification_type}-{company.rif}"
+        elif company.rif:
+            rif_full = company.rif
+
+    return {
+        'company_name': company.company_name if company else '',
+        'rif': rif_full,
+        'identification_type': company.identification_type if company else '',
+        'rif_number': company.rif if company else '',
+        'central_phone': main_place.phone if main_place else '',
+        'fiscal_address': main_place.address if main_place else '',
+        'company': company,
+        'main_place': main_place
+    }
+
+
+def _validate_image_bytes(file_storage, allowed_signatures: list, max_size: int, label: str):
+    """
+    Inspecciona en memoria el flujo binario (Magic Bytes) y el peso del archivo.
+    Lanza FileValidationError si no cumple con las firmas o supera el tamaño máximo.
+    """
+    if not file_storage or not getattr(file_storage, 'filename', None):
+        return
+
+    # 1. Medir peso exacto
+    file_storage.seek(0, os.SEEK_END)
+    file_size = file_storage.tell()
+    file_storage.seek(0)
+
+    if file_size == 0:
+        raise FileValidationError(f'El archivo para "{label}" está vacío.')
+
+    if file_size > max_size:
+        max_str = f"{max_size / (1024 * 1024):.1f} MB" if max_size >= 1024 * 1024 else f"{max_size // 1024} KB"
+        curr_str = f"{file_size / (1024 * 1024):.2f} MB" if file_size >= 1024 * 1024 else f"{file_size / 1024:.1f} KB"
+        raise FileValidationError(
+            f'El archivo "{label}" supera el tamaño máximo permitido de {max_str} ({curr_str} recibidos).'
+        )
+
+    # 2. Leer cabecera binaria (primeros 8 bytes)
+    header = file_storage.read(8)
+    file_storage.seek(0)
+
+    matched = any(header.startswith(sig) for sig in allowed_signatures)
+    if not matched:
+        raise FileValidationError(
+            f'El archivo "{label}" no posee una firma binaria válida (Magic Bytes). '
+            f'Solo se admiten formatos auténticos de imagen autorizados.'
+        )
+
+
+def update_corporate_branding(form_data: dict, files: dict, current_user_id: int) -> dict:
+    """
+    Actualiza la información corporativa oficial de CORPOELEC en la base de datos
+    y procesa de manera segura el reemplazo atómico de logotipo y favicon.
+
+    Args:
+        form_data (dict): Diccionario con datos de texto validados (company_name, rif, fiscal_address, central_phone).
+        files (dict): Diccionario con FileStorage opcionales ('logo_file', 'icon_file').
+        current_user_id (int): ID del super administrador que ejecuta el cambio.
+
+    Returns:
+        dict: Resultado de la operación con cache_buster para refresco de UI.
+
+    Raises:
+        FileValidationError: Si algún archivo multimedia no pasa la validación binaria o de tamaño.
+        Exception: Si ocurre un error en la persistencia de base de datos o sistema de archivos.
+    """
+    logo_file = files.get('logo_file') if files else None
+    icon_file = files.get('icon_file') if files else None
+
+    # 1. Validación preventiva de archivos antes de cualquier mutación
+    if logo_file and getattr(logo_file, 'filename', None):
+        _validate_image_bytes(logo_file, [SIGNATURE_PNG], MAX_LOGO_SIZE, 'Logotipo del Sistema')
+
+    if icon_file and getattr(icon_file, 'filename', None):
+        _validate_image_bytes(icon_file, [SIGNATURE_PNG, SIGNATURE_ICO], MAX_ICON_SIZE, 'Favicon / Ícono Institucional')
+
+    try:
+        # 2. Persistencia de datos alfanuméricos en PostgreSQL (Sin alterar DDL)
+        company = Company.query.filter_by(company_code='COMP-001').first()
+        if not company:
+            raise ValueError("No se encontró la empresa institucional CORPOELEC (COMP-001) en la base de datos.")
+
+        old_company_name = company.company_name
+        old_rif = f"{company.identification_type}-{company.rif}" if company.identification_type else company.rif
+
+        # Parsear RIF: formato ^[JGVEP]-\d{8}-\d{1}$
+        rif_raw = form_data.get('rif', '').strip().upper()
+        if '-' in rif_raw:
+            parts = rif_raw.split('-', 1)
+            company.identification_type = parts[0]
+            company.rif = parts[1]
+        else:
+            company.rif = rif_raw
+
+        company.company_name = form_data.get('company_name', '').strip()
+
+        # Sincronización en la sede principal (PLC-001)
+        main_place = Place.query.filter_by(place_code='PLC-001').first()
+        if main_place:
+            if form_data.get('fiscal_address'):
+                main_place.address = form_data.get('fiscal_address', '').strip()
+            if form_data.get('central_phone'):
+                main_place.phone = form_data.get('central_phone', '').strip()
+
+        # 3. Procesamiento y reemplazo atómico de archivos estáticos
+        static_img_dir = os.path.join(current_app.root_path, 'static', 'img')
+        backup_dir = os.path.join(static_img_dir, 'backups')
+        os.makedirs(backup_dir, exist_ok=True)
+
+        timestamp_str = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
+
+        # Logotipo
+        if logo_file and getattr(logo_file, 'filename', None):
+            target_logo = os.path.join(static_img_dir, 'logo_corpoelec.png')
+            if os.path.exists(target_logo):
+                backup_logo = os.path.join(backup_dir, f"backup_logo_{timestamp_str}_{uuid.uuid4().hex[:8]}.png")
+                shutil.copy2(target_logo, backup_logo)
+
+            temp_logo = os.path.join(static_img_dir, f"tmp_logo_{uuid.uuid4().hex}.png")
+            logo_file.seek(0)
+            logo_file.save(temp_logo)
+            os.replace(temp_logo, target_logo)
+            logger.info(f"[Branding] Logotipo actualizado exitosamente por usuario {current_user_id}.")
+
+        # Favicon / Ícono
+        if icon_file and getattr(icon_file, 'filename', None):
+            target_icon = os.path.join(static_img_dir, 'icon_corpoelec.png')
+            if os.path.exists(target_icon):
+                backup_icon = os.path.join(backup_dir, f"backup_icon_{timestamp_str}_{uuid.uuid4().hex[:8]}.png")
+                shutil.copy2(target_icon, backup_icon)
+
+            temp_icon = os.path.join(static_img_dir, f"tmp_icon_{uuid.uuid4().hex}.png")
+            icon_file.seek(0)
+            icon_file.save(temp_icon)
+            os.replace(temp_icon, target_icon)
+            logger.info(f"[Branding] Favicon/ícono institucional actualizado exitosamente por usuario {current_user_id}.")
+
+        db.session.commit()
+
+        # 4. Auditoría Forense en sages.binnacle
+        BinnacleService.create_log_entry(
+            module=AuditModule.CONFIGURATIONS.value,
+            action_type=AuditAction.ACTUALIZAR.value,
+            description="Actualización de datos corporativos e identidad visual de CORPOELEC (COMP-001)",
+            status=AuditStatus.COMPLETADO.value,
+            target_table='sages.companies',
+            record_id=company.id,
+            old_values={
+                'company_name': old_company_name,
+                'rif': old_rif
+            },
+            new_values={
+                'company_name': company.company_name,
+                'rif': f"{company.identification_type}-{company.rif}"
+            }
+        )
+
+        cache_buster = int(time.time())
+        return {
+            'success': True,
+            'message': 'Datos corporativos e identidad visual actualizados exitosamente.',
+            'cache_buster': cache_buster
+        }
+
+    except FileValidationError:
+        db.session.rollback()
+        raise
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"[Branding] Error al actualizar datos corporativos: {str(e)}")
+        raise
