@@ -49,6 +49,26 @@ def index():
             metrics_json=json.dumps({})
         )
 
+@analytics_bp.route('/indicadores', methods=['GET'])
+@login_required
+@role_required('super_admin', 'state_admin')
+@check_permissions('view_statistics')
+def indicators_view():
+    """
+    Vista 2: Consola Analítica "Indicadores de Gestión".
+    """
+    try:
+        context = AnalyticsService.get_indicators_initial_context(current_user)
+        return render_template(
+            'analytics/indicators.html',
+            ctx=context,
+            initial_data_json=json.dumps(context['initial_data'])
+        )
+    except Exception as e:
+        print(f"[ERROR analytics.indicators_view]: {e}")
+        flash("Ocurrió un error al cargar la consola de indicadores de gestión.", "danger")
+        return redirect(url_for('analytics.index'))
+
 @analytics_bp.route('/api/v1/stats', methods=['GET'])
 @login_required
 def get_executive_stats():

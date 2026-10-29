@@ -1,0 +1,265 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Indicadores de Gestión – SAGES{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/analytics.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="analytics-container">
+
+    <!-- ── CABECERA Y NAVEGACIÓN SUPERIOR ── -->
+    <div class="analytics-header-card">
+        <div class="analytics-title-group">
+            <a href="{{ url_for('analytics.index') }}" class="btn-breadcrumb-back" title="Volver al Tablero">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                <span>Volver al Tablero</span>
+            </a>
+            <h1 class="analytics-main-title">Indicadores de Gestión</h1>
+        </div>
+
+        <div class="analytics-date-wrapper">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span id="current-indicators-date"></span>
+        </div>
+    </div>
+
+    <!-- ── CUADRÍCULA PRINCIPAL DE 2 COLUMNAS ── -->
+    <div class="indicators-main-layout">
+
+        <!-- ========================================================
+             COLUMNA IZQUIERDA: LOS 3 BLOQUES DE LÍNEAS (TENDENCIAS)
+             ======================================================== -->
+        <div class="indicators-charts-column">
+
+            <!-- Fila Superior: Generadas vs Atendidas -->
+            <div class="indicators-cards-row">
+                
+                <!-- Tarjeta 1: Solicitudes Generadas (Curva Roja) -->
+                <div class="indicator-card card-generated">
+                    <div class="indicator-card-top">
+                        <span class="indicator-badge badge-red">Demanda Institucional</span>
+                        <div class="indicator-metric-wrap">
+                            <span class="indicator-big-number" id="lbl-total-generadas">
+                                {{ ctx.initial_data.summary.total_generadas }}
+                            </span>
+                            <span class="indicator-metric-caption">solicitudes generadas</span>
+                        </div>
+                    </div>
+                    <div class="indicator-chart-wrapper">
+                        <canvas id="chartGeneratedLines"></canvas>
+                    </div>
+                </div>
+
+                <!-- Tarjeta 2: Solicitudes Atendidas (Curva Verde) -->
+                <div class="indicator-card card-attended">
+                    <div class="indicator-card-top">
+                        <span class="indicator-badge badge-green">Respuesta UREE</span>
+                        <div class="indicator-metric-wrap">
+                            <span class="indicator-big-number" id="lbl-total-atendidas">
+                                {{ ctx.initial_data.summary.total_atendidas }}
+                            </span>
+                            <span class="indicator-metric-caption">solicitudes atendidas</span>
+                        </div>
+                    </div>
+                    <div class="indicator-chart-wrapper">
+                        <canvas id="chartAttendedLines"></canvas>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Fila Inferior: Comparativa Consolidada y Brecha Operativa -->
+            <div class="indicator-card card-comparative">
+                <div class="indicator-card-header-flex">
+                    <div>
+                        <h3 class="indicator-section-title">Comparativa: Demanda vs. Cobertura Operativa</h3>
+                        <p class="indicator-section-subtitle">
+                            Superposición de curvas para contrastar la demanda escolar frente a la ejecución territorial
+                        </p>
+                    </div>
+                    <div class="compliance-rate-box">
+                        <span class="compliance-label">Tasa de Cumplimiento:</span>
+                        <span class="compliance-value" id="lbl-tasa-resolucion">
+                            {{ ctx.initial_data.summary.tasa_resolucion }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="comparative-chart-wrapper">
+                    <canvas id="chartComparativeLines"></canvas>
+                </div>
+
+                <div class="comparative-legend-bar">
+                    <div class="legend-chip"><span class="legend-color-dot dot-red"></span> Solicitudes Generadas</div>
+                    <div class="legend-chip"><span class="legend-color-dot dot-green"></span> Solicitudes Atendidas</div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ========================================================
+             COLUMNA DERECHA: BARRA LATERAL CON BLINDAJE TERRITORIAL
+             ======================================================== -->
+        <aside class="indicators-filter-sidebar">
+            <div class="sidebar-filter-header">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                </svg>
+                <h3>Parámetros de Filtrado</h3>
+            </div>
+
+            <form id="form-indicators-filter" class="filter-sidebar-form">
+                
+                <!-- 1. Modalidad Temporal -->
+                <div class="filter-section-group">
+                    <label class="filter-group-title">Rango de Tiempo</label>
+                    <div class="radio-time-selector">
+                        <label class="radio-label">
+                            <input type="radio" name="time_mode" value="month" checked id="radio-mode-month">
+                            <span>Mes</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="time_mode" value="range" id="radio-mode-range">
+                            <span>Rango de fecha</span>
+                        </label>
+                    </div>
+
+                    <!-- Selector de Mes -->
+                    <div id="wrapper-month-select" class="temporal-input-box">
+                        <select id="sel-filter-month" class="filter-control">
+                            <option value="1">Enero</option>
+                            <option value="2">Febrero</option>
+                            <option value="3">Marzo</option>
+                            <option value="4">Abril</option>
+                            <option value="5">Mayo</option>
+                            <option value="6">Junio</option>
+                            <option value="7">Julio</option>
+                            <option value="8">Agosto</option>
+                            <option value="9" selected>Septiembre</option>
+                            <option value="10">Octubre</option>
+                            <option value="11">Noviembre</option>
+                            <option value="12">Diciembre</option>
+                        </select>
+                    </div>
+
+                    <!-- Selector Rango Desde / Hasta -->
+                    <div id="wrapper-range-select" class="temporal-input-box" style="display: none;">
+                        <div class="date-input-row">
+                            <label>Desde:</label>
+                            <input type="date" id="input-date-from" class="filter-control">
+                        </div>
+                        <div class="date-input-row" style="margin-top: 0.5rem;">
+                            <label>Hasta:</label>
+                            <input type="date" id="input-date-to" class="filter-control">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Ámbito Territorial (Blindaje RBAC) -->
+                <div class="filter-section-group">
+                    <label class="filter-group-title">Ámbito Territorial</label>
+                    
+                    <div class="filter-field-item">
+                        <label for="sel-filter-state">Estado:</label>
+                        {% if ctx.user_role == 'super_admin' %}
+                        <select id="sel-filter-state" class="filter-control">
+                            <option value="">Todos los Estados (Nacional)</option>
+                            {% for st in ctx.states %}
+                            <option value="{{ st.id }}">{{ st.name }}</option>
+                            {% endfor %}
+                        </select>
+                        {% else %}
+                        <!-- Estado fijo y bloqueado para el Administrador Estadal -->
+                        <input type="text" class="filter-control locked-field" value="{{ ctx.user_state.state_name }}" readonly title="Jurisdicción fija asignada">
+                        <input type="hidden" id="sel-filter-state" value="{{ ctx.user_state.state_id }}">
+                        {% endif %}
+                    </div>
+
+                    <div class="filter-field-item">
+                        <label for="sel-filter-municipality">Municipio:</label>
+                        <select id="sel-filter-municipality" class="filter-control" {% if ctx.user_role == 'super_admin' %}disabled{% endif %}>
+                            <option value="">Todos los Municipios</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-field-item">
+                        <label for="sel-filter-parish">Parroquia:</label>
+                        <select id="sel-filter-parish" class="filter-control" disabled>
+                            <option value="">Todas las Parroquias</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 3. Clasificación Institucional (SR-F-023) -->
+                <div class="filter-section-group">
+                    <label class="filter-group-title">Clasificación Institucional</label>
+
+                    <div class="filter-field-item">
+                        <label for="sel-filter-scope">Sector:</label>
+                        <select id="sel-filter-scope" class="filter-control">
+                            <option value="">Públicos y Privados</option>
+                            {% for sc in ctx.institution_scopes %}
+                            <option value="{{ sc.id }}">{{ sc.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="filter-field-item">
+                        <label for="sel-filter-level">Nivel Educativo:</label>
+                        <select id="sel-filter-level" class="filter-control">
+                            <option value="">Todos los Niveles</option>
+                            {% for lv in ctx.educational_levels %}
+                            <option value="{{ lv.id }}">{{ lv.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Botones de Acción -->
+                <div class="sidebar-actions-wrap">
+                    <button type="button" id="btn-calculate-indicators" class="btn-sidebar-calc">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="4" y="2" width="16" height="20" rx="2"></rect>
+                            <line x1="8" y1="6" x2="16" y2="6"></line>
+                        </svg>
+                        <span>Calcular indicadores</span>
+                    </button>
+
+                    <a href="{{ url_for('analytics.reports_wizard') }}" id="btn-export-from-indicators" class="btn-sidebar-export" title="Exportar reportes parametrizados">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        <span>Exportar</span>
+                    </a>
+                </div>
+
+            </form>
+        </aside>
+
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='JS/chart.js') }}"></script>
+<script src="{{ url_for('static', filename='JS/sweetalert2.all.min.js') }}"></script>
+
+<!-- Carga del payload inicial seguro -->
+<script id="indicators-initial-payload" type="application/json">
+    {{ initial_data_json | safe }}
+</script>
+<script src="{{ url_for('static', filename='JS/analytics_indicators.js') }}"></script>
+{% endblock %}
