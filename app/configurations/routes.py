@@ -1,8 +1,8 @@
 """
 Rutas del Módulo de Configuraciones Globales (SAGES)
-Tarea: US-56-places-management
-Controladores REST para: vista principal (con sedes), registro, edición,
-alternancia de estatus y APIs geográficas en cascada.
+Tareas:
+  - US-56-places-management: Controladores REST para sedes operativas y APIs geográficas.
+  - US-58-corporate-branding: Controlador para actualización de datos corporativos e identidad visual.
 """
 
 from flask import render_template, request, jsonify, abort
@@ -10,7 +10,7 @@ from flask_login import login_required, current_user
 from app.configurations import configurations_bp
 from app.decorators import role_required
 from app.extensions import limiter
-from app.configurations.forms import PlaceForm
+from app.configurations.forms import PlaceForm, CorporateDataForm
 from app.configurations.services import (
     get_places_with_staff_count,
     create_place,
@@ -21,7 +21,10 @@ from app.configurations.services import (
     get_role_permissions,
     get_all_roles_matrix,
     update_role_permissions,
-    get_last_backup_log
+    get_last_backup_log,
+    get_corporate_branding_data,
+    update_corporate_branding,
+    FileValidationError
 )
 from app.models.state_model import State
 
@@ -36,8 +39,8 @@ from app.models.state_model import State
 def index():
     """
     Ruta base del módulo de configuraciones.
-    Renderiza la interfaz con todas las subvistas, incluyendo el listado de
-    sedes paginado con conteo de personal adscrito y el formulario de alta.
+    Renderiza la interfaz con todas las subvistas, incluyendo datos corporativos,
+    matriz de roles, listado de sedes paginado y monitoreo de respaldos.
     """
     page       = request.args.get('page', 1, type=int)
     per_page   = 10
@@ -47,16 +50,75 @@ def index():
     roles_matrix = get_all_roles_matrix()
     last_backup = get_last_backup_log()
 
+    # Precarga de datos corporativos e identidad visual (US-58)
+    corporate_data = get_corporate_branding_data()
+    corporate_form = CorporateDataForm(data={
+        'company_name': corporate_data.get('company_name', ''),
+        'rif': corporate_data.get('rif', ''),
+        'central_phone': corporate_data.get('central_phone', ''),
+        'fiscal_address': corporate_data.get('fiscal_address', '')
+    })
+
     return render_template(
         'configurations/index.html',
         pagination=pagination,
         places=pagination.items if pagination else [],
         states=states,
         form=form,
+        corporate_form=corporate_form,
+        corporate_data=corporate_data,
         per_page=per_page,
         roles_matrix=roles_matrix,
         last_backup=last_backup
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ENDPOINT DE DATOS CORPORATIVOS E IDENTIDAD VISUAL (US-58)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@configurations_bp.route('/corporate', methods=['POST'])
+@login_required
+@role_required('super_admin')
+@limiter.limit("10 per minute", methods=['POST'], key_func=lambda: str(current_user.id))
+def update_corporate():
+    """
+    Actualiza la información oficial de CORPOELEC (razón social, RIF, teléfono central,
+    dirección fiscal) y procesa la sustitución atómica y segura de logotipo y favicon.
+
+    Returns:
+        JSON 200: Éxito con mensaje y cache_buster para refrescar imágenes en UI.
+        JSON 400: Error de validación binaria (Magic Bytes) o peso de archivo.
+        JSON 422: Validación fallida en campos de texto de CorporateDataForm.
+        JSON 500: Error interno no controlado.
+    """
+    form = CorporateDataForm(request.form)
+
+    if not form.validate_on_submit():
+        return jsonify({
+            'success': False,
+            'message': 'Existen inconsistencias en los campos del formulario.',
+            'errors': form.errors
+        }), 422
+
+    try:
+        files = {
+            'logo_file': request.files.get('logo_file'),
+            'icon_file': request.files.get('icon_file')
+        }
+        result = update_corporate_branding(form.data, files, current_user.id)
+        return jsonify(result), 200
+
+    except FileValidationError as fve:
+        return jsonify({
+            'success': False,
+            'message': str(fve)
+        }), 400
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error interno al procesar los datos corporativos: {str(e)}'
+        }), 500
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -290,4 +352,3 @@ def update_role_permissions_endpoint(role_id):
             'success': False,
             'message': 'Ocurrió un error al persistir los cambios.'
         }), 500
-
