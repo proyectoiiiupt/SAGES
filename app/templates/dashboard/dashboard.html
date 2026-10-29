@@ -320,6 +320,8 @@
                     <div class="map-spinner"></div>
                     <span>Cargando mapa territorial...</span>
                 </div>
+                <!-- Tooltip flotante global del mapa -->
+                <div id="map-floating-tooltip" class="map-tooltip"></div>
                 <!-- Controles de Zoom Flotantes -->
                 <div class="map-zoom-controls">
                     <button type="button" class="map-zoom-btn" id="btn-zoom-in" title="Acercar (+)">
@@ -360,7 +362,5 @@
 <script src="{{ url_for('static', filename='JS/dashboard.js') }}"></script>
 {% if metrics.is_super_admin %}
 <script src="{{ url_for('static', filename='JS/dashboard_map.js') }}"></script>
-<!-- Tooltip flotante global del mapa -->
-<div id="map-floating-tooltip" class="map-tooltip"></div>
 {% endif %}
 {% endblock %}

@@ -40,12 +40,16 @@ def create_app(config_class=Config) -> Flask:
         from app.models.parish_model import Parish
         from app.models.municipality_model import Municipality
         from sqlalchemy.orm import joinedload, selectinload
-        return User.query.options(
-            joinedload(User.roles_assoc).joinedload(RoleUser.role).joinedload(Role.permissions_assoc).joinedload(PermissionRole.permission),
-            joinedload(User.person).selectinload(Person.institutional_staff).joinedload(InstitutionalStaff.position),
-            joinedload(User.person).selectinload(Person.institutional_staff).joinedload(InstitutionalStaff.institution),
-            joinedload(User.person).selectinload(Person.company_staff).joinedload(CompanyStaff.place).joinedload(Place.parish).joinedload(Parish.municipality).joinedload(Municipality.state)
-        ).get(int(user_id))
+        return db.session.get(
+            User,
+            int(user_id),
+            options=[
+                joinedload(User.roles_assoc).joinedload(RoleUser.role).joinedload(Role.permissions_assoc).joinedload(PermissionRole.permission),
+                joinedload(User.person).selectinload(Person.institutional_staff).joinedload(InstitutionalStaff.position),
+                joinedload(User.person).selectinload(Person.institutional_staff).joinedload(InstitutionalStaff.institution),
+                joinedload(User.person).selectinload(Person.company_staff).joinedload(CompanyStaff.place).joinedload(Place.parish).joinedload(Parish.municipality).joinedload(Municipality.state)
+            ]
+        )
 
     from app.auth import auth_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')

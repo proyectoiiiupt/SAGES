@@ -344,7 +344,7 @@ def get_state_demand_details(state_id: int):
     from app.models.training_model import Training
     
     try:
-        state = State.query.get(state_id)
+        state = db.session.get(State, state_id)
         if not state:
             return None
             

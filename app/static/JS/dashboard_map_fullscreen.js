@@ -10,9 +10,22 @@
     // Elementos del DOM
     const mapWrapper = document.getElementById('map-fullscreen-svg-wrapper');
     const loadingOverlay = document.getElementById('map-fullscreen-loading');
-    const tooltipEl = document.getElementById('map-floating-tooltip');
     const filterChips = document.querySelectorAll('.map-chip');
     const detailPanel = document.getElementById('map-detail-panel');
+
+    /**
+     * Obtiene o crea de forma segura el elemento contenedor del tooltip
+     */
+    function getTooltipElement() {
+        let el = document.getElementById('map-floating-tooltip');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'map-floating-tooltip';
+            el.className = 'map-tooltip';
+            document.body.appendChild(el);
+        }
+        return el;
+    }
 
     if (!mapWrapper || !detailPanel) return;
 
@@ -599,7 +612,8 @@
      * Tooltips
      */
     function onStateMouseEnter(e, stateId, stateName, metric) {
-        if (!tooltipEl) return;
+        const tooltip = getTooltipElement();
+        if (!tooltip) return;
 
         const total = metric.total || 0;
         const red = metric.red_new || 0;
@@ -607,7 +621,9 @@
         const green = metric.green_completed || 0;
         const rate = metric.resolution_rate || 0;
 
-        tooltipEl.innerHTML = `
+        const completedText = total > 0 ? `${green} (${rate}%)` : `${green}`;
+
+        tooltip.innerHTML = `
             <div class="map-tooltip-header">${stateName}</div>
             <div class="map-tooltip-row">
                 <span>Total Solicitudes:</span>
@@ -623,15 +639,15 @@
             </div>
             <div class="map-tooltip-row">
                 <span><span class="tooltip-indicator dot-green"></span>Completadas:</span>
-                <strong>${green} (${rate}%)</strong>
+                <strong>${completedText}</strong>
             </div>
             <div style="margin-top: 4px; padding-top: 3px; border-top: 1px dashed rgba(255,255,255,0.2); font-size: 0.68rem; color: #93c5fd; text-align: center;">
                 Clic para ver demanda en panel lateral
             </div>
         `;
 
-        tooltipEl.style.display = 'flex';
-        tooltipEl.style.opacity = '1';
+        tooltip.style.display = 'flex';
+        tooltip.style.opacity = '1';
         positionTooltip(e);
     }
 
@@ -640,15 +656,26 @@
     }
 
     function positionTooltip(e) {
-        if (!tooltipEl) return;
-        tooltipEl.style.left = `${e.clientX}px`;
-        tooltipEl.style.top = `${e.clientY}px`;
+        const tooltip = getTooltipElement();
+        if (!tooltip) return;
+        const x = e.clientX;
+        const y = e.clientY;
+
+        if (y < 130) {
+            tooltip.style.transform = 'translate(-50%, 15px)';
+        } else {
+            tooltip.style.transform = 'translate(-50%, -115%)';
+        }
+
+        tooltip.style.left = `${x}px`;
+        tooltip.style.top = `${y}px`;
     }
 
     function onStateMouseLeave() {
-        if (!tooltipEl) return;
-        tooltipEl.style.opacity = '0';
-        tooltipEl.style.display = 'none';
+        const tooltip = document.getElementById('map-floating-tooltip');
+        if (!tooltip) return;
+        tooltip.style.opacity = '0';
+        tooltip.style.display = 'none';
     }
 
     document.addEventListener('DOMContentLoaded', initFullscreenMap);

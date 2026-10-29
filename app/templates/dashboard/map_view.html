@@ -109,6 +109,8 @@
             </div>
         </div>
 
+        <!-- Tooltip Flotante Global -->
+        <div id="map-floating-tooltip" class="map-tooltip"></div>
     </div>
 
 </div>
@@ -116,6 +118,4 @@
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='JS/dashboard_map_fullscreen.js') }}"></script>
-<!-- Tooltip Flotante Global -->
-<div id="map-floating-tooltip" class="map-tooltip"></div>
 {% endblock %}
