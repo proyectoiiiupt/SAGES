@@ -37,8 +37,10 @@ document.addEventListener('DOMContentLoaded', function () {
     function loadMunicipalities(stateId) {
         if (!selMuni) return;
         selMuni.innerHTML = '<option value="">Todos los Municipios</option>';
-        if (selParish) selParish.innerHTML = '<option value="">Todas las Parroquias</option>';
-        if (selParish) selParish.disabled = true;
+        if (selParish) {
+            selParish.innerHTML = '<option value="">Todas las Parroquias</option>';
+            selParish.disabled = true;
+        }
 
         if (!stateId) {
             selMuni.disabled = true;
@@ -46,7 +48,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         fetch(`/analytics/api/geo/municipalities/${stateId}`)
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error("Error en servidor");
+                return res.json();
+            })
             .then(municipalities => {
                 municipalities.forEach(m => {
                     const opt = document.createElement('option');
@@ -69,7 +74,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         fetch(`/analytics/api/geo/parishes/${municipalityId}`)
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error("Error en servidor");
+                return res.json();
+            })
             .then(parishes => {
                 parishes.forEach(p => {
                     const opt = document.createElement('option');
@@ -260,20 +268,23 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Función de actualización expuesta para la siguiente tarea (AJAX)
+    // Función de actualización expuesta para recálculo dinámico (AJAX)
     window.updateIndicatorsUI = function (newData) {
         if (!newData) return;
+        // Soporte defensivo por si se recibe el objeto de respuesta completo { success: true, data: { ... } }
+        const data = (newData.data && newData.success !== undefined) ? newData.data : newData;
+
         const totalGenEl = document.getElementById('lbl-total-generadas');
         const totalAttEl = document.getElementById('lbl-total-atendidas');
         const tasaResEl = document.getElementById('lbl-tasa-resolucion');
 
-        if (totalGenEl) totalGenEl.textContent = (newData.summary && newData.summary.total_generadas !== undefined) ? newData.summary.total_generadas : 0;
-        if (totalAttEl) totalAttEl.textContent = (newData.summary && newData.summary.total_atendidas !== undefined) ? newData.summary.total_atendidas : 0;
-        if (tasaResEl) tasaResEl.textContent = (newData.summary && newData.summary.tasa_resolucion !== undefined) ? newData.summary.tasa_resolucion : '0.0%';
+        if (totalGenEl) totalGenEl.textContent = (data.summary && data.summary.total_generadas !== undefined) ? data.summary.total_generadas : 0;
+        if (totalAttEl) totalAttEl.textContent = (data.summary && data.summary.total_atendidas !== undefined) ? data.summary.total_atendidas : 0;
+        if (tasaResEl) tasaResEl.textContent = (data.summary && data.summary.tasa_resolucion !== undefined) ? data.summary.tasa_resolucion : '0.0%';
 
-        const newLabels = newData.labels || [];
-        const newGen = newData.generadas || [];
-        const newAtt = newData.atendidas || [];
+        const newLabels = data.labels || [];
+        const newGen = data.generadas || [];
+        const newAtt = data.atendidas || [];
 
         if (chartGen) {
             chartGen.data.labels = newLabels;
@@ -293,51 +304,81 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     };
 
-    // 5. Botón de Acción: Calcular Indicadores (Integración con AJAX de filtros)
+    // 5. Botón de Acción: Calcular Indicadores (Integración AJAX y Reactividad)
     const btnCalc = document.getElementById('btn-calculate-indicators');
     if (btnCalc) {
         btnCalc.addEventListener('click', function () {
-            const originalContent = btnCalc.innerHTML;
-            btnCalc.disabled = true;
-            btnCalc.innerHTML = `
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin-icon" style="width: 18px; height: 18px; animation: spin 1s linear infinite;">
-                    <line x1="12" y1="2" x2="12" y2="6"></line>
-                    <line x1="12" y1="18" x2="12" y2="22"></line>
-                    <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
-                    <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
-                    <line x1="2" y1="12" x2="6" y2="12"></line>
-                    <line x1="18" y1="12" x2="22" y2="12"></line>
-                    <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
-                    <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
-                </svg>
-                <span>Calculando...</span>
-            `;
+            // 1. Obtener y validar la modalidad temporal
+            const radioRange = document.getElementById('radio-mode-range');
+            const timeMode = (radioRange && radioRange.checked) ? 'range' : 'month';
 
+            const dateFromInput = document.getElementById('input-date-from');
+            const dateToInput = document.getElementById('input-date-to');
+            const dateFrom = dateFromInput ? dateFromInput.value.trim() : '';
+            const dateTo = dateToInput ? dateToInput.value.trim() : '';
+
+            // Validación en cliente para la modalidad de rango de fechas
+            if (timeMode === 'range') {
+                if (!dateFrom || !dateTo) {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Rango incompleto',
+                            text: 'Debe especificar tanto la fecha "Desde" como la fecha "Hasta".',
+                            confirmButtonColor: '#0f3669'
+                        });
+                    }
+                    return;
+                }
+                if (dateFrom > dateTo) {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Rango cronológico inválido',
+                            text: 'La fecha inicial (Desde) no puede ser posterior a la fecha final (Hasta).',
+                            confirmButtonColor: '#0f3669'
+                        });
+                    }
+                    return;
+                }
+            }
+
+            // 2. Extraer valores de filtros territoriales e institucionales
             const stateVal = document.getElementById('sel-filter-state') ? document.getElementById('sel-filter-state').value : '';
             const muniVal = document.getElementById('sel-filter-municipality') ? document.getElementById('sel-filter-municipality').value : '';
             const parishVal = document.getElementById('sel-filter-parish') ? document.getElementById('sel-filter-parish').value : '';
             const scopeVal = document.getElementById('sel-filter-scope') ? document.getElementById('sel-filter-scope').value : '';
             const levelVal = document.getElementById('sel-filter-level') ? document.getElementById('sel-filter-level').value : '';
-            const timeMode = document.querySelector('input[name="time_mode"]:checked') ? document.querySelector('input[name="time_mode"]:checked').value : 'month';
             const monthVal = document.getElementById('sel-filter-month') ? document.getElementById('sel-filter-month').value : '';
-            const dateFrom = document.getElementById('input-date-from') ? document.getElementById('input-date-from').value : '';
-            const dateTo = document.getElementById('input-date-to') ? document.getElementById('input-date-to').value : '';
 
             const payload = {
-                state_id: stateVal,
-                municipality_id: muniVal,
-                parish_id: parishVal,
-                institution_scope_id: scopeVal,
-                educational_level_id: levelVal,
                 time_mode: timeMode,
-                month: monthVal,
-                date_from: dateFrom,
-                date_to: dateTo
+                month: monthVal ? parseInt(monthVal, 10) : null,
+                date_from: dateFrom || null,
+                date_to: dateTo || null,
+                state_id: stateVal ? parseInt(stateVal, 10) : null,
+                municipality_id: muniVal ? parseInt(muniVal, 10) : null,
+                parish_id: parishVal ? parseInt(parishVal, 10) : null,
+                institution_scope_id: scopeVal ? parseInt(scopeVal, 10) : null,
+                educational_level_id: levelVal ? parseInt(levelVal, 10) : null
             };
 
+            // 3. Token CSRF desde meta tag
             const csrfMeta = document.querySelector('meta[name="csrf-token"]');
             const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
 
+            // 4. Estado de carga visual en el botón
+            const originalContent = btnCalc.innerHTML;
+            btnCalc.disabled = true;
+            btnCalc.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin-icon" style="width: 18px; height: 18px; animation: spin 1s linear infinite;">
+                    <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+                    <path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="0.75"></path>
+                </svg>
+                <span>Calculando...</span>
+            `;
+
+            // 5. Envío fetch() al endpoint de indicadores
             fetch('/analytics/api/indicators-data', {
                 method: 'POST',
                 headers: {
@@ -347,52 +388,255 @@ document.addEventListener('DOMContentLoaded', function () {
                 body: JSON.stringify(payload)
             })
             .then(res => {
-                if (res.ok) {
-                    return res.json();
-                } else if (res.status === 404) {
-                    throw new Error('API_PENDING');
+                if (!res.ok) {
+                    return res.json()
+                        .then(errData => {
+                            throw new Error(errData.message || `Error en el servidor (HTTP ${res.status})`);
+                        })
+                        .catch(err => {
+                            if (err instanceof SyntaxError) {
+                                throw new Error(`Error en el servidor (HTTP ${res.status})`);
+                            }
+                            throw err;
+                        });
+                }
+                return res.json();
+            })
+            .then(response => {
+                if (response.success && response.data) {
+                    window.updateIndicatorsUI(response.data);
+
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'success',
+                            title: 'Métricas actualizadas',
+                            showConfirmButton: false,
+                            timer: 2000
+                        });
+                    }
                 } else {
-                    throw new Error('SERVER_ERROR');
+                    throw new Error(response.message || 'La respuesta no contiene datos válidos.');
                 }
             })
-            .then(data => {
-                window.updateIndicatorsUI(data);
+            .catch(error => {
+                console.error("Error al calcular indicadores:", error);
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
-                        icon: 'success',
-                        title: 'Indicadores Actualizados',
-                        text: 'Las curvas se han recalculado exitosamente.',
-                        timer: 2000,
-                        showConfirmButton: false
+                        icon: 'error',
+                        title: 'Error de cálculo',
+                        text: error.message || 'No se pudieron procesar los indicadores con los filtros seleccionados.',
+                        confirmButtonColor: '#0f3669'
                     });
-                }
-            })
-            .catch(err => {
-                if (err.message === 'API_PENDING') {
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'info',
-                            title: 'Parámetros de Filtrado',
-                            text: 'Los parámetros han sido capturados correctamente en la interfaz.',
-                            confirmButtonColor: '#019577',
-                            confirmButtonText: 'Aceptar'
-                        });
-                    }
-                } else {
-                    console.error("Error al calcular indicadores:", err);
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error de Comunicación',
-                            text: 'Ocurrió un error al consultar el servicio de indicadores.',
-                            confirmButtonColor: '#0f3669'
-                        });
-                    }
                 }
             })
             .finally(() => {
                 btnCalc.disabled = false;
                 btnCalc.innerHTML = originalContent;
+            });
+        });
+    }
+// 6. Modal y Exportación Directa de Indicadores (Bloque 6)
+    const btnOpenExport = document.getElementById('btn-export-from-indicators');
+    const modalExport = document.getElementById('modal-export-indicators');
+    const btnCloseExport = document.getElementById('btn-close-export-modal');
+    const btnCancelExport = document.getElementById('btn-cancel-export-modal');
+    const btnConfirmExport = document.getElementById('btn-confirm-export-indicators');
+
+    function openExportModal() {
+        if (!modalExport) return;
+        // Sincronizar los KPIs visibles del modal con lo que está en pantalla
+        const totalGen = document.getElementById('lbl-total-generadas')?.textContent || '0';
+        const totalAtt = document.getElementById('lbl-total-atendidas')?.textContent || '0';
+        const tasaRes = document.getElementById('lbl-tasa-resolucion')?.textContent || '0.0%';
+
+        const modalGen = document.getElementById('modal-lbl-generadas');
+        const modalAtt = document.getElementById('modal-lbl-atendidas');
+        const modalRes = document.getElementById('modal-lbl-resolucion');
+
+        if (modalGen) modalGen.textContent = totalGen.trim();
+        if (modalAtt) modalAtt.textContent = totalAtt.trim();
+        if (modalRes) modalRes.textContent = tasaRes.trim();
+
+        modalExport.style.display = 'flex';
+        modalExport.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeExportModal() {
+        if (!modalExport) return;
+        modalExport.style.display = 'none';
+        modalExport.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+    }
+
+    if (btnOpenExport) {
+        btnOpenExport.addEventListener('click', function (e) {
+            e.preventDefault();
+            openExportModal();
+        });
+    }
+
+    if (btnCloseExport) btnCloseExport.addEventListener('click', closeExportModal);
+    if (btnCancelExport) btnCancelExport.addEventListener('click', closeExportModal);
+
+    if (modalExport) {
+        modalExport.addEventListener('click', function (e) {
+            if (e.target === modalExport) closeExportModal();
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && modalExport.style.display === 'flex') {
+                closeExportModal();
+            }
+        });
+    }
+
+    // Selección de formato de archivo en el modal
+    const formatCards = modalExport ? modalExport.querySelectorAll('.format-card') : [];
+    formatCards.forEach(card => {
+        card.addEventListener('click', function () {
+            formatCards.forEach(c => c.classList.remove('selected'));
+            this.classList.add('selected');
+            const radio = this.querySelector('input[type="radio"]');
+            if (radio) radio.checked = true;
+        });
+    });
+
+    // Confirmar y procesar la exportación
+    if (btnConfirmExport) {
+        btnConfirmExport.addEventListener('click', function () {
+            // Recoger formato seleccionado
+            const selectedRadio = modalExport ? modalExport.querySelector('input[name="modal_export_format"]:checked') : null;
+            const exportFormat = selectedRadio ? selectedRadio.value : 'xlsx';
+
+            // Recoger método de despacho
+            const deliveryRadio = modalExport ? modalExport.querySelector('input[name="modal_delivery_method"]:checked') : null;
+            const deliveryMethod = deliveryRadio ? deliveryRadio.value : 'local';
+
+            // Recoger filtros activos de la consola
+            const radioRange = document.getElementById('radio-mode-range');
+            const timeMode = (radioRange && radioRange.checked) ? 'range' : 'month';
+            const dateFromInput = document.getElementById('input-date-from');
+            const dateToInput = document.getElementById('input-date-to');
+            const dateFrom = dateFromInput ? dateFromInput.value.trim() : '';
+            const dateTo = dateToInput ? dateToInput.value.trim() : '';
+
+            const stateVal = document.getElementById('sel-filter-state') ? document.getElementById('sel-filter-state').value : '';
+            const muniVal = document.getElementById('sel-filter-municipality') ? document.getElementById('sel-filter-municipality').value : '';
+            const parishVal = document.getElementById('sel-filter-parish') ? document.getElementById('sel-filter-parish').value : '';
+            const scopeVal = document.getElementById('sel-filter-scope') ? document.getElementById('sel-filter-scope').value : '';
+            const levelVal = document.getElementById('sel-filter-level') ? document.getElementById('sel-filter-level').value : '';
+            const monthVal = document.getElementById('sel-filter-month') ? document.getElementById('sel-filter-month').value : '';
+
+            const payload = {
+                export_format: exportFormat,
+                delivery_method: deliveryMethod,
+                time_mode: timeMode,
+                month: monthVal ? parseInt(monthVal, 10) : null,
+                date_from: dateFrom || null,
+                date_to: dateTo || null,
+                state_id: stateVal ? parseInt(stateVal, 10) : null,
+                municipality_id: muniVal ? parseInt(muniVal, 10) : null,
+                parish_id: parishVal ? parseInt(parishVal, 10) : null,
+                institution_scope_id: scopeVal ? parseInt(scopeVal, 10) : null,
+                educational_level_id: levelVal ? parseInt(levelVal, 10) : null
+            };
+
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+            // Estado de carga en el botón del modal
+            const originalBtnContent = btnConfirmExport.innerHTML;
+            btnConfirmExport.disabled = true;
+            btnConfirmExport.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin-icon" style="width: 16px; height: 16px; animation: spin 1s linear infinite;">
+                    <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+                    <path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="0.75"></path>
+                </svg>
+                <span>Generando...</span>
+            `;
+
+            fetch('/analytics/api/export-indicators', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(res => {
+                if (!res.ok) {
+                    return res.json().then(errData => {
+                        throw new Error(errData.message || `Error del servidor (HTTP ${res.status})`);
+                    });
+                }
+
+                // Si fue envío por correo, recibimos JSON con confirmación
+                if (deliveryMethod === 'email') {
+                    return res.json().then(data => {
+                        closeExportModal();
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Reporte Despachado',
+                                text: data.message || 'El reporte ha sido enviado a su buzón de correo institucional.',
+                                confirmButtonColor: '#019577'
+                            });
+                        }
+                    });
+                }
+
+                // Si fue descarga local, procesamos el BLOB binario
+                const disposition = res.headers.get('Content-Disposition') || '';
+                let filename = `Indicadores_Gestion_${exportFormat}.${exportFormat}`;
+                if (disposition.includes('filename=')) {
+                    const parts = disposition.split('filename=');
+                    if (parts.length > 1) {
+                        filename = parts[1].split(';')[0].trim().replaceAll('"', '').replaceAll("'", '');
+                    }
+                }
+
+                return res.blob().then(blob => {
+                    const blobUrl = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = blobUrl;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(blobUrl);
+                    a.remove();
+
+                    closeExportModal();
+
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'success',
+                            title: 'Descarga completada',
+                            text: filename,
+                            showConfirmButton: false,
+                            timer: 2500
+                        });
+                    }
+                });
+            })
+            .catch(err => {
+                console.error("Error al exportar indicadores:", err);
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error de Exportación',
+                        text: err.message || 'Ocurrió un error al compilar el reporte de indicadores.',
+                        confirmButtonColor: '#0f3669'
+                    });
+                }
+            })
+            .finally(() => {
+                btnConfirmExport.disabled = false;
+                btnConfirmExport.innerHTML = originalBtnContent;
             });
         });
     }

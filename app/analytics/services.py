@@ -1,5 +1,6 @@
+import calendar
 from collections import defaultdict
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, time, date
 from sqlalchemy import func, case, and_, extract
 from app.extensions import db
 from app.models.request_model import Request
@@ -189,7 +190,7 @@ class AnalyticsService:
     def get_scoped_base_query(user, filters):
         """
         Construye la consulta base asegurando el aislamiento por rol (Anti-IDOR)
-        y aplicando los filtros institucionales y temporales de la barra lateral.
+        y aplicando los filtros territoriales, institucionales y temporales.
         """
         filters = filters or {}
         query = db.session.query(Request).select_from(Request)\
@@ -207,29 +208,54 @@ class AnalyticsService:
             authorized_state_id = state_info['state_id'] if state_info else 0
             query = query.filter(State.id == authorized_state_id)
         elif user_role == 'super_admin':
-            if filters.get('state_id'):
-                query = query.filter(State.id == filters['state_id'])
+            req_st = filters.get('state_id')
+            if req_st is not None and str(req_st).strip() != '':
+                try:
+                    query = query.filter(State.id == int(req_st))
+                except (ValueError, TypeError):
+                    pass
         else:
             return query.filter(Request.id == 0)
 
         # 2. Filtros geográficos en cascada
         if filters.get('municipality_id'):
-            query = query.filter(Municipality.id == filters['municipality_id'])
+            try:
+                query = query.filter(Municipality.id == int(filters['municipality_id']))
+            except (ValueError, TypeError):
+                pass
         if filters.get('parish_id'):
-            query = query.filter(Parish.id == filters['parish_id'])
+            try:
+                query = query.filter(Parish.id == int(filters['parish_id']))
+            except (ValueError, TypeError):
+                pass
 
         # 3. Filtros de Clasificación Institucional (SR-F-023)
         if filters.get('institution_scope_id'):
-            query = query.filter(Institution.institution_scope_id == filters['institution_scope_id'])
+            try:
+                query = query.filter(Institution.institution_scope_id == int(filters['institution_scope_id']))
+            except (ValueError, TypeError):
+                pass
+        if filters.get('institution_type_id'):
+            try:
+                query = query.filter(Institution.institution_type_id == int(filters['institution_type_id']))
+            except (ValueError, TypeError):
+                pass
         if filters.get('educational_level_id'):
-            query = query.join(Institution.institution_levels)\
-                         .filter(InstitutionLevel.educational_level_id == filters['educational_level_id'])
+            try:
+                query = query.join(Institution.institution_levels)\
+                             .filter(InstitutionLevel.educational_level_id == int(filters['educational_level_id']))
+            except (ValueError, TypeError):
+                pass
 
         # 4. Filtros Temporales (Rango de fechas o Mes seleccionado)
         if filters.get('date_from'):
             query = query.filter(Request.created_at >= filters['date_from'])
         if filters.get('date_to'):
-            query = query.filter(Request.created_at <= f"{filters['date_to']} 23:59:59")
+            val_to = filters['date_to']
+            if isinstance(val_to, str) and ' ' not in val_to:
+                query = query.filter(Request.created_at <= f"{val_to} 23:59:59")
+            else:
+                query = query.filter(Request.created_at <= val_to)
         elif filters.get('month') and not filters.get('date_from'):
             try:
                 query = query.filter(extract('month', Request.created_at) == int(filters['month']))
@@ -597,65 +623,115 @@ class AnalyticsService:
         return headers, data_rows, report_meta
 
     @staticmethod
-    def get_scoped_base_query(user, filters):
+    def calculate_filtered_indicators(user, params):
         """
-        [Parámetros heredados de US-56]
-        Construye la consulta base de solicitudes blindada contra IDOR.
-        Si el usuario es state_admin, sobrescribe obligatoriamente cualquier state_id recibido.
+        [US-54 + Parámetros de Seguridad de US-56]
+        Procesa los filtros enviados por AJAX aplicando Data Scoping estricto y agregación en BD.
+        Retorna las 3 series de tiempo para Chart.js: Generadas, Atendidas y Brecha Operativa.
         """
-        query = db.session.query(Request).select_from(Request)\
-            .join(Request.institutional_staff)\
-            .join(InstitutionalStaff.institution)\
-            .join(Institution.parish)\
-            .join(Parish.municipality)\
-            .join(Municipality.state)
-
+        params = params or {}
         user_role = user.roles_assoc[0].role.name if user.roles_assoc else 'applicant'
+        state_info = get_user_state_info(user) if user_role == 'state_admin' else None
 
-        # 1. Blindaje Territorial Forzoso
+        # ── 1. BLINDAJE TERRITORIAL FORZOSO (ANTI-IDOR) ──
+        authorized_state_id = None
         if user_role == 'state_admin':
-            state_info = get_user_state_info(user)
-            authorized_state = state_info['state_id'] if state_info else 0
-            query = query.filter(State.id == authorized_state)
+            if not state_info:
+                raise PermissionError("Jurisdicción territorial no asignada para este administrador.")
+            authorized_state_id = state_info['state_id']
+
+            # Auditoría preventiva si se intentó inyectar un estado ajeno
+            requested_state = params.get('state_id')
+            if requested_state is not None and str(requested_state).strip() != '':
+                try:
+                    if int(requested_state) != authorized_state_id:
+                        BinnacleService.create_log_entry(
+                            module=AuditModule.REQUESTS.value,
+                            action_type=AuditAction.CONSULTA_DETALLE.value,
+                            description=f"Alerta de seguridad: Intento de consulta transfronteriza detectado (Estado solicitado: {requested_state}, Estado forzado: {authorized_state_id})",
+                            status=AuditStatus.FALLIDO.value
+                        )
+                except (ValueError, TypeError):
+                    pass
         elif user_role == 'super_admin':
-            requested_state = filters.get('state_id')
-            if requested_state:
-                query = query.filter(State.id == requested_state)
+            req_st = params.get('state_id')
+            if req_st is not None and str(req_st).strip() != '':
+                try:
+                    authorized_state_id = int(req_st)
+                except (ValueError, TypeError):
+                    authorized_state_id = None
+            else:
+                authorized_state_id = None
         else:
-            return query.filter(Request.id == 0)
+            raise PermissionError("Acceso denegado: Rol no autorizado para consultar indicadores.")
 
-        # 2. Filtros Territoriales Dependientes
-        if filters.get('municipality_id'):
-            query = query.filter(Municipality.id == filters['municipality_id'])
-        if filters.get('parish_id'):
-            query = query.filter(Parish.id == filters['parish_id'])
+        # ── 2. RESOLUCIÓN TEMPORAL ──
+        now = datetime.now(timezone.utc)
+        current_year = now.year
+        time_mode = params.get('time_mode', 'month')
 
-        # 3. Filtros Temporales
-        if filters.get('date_from'):
-            query = query.filter(Request.created_at >= filters['date_from'])
-        if filters.get('date_to'):
-            query = query.filter(Request.created_at <= filters['date_to'])
+        if time_mode == 'month':
+            raw_month = params.get('month')
+            try:
+                month_num = int(raw_month) if raw_month else now.month
+                if not (1 <= month_num <= 12):
+                    month_num = now.month
+            except (ValueError, TypeError):
+                month_num = now.month
 
-        # 4. Clasificación Institucional (SR-F-023)
-        if filters.get('institution_scope_id'):
-            query = query.filter(Institution.institution_scope_id == filters['institution_scope_id'])
-        if filters.get('institution_type_id'):
-            query = query.filter(Institution.institution_type_id == filters['institution_type_id'])
+            _, last_day = calendar.monthrange(current_year, month_num)
+            start_date = datetime(current_year, month_num, 1, 0, 0, 0, tzinfo=timezone.utc)
+            end_date = datetime(current_year, month_num, last_day, 23, 59, 59, tzinfo=timezone.utc)
+        else:
+            raw_from = params.get('date_from')
+            raw_to = params.get('date_to')
 
-        return query
+            if raw_from:
+                if isinstance(raw_from, datetime):
+                    start_date = raw_from if raw_from.tzinfo else raw_from.replace(tzinfo=timezone.utc)
+                elif isinstance(raw_from, date):
+                    start_date = datetime.combine(raw_from, time.min).replace(tzinfo=timezone.utc)
+                else:
+                    try:
+                        start_date = datetime.strptime(str(raw_from).strip(), '%Y-%m-%d').replace(tzinfo=timezone.utc)
+                    except ValueError:
+                        start_date = now - timedelta(days=30)
+            else:
+                start_date = now - timedelta(days=30)
 
-    @staticmethod
-    def get_indicators_timeline(user, filters):
-        """
-        Calcula las series temporales para las 3 tarjetas de líneas continuas:
-        Generadas, Atendidas y Comparativa Consolidada.
-        """
-        base_q = AnalyticsService.get_scoped_base_query(user, filters)
+            if raw_to:
+                if isinstance(raw_to, datetime):
+                    end_date = raw_to if raw_to.tzinfo else raw_to.replace(tzinfo=timezone.utc)
+                elif isinstance(raw_to, date):
+                    end_date = datetime.combine(raw_to, time.max).replace(tzinfo=timezone.utc)
+                else:
+                    try:
+                        end_date = datetime.strptime(str(raw_to).strip(), '%Y-%m-%d').replace(
+                            hour=23, minute=59, second=59, tzinfo=timezone.utc
+                        )
+                    except ValueError:
+                        end_date = now
+            else:
+                end_date = now
 
-        # Agrupación directa en PostgreSQL por día
+        # ── 3. CONSTRUCCIÓN DE LA CONSULTA RELACIONAL ──
+        scoped_filters = {
+            'state_id': authorized_state_id,
+            'municipality_id': params.get('municipality_id'),
+            'parish_id': params.get('parish_id'),
+            'institution_scope_id': params.get('institution_scope_id'),
+            'educational_level_id': params.get('educational_level_id'),
+            'institution_type_id': params.get('institution_type_id'),
+            'date_from': start_date,
+            'date_to': end_date
+        }
+
+        base_q = AnalyticsService.get_scoped_base_query(user, scoped_filters)
+
+        # ── 4. AGREGACIÓN EN POSTGRESQL POR DÍA ──
         date_bucket = func.date_trunc('day', Request.created_at).label('hitorange')
 
-        timeline_data = base_q.outerjoin(Request.plannings)\
+        timeline_results = base_q.outerjoin(Request.plannings)\
             .join(Request.status)\
             .with_entities(
                 date_bucket,
@@ -670,24 +746,37 @@ class AnalyticsService:
             .group_by('hitorange')\
             .order_by('hitorange').all()
 
-        labels = [item.hitorange.strftime('%d %b') if item.hitorange else '' for item in timeline_data]
-        generadas_series = [item.generadas for item in timeline_data]
-        atendidas_series = [item.atendidas for item in timeline_data]
+        labels = [row.hitorange.strftime('%d %b') if row.hitorange else '' for row in timeline_results]
+        generadas = [row.generadas for row in timeline_results]
+        atendidas = [row.atendidas for row in timeline_results]
 
-        total_gen = sum(generadas_series)
-        total_atn = sum(atendidas_series)
+        # Si el rango no contiene solicitudes, generar etiquetas vacías para no romper el canvas de Chart.js
+        if not labels:
+            labels = ["Sin datos en período"]
+            generadas = [0]
+            atendidas = [0]
+
+        total_gen = sum(generadas)
+        total_atn = sum(atendidas)
         tasa_resolucion = round((total_atn / total_gen * 100), 1) if total_gen > 0 else 0.0
 
         return {
             'labels': labels,
-            'generadas': generadas_series,
-            'atendidas': atendidas_series,
+            'generadas': generadas,
+            'atendidas': atendidas,
             'summary': {
                 'total_generadas': total_gen,
                 'total_atendidas': total_atn,
                 'tasa_resolucion': f"{tasa_resolucion}%"
             }
         }
+
+    @staticmethod
+    def get_indicators_timeline(user, filters):
+        """
+        Alias retrocompatible que delega el cálculo a calculate_filtered_indicators.
+        """
+        return AnalyticsService.calculate_filtered_indicators(user, filters)
 
     @staticmethod
     def get_indicators_initial_context(user):
@@ -698,11 +787,11 @@ class AnalyticsService:
         user_role = user.roles_assoc[0].role.name if user.roles_assoc else 'applicant'
         state_info = get_user_state_info(user) if user_role == 'state_admin' else None
 
-        # Catálogos geográficos respetando permisos
+        # Catálogos geográficos respetando permisos (utilizando db.session.get para SQLAlchemy 2.0)
         if user_role == 'super_admin':
             states = State.query.order_by(State.name).all()
         else:
-            states = [State.query.get(state_info['state_id'])] if state_info else []
+            states = [db.session.get(State, state_info['state_id'])] if (state_info and state_info.get('state_id')) else []
 
         inst_types = InstitutionType.query.order_by(InstitutionType.name).all()
         inst_scopes = InstitutionScope.query.order_by(InstitutionScope.name).all()
@@ -711,11 +800,13 @@ class AnalyticsService:
         # Datos del mes corriente por defecto
         primer_dia_mes = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
         filtros_iniciales = {
+            'time_mode': 'month',
+            'month': now.month,
             'date_from': primer_dia_mes,
             'date_to': now,
             'state_id': state_info['state_id'] if state_info else None
         }
-        timeline_data = AnalyticsService.get_indicators_timeline(user, filtros_iniciales)
+        timeline_data = AnalyticsService.calculate_filtered_indicators(user, filtros_iniciales)
 
         # Registro en Bitácora Institucional
         BinnacleService.create_log_entry(
