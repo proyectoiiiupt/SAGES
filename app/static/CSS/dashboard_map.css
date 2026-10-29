@@ -1,0 +1,946 @@
+/* ==========================================================================
+   WIDGET DEL MAPA GEOGRÁFICO NACIONAL - SAGES (Exclusivo super_admin)
+   Diseño 100% Local, Responsive, Vectorial SVG
+   ========================================================================== */
+
+.map-widget-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    transition: box-shadow 0.25s ease;
+}
+
+.map-widget-card:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.07);
+}
+
+/* ── Cabecera del Widget ── */
+.map-widget-header {
+    padding: 1.15rem 1.25rem 0.85rem 1.25rem;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.map-widget-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.map-widget-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.map-widget-title svg {
+    color: #019577;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.map-badge-scope {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.2rem 0.55rem;
+    background: #e0f2fe;
+    color: #0369a1;
+    border-radius: 20px;
+}
+
+/* ── Chips de Filtrado de Estatus ── */
+.map-status-chips {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.map-chip {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+    /* Rectángulo con bordes redondeados */
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+    user-select: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.map-chip:hover {
+    background: #f8fafc;
+    color: #0f172a;
+    border-color: #94a3b8;
+    transform: translateY(-1px);
+}
+
+.map-chip.active {
+    font-weight: 700;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.chip-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+/* Variantes de Chips */
+.chip-all.active {
+    background: #0f172a;
+    color: #ffffff;
+    border-color: #0f172a;
+}
+
+.chip-all .chip-dot {
+    background: #64748b;
+}
+
+.chip-red .chip-dot {
+    background: #ef4444;
+}
+
+.chip-red.active {
+    background: #fef2f2;
+    color: #b91c1c;
+    border-color: #f87171;
+}
+
+.chip-yellow .chip-dot {
+    background: #f59e0b;
+}
+
+.chip-yellow.active {
+    background: #fffbeb;
+    color: #b45309;
+    border-color: #fbbf24;
+}
+
+.chip-green .chip-dot {
+    background: #10b981;
+}
+
+.chip-green.active {
+    background: #f0fdf4;
+    color: #15803d;
+    border-color: #4ade80;
+}
+
+.chip-counter {
+    background: rgba(0, 0, 0, 0.06);
+    padding: 1px 6px;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    margin-left: 2px;
+}
+
+.map-chip.active .chip-counter {
+    background: rgba(0, 0, 0, 0.12);
+}
+
+.chip-all.active .chip-counter {
+    background: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+}
+
+/* ── Fila de Barra de Herramientas (Botón Volver + Filtros alineados a la izquierda) ── */
+.map-toolbar-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.btn-map-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.5rem 1.1rem;
+    border-radius: 8px;
+    /* Rectángulo con bordes redondeados - estándar SAGES */
+    background: #475569;
+    color: #ffffff;
+    border: 1px solid #475569;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    flex-shrink: 0;
+    letter-spacing: 0.1px;
+}
+
+.btn-map-back:hover {
+    background: rgba(55, 64, 75, 0.78);
+    color: #ffffff;
+    border-color: rgba(55, 64, 75, 0.78);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(36, 35, 43, 0.3);
+}
+
+.btn-map-back svg {
+    flex-shrink: 0;
+}
+
+/* ── Contenedor SVG y Mapa ── */
+.map-svg-container {
+    width: 100%;
+    min-height: 290px;
+    max-height: 380px;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.map-svg-container svg {
+    width: 100%;
+    height: 100%;
+    max-height: 360px;
+    display: block;
+}
+
+/* ── Controles de Zoom y Pan (Amplitud y Movimiento) ── */
+.map-svg-container,
+.map-canvas-wrapper {
+    cursor: grab;
+    user-select: none;
+}
+
+.map-svg-container.is-panning,
+.map-canvas-wrapper.is-panning {
+    cursor: grabbing !important;
+}
+
+.map-zoom-controls {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 15;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(6px);
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 3px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.09);
+}
+
+.map-zoom-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 700;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+    padding: 0;
+}
+
+.map-zoom-btn:hover {
+    background: #019577;
+    color: #ffffff;
+    transform: scale(1.05);
+}
+
+.map-zoom-btn svg {
+    width: 15px;
+    height: 15px;
+    stroke: currentColor;
+    stroke-width: 2.2;
+}
+
+/* Estados SVG (Polígonos) */
+.state-polygon {
+    stroke: #ffffff;
+    stroke-width: 1.2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    cursor: pointer;
+    transition: fill 0.25s ease, stroke 0.2s ease, filter 0.2s ease, transform 0.2s ease;
+    transform-origin: center center;
+}
+
+.state-polygon:hover {
+    stroke: #0f172a;
+    stroke-width: 2.2;
+    filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.18));
+}
+
+/* Clases de Color Semafórico */
+.status-red {
+    fill: #ef4444;
+}
+
+.status-red:hover {
+    fill: #dc2626;
+}
+
+.status-yellow {
+    fill: #f59e0b;
+}
+
+.status-yellow:hover {
+    fill: #d97706;
+}
+
+.status-green {
+    fill: #10b981;
+}
+
+.status-green:hover {
+    fill: #059669;
+}
+
+.status-neutral {
+    fill: #cbd5e1;
+}
+
+.status-neutral:hover {
+    fill: #94a3b8;
+}
+
+/* Atenuado cuando se aplica un filtro específico */
+.state-dimmed {
+    fill: #e2e8f0 !important;
+    opacity: 0.45;
+}
+
+/* Estado de carga */
+.map-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    z-index: 10;
+    color: #64748b;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.map-spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid #e2e8f0;
+    border-top-color: #019577;
+    border-radius: 50%;
+    animation: mapSpin 0.8s linear infinite;
+}
+
+@keyframes mapSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ── Leyenda ── */
+.map-legend {
+    padding: 0.65rem 1.15rem;
+    background: #ffffff;
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    font-size: 0.74rem;
+    color: #475569;
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.legend-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.dot-red {
+    background: #ef4444;
+}
+
+.dot-yellow {
+    background: #f59e0b;
+}
+
+.dot-green {
+    background: #10b981;
+}
+
+.dot-neutral {
+    background: #cbd5e1;
+}
+
+/* ── Footer del Widget ── */
+.map-widget-footer {
+    padding: 0.75rem 1.15rem;
+    background: #fafafa;
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.map-hint-text {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    margin: 0;
+}
+
+.btn-map-expand {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #019577;
+    font-weight: 700;
+    font-size: 0.82rem;
+    text-decoration: none;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.btn-map-expand:hover {
+    color: #00755d;
+    transform: translateX(2px);
+}
+
+/* ── Tooltip Flotante ── */
+.map-tooltip {
+    position: fixed;
+    z-index: 9999;
+    background: rgba(15, 23, 42, 0.95);
+    color: #ffffff;
+    padding: 0.65rem 0.9rem;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    pointer-events: none;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 190px;
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    transform: translate(-50%, -115%);
+    transition: opacity 0.15s ease;
+}
+
+.map-tooltip-header {
+    font-weight: 700;
+    font-size: 0.85rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    padding-bottom: 3px;
+    margin-bottom: 4px;
+    color: #f8fafc;
+}
+
+.map-tooltip-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    font-size: 0.75rem;
+    color: #cbd5e1;
+}
+
+.map-tooltip-row span {
+    white-space: nowrap;
+}
+
+.map-tooltip-row strong {
+    color: #ffffff;
+    white-space: nowrap;
+    text-align: right;
+}
+
+.tooltip-indicator {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: 4px;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .map-svg-container {
+        min-height: 250px;
+    }
+}
+
+/* ==========================================================================
+   VISTA AMPLIADA / PANTALLA COMPLETA (map_view.html)
+   ========================================================================== */
+
+/* ── Contenedor principal de la vista de mapa (alineado al estándar institucional) ── */
+.map-monitoring-container {
+    padding: 24px;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* ── Banner / Cabecera Institucional SAGES ── */
+.map-page-header {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 14px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.05);
+    border-left: 4px solid #007865;
+}
+
+.map-page-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #111827;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: -0.3px;
+    margin: 0;
+}
+
+.map-page-title svg {
+    width: 22px;
+    height: 22px;
+    color: #007865;
+    flex-shrink: 0;
+}
+
+.map-page-date {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #6B7280;
+    font-weight: 500;
+    background: #F1F5F9;
+    padding: 10px 18px;
+    border-radius: 30px;
+    font-size: 0.875rem;
+    letter-spacing: 0.2px;
+}
+
+.map-page-date svg {
+    width: 17px;
+    height: 17px;
+    color: #007865;
+    flex-shrink: 0;
+}
+/* Cuadrícula Principal (70% Mapa / 30% Panel Lateral) */
+.map-view-grid {
+    display: grid;
+    grid-template-columns: 68% 32%;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+@media (max-width: 1100px) {
+    .map-view-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Tarjeta del Mapa en Vista Ampliada */
+.map-canvas-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.map-canvas-wrapper {
+    width: 100%;
+    min-height: 520px;
+    height: 600px;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.map-canvas-wrapper svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* Polígono Seleccionado */
+.state-polygon.selected {
+    stroke: #0284c7 !important;
+    stroke-width: 3.5 !important;
+    filter: drop-shadow(0 0 10px rgba(2, 132, 199, 0.6)) !important;
+}
+
+/* Panel Lateral de Demanda (30%) */
+.map-detail-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    min-height: 600px;
+    position: sticky;
+    top: 1.5rem;
+}
+
+.map-detail-header {
+    padding: 1.25rem;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fafafa;
+    border-radius: 14px 14px 0 0;
+}
+
+.detail-state-name {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #1e293b;
+    margin: 0;
+}
+
+.detail-state-code {
+    font-size: 0.72rem;
+    font-weight: 700;
+    background: #e2e8f0;
+    color: #475569;
+    padding: 0.2rem 0.55rem;
+    border-radius: 12px;
+}
+
+.map-detail-body {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    flex: 1;
+}
+
+/* Estado Vacío / Sin Selección */
+.detail-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 3rem 1.5rem;
+    color: #94a3b8;
+    gap: 0.75rem;
+    flex: 1;
+}
+
+.detail-empty-icon {
+    width: 48px;
+    height: 48px;
+    color: #cbd5e1;
+}
+
+.detail-empty-text {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #64748b;
+    max-width: 250px;
+    line-height: 1.4;
+    margin: 0;
+}
+
+/* Resumen Cuantitativo en el Panel Lateral */
+.detail-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.65rem;
+}
+
+.stat-metric-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.stat-metric-card.border-red {
+    border-left: 3px solid #ef4444;
+}
+
+.stat-metric-card.border-yellow {
+    border-left: 3px solid #f59e0b;
+}
+
+.stat-metric-card.border-green {
+    border-left: 3px solid #10b981;
+}
+
+.stat-metric-card.border-total {
+    border-left: 3px solid #0f172a;
+}
+
+.stat-metric-label {
+    font-size: 0.7rem;
+    color: #64748b;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.stat-metric-value {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.1;
+}
+
+/* Barra de Tasa de Resolución */
+.resolution-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.resolution-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #334155;
+}
+
+.resolution-progress-bg {
+    width: 100%;
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.resolution-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+    border-radius: 6px;
+    transition: width 0.4s ease;
+}
+
+/* Secciones de Detalle */
+.detail-section-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #475569;
+    letter-spacing: 0.5px;
+    margin: 0 0 0.5rem 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.detail-section-title svg {
+    width: 16px;
+    height: 16px;
+    color: #019577;
+}
+
+/* Top 3 Formaciones */
+.trainings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.training-item {
+    background: #ffffff;
+    border: 1px solid #f1f5f9;
+    border-radius: 8px;
+    padding: 0.6rem 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 0.8rem;
+    transition: all 0.2s ease;
+}
+
+.training-item:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+.training-rank {
+    width: 22px;
+    height: 22px;
+    background: #019577;
+    color: #ffffff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.training-name {
+    flex: 1;
+    font-weight: 600;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.training-count-badge {
+    background: #e0f2fe;
+    color: #0369a1;
+    font-weight: 700;
+    font-size: 0.72rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    white-space: nowrap;
+}
+
+/* Solicitudes Recientes */
+.recent-requests-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.recent-req-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.65rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.76rem;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s ease;
+}
+
+.recent-req-card:hover {
+    border-color: #019577;
+    box-shadow: 0 2px 8px rgba(1, 149, 119, 0.12);
+    transform: translateY(-1px);
+}
+
+.recent-req-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.recent-req-code {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.recent-req-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.15rem 0.45rem;
+    border-radius: 10px;
+    text-transform: uppercase;
+}
+
+.badge-red {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.badge-yellow {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.badge-green {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.badge-gray {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.recent-req-inst {
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.recent-req-meta {
+    font-size: 0.68rem;
+    color: #94a3b8;
+    display: flex;
+    justify-content: space-between;
+}

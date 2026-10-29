@@ -58,3 +58,72 @@ def audit_view():
     logs = get_audit_logs()
     return render_template('dashboard/audit_log.html', logs=logs)
 
+# ─────────────────────────────────────────────────────────────
+# BLOQUE MAPA GEOGRÁFICO NACIONAL (Exclusivo super_admin)
+# ─────────────────────────────────────────────────────────────
+
+from app.dashboard.services import (
+    get_map_states_distribution,
+    get_state_demand_details
+)
+
+
+@dashboard_bp.route('/api/map/states', methods=['GET'])
+@login_required
+@role_required('super_admin')
+@check_permissions('view_admin_panel')
+def api_map_states():
+    """
+    Endpoint JSON con la distribución nacional coroplética de los 26 estados.
+    """
+    try:
+        data = get_map_states_distribution()
+        return jsonify({
+            'success': True,
+            'states': data['states'],
+            'summary': data['summary']
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@dashboard_bp.route('/api/map/state-details/<int:state_id>', methods=['GET'])
+@login_required
+@role_required('super_admin')
+@check_permissions('view_admin_panel')
+def api_map_state_details(state_id):
+    """
+    Endpoint JSON con el detalle de demanda, top formaciones y solicitudes
+    recientes para el estado seleccionado en el mapa nacional.
+    """
+    try:
+        details = get_state_demand_details(state_id)
+        if not details:
+            return jsonify({
+                'success': False,
+                'error': f"Estado con ID {state_id} no encontrado"
+            }), 404
+            
+        return jsonify({
+            'success': True,
+            'data': details
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@dashboard_bp.route('/mapa', methods=['GET'])
+@login_required
+@role_required('super_admin')
+@check_permissions('view_admin_panel')
+def map_fullscreen_view():
+    """
+    Vista ampliada del Mapa Geográfico Nacional (layout 70% mapa / 30% panel).
+    """
+    return render_template('dashboard/map_view.html')
