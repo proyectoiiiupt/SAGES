@@ -5,7 +5,7 @@ Tareas:
   - US-58-corporate-branding: Controlador para actualización de datos corporativos e identidad visual.
 """
 
-from flask import render_template, request, jsonify, abort
+from flask import render_template, request, jsonify
 from flask_login import login_required, current_user
 from app.configurations import configurations_bp
 from app.decorators import role_required
@@ -27,6 +27,20 @@ from app.configurations.services import (
     FileValidationError
 )
 from app.models.state_model import State
+from app.models.place_model import Place
+from app.notifications.services import NotificationService
+from app.notifications.enums import NotificationEvent, NotificationType
+
+# ---------------------------------------------------------------------------
+# Helpers Privados
+# ---------------------------------------------------------------------------
+
+def _get_actor_name(user) -> str:
+    """Extrae el nombre completo formateado del usuario en sesión."""
+    if user and hasattr(user, 'person') and user.person:
+        p = user.person
+        return f"{p.first_name or ''} {p.last_name or ''}".strip() or getattr(user, 'user_name', 'Administrador')
+    return getattr(user, 'user_name', 'Administrador')
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -107,6 +121,35 @@ def update_corporate():
             'icon_file': request.files.get('icon_file')
         }
         result = update_corporate_branding(form.data, files, current_user.id)
+
+        # Notificación Post-Commit: Actualización de datos corporativos
+        try:
+            admin_name = _get_actor_name(current_user)
+            company_name = form.data.get('company_name', 'CORPOELEC')
+            rif_val = form.data.get('rif', '')
+            phone_val = form.data.get('central_phone', '')
+            ctx = {
+                "admin_name": admin_name,
+                "company_name": company_name,
+                "updated_fields": f"RIF: {rif_val}, Teléfono: {phone_val}"
+            }
+            NotificationService.notify_role(
+                role_name="state_admin",
+                event=NotificationEvent.CONFIG_CORPORATE_UPDATED,
+                context=ctx
+            )
+            NotificationService.notify_role(
+                role_name="super_admin",
+                event=NotificationEvent.CONFIG_CORPORATE_UPDATED,
+                context=ctx,
+                exclude_user_id=current_user.id,
+                redirect_url="/configurations/",
+                action_text="Ver Configuración"
+            )
+        except Exception as notif_err:
+            import logging
+            logging.getLogger(__name__).warning(f"No se pudo emitir notificación CONFIG_CORPORATE_UPDATED: {notif_err}")
+
         return jsonify(result), 200
 
     except FileValidationError as fve:
@@ -149,6 +192,37 @@ def new_place():
 
     try:
         new = create_place(form.data, current_user.id)
+
+        # Notificación Post-Commit: Nueva sede operativa registrada
+        try:
+            admin_name = _get_actor_name(current_user)
+            state_id = new.parish.municipality.state_id if (new.parish and new.parish.municipality) else None
+            state_name = new.parish.municipality.state.name if (new.parish and new.parish.municipality and new.parish.municipality.state) else "Jurisdicción Estadal"
+            ctx = {
+                "admin_name": admin_name,
+                "place_name": new.name,
+                "state_name": state_name
+            }
+            if state_id:
+                NotificationService.notify_role(
+                    role_name="state_admin",
+                    event=NotificationEvent.CONFIG_PLACE_CREATED,
+                    context=ctx,
+                    state_id=state_id,
+                    exclude_user_id=current_user.id
+                )
+            NotificationService.notify_role(
+                role_name="super_admin",
+                event=NotificationEvent.CONFIG_PLACE_CREATED,
+                context=ctx,
+                exclude_user_id=current_user.id,
+                redirect_url="/configurations/",
+                action_text="Ver Sedes"
+            )
+        except Exception as notif_err:
+            import logging
+            logging.getLogger(__name__).warning(f"No se pudo emitir notificación CONFIG_PLACE_CREATED: {notif_err}")
+
         return jsonify({
             'success'   : True,
             'message'   : f'Sede "{new.name}" registrada exitosamente con código {new.place_code}.',
@@ -184,6 +258,23 @@ def edit_place(place_id):
 
     try:
         updated = update_place(place_id, form.data, current_user.id)
+
+        # Notificación Post-Commit: Datos de sede actualizados (al personal adscrito a esa sede)
+        try:
+            admin_name = _get_actor_name(current_user)
+            NotificationService.notify_place_staff(
+                place_id=place_id,
+                event=NotificationEvent.CONFIG_PLACE_UPDATED,
+                context={
+                    "place_name": updated.name,
+                    "admin_name": admin_name
+                },
+                exclude_user_id=current_user.id
+            )
+        except Exception as notif_err:
+            import logging
+            logging.getLogger(__name__).warning(f"No se pudo emitir notificación CONFIG_PLACE_UPDATED: {notif_err}")
+
         return jsonify({
             'success': True,
             'message': f'Sede "{updated.name}" actualizada correctamente.'
@@ -222,6 +313,45 @@ def toggle_status(place_id):
                 'message'    : message,
                 'staff_count': staff_count
             }), 409
+
+        # Notificación Post-Commit: Cambio de estatus operativo de sede
+        try:
+            place = Place.query.get(place_id)
+            if place:
+                admin_name = _get_actor_name(current_user)
+                is_active = (place.status.status_code == 'STAT-001') if place.status else False
+                sev = NotificationType.SUCCESS if is_active else NotificationType.WARNING
+                action_lbl = "reactivada para operaciones" if is_active else "inactivada temporalmente"
+                state_id = place.parish.municipality.state_id if (place.parish and place.parish.municipality) else None
+                state_name = place.parish.municipality.state.name if (place.parish and place.parish.municipality and place.parish.municipality.state) else "Jurisdicción Estadal"
+
+                ctx = {
+                    "place_name": place.name,
+                    "state_name": state_name,
+                    "action_label": action_lbl,
+                    "admin_name": admin_name
+                }
+                if state_id:
+                    NotificationService.notify_role(
+                        role_name="state_admin",
+                        event=NotificationEvent.CONFIG_PLACE_STATUS_CHANGED,
+                        context=ctx,
+                        state_id=state_id,
+                        exclude_user_id=current_user.id,
+                        severity_override=sev
+                    )
+                NotificationService.notify_role(
+                    role_name="super_admin",
+                    event=NotificationEvent.CONFIG_PLACE_STATUS_CHANGED,
+                    context=ctx,
+                    exclude_user_id=current_user.id,
+                    severity_override=sev,
+                    redirect_url="/configurations/",
+                    action_text="Ver Sedes"
+                )
+        except Exception as notif_err:
+            import logging
+            logging.getLogger(__name__).warning(f"No se pudo emitir notificación CONFIG_PLACE_STATUS_CHANGED: {notif_err}")
 
         return jsonify({'success': True, 'message': message}), 200
 
@@ -335,6 +465,49 @@ def update_role_permissions_endpoint(role_id):
 
     try:
         result = update_role_permissions(role_id, payload['permission_ids'], current_user.id)
+
+        # Notificación Post-Commit: Actualización de permisos de rol
+        try:
+            added_count = len(result.get("added_ids", []))
+            removed_count = len(result.get("removed_ids", []))
+            if added_count > 0 or removed_count > 0:
+                admin_name = _get_actor_name(current_user)
+                sev = NotificationType.WARNING if removed_count > 0 else NotificationType.INFO
+                summary_parts = []
+                if added_count:
+                    summary_parts.append(f"+{added_count} habilitados")
+                if removed_count:
+                    summary_parts.append(f"-{removed_count} revocados")
+                changes_summary = ", ".join(summary_parts)
+
+                ctx = {
+                    "admin_name": admin_name,
+                    "role_name": result["role_name"],
+                    "changes_summary": changes_summary
+                }
+                # 1. Notificar a los usuarios activos que poseen el rol modificado
+                NotificationService.notify_role(
+                    role_name=result["role_name"],
+                    event=NotificationEvent.CONFIG_ROLE_PERMISSIONS_UPDATED,
+                    context=ctx,
+                    exclude_user_id=current_user.id,
+                    severity_override=sev
+                )
+                # 2. Notificar a otros Super Administradores
+                if result["role_name"].lower() != "super_admin":
+                    NotificationService.notify_role(
+                        role_name="super_admin",
+                        event=NotificationEvent.CONFIG_ROLE_PERMISSIONS_UPDATED,
+                        context=ctx,
+                        exclude_user_id=current_user.id,
+                        severity_override=sev,
+                        redirect_url="/configurations/",
+                        action_text="Ver Matriz RBAC"
+                    )
+        except Exception as notif_err:
+            import logging
+            logging.getLogger(__name__).warning(f"No se pudo emitir notificación CONFIG_ROLE_PERMISSIONS_UPDATED: {notif_err}")
+
         return jsonify({
             'success': True,
             'message': 'Niveles de acceso actualizados exitosamente.',

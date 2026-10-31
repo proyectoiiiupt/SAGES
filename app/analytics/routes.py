@@ -16,6 +16,39 @@ from app.binnacle.types import AuditModule, AuditAction, AuditStatus
 from app.decorators import role_required, check_permissions
 from app.models import Request, Training, Municipality, Parish
 from app.dashboard.services import get_user_state_info
+from app.notifications.services import NotificationService
+from app.notifications.enums import NotificationEvent, NotificationType
+
+# ---------------------------------------------------------------------------
+# Helpers Privados de Auditoría y Seguridad
+# ---------------------------------------------------------------------------
+
+def _notify_idor_attempt(actor_user, actor_state_id, target_state_id, endpoint_name: str):
+    """Emite una alerta de seguridad (DANGER) al Super Admin ante intentos de IDOR territorial."""
+    try:
+        actor_name = "Usuario"
+        if actor_user and hasattr(actor_user, 'person') and actor_user.person:
+            p = actor_user.person
+            actor_name = f"{p.first_name or ''} {p.last_name or ''}".strip() or getattr(actor_user, 'user_name', 'Usuario')
+        elif actor_user:
+            actor_name = getattr(actor_user, 'user_name', 'Usuario')
+
+        NotificationService.notify_role(
+            role_name="super_admin",
+            event=NotificationEvent.ANALYTICS_SECURITY_IDOR_ATTEMPT,
+            context={
+                "actor_name": actor_name,
+                "actor_id": actor_user.id if actor_user else 0,
+                "actor_state": str(actor_state_id or "Sin Sede"),
+                "target_state": str(target_state_id or "Nacional/Otro"),
+                "endpoint_name": endpoint_name
+            },
+            severity_override=NotificationType.DANGER,
+            redirect_url="/analytics/",
+            action_text="Auditar Usuario"
+        )
+    except Exception as notif_err:
+        current_app.logger.warning(f"Error enviando alerta IDOR: {notif_err}")
 
 @analytics_bp.route('/', methods=['GET'])
 @analytics_bp.route('/index', methods=['GET'])
@@ -94,6 +127,16 @@ def indicators_data_api():
 
     try:
         clean_filters = form.get_clean_filters()
+
+        # Detección y alerta de intento IDOR territorial
+        user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
+        if user_role == 'state_admin':
+            st_info = get_user_state_info(current_user)
+            user_state_id = st_info.get('state_id') if st_info else None
+            req_st = clean_filters.get('state_id')
+            if req_st is not None and user_state_id and int(req_st) != user_state_id:
+                _notify_idor_attempt(current_user, user_state_id, req_st, "/analytics/api/indicators-data")
+
         data = AnalyticsService.calculate_filtered_indicators(current_user, clean_filters)
         return jsonify({
             'success': True,
@@ -198,9 +241,14 @@ def get_geo_municipalities(state_id):
     """
     user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
     if user_role == 'state_admin':
-        from app.dashboard.services import get_user_state_info
         state_info = get_user_state_info(current_user)
         if not state_info or state_info.get('state_id') != state_id:
+            _notify_idor_attempt(
+                current_user,
+                state_info.get('state_id') if state_info else "Sin Sede",
+                state_id,
+                f"/analytics/api/geo/municipalities/{state_id}"
+            )
             return jsonify([]), 403
 
     municipalities = Municipality.query.filter_by(state_id=state_id).order_by(Municipality.name).all()
@@ -220,9 +268,14 @@ def get_geo_parishes(municipality_id):
         return jsonify([])
 
     if user_role == 'state_admin':
-        from app.dashboard.services import get_user_state_info
         state_info = get_user_state_info(current_user)
         if not state_info or state_info.get('state_id') != municipality.state_id:
+            _notify_idor_attempt(
+                current_user,
+                state_info.get('state_id') if state_info else "Sin Sede",
+                municipality.state_id,
+                f"/analytics/api/geo/parishes/{municipality_id}"
+            )
             return jsonify([]), 403
 
     parishes = Parish.query.filter_by(municipality_id=municipality_id).order_by(Parish.name).all()
@@ -266,6 +319,15 @@ def export_report():
         'date_from': request.form.get('date_from', ''),
         'date_to': request.form.get('date_to', '')
     }
+
+    # Alerta IDOR preventiva si un state_admin manipula el formulario
+    user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
+    if user_role == 'state_admin':
+        state_info = get_user_state_info(current_user)
+        user_state_id = state_info.get('state_id') if state_info else None
+        req_state = filter_params.get('state_id')
+        if req_state is not None and user_state_id and int(req_state) != user_state_id:
+            _notify_idor_attempt(current_user, user_state_id, req_state, "/analytics/export")
 
     # 1. Sanitizar el nombre del archivo resultante
     safe_name = re.sub(r'[^a-zA-Z0-9_\-]', '_', report_name.strip())
@@ -314,7 +376,8 @@ def export_report():
                 report_title=report_name,
                 file_bytes=mem_file,
                 filename=download_name,
-                mimetype=mimetype
+                mimetype=mimetype,
+                user_id=current_user.id
             )
             return jsonify({
                 'success': True,
@@ -361,6 +424,15 @@ def export_indicators_api():
         return jsonify({'success': False, 'message': f"Error de validación: {first_error}"}), 400
 
     clean_filters = form.get_clean_filters()
+
+    # Alerta IDOR preventiva
+    user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
+    if user_role == 'state_admin':
+        state_info = get_user_state_info(current_user)
+        user_state_id = state_info.get('state_id') if state_info else None
+        req_state = clean_filters.get('state_id')
+        if req_state is not None and user_state_id and int(req_state) != user_state_id:
+            _notify_idor_attempt(current_user, user_state_id, req_state, "/analytics/api/export-indicators")
 
     try:
         # Calcular los indicadores con blindaje territorial Anti-IDOR
@@ -454,7 +526,8 @@ def export_indicators_api():
                 report_title=report_title,
                 file_bytes=mem_file,
                 filename=download_name,
-                mimetype=mimetype
+                mimetype=mimetype,
+                user_id=current_user.id
             )
             return jsonify({
                 'success': True,

@@ -13,6 +13,19 @@ from app.models.status_model import Status
 from app.models.training_model import Training
 from app.models.request_planning_model import RequestPlanning
 from app.models.request_justification_model import RequestJustification
+from app.notifications.services import NotificationService
+from app.notifications.enums import NotificationEvent
+
+def _get_request_state_id(req: Request) -> int | None:
+    """Obtiene de forma segura el ID del Estado geográfico de la institución solicitante."""
+    try:
+        if req and req.institutional_staff and req.institutional_staff.institution:
+            inst = req.institutional_staff.institution
+            if inst.parish and inst.parish.municipality:
+                return inst.parish.municipality.state_id
+    except Exception:
+        pass
+    return None
 
 class RequestAlreadyClaimedException(Exception):
     """Excepción lanzada cuando un administrador intenta atender una solicitud que ya fue tomada concurrentemente."""
@@ -157,7 +170,31 @@ def create_training_request(user_id: int, training_id: int, description: str) ->
             # Tolerancia a fallos: Si el correo falla, la solicitud sigue siendo válida en la base de datos
             import logging
             logging.getLogger(__name__).error(f"Fallo al emitir comprobante para {new_request.request_code}: {e}")
-            
+
+        # 5. Notificación In-App: Nueva solicitud registrada para atención estadal
+        try:
+            inst_state_id = _get_request_state_id(new_request)
+            training_label = (
+                getattr(new_request.training, 'name', None) or 
+                getattr(new_request.training, 'training_name', 'Formación solicitada')
+            )
+            NotificationService.notify_role(
+                role_name="state_admin",
+                event=NotificationEvent.REQUEST_CREATED,
+                context={
+                    "request_code": new_request.request_code,
+                    "institution_name": user.person.institutional_staff[0].institution.institution_name,
+                    "training_name": training_label,
+                    "participants": "Por definir"
+                },
+                state_id=inst_state_id,
+                redirect_url=f"/requests/{new_request.id}/detail",
+                action_text="Revisar Solicitud"
+            )
+        except Exception as notif_err:
+            import logging
+            logging.getLogger(__name__).warning(f"No se pudo emitir notificación REQUEST_CREATED: {notif_err}")
+
         return True, "Solicitud radicada de forma exitosa.", new_request.id
     except Exception as e:
         db.session.rollback()
@@ -416,10 +453,16 @@ def cancel_training_request(request_id: int, user: User, reason_id: int, justifi
             session_instance=db.session
         )
 
-        # 10. Notificación y correo asíncrono a la contraparte
+        # 10. Confirmación de transacción
+        db.session.commit()
+
+        # 11. Notificación y correo asíncrono a la contraparte (Post-commit)
         try:
             inst_name = req.institutional_staff.institution.institution_name if req.institutional_staff and req.institutional_staff.institution else "Plantel Educativo"
-            training_name = req.training.name if req.training else "Formación Solicitada"
+            training_name = (
+                getattr(req.training, 'name', None) or 
+                getattr(req.training, 'training_name', 'Formación Solicitada')
+            )
 
             context = {
                 "institution_name": inst_name,
@@ -437,14 +480,17 @@ def cancel_training_request(request_id: int, user: User, reason_id: int, justifi
                         user_id=req.attended_by_id,
                         event=NotificationEvent.REQUEST_CANCELLED_BY_APPLICANT,
                         context=context,
-                        db_session=db.session
+                        redirect_url=f"/requests/{req.id}/detail",
+                        action_text="Ver Solicitud Cancelada"
                     )
                 else:
                     notifications = NotificationService.notify_role(
                         role_name='state_admin',
                         event=NotificationEvent.REQUEST_CANCELLED_BY_APPLICANT,
                         context=context,
-                        db_session=db.session
+                        state_id=_get_request_state_id(req),
+                        redirect_url=f"/requests/{req.id}/detail",
+                        action_text="Ver Solicitud Cancelada"
                     )
                     if notifications:
                         target_user = User.query.get(notifications[0].user_id)
@@ -471,8 +517,27 @@ def cancel_training_request(request_id: int, user: User, reason_id: int, justifi
                         event=NotificationEvent.REQUEST_CANCELLED_BY_ADMIN,
                         context=context,
                         redirect_url=f"/requests/my-requests/{req.id}",
-                        action_text="Ver Expediente",
-                        db_session=db.session
+                        action_text="Ver Motivo"
+                    )
+
+                # Si canceló un Super Admin y había un State Admin asignado distinto, avisarle también
+                if req.attended_by_id and req.attended_by_id != user.id:
+                    actor_admin_name = (
+                        f"{user.person.first_name} {user.person.last_name}".strip()
+                        if (user and hasattr(user, 'person') and user.person)
+                        else "Administración Central"
+                    )
+                    NotificationService.notify_user(
+                        user_id=req.attended_by_id,
+                        event=NotificationEvent.REQUEST_CANCELLED_BY_ADMIN,
+                        context={
+                            "institution_name": inst_name,
+                            "training_name": training_name,
+                            "reason_name": reason.name,
+                            "justification": f"{clean_justification} (Cancelado por {actor_admin_name})"
+                        },
+                        redirect_url=f"/requests/{req.id}/detail",
+                        action_text="Ver Detalle"
                     )
 
                 # Correo al representante del requerimiento
@@ -493,9 +558,6 @@ def cancel_training_request(request_id: int, user: User, reason_id: int, justifi
         except Exception as notif_err:
             import logging
             logging.getLogger(__name__).warning(f"No se pudo despachar la notificación de cancelación: {notif_err}")
-
-        # 11. Confirmación de transacción
-        db.session.commit()
 
         success_msg = (
             "La solicitud ha sido cancelada formalmente y sellada como expediente histórico."
@@ -556,6 +618,88 @@ def get_state_dashboard_metrics(state_id: int) -> dict:
         'completadas': result.completadas or 0,
         'pendientes': result.pendientes or 0
     }
+
+
+def _emit_sla_alerts_for_requests(requests_list):
+    """
+    Verifica de forma idempotente (sin duplicar notificaciones en base de datos)
+    si las solicitudes listadas han alcanzado el umbral preventivo (48h-72h) o
+    crítico (>72h / >10 días) y emite las alertas correspondientes por única vez.
+    """
+    if not requests_list:
+        return
+    try:
+        now_dt = datetime.now(timezone.utc)
+        for req in requests_list:
+            if not req.status:
+                continue
+            s_code = req.status.status_code
+            inst_name = (
+                req.institutional_staff.institution.institution_name
+                if (req.institutional_staff and req.institutional_staff.institution)
+                else "Institución"
+            )
+            status_label = req.status.status_name
+
+            # 1. Fase de Respuesta / Planificación (STAT-003 o STAT-004)
+            if s_code in ['STAT-003', 'STAT-004'] and req.created_at:
+                created_dt = req.created_at if req.created_at.tzinfo else req.created_at.replace(tzinfo=timezone.utc)
+                hours = int((now_dt - created_dt).total_seconds() // 3600)
+                if 48 <= hours <= 72:
+                    if req.attended_by_id:
+                        NotificationService.notify_user_once(
+                            user_id=req.attended_by_id,
+                            event=NotificationEvent.REQUEST_DELAY_WARNING,
+                            unique_redirect_url=f"/requests/{req.id}/detail#warn48h",
+                            context={
+                                "request_code": req.request_code,
+                                "institution_name": inst_name,
+                                "hours_elapsed": hours,
+                                "status_name": status_label
+                            },
+                            action_text="Planificar Ahora",
+                            only_if_unread=True
+                        )
+                elif hours > 72:
+                    if req.attended_by_id:
+                        NotificationService.notify_user_once(
+                            user_id=req.attended_by_id,
+                            event=NotificationEvent.REQUEST_DELAY_CRITICAL,
+                            unique_redirect_url=f"/requests/{req.id}/detail#crit72h",
+                            context={
+                                "request_code": req.request_code,
+                                "institution_name": inst_name,
+                                "delay_detail": f"{hours} horas sin planificación (>72h)",
+                                "status_name": status_label
+                            },
+                            action_text="Justificar y Planificar",
+                            only_if_unread=True
+                        )
+
+            # 2. Fase de Cierre Post-Jornada (STAT-005 con >10 días de vencimiento)
+            elif s_code == 'STAT-005' and req.plannings:
+                plans_with_date = [p for p in req.plannings if p.planned_for]
+                if plans_with_date:
+                    latest_plan = max(plans_with_date, key=lambda p: p.planned_for)
+                    plan_date = latest_plan.planned_for.date() if hasattr(latest_plan.planned_for, 'date') else latest_plan.planned_for
+                    days_over = (now_dt.date() - plan_date).days
+                    if days_over > 10 and req.attended_by_id:
+                        NotificationService.notify_user_once(
+                            user_id=req.attended_by_id,
+                            event=NotificationEvent.REQUEST_DELAY_CRITICAL,
+                            unique_redirect_url=f"/requests/{req.id}/detail#crit10d",
+                            context={
+                                "request_code": req.request_code,
+                                "institution_name": inst_name,
+                                "delay_detail": f"{days_over} días sin acta de cierre (>10 días)",
+                                "status_name": status_label
+                            },
+                            action_text="Cerrar y Justificar",
+                            only_if_unread=True
+                        )
+    except Exception as notif_err:
+        import logging
+        logging.getLogger(__name__).warning(f"Error en _emit_sla_alerts_for_requests: {notif_err}")
 
 
 def get_state_requests_paginated(state_id: int, page: int = 1, per_page: int = 10, search_query: str = None, status_id: int = None, municipality_id: int = None):
@@ -666,6 +810,9 @@ def get_state_requests_paginated(state_id: int, page: int = 1, per_page: int = 1
             # Fallback
             req.traffic_light_color = 'yellow'
             req.traffic_light_text = base_text
+
+    # 7. Emisión de alertas preventivas y críticas de SLA (Idempotente)
+    _emit_sla_alerts_for_requests(pagination.items)
 
     return pagination
 
@@ -828,8 +975,30 @@ def claim_and_attend_request(request_id: int, admin_user) -> tuple[bool, str, di
         
         # 4. Commit Atómico Completo
         db.session.commit()
-        
-        # 5. Despacho de Correo Asíncrono
+
+        # 5. Notificación In-App: Solicitud en Revisión a los afiliados de la institución
+        try:
+            training_label = (
+                getattr(req.training, 'name', None) or 
+                getattr(req.training, 'training_name', 'Formación solicitada')
+            )
+            if req.institutional_staff and req.institutional_staff.institution_id:
+                NotificationService.notify_institution_affiliates(
+                    institution_id=req.institutional_staff.institution_id,
+                    event=NotificationEvent.REQUEST_CLAIMED,
+                    context={
+                        "request_code": req.request_code,
+                        "training_name": training_label,
+                        "admin_name": admin_name
+                    },
+                    redirect_url=f"/requests/my-requests/{req.id}",
+                    action_text="Ver Estado"
+                )
+        except Exception as notif_err:
+            import logging
+            logging.getLogger(__name__).warning(f"No se pudo emitir notificación REQUEST_CLAIMED: {notif_err}")
+
+        # 6. Despacho de Correo Asíncrono
         try:
             from app.utils.email_utils import send_request_claimed_email
             
@@ -953,7 +1122,52 @@ def plan_training_session(request_id: int, planned_date, notes: str, admin_user,
         # 9. Commit atómico
         db.session.commit()
 
-        # 10. Notificación por Correo Asíncrono
+        # 10. Notificaciones In-App Post-Commit (Planificación y Justificación de Retraso)
+        try:
+            training_label = (
+                getattr(req.training, 'name', None) or 
+                getattr(req.training, 'training_name', 'Formación solicitada')
+            )
+            admin_name = f"{admin_user.person.first_name} {admin_user.person.last_name}" if admin_user and hasattr(admin_user, 'person') and admin_user.person else getattr(admin_user, 'user_name', 'Administrador')
+            inst_name = req.institutional_staff.institution.institution_name if (req.institutional_staff and req.institutional_staff.institution) else "Institución"
+
+            # Notificar a los afiliados del plantel educativo que la jornada ha sido agendada
+            if req.institutional_staff and req.institutional_staff.institution_id:
+                NotificationService.notify_institution_affiliates(
+                    institution_id=req.institutional_staff.institution_id,
+                    event=NotificationEvent.REQUEST_PLANNED,
+                    context={
+                        "request_code": req.request_code,
+                        "training_name": training_label,
+                        "planned_date": formatted_date,
+                        "modality": "Presencial",
+                        "location_detail": inst_name
+                    },
+                    redirect_url=f"/requests/my-requests/{req.id}",
+                    action_text="Ver Detalles de Jornada"
+                )
+
+            # Si se planificó con retraso respecto al ANS (>10 días) y se consignó justificación, auditar al Super Admin
+            if is_exceeded and delay_justification and delay_justification.strip():
+                NotificationService.notify_role(
+                    role_name="super_admin",
+                    event=NotificationEvent.REQUEST_DELAY_JUSTIFIED,
+                    context={
+                        "request_code": req.request_code,
+                        "admin_name": admin_name,
+                        "delay_stage": "Fase de Planificación (>10 días ANS)",
+                        "institution_name": inst_name,
+                        "justification": delay_justification.strip()[:140]
+                    },
+                    exclude_user_id=admin_user.id,
+                    redirect_url=f"/requests/{req.id}/detail",
+                    action_text="Auditar Justificación"
+                )
+        except Exception as notif_err:
+            import logging
+            logging.getLogger(__name__).warning(f"No se pudo emitir notificación de planificación: {notif_err}")
+
+        # 11. Notificación por Correo Asíncrono
         try:
             from app.utils.email_utils import send_request_planned_email
             applicant_person = req.institutional_staff.person
@@ -1125,8 +1339,7 @@ def reschedule_training_session(
                     event=NotificationEvent.REQUEST_RESCHEDULED,
                     context=context,
                     redirect_url=f"/requests/my-requests/{req.id}",
-                    action_text="Ver Expediente",
-                    db_session=db.session
+                    action_text="Ver Nueva Fecha"
                 )
 
             # Notificar por correo asíncrono al solicitante
@@ -1791,6 +2004,40 @@ def demand_delay_response(request_id: int, super_admin_user) -> tuple[bool, str,
     db.session.add(tracking)
     db.session.commit()
 
+    # Notificación In-App: Reclamo de atención por vencimiento de SLA
+    try:
+        inst_name = (
+            req.institutional_staff.institution.institution_name
+            if (req.institutional_staff and req.institutional_staff.institution)
+            else "Institución"
+        )
+        context_data = {
+            "institution_name": inst_name,
+            "request_code": req.request_code,
+            "delay_stage": "Vencimiento de plazos normativos",
+            "demand_message": "La Gerencia General exige consignar justificación operativa inmediata."
+        }
+        if req.attended_by_id:
+            NotificationService.notify_user(
+                user_id=req.attended_by_id,
+                event=NotificationEvent.REQUEST_SLA_DEMAND,
+                context=context_data,
+                redirect_url=f"/requests/{req.id}/detail",
+                action_text="Atender Reclamo Urgente"
+            )
+        else:
+            NotificationService.notify_role(
+                role_name="state_admin",
+                event=NotificationEvent.REQUEST_SLA_DEMAND,
+                context=context_data,
+                state_id=_get_request_state_id(req),
+                redirect_url=f"/requests/{req.id}/detail",
+                action_text="Atender Reclamo Urgente"
+            )
+    except Exception as notif_err:
+        import logging
+        logging.getLogger(__name__).warning(f"No se pudo emitir notificación REQUEST_SLA_DEMAND: {notif_err}")
+
     return True, "Exigencia formal registrada exitosamente en el expediente.", 200
 
 
@@ -1922,6 +2169,32 @@ def submit_delay_justification(
         db.session.add(tracking)
 
         db.session.commit()
+
+        # Notificación In-App: Justificación de retraso registrada (Al Super Administrador)
+        try:
+            inst_name = (
+                req.institutional_staff.institution.institution_name
+                if (req.institutional_staff and req.institutional_staff.institution)
+                else "Institución"
+            )
+            NotificationService.notify_role(
+                role_name="super_admin",
+                event=NotificationEvent.REQUEST_DELAY_JUSTIFIED,
+                context={
+                    "request_code": req.request_code,
+                    "admin_name": admin_name,
+                    "delay_stage": f"Bloqueo ANS ({justification_type})",
+                    "institution_name": inst_name,
+                    "justification": justification_text[:140]
+                },
+                exclude_user_id=admin_user.id if admin_user else None,
+                redirect_url=f"/requests/audit-detail/{req.id}",
+                action_text="Auditar Caso"
+            )
+        except Exception as notif_err:
+            import logging
+            logging.getLogger(__name__).warning(f"No se pudo emitir notificación REQUEST_DELAY_JUSTIFIED: {notif_err}")
+
         return True, "Descargo registrado correctamente. El bloqueo operativo ha sido levantado.", 200
 
     except Exception as e:
@@ -2159,7 +2432,34 @@ def get_blocking_closure_request_for_user(user_id: int):
         return None
 
     overdue_list.sort(key=lambda r: r.closure_alert.get('days_overdue', 0), reverse=True)
-    return overdue_list[0]
+    blocking_req = overdue_list[0]
+
+    # Emisión idempotente de notificación preventiva de cierre y evidencias pendientes
+    try:
+        inst_name = (
+            blocking_req.institutional_staff.institution.institution_name
+            if (blocking_req.institutional_staff and blocking_req.institutional_staff.institution)
+            else "Institución"
+        )
+        planned_dt_str = blocking_req.closure_alert.get('planned_date', 'fecha pautada')
+
+        NotificationService.notify_user_once(
+            user_id=user_id,
+            event=NotificationEvent.REQUEST_PENDING_CLOSURE,
+            unique_redirect_url=f"/requests/{blocking_req.id}/detail#closure",
+            context={
+                "request_code": blocking_req.request_code,
+                "institution_name": inst_name,
+                "planned_date": planned_dt_str
+            },
+            action_text="Cargar Acta y Cierre",
+            only_if_unread=True
+        )
+    except Exception as notif_err:
+        import logging
+        logging.getLogger(__name__).warning(f"Error en notify_user_once REQUEST_PENDING_CLOSURE: {notif_err}")
+
+    return blocking_req
 
 
 
@@ -2253,6 +2553,31 @@ def submit_closure_evidences(request_id: int, files, user_id: int) -> tuple:
                 latest.attended_at = now_utc
 
         db.session.commit()
+
+        # Notificación In-App: Jornada Culminada Exitosamente (A los afiliados de la institución)
+        try:
+            admin_user = User.query.get(user_id) if user_id else None
+            admin_name = f"{admin_user.person.first_name} {admin_user.person.last_name}" if admin_user and hasattr(admin_user, 'person') and admin_user.person else "Coordinación CORPOELEC"
+            training_label = (
+                getattr(req.training, 'name', None) or 
+                getattr(req.training, 'training_name', 'Formación institucional')
+            )
+            if req.institutional_staff and req.institutional_staff.institution_id:
+                NotificationService.notify_institution_affiliates(
+                    institution_id=req.institutional_staff.institution_id,
+                    event=NotificationEvent.REQUEST_COMPLETED,
+                    context={
+                        "request_code": req.request_code,
+                        "training_name": training_label,
+                        "admin_name": admin_name
+                    },
+                    redirect_url=f"/requests/my-requests/{req.id}",
+                    action_text="Ver Cierre de Jornada"
+                )
+        except Exception as notif_err:
+            import logging
+            logging.getLogger(__name__).warning(f"No se pudo emitir notificación REQUEST_COMPLETED en submit_closure_evidences: {notif_err}")
+
         return True, "Solicitud cerrada exitosamente con las evidencias de cumplimiento."
 
     except Exception as e:
@@ -3333,6 +3658,62 @@ def add_tracking_note(request_id: int, note_text: str, user: User) -> tuple:
         db.session.add(new_step)
         db.session.commit()
 
+        # Notificación In-App: Nueva nota de seguimiento en bitácora (Bidireccional)
+        try:
+            preview = text_clean[:110] + ("..." if len(text_clean) > 110 else "")
+            user_roles = [ra.role.name for ra in user.roles_assoc if ra.role] if (user and user.roles_assoc) else []
+            is_applicant = 'applicant' in user_roles
+            
+            p = user.person if user else None
+            author_name = f"{p.first_name or ''} {p.last_name or ''}".strip() if p else getattr(user, 'user_name', 'Usuario SAGES')
+
+            if is_applicant:
+                inst_name = (
+                    req.institutional_staff.institution.institution_name
+                    if (req.institutional_staff and req.institutional_staff.institution)
+                    else "Institución Solicitante"
+                )
+                context_data = {
+                    "author_name": author_name,
+                    "author_role": inst_name,
+                    "request_code": req.request_code,
+                    "note_preview": preview
+                }
+                if req.attended_by_id:
+                    NotificationService.notify_user(
+                        user_id=req.attended_by_id,
+                        event=NotificationEvent.REQUEST_TRACKING_NOTE_ADDED,
+                        context=context_data,
+                        redirect_url=f"/requests/{req.id}/detail",
+                        action_text="Responder en Bitácora"
+                    )
+                else:
+                    NotificationService.notify_role(
+                        role_name="state_admin",
+                        event=NotificationEvent.REQUEST_TRACKING_NOTE_ADDED,
+                        context=context_data,
+                        state_id=_get_request_state_id(req),
+                        redirect_url=f"/requests/{req.id}/detail",
+                        action_text="Ver Bitácora"
+                    )
+            else:
+                # Nota agregada por facilitador o gerencia central
+                if req.institutional_staff and req.institutional_staff.institution_id:
+                    NotificationService.notify_institution_affiliates(
+                        institution_id=req.institutional_staff.institution_id,
+                        event=NotificationEvent.REQUEST_TRACKING_NOTE_ADDED,
+                        context={
+                            "author_name": author_name,
+                            "author_role": "Coordinación CORPOELEC",
+                            "request_code": req.request_code,
+                            "note_preview": preview
+                        },
+                        redirect_url=f"/requests/my-requests/{req.id}",
+                        action_text="Ver Observación"
+                    )
+        except Exception as notif_err:
+            logger.warning(f"No se pudo emitir notificación REQUEST_TRACKING_NOTE_ADDED: {notif_err}")
+
         # Determinar rol y nombre
         vzla_tz = timezone(timedelta(hours=-4))
         dt_local = now_utc.astimezone(vzla_tz)
@@ -3546,6 +3927,23 @@ def complete_training_request(request_id: int, admin_user) -> tuple:
 
         # 11. Confirmación de la Transacción en Base de Datos (Atomic Commit)
         db.session.commit()
+
+        # Notificación In-App: Jornada Culminada Exitosamente (A los afiliados de la institución)
+        try:
+            if req.institutional_staff and req.institutional_staff.institution_id:
+                NotificationService.notify_institution_affiliates(
+                    institution_id=req.institutional_staff.institution_id,
+                    event=NotificationEvent.REQUEST_COMPLETED,
+                    context={
+                        "request_code": req_code,
+                        "training_name": training_name,
+                        "admin_name": admin_name
+                    },
+                    redirect_url=f"/requests/my-requests/{req_id}",
+                    action_text="Ver Cierre de Jornada"
+                )
+        except Exception as notif_err:
+            logger.warning(f"No se pudo emitir notificación REQUEST_COMPLETED en complete_workspace_request: {notif_err}")
 
         # 12. Despacho Asíncrono de Correo con Enlace a la Encuesta (Posterior al commit exitoso)
         if applicant_email:

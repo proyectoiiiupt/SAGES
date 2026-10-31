@@ -31,11 +31,19 @@ from app.trainings.services import (
 )
 from app.decorators import check_permissions, role_required
 from app.extensions import db, limiter
-
+from app.notifications.services import NotificationService
+from app.notifications.enums import NotificationEvent, NotificationType
 
 # ---------------------------------------------------------------------------
 # Helpers privados
 # ---------------------------------------------------------------------------
+
+def _get_actor_name(user) -> str:
+    """Extrae el nombre completo formateado del usuario en sesión."""
+    if user and hasattr(user, 'person') and user.person:
+        p = user.person
+        return f"{p.first_name or ''} {p.last_name or ''}".strip() or getattr(user, 'user_name', 'Administrador')
+    return getattr(user, 'user_name', 'Administrador')
 
 def _get_user_role() -> str:
     """Devuelve el nombre del primer rol del usuario en sesión o 'applicant'."""
@@ -244,6 +252,39 @@ def toggle_module_status_route(module_id: int):
     Valida estrictamente que el módulo no posea temas formativos activos asociados antes de inactivarlo.
     """
     success, message, module, active_count = toggle_module_status(module_id, current_user.id)
+
+    # Notificación Post-Commit: Cambio de disponibilidad de módulo rector
+    if success and module:
+        try:
+            admin_name = _get_actor_name(current_user)
+            is_now_active = module.is_active
+            sev = NotificationType.SUCCESS if is_now_active else NotificationType.WARNING
+            action_lbl = "reactivado y habilitado" if is_now_active else "inactivado temporalmente"
+            ctx = {
+                "module_name": module.name,
+                "action_label": action_lbl,
+                "admin_name": admin_name
+            }
+            NotificationService.notify_role(
+                role_name="state_admin",
+                event=NotificationEvent.TRAINING_MODULE_STATUS_CHANGED,
+                context=ctx,
+                exclude_user_id=current_user.id,
+                severity_override=sev,
+                redirect_url="/trainings/",
+                action_text="Ver Módulos"
+            )
+            if is_now_active:
+                NotificationService.notify_role(
+                    role_name="applicant",
+                    event=NotificationEvent.TRAINING_MODULE_STATUS_CHANGED,
+                    context=ctx,
+                    severity_override=NotificationType.SUCCESS,
+                    redirect_url="/requests/catalog",
+                    action_text="Explorar Catálogo"
+                )
+        except Exception as notif_err:
+            current_app.logger.warning(f"No se pudo emitir notificación TRAINING_MODULE_STATUS_CHANGED: {notif_err}")
 
     is_ajax = (
         request.is_json or
@@ -465,6 +506,25 @@ def new_module():
             db.session.add(new_mod)
             db.session.commit()
 
+            # Notificación Post-Commit: Nuevo módulo formativo incorporado
+            try:
+                admin_name = _get_actor_name(current_user)
+                ctx = {
+                    "module_name": new_mod.name,
+                    "admin_name": admin_name
+                }
+                for target_role in ("state_admin", "applicant", "super_admin"):
+                    NotificationService.notify_role(
+                        role_name=target_role,
+                        event=NotificationEvent.TRAINING_MODULE_CREATED,
+                        context=ctx,
+                        exclude_user_id=current_user.id,
+                        redirect_url="/trainings/",
+                        action_text="Ver Catálogo"
+                    )
+            except Exception as notif_err:
+                current_app.logger.warning(f"No se pudo emitir notificación TRAINING_MODULE_CREATED: {notif_err}")
+
             flash(f'Módulo Rector "{new_mod.name}" registrado exitosamente.', "success")
             return redirect(url_for('trainings.index'))
 
@@ -570,6 +630,26 @@ def new_training():
                 name=name_clean,
                 description=desc_clean
             )
+
+            # Notificación Post-Commit: Nuevo taller formativo incorporado
+            try:
+                admin_name = _get_actor_name(current_user)
+                mod_name = new_training_obj.training_module.name if new_training_obj.training_module else "General"
+                NotificationService.notify_role(
+                    role_name="state_admin",
+                    event=NotificationEvent.TRAINING_TOPIC_CREATED,
+                    context={
+                        "topic_name": new_training_obj.name,
+                        "module_name": mod_name,
+                        "admin_name": admin_name
+                    },
+                    exclude_user_id=current_user.id,
+                    redirect_url="/trainings/",
+                    action_text="Ver Taller"
+                )
+            except Exception as notif_err:
+                current_app.logger.warning(f"No se pudo emitir notificación TRAINING_TOPIC_CREATED: {notif_err}")
+
             flash(f'Tema Formativo "{new_training_obj.name}" registrado exitosamente.', 'success')
             return redirect(url_for('trainings.index'))
 
@@ -926,7 +1006,29 @@ def bulk_upload_process():
             inserted_count += 1
             
         db.session.commit()
-        
+
+        # Notificación Consolidada Post-Commit: Carga masiva de catálogo
+        if inserted_count > 0:
+            try:
+                admin_name = _get_actor_name(current_user)
+                ctx = {
+                    "admin_name": admin_name,
+                    "new_modules": 0,
+                    "new_topics": inserted_count,
+                    "updated_topics": 0
+                }
+                for target_role in ("state_admin", "super_admin"):
+                    NotificationService.notify_role(
+                        role_name=target_role,
+                        event=NotificationEvent.TRAINING_BULK_IMPORTED,
+                        context=ctx,
+                        exclude_user_id=current_user.id,
+                        redirect_url="/trainings/",
+                        action_text="Ver Catálogo Actualizado"
+                    )
+            except Exception as notif_err:
+                current_app.logger.warning(f"No se pudo emitir notificación TRAINING_BULK_IMPORTED: {notif_err}")
+
         return jsonify({
             'success': True,
             'message': f'Se han registrado {inserted_count} temas formativos correctamente.',
@@ -1039,17 +1141,77 @@ def toggle_training_status(training_id: int):
         old_status = training.status_id
         if old_status == active_status.id:
             training.status_id = inactive_status.id
-            new_status_name = inactive_status.name
+            new_status_name = inactive_status.status_name
             is_active_flag = False
             estado_str = "desactivado"
         else:
             training.status_id = active_status.id
-            new_status_name = active_status.name
+            new_status_name = active_status.status_name
             is_active_flag = True
             estado_str = "activado"
             
         # 4. Guardamos los cambios
         db.session.commit()
+
+        # Notificación Post-Commit: Cambio de Estatus de Tema Formativo
+        try:
+            admin_name = _get_actor_name(current_user)
+            mod_name = training.training_module.name if training.training_module else "General"
+            sev = NotificationType.SUCCESS if is_active_flag else NotificationType.WARNING
+            action_lbl = "activado y disponible" if is_active_flag else "inactivado temporalmente"
+
+            NotificationService.notify_role(
+                role_name="state_admin",
+                event=NotificationEvent.TRAINING_TOPIC_STATUS_CHANGED,
+                context={
+                    "topic_name": training.name,
+                    "module_name": mod_name,
+                    "action_label": action_lbl,
+                    "admin_name": admin_name,
+                    "impact_note": ""
+                },
+                exclude_user_id=current_user.id,
+                severity_override=sev,
+                redirect_url="/trainings/",
+                action_text="Ver Catálogo"
+            )
+
+            # Si se inactivó, verificar si hay instituciones con solicitudes activas (STAT-003..006)
+            if not is_active_flag:
+                active_reqs = (
+                    Request.query
+                    .join(Status, Request.status_id == Status.id)
+                    .filter(
+                        Request.training_id == training.id,
+                        Request.historical == False,
+                        Status.status_code.in_(['STAT-003', 'STAT-004', 'STAT-005', 'STAT-006'])
+                    )
+                    .all()
+                )
+                notified_insts = set()
+                for r in active_reqs:
+                    inst_id = (
+                        r.institutional_staff.institution_id
+                        if r.institutional_staff else None
+                    )
+                    if inst_id and inst_id not in notified_insts:
+                        notified_insts.add(inst_id)
+                        NotificationService.notify_institution_affiliates(
+                            institution_id=inst_id,
+                            event=NotificationEvent.TRAINING_TOPIC_STATUS_CHANGED,
+                            context={
+                                "topic_name": training.name,
+                                "module_name": mod_name,
+                                "action_label": "suspendido temporalmente del catálogo",
+                                "admin_name": admin_name,
+                                "impact_note": f" Esto puede requerir reprogramación o ajuste en su solicitud activa ({r.request_code})."
+                            },
+                            severity_override=NotificationType.DANGER,
+                            redirect_url=f"/requests/{r.id}/detail",
+                            action_text="Ver Solicitud Afectada"
+                        )
+        except Exception as notif_err:
+            current_app.logger.warning(f"No se pudo emitir notificación TRAINING_TOPIC_STATUS_CHANGED: {notif_err}")
         
         # 5. (Opcional pero Recomendado) Si usas BinnacleService en Formación también, 
         # puedes agregarlo aquí de manera idéntica a usuarios. Ejemplo:
@@ -1113,7 +1275,61 @@ def delete_training(training_id: int):
         training.deleted_at = datetime.now()
         
         db.session.commit()
-        
+
+        # Notificación Post-Commit: Taller Retirado del Catálogo
+        try:
+            data = request.get_json(silent=True) or request.form or {}
+            reason = data.get('reason') or data.get('motivo') or "Retiro por reestructuración curricular"
+            admin_name = _get_actor_name(current_user)
+
+            NotificationService.notify_role(
+                role_name="state_admin",
+                event=NotificationEvent.TRAINING_TOPIC_DELETED,
+                context={
+                    "topic_name": training.name,
+                    "admin_name": admin_name,
+                    "reason": reason
+                },
+                exclude_user_id=current_user.id,
+                severity_override=NotificationType.DANGER,
+                redirect_url="/trainings/",
+                action_text="Revisar Catálogo"
+            )
+
+            # Si alguna institución tenía una solicitud activa en este taller, avisar a sus afiliados
+            active_reqs = (
+                Request.query
+                .join(Status, Request.status_id == Status.id)
+                .filter(
+                    Request.training_id == training.id,
+                    Request.historical == False,
+                    Status.status_code.in_(['STAT-003', 'STAT-004', 'STAT-005', 'STAT-006'])
+                )
+                .all()
+            )
+            notified_insts = set()
+            for r in active_reqs:
+                inst_id = (
+                    r.institutional_staff.institution_id
+                    if r.institutional_staff else None
+                )
+                if inst_id and inst_id not in notified_insts:
+                    notified_insts.add(inst_id)
+                    NotificationService.notify_institution_affiliates(
+                        institution_id=inst_id,
+                        event=NotificationEvent.TRAINING_TOPIC_DELETED,
+                        context={
+                            "topic_name": training.name,
+                            "admin_name": admin_name,
+                            "reason": f"{reason} (Afecta solicitud {r.request_code})"
+                        },
+                        severity_override=NotificationType.DANGER,
+                        redirect_url=f"/requests/{r.id}/detail",
+                        action_text="Ver Solicitud"
+                    )
+        except Exception as notif_err:
+            current_app.logger.warning(f"No se pudo emitir notificación TRAINING_TOPIC_DELETED: {notif_err}")
+
         return jsonify({
             'success': True,
             'message': 'Tema formativo eliminado exitosamente.'
