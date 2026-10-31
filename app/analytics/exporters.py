@@ -301,7 +301,7 @@ def export_to_pdf(headers, data_rows, title="Reporte Institucional", filename="r
 # ─────────────────────────────────────────────────────────────
 # 4. DESPACHO ASÍNCRONO POR CORREO ELECTRÓNICO (ATTACHMENT)
 # ─────────────────────────────────────────────────────────────
-def send_report_email_async(app, to_email, user_name, report_title, file_bytes, filename, mimetype):
+def send_report_email_async(app, to_email, user_name, report_title, file_bytes, filename, mimetype, user_id=None):
     """
     Despacha el archivo generado adjunto al correo del usuario en un hilo desacoplado.
     Usa send_email() centralizado con el template HTML corporativo estándar de SAGES.
@@ -406,10 +406,40 @@ def send_report_email_async(app, to_email, user_name, report_title, file_bytes, 
 
     def _worker():
         with app.app_context():
+            from app.notifications.services import NotificationService
+            from app.notifications.enums import NotificationEvent, NotificationType
             ok = send_email(to_email, subject, html_content, text_content, attachments)
             if ok:
                 print(f"[SMTP ÉXITO]: Reporte '{filename}' enviado a {to_email}")
+                if user_id:
+                    try:
+                        NotificationService.notify_user(
+                            user_id=user_id,
+                            event=NotificationEvent.ANALYTICS_REPORT_EMAIL_STATUS,
+                            context={
+                                "status_message": f"Su reporte '{filename}' fue enviado exitosamente al correo {to_email}."
+                            },
+                            severity_override=NotificationType.SUCCESS,
+                            redirect_url="/analytics/",
+                            action_text="Ir a Estadísticas"
+                        )
+                    except Exception as notif_err:
+                        print(f"[WARN] Error creando notificación de éxito SMTP: {notif_err}")
             else:
                 print(f"[ERROR SMTP]: Falló el envío del reporte '{filename}' a {to_email}")
+                if user_id:
+                    try:
+                        NotificationService.notify_user(
+                            user_id=user_id,
+                            event=NotificationEvent.ANALYTICS_REPORT_EMAIL_STATUS,
+                            context={
+                                "status_message": f"No se pudo entregar el reporte '{filename}' al correo {to_email} por un error en el servidor de correo. Puede descargarlo directamente desde el panel."
+                            },
+                            severity_override=NotificationType.DANGER,
+                            redirect_url="/analytics/",
+                            action_text="Descargar Manualmente"
+                        )
+                    except Exception as notif_err:
+                        print(f"[WARN] Error creando notificación de fallo SMTP: {notif_err}")
 
     threading.Thread(target=_worker, daemon=True).start()
