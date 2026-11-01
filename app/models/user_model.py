@@ -38,3 +38,27 @@ class User(db.Model, UserMixin, AuditableMixin):
                 if perm_assoc.permission.view:
                     perms.add(perm_assoc.permission.view)
         return perms
+
+    @property
+    def full_name(self) -> str:
+        if self.person:
+            return f"{self.person.first_name or ''} {self.person.last_name or ''}".strip() or self.user_name
+        return self.user_name
+
+    @property
+    def identifier(self) -> str:
+        if self.person and self.person.identification_number:
+            return f"{self.person.identification_type}-{self.person.identification_number}"
+        return self.user_name
+
+    @property
+    def role(self) -> str:
+        if self.roles_assoc and len(self.roles_assoc) > 0 and self.roles_assoc[0].role:
+            role_map = {
+                'super_admin': 'Super Administrador',
+                'state_admin': 'Administrador Estadal',
+                'applicant': 'Solicitante'
+            }
+            r_name = self.roles_assoc[0].role.name
+            return role_map.get(r_name, r_name)
+        return 'Usuario'

@@ -1,7 +1,12 @@
 from app.extensions import db
 from datetime import datetime, timezone
+from app.binnacle.mixins import AuditableMixin
+from app.binnacle.types import AuditModule
 
-class Rating(db.Model):
+class Rating(db.Model, AuditableMixin):
+    __audit_module__ = AuditModule.REQUESTS.value
+    __audit_exclude_fields__ = {'created_at'}
+
     __tablename__ = 'ratings'
     __table_args__ = {'schema': 'sages'}
 

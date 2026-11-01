@@ -1,8 +1,13 @@
 from app.extensions import db
 from datetime import datetime, timezone
 from sqlalchemy import Index, text
+from app.binnacle.mixins import AuditableMixin
+from app.binnacle.types import AuditModule
 
-class Request(db.Model):
+class Request(db.Model, AuditableMixin):
+    __audit_module__ = AuditModule.REQUESTS.value
+    __audit_exclude_fields__ = {'created_at', 'updated_at'}
+
     __tablename__ = 'requests'
     __table_args__ = (
         Index('uq_request_anti_duplicidad', 'institutional_staff_id', 'training_id', 
@@ -33,6 +38,7 @@ class Request(db.Model):
     justifications = db.relationship('RequestJustification', back_populates='request', cascade='all, delete-orphan', lazy=True)
     evidences = db.relationship('RequestEvidence', back_populates='request', cascade='all, delete-orphan', lazy=True)
     tracking_steps = db.relationship('RequestTracking', back_populates='request', cascade='all, delete-orphan', lazy=True)
+    trackings = db.relationship('RequestTracking', viewonly=True)
     ratings = db.relationship('Rating', back_populates='request', cascade='all, delete-orphan', lazy=True)
 
     def __repr__(self):

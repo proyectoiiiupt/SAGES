@@ -60,6 +60,10 @@ def update_training_module(
         clean_name = name.strip()
         clean_desc = description.strip()
         
+        old_name = module.name
+        old_desc = module.description
+        module._skip_auto_audit = True
+
         status_changed = False
         estado_str = ""
         old_status = module.is_active
@@ -98,21 +102,39 @@ def update_training_module(
         
         db.session.commit()
 
-        # 4. Registrar en bitácora si hubo cambio de estatus
+        # 4. Registrar en bitácora si hubo cambio de estatus o de contenido
+        old_vals = {}
+        new_vals = {}
+        if old_name != clean_name:
+            old_vals['name'] = old_name
+            new_vals['name'] = clean_name
+        if old_desc != clean_desc:
+            old_vals['description'] = old_desc
+            new_vals['description'] = clean_desc
         if status_changed:
+            old_vals['is_active'] = old_status
+            new_vals['is_active'] = module.is_active
+
+        if old_vals or new_vals:
             try:
                 from app.binnacle.services import BinnacleService
                 from app.binnacle.types import AuditModule, AuditAction, AuditStatus
 
+                act_type = AuditAction.CAMBIO_ESTATUS_MODULO_RECTOR.value if status_changed else AuditAction.ACTUALIZAR_MODULO_RECTOR.value
+                desc_msg = (
+                    f"El Módulo Rector '{module.name}' ({module.module_code}) ha sido {estado_str} y actualizado exitosamente."
+                    if status_changed else
+                    f"Actualización de datos del Módulo Rector '{module.name}' ({module.module_code})."
+                )
                 BinnacleService.create_log_entry(
                     module=AuditModule.TRAININGS.value,
-                    action_type=AuditAction.CAMBIO_ESTATUS.value,
-                    description=f"El Módulo Rector '{module.name}' ({module.module_code}) ha sido {estado_str} y actualizado exitosamente.",
+                    action_type=act_type,
+                    description=desc_msg,
                     target_table='sages.training_modules',
                     record_id=module.id,
                     status=AuditStatus.MODIFICADO.value,
-                    old_values={'is_active': old_status},
-                    new_values={'is_active': module.is_active}
+                    old_values=old_vals,
+                    new_values=new_vals
                 )
             except Exception as audit_err:
                 logger.error(f"[trainings.services.update_training_module] Error registrando bitácora: {audit_err}")
@@ -195,9 +217,31 @@ def create_training(module_id: int, name: str, description: str) -> Training:
         description=description,
         status_id=status_id
     )
+    new_training_obj._skip_auto_audit = True
     
     db.session.add(new_training_obj)
     db.session.commit()
+
+    try:
+        from app.binnacle.services import BinnacleService
+        from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+        BinnacleService.create_log_entry(
+            module=AuditModule.TRAININGS.value,
+            action_type=AuditAction.REGISTRO_TEMA_FORMATIVO.value,
+            description=f"Nuevo Tema Formativo registrado: '{new_training_obj.name}' ({new_training_obj.training_code})",
+            target_table='sages.trainings',
+            record_id=new_training_obj.id,
+            new_values={
+                'training_code': new_training_obj.training_code,
+                'name': new_training_obj.name,
+                'description': new_training_obj.description,
+                'training_module_id': module_id,
+                'status_code': 'STAT-001'
+            },
+            status=AuditStatus.COMPLETADO.value
+        )
+    except Exception as audit_err:
+        logger.warning(f"[trainings.services.create_training] No se pudo registrar bitácora: {audit_err}")
     
     return new_training_obj
 

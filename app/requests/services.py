@@ -146,7 +146,30 @@ def create_training_request(user_id: int, training_id: int, description: str) ->
         db.session.add(new_request)
         db.session.flush()
         new_request.verification_token = generate_verification_token(new_request.request_code, new_request.id)
+        new_request._skip_auto_audit = True
         db.session.commit()
+
+        # Auditoría transversal de radicación
+        try:
+            from app.binnacle.services import BinnacleService
+            from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+            BinnacleService.create_log_entry(
+                module=AuditModule.REQUESTS.value,
+                action_type=AuditAction.RADICAR_SOLICITUD.value,
+                description=f"Nueva solicitud de formación radicada: {new_request.request_code}",
+                target_table='sages.requests',
+                record_id=new_request.id,
+                new_values={
+                    'request_code': new_request.request_code,
+                    'training_id': training_id,
+                    'institutional_staff_id': institutional_staff_id,
+                    'status_code': 'STAT-003'
+                },
+                status=AuditStatus.COMPLETADO.value
+            )
+        except Exception as audit_err:
+            import logging
+            logging.getLogger(__name__).warning(f"No se pudo registrar bitácora en create_training_request: {audit_err}")
         
         # 4. Compilación de PDF y Despacho Asíncrono de Correo
         try:
@@ -454,6 +477,8 @@ def cancel_training_request(request_id: int, user: User, reason_id: int, justifi
         )
 
         # 10. Confirmación de transacción
+        req._skip_auto_audit = True
+        justification_entry._skip_auto_audit = True
         db.session.commit()
 
         # 11. Notificación y correo asíncrono a la contraparte (Post-commit)
@@ -974,7 +999,27 @@ def claim_and_attend_request(request_id: int, admin_user) -> tuple[bool, str, di
         db.session.add(tracking)
         
         # 4. Commit Atómico Completo
+        req._skip_auto_audit = True
+        planning._skip_auto_audit = True
         db.session.commit()
+
+        # Auditoría transversal de atención y asignación
+        try:
+            from app.binnacle.services import BinnacleService
+            from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+            BinnacleService.create_log_entry(
+                module=AuditModule.REQUESTS.value,
+                action_type=AuditAction.ATENDER_SOLICITUD.value,
+                description=f"Solicitud {req.request_code} asumida y atendida por el facilitador {admin_name} (STAT-004)",
+                target_table='sages.requests',
+                record_id=req.id,
+                old_values={'status_code': 'STAT-003', 'attended_by_id': None},
+                new_values={'status_code': 'STAT-004', 'attended_by_id': admin_user.id},
+                status=AuditStatus.MODIFICADO.value
+            )
+        except Exception as audit_err:
+            import logging
+            logging.getLogger(__name__).warning(f"No se pudo registrar bitácora en claim_and_attend_request: {audit_err}")
 
         # 5. Notificación In-App: Solicitud en Revisión a los afiliados de la institución
         try:
@@ -1120,7 +1165,33 @@ def plan_training_session(request_id: int, planned_date, notes: str, admin_user,
         db.session.add(tracking)
 
         # 9. Commit atómico
+        req._skip_auto_audit = True
+        planning._skip_auto_audit = True
+        if is_exceeded and 'justification_record' in locals():
+            justification_record._skip_auto_audit = True
         db.session.commit()
+
+        # Auditoría transversal de planificación de jornada
+        try:
+            from app.binnacle.services import BinnacleService
+            from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+            BinnacleService.create_log_entry(
+                module=AuditModule.REQUESTS.value,
+                action_type=AuditAction.PLANIFICAR_JORNADA.value,
+                description=f"Jornada formativa de solicitud {req.request_code} planificada para el {formatted_date} (STAT-005)",
+                target_table='sages.requests',
+                record_id=req.id,
+                old_values={'status_code': 'STAT-004', 'planned_for': None},
+                new_values={
+                    'status_code': 'STAT-005',
+                    'planned_for': planned_date.isoformat() if hasattr(planned_date, 'isoformat') else str(planned_date),
+                    'is_exceeded': is_exceeded
+                },
+                status=AuditStatus.MODIFICADO.value
+            )
+        except Exception as audit_err:
+            import logging
+            logging.getLogger(__name__).warning(f"No se pudo registrar bitácora en plan_training_session: {audit_err}")
 
         # 10. Notificaciones In-App Post-Commit (Planificación y Justificación de Retraso)
         try:
@@ -1283,8 +1354,11 @@ def reschedule_training_session(
     try:
         # 8. Modificar entidad satélite RequestPlanning
         # Regla de Auditoría: original_planned_for se conserva intacto
+        old_planned_str = planning.planned_for.isoformat() if planning.planned_for else None
+        old_resched_count = planning.rescheduled_count or 0
+
         planning.planned_for = parsed_date
-        planning.rescheduled_count = (planning.rescheduled_count or 0) + 1
+        planning.rescheduled_count = old_resched_count + 1
 
         # 9. Asentar registro en sages.request_justifications (Tipo REPROGRAMACION)
         justification_record = RequestJustification(
@@ -1313,7 +1387,33 @@ def reschedule_training_session(
         req.updated_at = datetime.now(timezone.utc)
 
         # 12. Commit atómico
+        planning._skip_auto_audit = True
+        justification_record._skip_auto_audit = True
+        req._skip_auto_audit = True
         db.session.commit()
+
+        # Auditoría transversal de reprogramación ordinaria
+        try:
+            from app.binnacle.services import BinnacleService
+            from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+            BinnacleService.create_log_entry(
+                module=AuditModule.REQUESTS.value,
+                action_type=AuditAction.REPROGRAMAR_JORNADA.value,
+                description=f"Reprogramación ordinaria #{planning.rescheduled_count} para solicitud {req.request_code} agendada para el {formatted_date}. Motivo: {reason.name}",
+                target_table='sages.request_plannings',
+                record_id=planning.id,
+                old_values={'planned_for': old_planned_str, 'rescheduled_count': old_resched_count},
+                new_values={
+                    'planned_for': parsed_date.isoformat(),
+                    'rescheduled_count': planning.rescheduled_count,
+                    'reason': reason.name,
+                    'justification': clean_justification
+                },
+                status=AuditStatus.MODIFICADO.value
+            )
+        except Exception as audit_err:
+            import logging
+            logging.getLogger(__name__).warning(f"No se pudo registrar bitácora en reschedule_training_session: {audit_err}")
 
         # 13. Despacho de notificaciones y correo institucional (bloque protegido)
         try:
@@ -2002,7 +2102,26 @@ def demand_delay_response(request_id: int, super_admin_user) -> tuple[bool, str,
         messages="La Gerencia General (Super Administrador) ha emitido una exigencia formal de justificación operativa por vencimiento de plazos normativos."
     )
     db.session.add(tracking)
+    tracking._skip_auto_audit = True
+    req._skip_auto_audit = True
     db.session.commit()
+
+    # Auditoría transversal de exigencia de respuesta ANS
+    try:
+        from app.binnacle.services import BinnacleService
+        from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+        BinnacleService.create_log_entry(
+            module=AuditModule.REQUESTS.value,
+            action_type=AuditAction.EXIGENCIA_RESPUESTA_ANS.value,
+            description=f"Exigencia formal de respuesta ANS emitida por Super Administrador para la solicitud {req.request_code}",
+            target_table='sages.requests',
+            record_id=req.id,
+            new_values={'request_code': req.request_code, 'status_code': status_code},
+            status=AuditStatus.COMPLETADO.value
+        )
+    except Exception as audit_err:
+        import logging
+        logging.getLogger(__name__).warning(f"No se pudo registrar bitácora en demand_delay_response: {audit_err}")
 
     # Notificación In-App: Reclamo de atención por vencimiento de SLA
     try:
@@ -2168,7 +2287,31 @@ def submit_delay_justification(
         )
         db.session.add(tracking)
 
+        new_just._skip_auto_audit = True
+        req._skip_auto_audit = True
         db.session.commit()
+
+        # Auditoría transversal de descargo de retraso ANS
+        try:
+            from app.binnacle.services import BinnacleService
+            from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+            BinnacleService.create_log_entry(
+                module=AuditModule.REQUESTS.value,
+                action_type=AuditAction.DESCARGO_RETRASO_ANS.value,
+                description=f"Descargo formal de retraso ANS ({justification_type}) consignado para la solicitud {req.request_code}. Razón: {reason.name}",
+                target_table='sages.request_justifications',
+                record_id=new_just.id,
+                new_values={
+                    'request_code': req.request_code,
+                    'justification_type': justification_type,
+                    'reason': reason.name,
+                    'justification': justification_text
+                },
+                status=AuditStatus.COMPLETADO.value
+            )
+        except Exception as audit_err:
+            import logging
+            logging.getLogger(__name__).warning(f"No se pudo registrar bitácora en submit_delay_justification: {audit_err}")
 
         # Notificación In-App: Justificación de retraso registrada (Al Super Administrador)
         try:
@@ -2541,9 +2684,11 @@ def submit_closure_evidences(request_id: int, files, user_id: int) -> tuple:
             )
             db.session.add(evidence)
 
+        old_status_code = req.status.status_code if req.status else 'Desconocido'
         req.status_id = status_completed.id
         req.finished_at = now_utc
         req.historical = True
+        req._skip_auto_audit = True
 
         if req.plannings:
             plans_with_date = [p for p in req.plannings if p.planned_for]
@@ -2551,8 +2696,27 @@ def submit_closure_evidences(request_id: int, files, user_id: int) -> tuple:
                 latest = max(plans_with_date, key=lambda p: p.planned_for)
                 latest.attended = True
                 latest.attended_at = now_utc
+                latest._skip_auto_audit = True
 
         db.session.commit()
+
+        # Auditoría transversal de culminación y cierre con evidencias
+        try:
+            from app.binnacle.services import BinnacleService
+            from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+            BinnacleService.create_log_entry(
+                module=AuditModule.REQUESTS.value,
+                action_type=AuditAction.CIERRE_SOLICITUD_EVIDENCIAS.value,
+                description=f"Culminación y cierre con {len(saved_paths)} evidencia(s) de la solicitud {req.request_code} (STAT-007)",
+                target_table='sages.requests',
+                record_id=req.id,
+                old_values={'status_code': old_status_code, 'historical': False},
+                new_values={'status_code': 'STAT-007', 'historical': True, 'evidences_count': len(saved_paths)},
+                status=AuditStatus.COMPLETADO.value
+            )
+        except Exception as audit_err:
+            import logging
+            logging.getLogger(__name__).warning(f"No se pudo registrar bitácora en submit_closure_evidences: {audit_err}")
 
         # Notificación In-App: Jornada Culminada Exitosamente (A los afiliados de la institución)
         try:
@@ -2668,10 +2832,41 @@ def submit_closure_reschedule(
         )
         db.session.add(justification)
 
+        old_planned_str = active_planning.planned_for.isoformat() if active_planning.planned_for else None
+        old_resched_count = active_planning.rescheduled_count or 0
+
         active_planning.planned_for = new_date
-        active_planning.rescheduled_count = (active_planning.rescheduled_count or 0) + 1
+        active_planning.rescheduled_count = old_resched_count + 1
+
+        active_planning._skip_auto_audit = True
+        justification._skip_auto_audit = True
+        req._skip_auto_audit = True
 
         db.session.commit()
+
+        # Auditoría transversal de reprogramación por rezago de cierre
+        try:
+            from app.binnacle.services import BinnacleService
+            from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+            BinnacleService.create_log_entry(
+                module=AuditModule.REQUESTS.value,
+                action_type=AuditAction.REPROGRAMAR_JORNADA_REZAGO.value,
+                description=f"Reprogramación por rezago de cierre para solicitud {req.request_code} al {new_date.strftime('%d/%m/%Y')}. Motivo: {reason.name}",
+                target_table='sages.request_plannings',
+                record_id=active_planning.id,
+                old_values={'planned_for': old_planned_str, 'rescheduled_count': old_resched_count},
+                new_values={
+                    'planned_for': new_date.isoformat(),
+                    'rescheduled_count': active_planning.rescheduled_count,
+                    'reason': reason.name,
+                    'justification': justification_text.strip()
+                },
+                status=AuditStatus.MODIFICADO.value
+            )
+        except Exception as audit_err:
+            import logging
+            logging.getLogger(__name__).warning(f"No se pudo registrar bitácora en submit_closure_reschedule: {audit_err}")
+
         return True, f"Solicitud reprogramada al {new_date.strftime('%d/%m/%Y')} exitosamente."
 
     except Exception as e:
@@ -2737,7 +2932,31 @@ def submit_satisfaction_survey(request_id: int, form, user) -> tuple:
             comment=clean_comment
         )
         db.session.add(rating)
+        rating._skip_auto_audit = True
+        req._skip_auto_audit = True
         db.session.commit()
+
+        # Auditoría transversal de registro de encuesta de satisfacción
+        try:
+            from app.binnacle.services import BinnacleService
+            from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+            BinnacleService.create_log_entry(
+                module=AuditModule.REQUESTS.value,
+                action_type=AuditAction.REGISTRO_ENCUESTA_SATISFACCION.value,
+                description=f"Encuesta de satisfacción registrada para la solicitud {req.request_code} (Calificación promedio: {score_avg}/5)",
+                target_table='sages.ratings',
+                record_id=rating.id,
+                new_values={
+                    'request_code': req.request_code,
+                    'score_activity': int(a),
+                    'score_instructor': int(b),
+                    'score_admin_response': int(c),
+                    'score_avg': float(score_avg)
+                },
+                status=AuditStatus.COMPLETADO.value
+            )
+        except Exception as audit_err:
+            logger.warning(f"No se pudo registrar bitácora en submit_satisfaction_survey: {audit_err}")
 
         return True, "Evaluación registrada exitosamente.", 200
 
@@ -3926,6 +4145,9 @@ def complete_training_request(request_id: int, admin_user) -> tuple:
             survey_url = f"/requests/satisfaction-survey/{req_id}"
 
         # 11. Confirmación de la Transacción en Base de Datos (Atomic Commit)
+        req._skip_auto_audit = True
+        if req.plannings and 'target_plan' in locals() and target_plan:
+            target_plan._skip_auto_audit = True
         db.session.commit()
 
         # Notificación In-App: Jornada Culminada Exitosamente (A los afiliados de la institución)
@@ -4232,6 +4454,7 @@ def attach_request_evidence(request_id: int, file_obj, user) -> tuple:
             status=AuditStatus.COMPLETADO.value
         )
 
+        req._skip_auto_audit = True
         db.session.commit()
 
         # 8. Recalcular métricas probatorias reactivas
@@ -4381,6 +4604,7 @@ def delete_request_evidence(evidence_id: int, user) -> tuple:
             status=AuditStatus.COMPLETADO.value
         )
 
+        req._skip_auto_audit = True
         db.session.commit()
 
         # 8. Recalcular métricas probatorias actualizadas
