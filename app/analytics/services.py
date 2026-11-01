@@ -645,10 +645,11 @@ class AnalyticsService:
             if requested_state is not None and str(requested_state).strip() != '':
                 try:
                     if int(requested_state) != authorized_state_id:
-                        BinnacleService.create_log_entry(
-                            module=AuditModule.REQUESTS.value,
-                            action_type=AuditAction.CONSULTA_DETALLE.value,
-                            description=f"Alerta de seguridad: Intento de consulta transfronteriza detectado (Estado solicitado: {requested_state}, Estado forzado: {authorized_state_id})",
+                        BinnacleService.log_security_event(
+                            module=AuditModule.ANALYTICS.value,
+                            action_type=AuditAction.ACCESO_TERRITORIAL_FALLIDO.value,
+                            description=f"Alerta de seguridad: Intento de consulta estadística fuera de jurisdicción (Estado solicitado: {requested_state}, Estado asignado: {authorized_state_id})",
+                            user=user,
                             status=AuditStatus.FALLIDO.value
                         )
                 except (ValueError, TypeError):
@@ -808,13 +809,7 @@ class AnalyticsService:
         }
         timeline_data = AnalyticsService.calculate_filtered_indicators(user, filtros_iniciales)
 
-        # Registro en Bitácora Institucional
-        BinnacleService.create_log_entry(
-            module=AuditModule.REQUESTS.value,
-            action_type=AuditAction.CONSULTA_DETALLE.value,
-            description=f"Acceso a consola de indicadores de gestión ({state_info['state_name'] if state_info else 'Nivel Nacional'})",
-            status=AuditStatus.COMPLETADO.value
-        )
+
 
         return {
             'user_role': user_role,

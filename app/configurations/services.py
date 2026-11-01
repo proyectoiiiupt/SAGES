@@ -119,27 +119,29 @@ def create_place(form_data: dict, user_id: int):
             phone       = form_data['phone'].strip(),
             status_id   = status_act.id
         )
+        new_place._skip_auto_audit = True
         db.session.add(new_place)
-        db.session.flush()   # obtener new_place.id antes del commit
-
-        BinnacleService.create_log_entry(
-            module       = AuditModule.CONFIGURATIONS.value,
-            action_type  = AuditAction.REGISTRO_NUEVO.value,
-            description  = f'Sede registrada: {new_place.name} ({new_place.place_code})',
-            status       = AuditStatus.COMPLETADO.value,
-            target_table = 'sages.places',
-            record_id    = new_place.id,
-            new_values   = {
-                'place_code': place_code,
-                'name'      : new_place.name,
-                'parish_id' : new_place.parish_id,
-                'address'   : new_place.address,
-                'phone'     : new_place.phone,
-                'status'    : 'STAT-001'
-            }
-        )
-
         db.session.commit()
+
+        try:
+            BinnacleService.create_log_entry(
+                module       = AuditModule.CONFIGURATIONS.value,
+                action_type  = AuditAction.REGISTRO_NUEVA_SEDE.value,
+                description  = f'Sede registrada: {new_place.name} ({new_place.place_code})',
+                status       = AuditStatus.COMPLETADO.value,
+                target_table = 'sages.places',
+                record_id    = new_place.id,
+                new_values   = {
+                    'place_code': place_code,
+                    'name'      : new_place.name,
+                    'parish_id' : new_place.parish_id,
+                    'address'   : new_place.address,
+                    'phone'     : new_place.phone,
+                    'status'    : 'STAT-001'
+                }
+            )
+        except Exception as audit_err:
+            logger.warning(f"[configurations.create_place] Error en bitácora: {audit_err}")
         logger.info(f'[US-56] Sede creada: {place_code} por user_id={user_id}')
         return new_place
 
@@ -174,6 +176,7 @@ def update_place(place_id: int, form_data: dict, user_id: int):
     """
     try:
         place = Place.query.get_or_404(place_id)
+        place._skip_auto_audit = True
 
         # Capturar valores anteriores para auditoría JSONB
         old_values = {
@@ -196,18 +199,21 @@ def update_place(place_id: int, form_data: dict, user_id: int):
             'phone'    : place.phone
         }
 
-        BinnacleService.create_log_entry(
-            module       = AuditModule.CONFIGURATIONS.value,
-            action_type  = AuditAction.ACTUALIZAR.value,
-            description  = f'Sede actualizada: {place.name} ({place.place_code})',
-            status       = AuditStatus.MODIFICADO.value,
-            target_table = 'sages.places',
-            record_id    = place.id,
-            old_values   = old_values,
-            new_values   = new_values
-        )
-
         db.session.commit()
+
+        try:
+            BinnacleService.create_log_entry(
+                module       = AuditModule.CONFIGURATIONS.value,
+                action_type  = AuditAction.ACTUALIZAR_SEDE.value,
+                description  = f'Sede actualizada: {place.name} ({place.place_code})',
+                status       = AuditStatus.MODIFICADO.value,
+                target_table = 'sages.places',
+                record_id    = place.id,
+                old_values   = old_values,
+                new_values   = new_values
+            )
+        except Exception as audit_err:
+            logger.warning(f"[configurations.update_place] Error en bitácora: {audit_err}")
         logger.info(f'[US-56] Sede actualizada: {place.place_code} por user_id={user_id}')
         return place
 
@@ -284,18 +290,22 @@ def toggle_place_status(place_id: int, user_id: int) -> tuple:
             action_desc  = f'Sede activada: {place.name} ({place.place_code})'
             return_msg   = f'La sede "{place.name}" ha sido activada correctamente.'
 
-        BinnacleService.create_log_entry(
-            module       = AuditModule.CONFIGURATIONS.value,
-            action_type  = AuditAction.CAMBIO_ESTATUS.value,
-            description  = action_desc,
-            status       = AuditStatus.COMPLETADO.value,
-            target_table = 'sages.places',
-            record_id    = place.id,
-            old_values   = {'status': old_status},
-            new_values   = {'status': new_status}
-        )
-
+        place._skip_auto_audit = True
         db.session.commit()
+
+        try:
+            BinnacleService.create_log_entry(
+                module       = AuditModule.CONFIGURATIONS.value,
+                action_type  = AuditAction.CAMBIO_ESTATUS_SEDE.value,
+                description  = action_desc,
+                status       = AuditStatus.MODIFICADO.value,
+                target_table = 'sages.places',
+                record_id    = place.id,
+                old_values   = {'status': old_status},
+                new_values   = {'status': new_status}
+            )
+        except Exception as audit_err:
+            logger.warning(f"[configurations.toggle_place_status] Error en bitácora: {audit_err}")
         logger.info(f'[US-56] Estatus cambiado sede {place_id}: {old_status} → {new_status} por user_id={user_id}')
         return (True, return_msg, 0)
 
@@ -510,27 +520,28 @@ def update_role_permissions(role_id: int, submitted_permission_ids: list, curren
         for pid in added_ids:
             db.session.add(PermissionRole(role_id=role.id, permission_id=pid))
 
-        db.session.flush()
+        db.session.commit()
 
         # 5. Registro de Auditoría Forense con Deltas
-        BinnacleService.create_log_entry(
-            module=AuditModule.CONFIGURATIONS.value,
-            action_type=AuditAction.ACTUALIZAR.value,
-            description=f"Actualización de matriz de permisos para el rol {role.name}",
-            status=AuditStatus.COMPLETADO.value,
-            target_table="sages.permissions_roles",
-            record_id=role.id,
-            old_values={
-                "permissions_count": len(current_ids),
-                "removed_ids": sorted(list(removed_ids))
-            },
-            new_values={
-                "permissions_count": len(final_ids),
-                "added_ids": sorted(list(added_ids))
-            }
-        )
-
-        db.session.commit()
+        try:
+            BinnacleService.create_log_entry(
+                module=AuditModule.CONFIGURATIONS.value,
+                action_type=AuditAction.ACTUALIZAR_MATRIZ_PERMISOS.value,
+                description=f"Actualización de matriz de permisos para el rol {role.name}",
+                status=AuditStatus.MODIFICADO.value,
+                target_table="sages.permissions_roles",
+                record_id=role.id,
+                old_values={
+                    "permissions_count": len(current_ids),
+                    "removed_ids": sorted(list(removed_ids))
+                },
+                new_values={
+                    "permissions_count": len(final_ids),
+                    "added_ids": sorted(list(added_ids))
+                }
+            )
+        except Exception as audit_err:
+            logger.warning(f"[configurations.update_role_permissions] Error en bitácora: {audit_err}")
         logger.info(
             f"[RBAC] Permisos actualizados para rol {role.name} (ID: {role.id}) "
             f"por usuario {current_user_id}. Añadidos: {len(added_ids)}, Removidos: {len(removed_ids)}"
@@ -692,9 +703,14 @@ def update_corporate_branding(form_data: dict, files: dict, current_user_id: int
 
         company.company_name = form_data.get('company_name', '').strip()
 
+        company._skip_auto_audit = True
+
         # Sincronización en la sede principal (PLC-001)
         main_place = Place.query.filter_by(place_code='PLC-001').first()
+        old_address = main_place.address if main_place else None
+        old_phone = main_place.phone if main_place else None
         if main_place:
+            main_place._skip_auto_audit = True
             if form_data.get('fiscal_address'):
                 main_place.address = form_data.get('fiscal_address', '').strip()
             if form_data.get('central_phone'):
@@ -736,22 +752,34 @@ def update_corporate_branding(form_data: dict, files: dict, current_user_id: int
         db.session.commit()
 
         # 4. Auditoría Forense en sages.binnacle
-        BinnacleService.create_log_entry(
-            module=AuditModule.CONFIGURATIONS.value,
-            action_type=AuditAction.ACTUALIZAR.value,
-            description="Actualización de datos corporativos e identidad visual de CORPOELEC (COMP-001)",
-            status=AuditStatus.COMPLETADO.value,
-            target_table='sages.companies',
-            record_id=company.id,
-            old_values={
-                'company_name': old_company_name,
-                'rif': old_rif
-            },
-            new_values={
-                'company_name': company.company_name,
-                'rif': f"{company.identification_type}-{company.rif}"
-            }
-        )
+        logo_updated = bool(logo_file and getattr(logo_file, 'filename', None))
+        icon_updated = bool(icon_file and getattr(icon_file, 'filename', None))
+
+        try:
+            BinnacleService.create_log_entry(
+                module=AuditModule.CONFIGURATIONS.value,
+                action_type=AuditAction.ACTUALIZAR_IDENTIDAD_CORPORATIVA.value,
+                description="Actualización de datos corporativos e identidad visual de CORPOELEC (COMP-001)",
+                status=AuditStatus.MODIFICADO.value,
+                target_table='sages.companies',
+                record_id=company.id,
+                old_values={
+                    'company_name': old_company_name,
+                    'rif': old_rif,
+                    'fiscal_address': old_address,
+                    'central_phone': old_phone
+                },
+                new_values={
+                    'company_name': company.company_name,
+                    'rif': f"{company.identification_type}-{company.rif}",
+                    'fiscal_address': main_place.address if main_place else None,
+                    'central_phone': main_place.phone if main_place else None,
+                    'logo_reemplazado': 'SÍ' if logo_updated else 'NO',
+                    'favicon_reemplazado': 'SÍ' if icon_updated else 'NO'
+                }
+            )
+        except Exception as audit_err:
+            logger.warning(f"[configurations.update_corporate_branding] Error en bitácora: {audit_err}")
 
         cache_buster = int(time.time())
         return {

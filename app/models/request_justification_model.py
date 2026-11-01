@@ -1,6 +1,11 @@
 from app.extensions import db
+from app.binnacle.mixins import AuditableMixin
+from app.binnacle.types import AuditModule
 
-class RequestJustification(db.Model):
+class RequestJustification(db.Model, AuditableMixin):
+    __audit_module__ = AuditModule.REQUESTS.value
+    __audit_exclude_fields__ = {'created_at', 'updated_at'}
+
     __tablename__ = 'request_justifications'
     __table_args__ = {'schema': 'sages'}
 

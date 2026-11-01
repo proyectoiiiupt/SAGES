@@ -503,8 +503,29 @@ def new_module():
                 order_index=_get_next_order_index(),
                 is_active=True
             )
+            new_mod._skip_auto_audit = True
             db.session.add(new_mod)
             db.session.commit()
+
+            try:
+                from app.binnacle.services import BinnacleService
+                from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+                BinnacleService.create_log_entry(
+                    module=AuditModule.TRAININGS.value,
+                    action_type=AuditAction.REGISTRO_MODULO_RECTOR.value,
+                    description=f"Nuevo Módulo Rector registrado: '{new_mod.name}' ({new_mod.module_code})",
+                    target_table='sages.training_modules',
+                    record_id=new_mod.id,
+                    new_values={
+                        'module_code': new_mod.module_code,
+                        'name': new_mod.name,
+                        'description': new_mod.description,
+                        'is_active': new_mod.is_active
+                    },
+                    status=AuditStatus.COMPLETADO.value
+                )
+            except Exception as audit_err:
+                current_app.logger.warning(f"[trainings.new_module] No se pudo registrar bitácora: {audit_err}")
 
             # Notificación Post-Commit: Nuevo módulo formativo incorporado
             try:
@@ -810,15 +831,47 @@ def edit_training(id: int):
             return redirect(url_for('trainings.edit_training', id=id))
         # --- FIN DEL CANDADO ---
 
-        # Si pasa la prueba, actualizamos los campos de texto limpios de espacios extra
-        training.name = form.name.data.strip()
-        training.description = form.description.data.strip()
-        
-        # Solo actualizar el módulo foráneo si no hay restricciones
+        old_vals = {}
+        new_vals = {}
+        clean_name = form.name.data.strip()
+        clean_desc = form.description.data.strip()
+        target_mod_id = training.training_module_id if has_requests else form.training_module_id.data
+
+        if training.name != clean_name:
+            old_vals['name'] = training.name
+            new_vals['name'] = clean_name
+        if training.description != clean_desc:
+            old_vals['description'] = training.description
+            new_vals['description'] = clean_desc
+        if training.training_module_id != target_mod_id:
+            old_vals['training_module_id'] = training.training_module_id
+            new_vals['training_module_id'] = target_mod_id
+
+        training._skip_auto_audit = True
+        training.name = clean_name
+        training.description = clean_desc
         if not has_requests:
-            training.training_module_id = form.training_module_id.data
+            training.training_module_id = target_mod_id
 
         db.session.commit()
+
+        if old_vals or new_vals:
+            try:
+                from app.binnacle.services import BinnacleService
+                from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+                BinnacleService.create_log_entry(
+                    module=AuditModule.TRAININGS.value,
+                    action_type=AuditAction.ACTUALIZAR_TEMA_FORMATIVO.value,
+                    description=f"Tema formativo '{training.name}' ({training.training_code}) actualizado.",
+                    target_table='sages.trainings',
+                    record_id=training.id,
+                    old_values=old_vals,
+                    new_values=new_vals,
+                    status=AuditStatus.MODIFICADO.value
+                )
+            except Exception as audit_err:
+                current_app.logger.warning(f"[trainings.edit_training] Error en bitácora: {audit_err}")
+
         flash('Tema formativo actualizado exitosamente.', 'success')
         return redirect(url_for('trainings.view_training_detail', id=training.id))
     
@@ -992,6 +1045,7 @@ def bulk_upload_process():
         
         status_id = get_active_status_id()
         inserted_count = 0
+        created_codes = []
         
         for row in valid_rows:
             new_code = generate_training_code()
@@ -1002,10 +1056,32 @@ def bulk_upload_process():
                 training_module_id=row['module_id'],
                 status_id=status_id
             )
+            new_training._skip_auto_audit = True
             db.session.add(new_training)
             inserted_count += 1
+            created_codes.append(new_code)
             
         db.session.commit()
+
+        if inserted_count > 0:
+            try:
+                from app.binnacle.services import BinnacleService
+                from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+                BinnacleService.create_log_entry(
+                    module=AuditModule.TRAININGS.value,
+                    action_type=AuditAction.CARGA_MASIVA_TEMAS.value,
+                    description=f"Carga masiva completada: {inserted_count} tema(s) formativo(s) registrado(s) desde '{file.filename}'",
+                    target_table='sages.trainings',
+                    new_values={
+                        'file_name': file.filename,
+                        'inserted_count': inserted_count,
+                        'invalid_count': len(invalid_rows),
+                        'sample_codes': created_codes[:15]
+                    },
+                    status=AuditStatus.COMPLETADO.value
+                )
+            except Exception as audit_err:
+                current_app.logger.warning(f"[trainings.bulk_upload_process] Error en bitácora: {audit_err}")
 
         # Notificación Consolidada Post-Commit: Carga masiva de catálogo
         if inserted_count > 0:
@@ -1138,15 +1214,18 @@ def toggle_training_status(training_id: int):
             }), 500
 
         # 3. Alternamos el estatus (Lógica idéntica al toggle_status de usuarios)
+        training._skip_auto_audit = True
         old_status = training.status_id
         if old_status == active_status.id:
             training.status_id = inactive_status.id
             new_status_name = inactive_status.status_name
+            old_code, new_code = 'STAT-001', 'STAT-002'
             is_active_flag = False
             estado_str = "desactivado"
         else:
             training.status_id = active_status.id
             new_status_name = active_status.status_name
+            old_code, new_code = 'STAT-002', 'STAT-001'
             is_active_flag = True
             estado_str = "activado"
             
@@ -1213,18 +1292,22 @@ def toggle_training_status(training_id: int):
         except Exception as notif_err:
             current_app.logger.warning(f"No se pudo emitir notificación TRAINING_TOPIC_STATUS_CHANGED: {notif_err}")
         
-        # 5. (Opcional pero Recomendado) Si usas BinnacleService en Formación también, 
-        # puedes agregarlo aquí de manera idéntica a usuarios. Ejemplo:
-        """
-        BinnacleService.create_log_entry(
-            module=AuditModule.TRAININGS.value, # Asegúrate de que exista en tu enum
-            action_type=AuditAction.CAMBIO_ESTATUS_FORMACION.value,
-            description=f'El tema formativo ha sido {estado_str} exitosamente.',
-            target_table='sages.trainings',
-            record_id=training.id,
-            status=AuditStatus.MODIFICADO.value
-        )
-        """
+        # 5. Auditoría Institucional en sages.binnacle
+        try:
+            from app.binnacle.services import BinnacleService
+            from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+            BinnacleService.create_log_entry(
+                module=AuditModule.TRAININGS.value,
+                action_type=AuditAction.CAMBIO_ESTATUS_TEMA_FORMATIVO.value,
+                description=f"El tema formativo '{training.name}' ({training.training_code}) ha sido {estado_str} exitosamente.",
+                target_table='sages.trainings',
+                record_id=training.id,
+                old_values={'status_code': old_code},
+                new_values={'status_code': new_code},
+                status=AuditStatus.MODIFICADO.value
+            )
+        except Exception as audit_err:
+            current_app.logger.warning(f"[trainings.toggle_training_status] Error en bitácora: {audit_err}")
         
         # Como indicaste que el frontend lo actualizará dinámicamente, devolvemos JSON
         return jsonify({
@@ -1271,10 +1354,28 @@ def delete_training(training_id: int):
             }), 500
 
         # 3. Aplicamos el borrado lógico
+        old_status_code = training.status.status_code if training.status else 'STAT-001'
+        training._skip_auto_audit = True
         training.status_id = deleted_status.id
         training.deleted_at = datetime.now()
         
         db.session.commit()
+
+        try:
+            from app.binnacle.services import BinnacleService
+            from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+            BinnacleService.create_log_entry(
+                module=AuditModule.TRAININGS.value,
+                action_type=AuditAction.ELIMINAR_TEMA_FORMATIVO.value,
+                description=f"Eliminación lógica del tema formativo '{training.name}' ({training.training_code})",
+                target_table='sages.trainings',
+                record_id=training.id,
+                old_values={'status_code': old_status_code, 'deleted_at': None},
+                new_values={'status_code': 'STAT-010', 'deleted_at': training.deleted_at.isoformat()},
+                status=AuditStatus.MODIFICADO.value
+            )
+        except Exception as audit_err:
+            current_app.logger.warning(f"[trainings.delete_training] Error en bitácora: {audit_err}")
 
         # Notificación Post-Commit: Taller Retirado del Catálogo
         try:

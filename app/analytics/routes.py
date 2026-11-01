@@ -354,13 +354,22 @@ def export_report():
             )
 
         # 4. Trazabilidad en Bitácora Institucional (Auditoría Forense)
-        BinnacleService.create_log_entry(
-            module=AuditModule.REQUESTS.value,
-            action_type=AuditAction.DESCARGA_REGISTRO.value,
-            description=f"Reporte emitido: '{report_name}' | Formato: {export_format.upper()} | Canal: {delivery_method.upper()}",
-            target_table='sages.requests',
-            status=AuditStatus.COMPLETADO.value
-        )
+        try:
+            BinnacleService.create_log_entry(
+                module=AuditModule.ANALYTICS.value,
+                action_type=AuditAction.EXPORTACION_REPORTE_ANALITICO.value,
+                description=f"Reporte emitido: '{report_name}' | Formato: {export_format.upper()} | Canal: {delivery_method.upper()}",
+                target_table='sages.requests',
+                new_values={
+                    'report_name': report_name,
+                    'report_type': report_type,
+                    'format': export_format.upper(),
+                    'delivery': delivery_method.upper()
+                },
+                status=AuditStatus.COMPLETADO.value
+            )
+        except Exception as audit_err:
+            current_app.logger.warning(f"[analytics.export_report] Error en bitácora: {audit_err}")
 
         # 5. Despacho según el método elegido
         if delivery_method == 'email':
@@ -504,13 +513,22 @@ def export_indicators_api():
             )
 
         # 4. Trazabilidad en Bitácora
-        BinnacleService.create_log_entry(
-            module=AuditModule.REQUESTS.value,
-            action_type=AuditAction.DESCARGA_REGISTRO.value,
-            description=f"Exportación directa de indicadores: '{file_name}' | Formato: {export_format.upper()} | Canal: {delivery_method.upper()}",
-            target_table='sages.requests',
-            status=AuditStatus.COMPLETADO.value
-        )
+        try:
+            BinnacleService.create_log_entry(
+                module=AuditModule.ANALYTICS.value,
+                action_type=AuditAction.EXPORTACION_INDICADORES_GESTION.value,
+                description=f"Exportación directa de indicadores: '{file_name}' | Formato: {export_format.upper()} | Canal: {delivery_method.upper()}",
+                target_table='sages.requests',
+                new_values={
+                    'file_name': file_name,
+                    'scope': scope_label,
+                    'format': export_format.upper(),
+                    'delivery': delivery_method.upper()
+                },
+                status=AuditStatus.COMPLETADO.value
+            )
+        except Exception as audit_err:
+            current_app.logger.warning(f"[analytics.export_indicators_api] Error en bitácora: {audit_err}")
 
         # 5. Despacho según canal
         if delivery_method == 'email':

@@ -1,13 +1,17 @@
 from app.extensions import db
 from datetime import datetime, timezone
 from sqlalchemy import UniqueConstraint, func
+from app.binnacle.mixins import AuditableMixin
+from app.binnacle.types import AuditModule
 
-class Training(db.Model):
+class Training(db.Model, AuditableMixin):
     __tablename__ = 'trainings'
     __table_args__ = (
         UniqueConstraint('training_module_id', 'name', name='uq_module_training_name'),
         {'schema': 'sages'},
     )
+    __audit_module__ = AuditModule.TRAININGS.value
+    __audit_exclude_fields__ = {'created_at', 'updated_at', 'deleted_at'}
 
     id = db.Column(db.BigInteger, primary_key=True)
     training_module_id = db.Column(db.BigInteger, db.ForeignKey('sages.training_modules.id', ondelete='RESTRICT'), nullable=False, index=True)
