@@ -1,0 +1,229 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Información de Tema Formativo – SAGES{% endblock %}
+
+{% block extra_css %}
+<!-- Vinculamos el archivo CSS específicamente para esta vista de forma ordenada -->
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/trainings.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="trainings-container">
+
+    {# --- BLOQUE DE MENSAJES FLASH AÑADIDO --- #}
+    <div class="flash-messages-container" style="margin-bottom: 1rem;">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show" role="alert" style="padding: 1rem; margin-bottom: 1rem; border-radius: 8px; background-color: {% if category == 'success' %}#d1fae5{% elif category == 'danger' %}#fee2e2{% else %}#e0f2fe{% endif %}; color: {% if category == 'success' %}#065f46{% elif category == 'danger' %}#991b1b{% else %}#075985{% endif %}; border: 1px solid {% if category == 'success' %}#34d399{% elif category == 'danger' %}#f87171{% else %}#7dd3fc{% endif %};">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="float: right; background: none; border: none; font-size: 1.2rem; cursor: pointer; color: inherit;">&times;</button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+    {# ---------------------------------------- #}
+
+    {# ── CABECERA INSTITUCIONAL ESTÁNDAR SAGES ────────────────────────── #}
+    <div class="page-header">
+        <div class="page-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="header-icon">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <h1>Información de Tema Formativo</h1>
+        </div>
+    </div>
+
+    {# ── BARRA DE ACCIONES (Volver a la izquierda, Editar a la derecha) ────────── #}
+    <div class="table-actions-bar" style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
+        
+        {# Botón Volver #}
+        <a href="{{ url_for('trainings.index') }}" class="btn-clear" style="display: inline-flex; align-items: center; gap: 8px; padding-left: 0; background: transparent; border: none; cursor: pointer; color: #64748b; font-weight: 500; text-decoration: none;">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Volver
+        </a>
+
+        {# Lógica de permisos y Botón Editar Tema #}
+        {% set ns_admin = namespace(es_admin=false) %}
+        {% if current_user.is_authenticated %}
+            {% for relacion in current_user.roles_assoc %}
+                {% if relacion.role.name == 'super_admin' %}
+                    {% set ns_admin.es_admin = true %}
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+
+        {% if ns_admin.es_admin or is_super_admin %}
+        <div style="display: flex; gap: 10px;">
+            <a href="{{ url_for('trainings.edit_training', id=training.id) }}" 
+               class="btn-primary" 
+               style="display: inline-flex; align-items: center; gap: 8px; background-color: #10b981; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 0.9rem; border: none; cursor: pointer; transition: background-color 0.2s;"
+               onmouseover="this.style.backgroundColor='#059669'" 
+               onmouseout="this.style.backgroundColor='#10b981'">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                Editar
+            </a>
+
+            {# Botón de Eliminar (Borrado Lógico) #}
+            <button type="button" 
+                    onclick="confirmarBorradoLogico({{ training.id }})"
+                    style="display: inline-flex; align-items: center; gap: 8px; background-color: #ef4444; color: white; padding: 8px 16px; border-radius: 6px; font-weight: 500; font-size: 0.9rem; border: none; cursor: pointer; transition: background-color 0.2s;"
+                    onmouseover="this.style.backgroundColor='#dc2626'" 
+                    onmouseout="this.style.backgroundColor='#ef4444'">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+                Eliminar
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="contenedor-vista">
+        
+        {# ── TARJETA PRINCIPAL DEL TEMA FORMATIVO ──────────────────────── #}
+        <div class="cabecera-modulo" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; padding: 20px; background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div class="textos-cabecera">
+                <h2 style="margin-top: 0; margin-bottom: 12px; font-size: 1.25rem; color: #1e293b;">{{ training.name | e }}</h2>
+                
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="color: #64748b; font-size: 0.875rem; font-weight: 500;">Módulo Rector:</span>
+                    {% if training.training_module %}
+                    <span class="module-pill module-pill-mod-001" style="margin: 0; font-size: 0.85rem;">
+                        <!-- Se removió el replace; ahora muestra el nombre exacto de la BD, incluyendo el '(Verificado)' si lo tiene -->
+                        {{ training.training_module.module_code | e }} — {{ training.training_module.name | e }}
+                    </span>
+                    {% else %}
+                    <span class="text-muted">N/A</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- ESTATUS DINÁMICO RESTAURADO -->
+            <div class="badge-estatus">
+                {% if training.status %}
+                <span class="status-badge status-{{ training.status.status_code }}" style="font-size: 0.9rem; padding: 6px 12px;">
+                    {{ training.status.status_name }}
+                </span>
+                {% else %}
+                <span class="status-badge">Sin estatus</span>
+                {% endif %}
+            </div>
+        </div>
+
+        {# ── CONTENEDOR GRID ────────────────────────── #}
+        <div class="layout-dos-columnas">
+            
+            <!-- COLUMNA PRINCIPAL (Izquierda) -->
+            <div class="columna-principal">
+                
+                <!-- Bloque de estilo exclusivo para limpiar la tarjeta rebelde -->
+                <style>
+                    .tarjeta-sin-linea-superior {
+                        border-top: none !important;
+                        /* Sobrescribimos la sombra para quitar cualquier acento de color superior */
+                        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06) !important; 
+                    }
+                    /* Apagamos posibles pseudo-elementos que dibujen la línea */
+                    .tarjeta-sin-linea-superior::before,
+                    .tarjeta-sin-linea-superior::after {
+                        display: none !important;
+                    }
+                </style>
+
+                <div class="tarjeta tarjeta-descripcion tarjeta-sin-linea-superior" style="height: 100%; display: flex; flex-direction: column; border-left: 4px solid #10b981 !important; border-radius: 8px;">
+                    <h3>Descripción Curricular</h3>
+                    <p>{{ training.description | e }}</p>
+                </div>
+            </div>
+
+            <!-- COLUMNA LATERAL (Derecha) -->
+            <div class="columna-lateral">
+                
+                {% if current_user.is_authenticated %}
+                    
+                    {% set ns = namespace(es_solicitante=false) %}
+                    {% for relacion in current_user.roles_assoc %}
+                        {% if relacion.role.name == 'applicant' %}
+                            {% set ns.es_solicitante = true %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {# Solo mostramos el Impacto Institucional si el usuario NO es solicitante #}
+                    {% if not ns.es_solicitante %}
+                    <div class="tarjeta tarjeta-metrica impact-metric-box" style="border-left: 4px solid #10b981;">
+                        <span class="etiqueta-superior">Impacto Institucional</span>
+                        <div class="bloque-metrica">
+                            <span class="numero-destacado">{{ atendidas }}</span>
+                            <span class="texto-metrica">Solicitudes atendidas<br>históricamente</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endif %}
+
+                <div class="tarjeta tarjeta-registro">
+                    <span class="etiqueta-superior">Fecha de Registro:</span>
+                    <span class="fecha-valor">{{ training.created_at.strftime('%d/%m/%Y %H:%M') if training.created_at else 'N/D' }}</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmarBorradoLogico(trainingId) {
+    Swal.fire({
+        title: '¿Estás seguro?',
+        text: "Esta acción deshabilitará el tema formativo.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch(`/training/delete/${trainingId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'  // <-- Inyectamos el token de seguridad de Flask
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    Swal.fire(
+                        '¡Eliminado!',
+                        'El registro ha sido eliminado exitosamente.',
+                        'success'
+                    ).then(() => {
+                        window.location.href = "{{ url_for('trainings.list_all') }}";
+                    });
+                } else {
+                    Swal.fire('Error', 'Hubo un problema al intentar eliminar el registro.', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire('Error', 'Ocurrió un error de red.', 'error');
+            });
+        }
+    });
+}
+</script>
+{% endblock %}

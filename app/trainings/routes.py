@@ -1,0 +1,1513 @@
+"""
+Rutas del Módulo de Formación (Trainings)
+Bloque 1: Hub de Navegación por Módulos – Vista Principal / Landing.
+
+Endpoints:
+  GET  /training/              → index()            – Renderiza el Hub
+  GET  /training/api/counts    → get_module_counts() – Conteos asíncronos por módulo y rol
+"""
+
+import re
+import io
+from datetime import datetime, time
+from flask import render_template, jsonify, abort, request, redirect, url_for, flash, current_app, send_file
+from flask_login import login_required, current_user
+from sqlalchemy import func
+from app.trainings import trainings_bp
+import unicodedata
+from app.trainings.forms import TrainingModuleForm, TrainingForm, ModuleEditForm, TrainingEditForm
+from app.models.training_module_model import TrainingModule
+from app.models.training_model import Training
+from app.models.status_model import Status
+from app.models.request_model import Request
+from app.trainings.services import (
+    get_module_by_id, 
+    update_training_module,
+    generate_training_code, 
+    is_training_name_duplicated, 
+    create_training,
+    parse_training_file,
+    toggle_module_status
+)
+from app.decorators import check_permissions, role_required
+from app.extensions import db, limiter
+from app.notifications.services import NotificationService
+from app.notifications.enums import NotificationEvent, NotificationType
+
+# ---------------------------------------------------------------------------
+# Helpers privados
+# ---------------------------------------------------------------------------
+
+def _get_actor_name(user) -> str:
+    """Extrae el nombre completo formateado del usuario en sesión."""
+    if user and hasattr(user, 'person') and user.person:
+        p = user.person
+        return f"{p.first_name or ''} {p.last_name or ''}".strip() or getattr(user, 'user_name', 'Administrador')
+    return getattr(user, 'user_name', 'Administrador')
+
+def _get_user_role() -> str:
+    """Devuelve el nombre del primer rol del usuario en sesión o 'applicant'."""
+    if current_user.is_authenticated and getattr(current_user, 'roles_assoc', None):
+        return current_user.roles_assoc[0].role.name
+    return 'applicant'
+
+
+def _is_super_admin() -> bool:
+    return _get_user_role() == 'super_admin'
+
+
+def _is_admin() -> bool:
+    """True para super_admin y state_admin."""
+    return _get_user_role() in ('super_admin', 'state_admin')
+
+
+# ---------------------------------------------------------------------------
+# Ruta principal: Hub de Navegación
+# ---------------------------------------------------------------------------
+
+@trainings_bp.route('/', methods=['GET'])
+@login_required
+@check_permissions('view_training_catalog')
+def index():
+    """
+    Vista de entrada al catálogo de Formación.
+    Renderiza los Módulos Rectores de la UREE en una cuadrícula responsiva.
+    Para super_admin se muestran todos (activos e inactivos, con los activos primero y los inactivos al final).
+    Para solicitantes se muestran únicamente los módulos activos.
+    """
+    if _is_super_admin():
+        modules = (
+            TrainingModule.query
+            .order_by(TrainingModule.is_active.desc(), TrainingModule.order_index.asc())
+            .all()
+        )
+    else:
+        modules = (
+            TrainingModule.query
+            .filter_by(is_active=True)
+            .order_by(TrainingModule.order_index.asc())
+            .all()
+        )
+
+    return render_template(
+        'trainings/hub.html',
+        modules=modules,
+        is_super_admin=_is_super_admin(),
+        is_admin=_is_admin(),
+        user_role=_get_user_role(),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Endpoint API: Conteos asíncronos de temas por módulo
+# ---------------------------------------------------------------------------
+
+@trainings_bp.route('/api/counts', methods=['GET'])
+@login_required
+def get_module_counts():
+    """
+    Devuelve el conteo de temas formativos por módulo rector, adaptado al rol.
+
+    Lógica de filtrado:
+      – Base obligatoria: Training.deleted_at IS NULL (borrado lógico).
+      – Rol applicant    → Solo temas con status_code == 'STAT-001' (Activos).
+      – Roles admin      → Temas activos (STAT-001) + total no eliminado.
+
+    Respuesta JSON:
+    {
+      "success": true,
+      "is_admin": <bool>,
+      "counts": {
+        "<module_id>": { "active": <int>, "total": <int> }
+      }
+    }
+    """
+    role = _get_user_role()
+    is_admin = role in ('super_admin', 'state_admin')
+
+    try:
+        # Sub-consulta base: temas no eliminados
+        base_q = (
+            db.session.query(
+                Training.training_module_id,
+                func.count(Training.id).label('total')
+            )
+            .filter(Training.deleted_at.is_(None))
+            .group_by(Training.training_module_id)
+        )
+
+        # Sub-consulta de temas activos (STAT-001) sin eliminar
+        active_q = (
+            db.session.query(
+                Training.training_module_id,
+                func.count(Training.id).label('active')
+            )
+            .join(Status, Training.status_id == Status.id)
+            .filter(
+                Training.deleted_at.is_(None),
+                Status.status_code == 'STAT-001'
+            )
+            .group_by(Training.training_module_id)
+        )
+
+        total_rows = {row.training_module_id: row.total for row in base_q.all()}
+        active_rows = {row.training_module_id: row.active for row in active_q.all()}
+
+        # Obtener módulos según rol para incluirlos (aunque tengan 0 temas)
+        if is_admin:
+            module_ids = [m.id for m in TrainingModule.query.all()]
+        else:
+            module_ids = [
+                m.id for m in TrainingModule.query.filter_by(is_active=True).all()
+            ]
+
+        counts = {}
+        for mid in module_ids:
+            active_count = active_rows.get(mid, 0)
+            total_count = total_rows.get(mid, 0)
+
+            if is_admin:
+                counts[str(mid)] = {
+                    'active': active_count,
+                    'total': total_count
+                }
+            else:
+                # Para solicitantes solo se exponen los temas activos
+                counts[str(mid)] = {
+                    'active': active_count,
+                    'total': active_count
+                }
+
+        return jsonify({
+            'success': True,
+            'is_admin': is_admin,
+            'counts': counts
+        }), 200
+
+    except Exception as e:
+        current_app.logger.error(f"[trainings.get_module_counts] Error al calcular conteos: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'No se pudieron cargar los contadores en este momento.',
+            'counts': {}
+        }), 500
+
+
+# ---------------------------------------------------------------------------
+# Bloque 2: Edición de Módulo Rector (Exclusivo Super Administrador)
+# ---------------------------------------------------------------------------
+
+@trainings_bp.route('/module/edit/<int:module_id>', methods=['GET', 'POST'])
+@login_required
+@role_required('super_admin')
+def edit_module(module_id: int):
+    """
+    Vista exclusiva para Super Administrador.
+    Permite actualizar nombre, descripción u orden de visualización del módulo rector.
+    Ruta canónica: /training/module/edit/<id> (con alias en /module/edit/<id>).
+    """
+    module = get_module_by_id(module_id)
+    if not module:
+        abort(404)
+
+    form = ModuleEditForm(module_id=module.id)
+
+    if request.method == 'GET':
+        form.name.data = module.name
+        form.description.data = module.description
+
+    elif form.validate_on_submit():
+        is_active_raw = request.form.get('is_active')
+        new_is_active = (is_active_raw == 'true') if is_active_raw is not None else module.is_active
+
+        success, message = update_training_module(
+            module=module,
+            name=form.name.data,
+            description=form.description.data,
+            user_id=current_user.id,
+            is_active=new_is_active
+        )
+        if success:
+            flash(f'Módulo rector "{module.name}" actualizado correctamente.', 'success')
+            return redirect(url_for('trainings.index'))
+        else:
+            flash(message, 'danger')
+
+    return render_template(
+        'trainings/edit_module.html',
+        form=form,
+        module=module,
+        is_super_admin=_is_super_admin(),
+        is_admin=_is_admin(),
+        user_role=_get_user_role()
+    )
+
+
+@trainings_bp.route('/module/toggle-status/<int:module_id>', methods=['POST'])
+@login_required
+@role_required('super_admin')
+def toggle_module_status_route(module_id: int):
+    """
+    Ruta exclusiva de Super Administrador para desincorporar (inactivar) o reactivar un Módulo Rector.
+    Valida estrictamente que el módulo no posea temas formativos activos asociados antes de inactivarlo.
+    """
+    success, message, module, active_count = toggle_module_status(module_id, current_user.id)
+
+    # Notificación Post-Commit: Cambio de disponibilidad de módulo rector
+    if success and module:
+        try:
+            admin_name = _get_actor_name(current_user)
+            is_now_active = module.is_active
+            sev = NotificationType.SUCCESS if is_now_active else NotificationType.WARNING
+            action_lbl = "reactivado y habilitado" if is_now_active else "inactivado temporalmente"
+            ctx = {
+                "module_name": module.name,
+                "action_label": action_lbl,
+                "admin_name": admin_name
+            }
+            NotificationService.notify_role(
+                role_name="state_admin",
+                event=NotificationEvent.TRAINING_MODULE_STATUS_CHANGED,
+                context=ctx,
+                exclude_user_id=current_user.id,
+                severity_override=sev,
+                redirect_url="/trainings/",
+                action_text="Ver Módulos"
+            )
+            if is_now_active:
+                NotificationService.notify_role(
+                    role_name="applicant",
+                    event=NotificationEvent.TRAINING_MODULE_STATUS_CHANGED,
+                    context=ctx,
+                    severity_override=NotificationType.SUCCESS,
+                    redirect_url="/requests/catalog",
+                    action_text="Explorar Catálogo"
+                )
+        except Exception as notif_err:
+            current_app.logger.warning(f"No se pudo emitir notificación TRAINING_MODULE_STATUS_CHANGED: {notif_err}")
+
+    is_ajax = (
+        request.is_json or
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+        (request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html)
+    )
+
+    if is_ajax:
+        if success:
+            return jsonify({
+                'success': True,
+                'message': message,
+                'is_active': module.is_active if module else False,
+                'status_label': 'Activo' if (module and module.is_active) else 'Inactivo'
+            }), 200
+        else:
+            status_code = 404 if not module else (400 if active_count > 0 else 500)
+            return jsonify({
+                'success': False,
+                'message': message,
+                'active_topics_count': active_count
+            }), status_code
+    else:
+        flash(message, 'success' if success else 'danger')
+        return redirect(url_for('trainings.edit_module', module_id=module_id) if module else url_for('trainings.index'))
+
+
+# ---------------------------------------------------------------------------
+# Vista Tabular Maestra: Listado Administrativo de Formaciones
+# Bloque 3: Gestión Administrativa Centralizada
+# ---------------------------------------------------------------------------
+
+@trainings_bp.route('/list', methods=['GET'])
+@login_required
+@role_required('super_admin', 'state_admin')
+def list_all():
+    """
+    Vista alternativa tabular accesible para Super Administrador y Administradores Estadales.
+    Permite buscar por término, filtrar por Módulo, Estatus (Activo/Inactivo) y Fecha de creación,
+    con paginación de 10 en 10 registros.
+
+    Nota de alcance:
+      - La ejecución de acciones de edición y borrado lógico está reservada para una tarea posterior.
+      - La consulta filtra temas no eliminados mediante la cláusula Training.deleted_at.is_(None).
+    """
+    # 1. Validación de tipos numéricos para paginación
+    page = request.args.get('page', 1, type=int)
+    if not page or page < 1:
+        page = 1
+
+    per_page = request.args.get('per_page', 10, type=int)
+    if not per_page or per_page < 1 or per_page > 50:
+        per_page = 10
+
+    # 2. Parámetros de búsqueda y filtros
+    search_query = request.args.get('search', '').strip()
+    filter_module = request.args.get('module_id', '').strip()
+    filter_status = request.args.get('status', '').strip()
+    date_from = request.args.get('date_from', '').strip()
+    date_to = request.args.get('date_to', '').strip()
+
+    filters = {
+        'search': search_query,
+        'module_id': filter_module,
+        'status': filter_status,
+        'date_from': date_from,
+        'date_to': date_to,
+        'per_page': per_page
+    }
+
+    try:
+        # Consulta base: temas no eliminados (borrado lógico: Training.deleted_at IS NULL)
+        # Nota: La ejecución de borrado lógico y edición se implementará en una tarea posterior.
+        query = (
+            Training.query
+            .join(TrainingModule, Training.training_module_id == TrainingModule.id)
+            .join(Status, Training.status_id == Status.id)
+            .filter(Training.deleted_at.is_(None))
+        )
+
+        # Búsqueda por nombre del tema formativo
+        if search_query:
+            sanitized_term = search_query.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+            search_pattern = f"%{sanitized_term}%"
+            query = query.filter(Training.name.ilike(search_pattern))
+
+        # Filtro por Módulo Rector
+        if filter_module and filter_module.isdigit():
+            query = query.filter(Training.training_module_id == int(filter_module))
+
+        # Filtro por Estatus (Activo/Inactivo: STAT-001 / STAT-002 o status_id)
+        if filter_status:
+            if filter_status.isdigit():
+                query = query.filter(Training.status_id == int(filter_status))
+            else:
+                query = query.filter(Status.status_code == filter_status)
+
+        # Filtro por Rango de Fecha de Creación
+        if date_from:
+            try:
+                dt_from = datetime.strptime(date_from, '%Y-%m-%d')
+                query = query.filter(Training.created_at >= dt_from)
+            except ValueError:
+                pass
+
+        if date_to:
+            try:
+                dt_to = datetime.strptime(date_to, '%Y-%m-%d')
+                dt_to = datetime.combine(dt_to.date(), time.max)
+                query = query.filter(Training.created_at <= dt_to)
+            except ValueError:
+                pass
+
+        # Ordenamiento natural secuencial por número de formación
+        query = query.order_by(Training.id.asc())
+
+        # Paginación optimizada usando SQLAlchemy con offset y limit (mediante paginate)
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        trainings = pagination.items
+
+        # Catálogos de opciones para filtros
+        modules = (
+            TrainingModule.query
+            .filter_by(is_active=True)
+            .order_by(TrainingModule.order_index)
+            .all()
+        )
+        statuses = (
+            Status.query
+            .filter(Status.status_code.in_(['STAT-001', 'STAT-002']))
+            .order_by(Status.id)
+            .all()
+        )
+
+        return render_template(
+            'trainings/list.html',
+            trainings=trainings,
+            pagination=pagination,
+            modules=modules,
+            statuses=statuses,
+            filters=filters,
+            is_super_admin=_is_super_admin(),
+            is_admin=_is_admin(),
+            user_role=_get_user_role()
+        )
+
+    except Exception as e:
+        current_app.logger.error(f"[trainings.list_all] Error al obtener listado de formaciones: {e}")
+        return render_template(
+            'trainings/list.html',
+            trainings=[],
+            pagination=None,
+            modules=TrainingModule.query.filter_by(is_active=True).order_by(TrainingModule.order_index).all(),
+            statuses=Status.query.filter(Status.status_code.in_(['STAT-001', 'STAT-002'])).all(),
+            filters=filters,
+            is_super_admin=_is_super_admin(),
+            is_admin=_is_admin(),
+            user_role=_get_user_role(),
+            error_message="No se pudo cargar el listado de formaciones en este momento."
+        )
+
+
+# ---------------------------------------------------------------------------
+# Registro de Nuevo Módulo Rector
+# ---------------------------------------------------------------------------
+
+def _generate_next_module_code() -> str:
+    """
+    Genera el siguiente código correlativo MOD-XXX en backend.
+    Extrae la secuencia numérica de códigos existentes con prefijo 'MOD-' y genera el próximo (ej. MOD-005).
+    """
+    all_codes = db.session.query(TrainingModule.module_code).all()
+    max_num = 0
+    for (code,) in all_codes:
+        if code and code.startswith('MOD-'):
+            suffix = code[4:]
+            if suffix.isdigit():
+                max_num = max(max_num, int(suffix))
+    next_num = max_num + 1
+    return f"MOD-{next_num:03d}"
+
+
+def _get_next_order_index() -> int:
+    """Calcula el siguiente índice de orden disponible."""
+    max_order = db.session.query(func.max(TrainingModule.order_index)).scalar()
+    return (max_order or 0) + 1
+
+
+@trainings_bp.route('/module/new', methods=['GET', 'POST'])
+@login_required
+@role_required('super_admin')
+def new_module():
+    """
+    Ruta para registrar un nuevo Módulo Rector.
+    - Captura: nombre, descripción y orden de visualización.
+    - El código MOD-XXX es generado internamente por la base de datos/backend.
+    - Solo accesible para usuarios con rol 'super_admin'.
+    """
+    form = TrainingModuleForm()
+
+    # Pre-calcular sugerencia de código para el formulario
+    suggested_code = _generate_next_module_code()
+
+    if request.method == 'GET':
+        form.module_code.data = suggested_code
+
+    if form.validate_on_submit():
+        try:
+            # Siempre se autogenera el código en backend para evitar manipulación manual
+            final_code = _generate_next_module_code()
+
+            new_mod = TrainingModule(
+                module_code=final_code,
+                name=form.name.data.strip(),
+                description=form.description.data.strip(),
+                order_index=_get_next_order_index(),
+                is_active=True
+            )
+            new_mod._skip_auto_audit = True
+            db.session.add(new_mod)
+            db.session.commit()
+
+            try:
+                from app.binnacle.services import BinnacleService
+                from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+                BinnacleService.create_log_entry(
+                    module=AuditModule.TRAININGS.value,
+                    action_type=AuditAction.REGISTRO_MODULO_RECTOR.value,
+                    description=f"Nuevo Módulo Rector registrado: '{new_mod.name}' ({new_mod.module_code})",
+                    target_table='sages.training_modules',
+                    record_id=new_mod.id,
+                    new_values={
+                        'module_code': new_mod.module_code,
+                        'name': new_mod.name,
+                        'description': new_mod.description,
+                        'is_active': new_mod.is_active
+                    },
+                    status=AuditStatus.COMPLETADO.value
+                )
+            except Exception as audit_err:
+                current_app.logger.warning(f"[trainings.new_module] No se pudo registrar bitácora: {audit_err}")
+
+            # Notificación Post-Commit: Nuevo módulo formativo incorporado
+            try:
+                admin_name = _get_actor_name(current_user)
+                ctx = {
+                    "module_name": new_mod.name,
+                    "admin_name": admin_name
+                }
+                for target_role in ("state_admin", "applicant", "super_admin"):
+                    NotificationService.notify_role(
+                        role_name=target_role,
+                        event=NotificationEvent.TRAINING_MODULE_CREATED,
+                        context=ctx,
+                        exclude_user_id=current_user.id,
+                        redirect_url="/trainings/",
+                        action_text="Ver Catálogo"
+                    )
+            except Exception as notif_err:
+                current_app.logger.warning(f"No se pudo emitir notificación TRAINING_MODULE_CREATED: {notif_err}")
+
+            flash(f'Módulo Rector "{new_mod.name}" registrado exitosamente.', "success")
+            return redirect(url_for('trainings.index'))
+
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"[trainings.new_module] Error al registrar módulo: {e}")
+            flash("Ocurrió un error inesperado al registrar el Módulo Rector. Intente nuevamente.", "danger")
+    elif request.method == 'POST':
+        flash("Por favor, verifica los campos obligatorios del formulario.", "warning")
+
+    return render_template(
+        'trainings/module_new.html',
+        form=form,
+        suggested_code=suggested_code,
+        is_super_admin=_is_super_admin(),
+        is_admin=_is_admin(),
+        user_role=_get_user_role()
+    )
+
+# ---------------------------------------------------------------------------
+# Registro de Nuevo Tema Formativo
+# ---------------------------------------------------------------------------
+
+@trainings_bp.route('/api/validate-name', methods=['GET'])
+@login_required
+@role_required('super_admin')
+def validate_training_name_api():
+    """
+    Endpoint AJAX para validar duplicidad con normalización extrema (ignora tildes, puntuación y espacios)
+    """
+    name = request.args.get('name', '').strip()
+    module_id = request.args.get('module_id', type=int)
+    exclude_id = request.args.get('exclude_id', type=int)
+
+    if not name or not module_id:
+        return jsonify({'valid': False, 'exists': False, 'message': 'Faltan parámetros requeridos.'}), 400
+
+    # 1. Traemos todos los temas del módulo seleccionado (excluyendo el actual si estamos editando)
+    query = Training.query.filter(
+        Training.training_module_id == module_id,
+        Training.deleted_at.is_(None)
+    )
+
+    if exclude_id:
+        query = query.filter(Training.id != exclude_id)
+        
+    all_module_trainings = query.all()
+
+    # 2. Función de normalización extrema (se queda solo con letras minúsculas y números)
+    def normalize_text(text):
+        if not text: 
+            return ""
+        # Pasar a minúsculas
+        t = text.lower()
+        # Eliminar tildes/acentos
+        t = unicodedata.normalize('NFKD', t).encode('ASCII', 'ignore').decode('utf-8')
+        # Eliminar TODO lo que no sea una letra o número (espacios, comas, puntos, etc.)
+        t = re.sub(r'[^a-z0-9]', '', t)
+        return t
+
+    name_to_check = normalize_text(name)
+    existing = None
+    
+    # 3. Comparamos
+    for t in all_module_trainings:
+        if normalize_text(t.name) == name_to_check:
+            existing = t
+            break
+
+    if existing:
+        return jsonify({
+            'valid': False,
+            'exists': True,
+            'message': f'Ya existe un tema formativo con este título ({existing.training_code}).'
+        })
+
+    return jsonify({'valid': True, 'exists': False, 'message': 'Título disponible.'})
+
+
+@trainings_bp.route('/new', methods=['GET', 'POST'])
+@login_required
+@role_required('super_admin')
+@limiter.limit("20 per minute", methods=["POST"], key_func=lambda: str(current_user.id))
+def new_training():
+    """
+    Ruta para registrar un nuevo Tema Formativo.
+    """
+    form = TrainingForm()
+
+    if request.method == 'GET':
+        preselected_module = request.args.get('module_id', type=int)
+        if preselected_module:
+            form.training_module_id.data = preselected_module
+
+    if form.validate_on_submit():
+        module_id = form.training_module_id.data
+        name_clean = form.name.data.strip()
+        desc_clean = form.description.data.strip()
+
+        try:
+            new_training_obj = create_training(
+                module_id=module_id,
+                name=name_clean,
+                description=desc_clean
+            )
+
+            # Notificación Post-Commit: Nuevo taller formativo incorporado
+            try:
+                admin_name = _get_actor_name(current_user)
+                mod_name = new_training_obj.training_module.name if new_training_obj.training_module else "General"
+                NotificationService.notify_role(
+                    role_name="state_admin",
+                    event=NotificationEvent.TRAINING_TOPIC_CREATED,
+                    context={
+                        "topic_name": new_training_obj.name,
+                        "module_name": mod_name,
+                        "admin_name": admin_name
+                    },
+                    exclude_user_id=current_user.id,
+                    redirect_url="/trainings/",
+                    action_text="Ver Taller"
+                )
+            except Exception as notif_err:
+                current_app.logger.warning(f"No se pudo emitir notificación TRAINING_TOPIC_CREATED: {notif_err}")
+
+            flash(f'Tema Formativo "{new_training_obj.name}" registrado exitosamente.', 'success')
+            return redirect(url_for('trainings.index'))
+
+        except ValueError as ve:
+            flash(str(ve), 'danger')
+            return render_template(
+                'trainings/training_new.html',
+                form=form,
+                is_super_admin=_is_super_admin(),
+                is_admin=_is_admin(),
+                user_role=_get_user_role()
+            )
+        except Exception as e:
+            current_app.logger.error(f"[trainings.new_training] Error al registrar tema: {e}")
+            flash('Ocurrió un error inesperado al registrar el tema formativo. Intente nuevamente.', 'danger')
+
+    return render_template(
+        'trainings/training_new.html',
+        form=form,
+        is_super_admin=_is_super_admin(),
+        is_admin=_is_admin(),
+        user_role=_get_user_role()
+    )
+
+
+@trainings_bp.route('/api/active-modules', methods=['GET'])
+@login_required
+def api_active_modules():
+    """
+    Endpoint API para cargar dinámicamente los Módulos Rectores activos en el frontend.
+    """
+    modules = TrainingModule.query.filter_by(is_active=True).order_by(TrainingModule.order_index).all()
+    return jsonify([{'id': m.id, 'name': f"{m.module_code} – {m.name}"} for m in modules])
+
+
+@trainings_bp.route('/api/modules/<int:module_id>/trainings', methods=['GET'])
+@login_required
+def get_module_trainings_api(module_id: int):
+    """
+    API endpoint para cargar dinámicamente los temas formativos (activos y no eliminados)
+    asociados a un módulo rector específico (Cascada para Wizard US-34).
+    """
+    trainings = (
+        Training.query
+        .join(Status, Training.status_id == Status.id)
+        .filter(
+            Training.training_module_id == module_id,
+            Training.deleted_at.is_(None),
+            Status.status_code == 'STAT-001'  # Solo activos
+        )
+        .order_by(Training.name.asc())
+        .all()
+    )
+    
+    return jsonify([{
+        'id': t.id, 
+        'name': f"{t.training_code} – {t.name}"
+    } for t in trainings]), 200
+
+
+# ---------------------------------------------------------------------------
+# Detalle de Tema Formativo
+# ---------------------------------------------------------------------------
+
+@trainings_bp.route('/detail/<int:id>', methods=['GET'])
+@login_required
+@role_required('super_admin', 'state_admin', 'applicant')
+def view_training_detail(id: int):
+    training = (
+        Training.query
+        .join(TrainingModule, Training.training_module_id == TrainingModule.id)
+        .join(Status, Training.status_id == Status.id)
+        .filter(Training.id == id, Training.deleted_at.is_(None))
+        .first_or_404()
+    )
+
+    atendidas_calculadas = (
+        db.session.query(func.count(Request.id))
+        .join(Status, Request.status_id == Status.id)
+        .filter(
+            Request.training_id == id,
+            Status.status_code == 'STAT-007'
+        ).scalar() or 0
+    )
+
+    return render_template(
+        'trainings/detail.html',
+        training=training,
+        atendidas=atendidas_calculadas,
+        is_super_admin=_is_super_admin(),
+        is_admin=_is_admin(),
+        user_role=_get_user_role()
+    )
+
+
+# ---------------------------------------------------------------------------
+# Edición de Tema Formativo
+# ---------------------------------------------------------------------------
+
+@trainings_bp.route('/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
+@role_required('super_admin')
+def edit_training(id: int):
+    """
+    Ruta para editar un tema formativo existente.
+    Si el tema posee solicitudes/preinscripciones asociadas, bloquea el 
+    cambio de Módulo Rector para proteger la integridad de los datos.
+    """
+    # Obtener el tema formativo asegurando que no esté eliminado lógicamente
+    training = (
+        Training.query
+        .filter(Training.id == id, Training.deleted_at.is_(None))
+        .first_or_404()
+    )
+
+    form = TrainingEditForm(obj=training, training_id=training.id)
+
+    # Cargar las opciones del selector de Módulos Rectores activos
+    modules = TrainingModule.query.filter_by(is_active=True).order_by(TrainingModule.order_index).all()
+    form.training_module_id.choices = [(m.id, f"{m.module_code} - {m.name}") for m in modules]
+
+    # Verificar si el tema formativo tiene solicitudes asociadas
+    has_requests = (
+        db.session.query(func.count(Request.id))
+        .filter(Request.training_id == id)
+        .scalar()
+    ) > 0
+
+
+
+    if form.validate_on_submit():
+        # Regla estricta: Si tiene solicitudes, se bloquea el cambio de módulo rector
+        if has_requests and form.training_module_id.data != training.training_module_id:
+            flash('No se puede cambiar el Módulo Rector porque este tema ya posee solicitudes asociadas.', 'danger')
+            return redirect(url_for('trainings.edit_training', id=id))
+
+        # --- CANDADO DE SEGURIDAD EXTREMA ANTES DE GUARDAR ---
+        import unicodedata, re
+        def normalize_text(text):
+            if not text: return ""
+            t = unicodedata.normalize('NFKD', text.lower()).encode('ASCII', 'ignore').decode('utf-8')
+            return re.sub(r'[^a-z0-9]', '', t)
+            
+        # Determinar en qué módulo se va a guardar
+        target_module_id = training.training_module_id if has_requests else form.training_module_id.data
+        name_to_check = normalize_text(form.name.data.strip())
+        
+        # Traer todos los temas de ese módulo (excepto el que estamos editando)
+        duplicates = Training.query.filter(
+            Training.training_module_id == target_module_id,
+            Training.id != id,
+            Training.deleted_at.is_(None)
+        ).all()
+        
+        # Si encuentra coincidencia, aborta el guardado
+        if any(normalize_text(t.name) == name_to_check for t in duplicates):
+            flash('No se pudo actualizar: El título ingresado ya está en uso en este Módulo Rector.', 'danger')
+            return redirect(url_for('trainings.edit_training', id=id))
+        # --- FIN DEL CANDADO ---
+
+        old_vals = {}
+        new_vals = {}
+        clean_name = form.name.data.strip()
+        clean_desc = form.description.data.strip()
+        target_mod_id = training.training_module_id if has_requests else form.training_module_id.data
+
+        if training.name != clean_name:
+            old_vals['name'] = training.name
+            new_vals['name'] = clean_name
+        if training.description != clean_desc:
+            old_vals['description'] = training.description
+            new_vals['description'] = clean_desc
+        if training.training_module_id != target_mod_id:
+            old_vals['training_module_id'] = training.training_module_id
+            new_vals['training_module_id'] = target_mod_id
+
+        training._skip_auto_audit = True
+        training.name = clean_name
+        training.description = clean_desc
+        if not has_requests:
+            training.training_module_id = target_mod_id
+
+        db.session.commit()
+
+        if old_vals or new_vals:
+            try:
+                from app.binnacle.services import BinnacleService
+                from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+                BinnacleService.create_log_entry(
+                    module=AuditModule.TRAININGS.value,
+                    action_type=AuditAction.ACTUALIZAR_TEMA_FORMATIVO.value,
+                    description=f"Tema formativo '{training.name}' ({training.training_code}) actualizado.",
+                    target_table='sages.trainings',
+                    record_id=training.id,
+                    old_values=old_vals,
+                    new_values=new_vals,
+                    status=AuditStatus.MODIFICADO.value
+                )
+            except Exception as audit_err:
+                current_app.logger.warning(f"[trainings.edit_training] Error en bitácora: {audit_err}")
+
+        flash('Tema formativo actualizado exitosamente.', 'success')
+        return redirect(url_for('trainings.view_training_detail', id=training.id))
+    
+    return render_template(
+        'trainings/training_edit.html',
+        form=form,
+        training=training,
+        has_requests=has_requests,
+        is_super_admin=_is_super_admin(),
+        is_admin=_is_admin(),
+        user_role=_get_user_role()
+    )
+
+
+
+# ---------------------------------------------------------------------------
+# Carga Masiva de Temas Formativos
+# ---------------------------------------------------------------------------
+
+@trainings_bp.route('/bulk', methods=['GET'])
+@login_required
+@role_required('super_admin')
+def bulk_upload_view():
+    """Renderiza la interfaz de carga masiva."""
+    modules = TrainingModule.query.filter_by(is_active=True).order_by(TrainingModule.order_index).all()
+    return render_template(
+        'trainings/training_bulk.html',
+        modules=modules,
+        is_super_admin=_is_super_admin(),
+        is_admin=_is_admin(),
+        user_role=_get_user_role()
+    )
+
+
+@trainings_bp.route('/bulk/template', methods=['GET'])
+@login_required
+@role_required('super_admin')
+def bulk_upload_template():
+    """Genera y descarga la plantilla oficial de Excel para la carga masiva."""
+    import openpyxl
+    from openpyxl.worksheet.datavalidation import DataValidation
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Plantilla Temas"
+    
+    # Cabeceras requeridas
+    headers = ["codigo_modulo", "nombre_tema", "descripcion"]
+    ws.append(headers)
+    
+    # Datos de ejemplo e instrucciones directas
+    ws.append([
+        "-> Ve a la pestaña 'Catalogo' y copia un valor", 
+        "Tema de Ejemplo", 
+        "Descripción de ejemplo del tema formativo."
+    ])
+    
+    # Ajuste básico de ancho
+    ws.column_dimensions['A'].width = 35
+    ws.column_dimensions['B'].width = 40
+    ws.column_dimensions['C'].width = 50
+
+    # Crear pestaña de Catálogo (sin espacios ni acentos para evitar bugs en la fórmula de Validación)
+    ws_catalog = wb.create_sheet(title="Catalogo")
+    ws_catalog.append(["Selección", "Nombre", "Descripción"])
+    
+    # Obtener módulos activos de BD
+    modules = TrainingModule.query.filter_by(is_active=True).order_by(TrainingModule.order_index).all()
+    
+    # Llenar el catálogo y preparar Data Validation
+    row_count = 2
+    for m in modules:
+        code_name = f"{m.module_code} - {m.name}"
+        ws_catalog.append([code_name, m.name, m.description])
+        row_count += 1
+        
+    # Ajustar anchos del catálogo
+    ws_catalog.column_dimensions['A'].width = 40
+    ws_catalog.column_dimensions['B'].width = 40
+    ws_catalog.column_dimensions['C'].width = 80
+    
+    # Aplicar validación de datos apuntando al catálogo (si hay módulos disponibles)
+    if row_count > 2:
+        # Rango en el catálogo: ej. Catalogo!$A$2:$A$5
+        formula = f"=Catalogo!$A$2:$A${row_count - 1}"
+        dv = DataValidation(type="list", formula1=formula, allow_blank=True)
+        dv.error = 'Su selección no es válida'
+        dv.errorTitle = 'Módulo Inválido'
+        dv.prompt = 'Seleccione un Módulo de la lista desplegable'
+        dv.promptTitle = 'Selección de Módulo'
+        
+        # Aplicar a las filas de la columna A en la Plantilla (desde fila 2 hasta la 1000)
+        dv.add(f"A2:A1000")
+        ws.add_data_validation(dv)
+
+    out = io.BytesIO()
+    wb.save(out)
+    out.seek(0)
+    
+    return send_file(
+        out,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='Plantilla_Carga_Masiva_Temas.xlsx'
+    )
+
+
+@trainings_bp.route('/bulk/preview', methods=['POST'])
+@login_required
+@role_required('super_admin')
+@limiter.limit("10 per minute", key_func=lambda: str(current_user.id))
+def bulk_upload_preview():
+    """Ejecuta el Dry-Run (análisis) del archivo y retorna resultados en JSON."""
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': 'No se envió ningún archivo.'}), 400
+        
+    file = request.files['file']
+    if not file.filename:
+        return jsonify({'success': False, 'message': 'Archivo vacío.'}), 400
+        
+    try:
+        valid_rows, invalid_rows, stats = parse_training_file(file)
+        
+        valid_preview = []
+        for r in valid_rows:
+            valid_preview.append({
+                'row_index': r['row_number'],
+                'module_code': r['module_code'],
+                'name': r['name'],
+                'description': r['description']
+            })
+            
+        return jsonify({
+            'success': True,
+            'stats': stats,
+            'valid_rows': valid_preview,
+            'invalid_rows': invalid_rows
+        })
+        
+    except ValueError as ve:
+        return jsonify({'success': False, 'message': str(ve)}), 400
+    except Exception as e:
+        current_app.logger.error(f"[bulk_upload_preview] Error: {e}")
+        return jsonify({'success': False, 'message': 'Error al procesar el archivo.'}), 500
+
+
+@trainings_bp.route('/bulk/process', methods=['POST'])
+@login_required
+@role_required('super_admin')
+@limiter.limit("5 per minute", key_func=lambda: str(current_user.id))
+def bulk_upload_process():
+    """Procesa el archivo y guarda las filas válidas en base de datos."""
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': 'No se envió ningún archivo.'}), 400
+        
+    file = request.files['file']
+    if not file.filename:
+        return jsonify({'success': False, 'message': 'Archivo vacío.'}), 400
+        
+    try:
+        valid_rows, invalid_rows, stats = parse_training_file(file)
+        
+        if not valid_rows:
+            return jsonify({
+                'success': False, 
+                'message': 'No hay filas válidas para procesar.',
+                'stats': stats
+            }), 400
+            
+        from app.trainings.services import get_active_status_id, generate_training_code
+        
+        status_id = get_active_status_id()
+        inserted_count = 0
+        created_codes = []
+        
+        for row in valid_rows:
+            new_code = generate_training_code()
+            new_training = Training(
+                training_code=new_code,
+                name=row['name'],
+                description=row['description'],
+                training_module_id=row['module_id'],
+                status_id=status_id
+            )
+            new_training._skip_auto_audit = True
+            db.session.add(new_training)
+            inserted_count += 1
+            created_codes.append(new_code)
+            
+        db.session.commit()
+
+        if inserted_count > 0:
+            try:
+                from app.binnacle.services import BinnacleService
+                from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+                BinnacleService.create_log_entry(
+                    module=AuditModule.TRAININGS.value,
+                    action_type=AuditAction.CARGA_MASIVA_TEMAS.value,
+                    description=f"Carga masiva completada: {inserted_count} tema(s) formativo(s) registrado(s) desde '{file.filename}'",
+                    target_table='sages.trainings',
+                    new_values={
+                        'file_name': file.filename,
+                        'inserted_count': inserted_count,
+                        'invalid_count': len(invalid_rows),
+                        'sample_codes': created_codes[:15]
+                    },
+                    status=AuditStatus.COMPLETADO.value
+                )
+            except Exception as audit_err:
+                current_app.logger.warning(f"[trainings.bulk_upload_process] Error en bitácora: {audit_err}")
+
+        # Notificación Consolidada Post-Commit: Carga masiva de catálogo
+        if inserted_count > 0:
+            try:
+                admin_name = _get_actor_name(current_user)
+                ctx = {
+                    "admin_name": admin_name,
+                    "new_modules": 0,
+                    "new_topics": inserted_count,
+                    "updated_topics": 0
+                }
+                for target_role in ("state_admin", "super_admin"):
+                    NotificationService.notify_role(
+                        role_name=target_role,
+                        event=NotificationEvent.TRAINING_BULK_IMPORTED,
+                        context=ctx,
+                        exclude_user_id=current_user.id,
+                        redirect_url="/trainings/",
+                        action_text="Ver Catálogo Actualizado"
+                    )
+            except Exception as notif_err:
+                current_app.logger.warning(f"No se pudo emitir notificación TRAINING_BULK_IMPORTED: {notif_err}")
+
+        return jsonify({
+            'success': True,
+            'message': f'Se han registrado {inserted_count} temas formativos correctamente.',
+            'inserted_count': inserted_count,
+            'invalid_count': len(invalid_rows)
+        })
+        
+    except ValueError as ve:
+        return jsonify({'success': False, 'message': str(ve)}), 400
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"[bulk_upload_process] Error guardando carga masiva: {e}")
+        return jsonify({'success': False, 'message': 'Ocurrió un error al guardar los registros en BD.'}), 500
+
+
+@trainings_bp.route('/bulk/download_errors', methods=['POST'])
+@login_required
+@role_required('super_admin')
+@limiter.limit("5 per minute", key_func=lambda: str(current_user.id))
+def bulk_download_errors():
+    """Recibe la plantilla de carga masiva y devuelve un Excel únicamente con las filas inválidas y su motivo de error."""
+    import openpyxl
+    from openpyxl.styles import Font, Alignment
+    
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': 'No se envió ningún archivo.'}), 400
+        
+    file = request.files['file']
+    if not file.filename:
+        return jsonify({'success': False, 'message': 'Archivo vacío.'}), 400
+        
+    try:
+        _, invalid_rows, _ = parse_training_file(file)
+        
+        if not invalid_rows:
+            return jsonify({'success': False, 'message': 'No se detectaron errores en el archivo.'}), 400
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Reporte de Errores"
+        
+        headers = ["codigo_modulo", "nombre_tema", "descripcion", "ERRORES_ENCONTRADOS"]
+        ws.append(headers)
+        
+        for cell in ws[1]:
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.alignment = Alignment(horizontal="center")
+            cell.fill = openpyxl.styles.PatternFill(start_color="EF4444", end_color="EF4444", fill_type="solid")
+
+        for row in invalid_rows:
+            ws.append([
+                row.get('module_input', ''),
+                row.get('name_input', ''),
+                row.get('desc_input', ''),
+                f"[Fila Original: {row.get('row_number', '')}] - {row.get('error', '')}"
+            ])
+            
+        ws.column_dimensions['A'].width = 25
+        ws.column_dimensions['B'].width = 40
+        ws.column_dimensions['C'].width = 50
+        ws.column_dimensions['D'].width = 80
+
+        out = io.BytesIO()
+        wb.save(out)
+        out.seek(0)
+        
+        return send_file(
+            out,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name='Reporte_Errores_Carga_Masiva.xlsx'
+        )
+        
+    except ValueError as ve:
+        return jsonify({'success': False, 'message': str(ve)}), 400
+    except Exception as e:
+        current_app.logger.error(f"[bulk_download_errors] Error generando reporte: {e}")
+        return jsonify({'success': False, 'message': 'Ocurrió un error al generar el archivo de errores.'}), 500
+
+
+
+
+# ---------------------------------------------------------------------------
+# Cambio de Estatus de Tema Formativo (Activo / Inactivo) - Tarea 1
+# ---------------------------------------------------------------------------
+
+@trainings_bp.route('/toggle_status/<int:training_id>', methods=['POST'])
+@login_required
+@role_required('super_admin', 'state_admin')
+def toggle_training_status(training_id: int):
+    """
+    Alterna el estatus de un tema formativo entre Activo e Inactivo.
+    Implementación basada en el modelo del módulo de usuarios (US-16).
+    """
+    try:
+        # 1. Buscamos el tema formativo validando el borrado lógico (deleted_at IS NULL)
+        training = Training.query.filter_by(id=training_id, deleted_at=None).first_or_404()
+        
+        # 2. Obtenemos los estatus usando los códigos estandarizados (STAT-001 Activo, STAT-002 Inactivo)
+        active_status = Status.query.filter_by(status_code='STAT-001').first()
+        inactive_status = Status.query.filter_by(status_code='STAT-002').first()
+        
+        if not active_status or not inactive_status:
+            return jsonify({
+                'success': False, 
+                'message': 'Error de configuración: Los estatus no están definidos correctamente.'
+            }), 500
+
+        # 3. Alternamos el estatus (Lógica idéntica al toggle_status de usuarios)
+        training._skip_auto_audit = True
+        old_status = training.status_id
+        if old_status == active_status.id:
+            training.status_id = inactive_status.id
+            new_status_name = inactive_status.status_name
+            old_code, new_code = 'STAT-001', 'STAT-002'
+            is_active_flag = False
+            estado_str = "desactivado"
+        else:
+            training.status_id = active_status.id
+            new_status_name = active_status.status_name
+            old_code, new_code = 'STAT-002', 'STAT-001'
+            is_active_flag = True
+            estado_str = "activado"
+            
+        # 4. Guardamos los cambios
+        db.session.commit()
+
+        # Notificación Post-Commit: Cambio de Estatus de Tema Formativo
+        try:
+            admin_name = _get_actor_name(current_user)
+            mod_name = training.training_module.name if training.training_module else "General"
+            sev = NotificationType.SUCCESS if is_active_flag else NotificationType.WARNING
+            action_lbl = "activado y disponible" if is_active_flag else "inactivado temporalmente"
+
+            NotificationService.notify_role(
+                role_name="state_admin",
+                event=NotificationEvent.TRAINING_TOPIC_STATUS_CHANGED,
+                context={
+                    "topic_name": training.name,
+                    "module_name": mod_name,
+                    "action_label": action_lbl,
+                    "admin_name": admin_name,
+                    "impact_note": ""
+                },
+                exclude_user_id=current_user.id,
+                severity_override=sev,
+                redirect_url="/trainings/",
+                action_text="Ver Catálogo"
+            )
+
+            # Si se inactivó, verificar si hay instituciones con solicitudes activas (STAT-003..006)
+            if not is_active_flag:
+                active_reqs = (
+                    Request.query
+                    .join(Status, Request.status_id == Status.id)
+                    .filter(
+                        Request.training_id == training.id,
+                        Request.historical == False,
+                        Status.status_code.in_(['STAT-003', 'STAT-004', 'STAT-005', 'STAT-006'])
+                    )
+                    .all()
+                )
+                notified_insts = set()
+                for r in active_reqs:
+                    inst_id = (
+                        r.institutional_staff.institution_id
+                        if r.institutional_staff else None
+                    )
+                    if inst_id and inst_id not in notified_insts:
+                        notified_insts.add(inst_id)
+                        NotificationService.notify_institution_affiliates(
+                            institution_id=inst_id,
+                            event=NotificationEvent.TRAINING_TOPIC_STATUS_CHANGED,
+                            context={
+                                "topic_name": training.name,
+                                "module_name": mod_name,
+                                "action_label": "suspendido temporalmente del catálogo",
+                                "admin_name": admin_name,
+                                "impact_note": f" Esto puede requerir reprogramación o ajuste en su solicitud activa ({r.request_code})."
+                            },
+                            severity_override=NotificationType.DANGER,
+                            redirect_url=f"/requests/{r.id}/detail",
+                            action_text="Ver Solicitud Afectada"
+                        )
+        except Exception as notif_err:
+            current_app.logger.warning(f"No se pudo emitir notificación TRAINING_TOPIC_STATUS_CHANGED: {notif_err}")
+        
+        # 5. Auditoría Institucional en sages.binnacle
+        try:
+            from app.binnacle.services import BinnacleService
+            from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+            BinnacleService.create_log_entry(
+                module=AuditModule.TRAININGS.value,
+                action_type=AuditAction.CAMBIO_ESTATUS_TEMA_FORMATIVO.value,
+                description=f"El tema formativo '{training.name}' ({training.training_code}) ha sido {estado_str} exitosamente.",
+                target_table='sages.trainings',
+                record_id=training.id,
+                old_values={'status_code': old_code},
+                new_values={'status_code': new_code},
+                status=AuditStatus.MODIFICADO.value
+            )
+        except Exception as audit_err:
+            current_app.logger.warning(f"[trainings.toggle_training_status] Error en bitácora: {audit_err}")
+        
+        # Como indicaste que el frontend lo actualizará dinámicamente, devolvemos JSON
+        return jsonify({
+            'success': True,
+            'message': f'Tema formativo {estado_str} exitosamente.',
+            'new_status_name': new_status_name,
+            'is_active': is_active_flag,
+            'training_id': training.id
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"[trainings.toggle_training_status] Error al cambiar estatus: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Ocurrió un error al intentar cambiar el estatus del tema formativo.'
+        }), 500
+
+
+
+# ---------------------------------------------------------------------------
+# Borrado Lógico de Tema Formativo (Irreversible) - Tarea 2
+# ---------------------------------------------------------------------------
+
+@trainings_bp.route('/delete/<int:training_id>', methods=['POST'])
+@login_required
+@role_required('super_admin') 
+def delete_training(training_id: int):
+    """
+    Realiza el borrado lógico de un tema formativo.
+    Asigna un estatus de eliminado y registra la fecha/hora en deleted_at.
+    """
+    try:
+        # 1. Validamos que el tema exista y no esté eliminado previamente
+        training = Training.query.filter_by(id=training_id, deleted_at=None).first_or_404()
+        
+        # 2. Obtenemos el estatus de Eliminado oficial (STAT-010)
+        deleted_status = Status.query.filter_by(status_code='STAT-010').first()
+        
+        if not deleted_status:
+            return jsonify({
+                'success': False, 
+                'message': 'Error: Estatus de Eliminado no configurado en el sistema.'
+            }), 500
+
+        # 3. Aplicamos el borrado lógico
+        old_status_code = training.status.status_code if training.status else 'STAT-001'
+        training._skip_auto_audit = True
+        training.status_id = deleted_status.id
+        training.deleted_at = datetime.now()
+        
+        db.session.commit()
+
+        try:
+            from app.binnacle.services import BinnacleService
+            from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+            BinnacleService.create_log_entry(
+                module=AuditModule.TRAININGS.value,
+                action_type=AuditAction.ELIMINAR_TEMA_FORMATIVO.value,
+                description=f"Eliminación lógica del tema formativo '{training.name}' ({training.training_code})",
+                target_table='sages.trainings',
+                record_id=training.id,
+                old_values={'status_code': old_status_code, 'deleted_at': None},
+                new_values={'status_code': 'STAT-010', 'deleted_at': training.deleted_at.isoformat()},
+                status=AuditStatus.MODIFICADO.value
+            )
+        except Exception as audit_err:
+            current_app.logger.warning(f"[trainings.delete_training] Error en bitácora: {audit_err}")
+
+        # Notificación Post-Commit: Taller Retirado del Catálogo
+        try:
+            data = request.get_json(silent=True) or request.form or {}
+            reason = data.get('reason') or data.get('motivo') or "Retiro por reestructuración curricular"
+            admin_name = _get_actor_name(current_user)
+
+            NotificationService.notify_role(
+                role_name="state_admin",
+                event=NotificationEvent.TRAINING_TOPIC_DELETED,
+                context={
+                    "topic_name": training.name,
+                    "admin_name": admin_name,
+                    "reason": reason
+                },
+                exclude_user_id=current_user.id,
+                severity_override=NotificationType.DANGER,
+                redirect_url="/trainings/",
+                action_text="Revisar Catálogo"
+            )
+
+            # Si alguna institución tenía una solicitud activa en este taller, avisar a sus afiliados
+            active_reqs = (
+                Request.query
+                .join(Status, Request.status_id == Status.id)
+                .filter(
+                    Request.training_id == training.id,
+                    Request.historical == False,
+                    Status.status_code.in_(['STAT-003', 'STAT-004', 'STAT-005', 'STAT-006'])
+                )
+                .all()
+            )
+            notified_insts = set()
+            for r in active_reqs:
+                inst_id = (
+                    r.institutional_staff.institution_id
+                    if r.institutional_staff else None
+                )
+                if inst_id and inst_id not in notified_insts:
+                    notified_insts.add(inst_id)
+                    NotificationService.notify_institution_affiliates(
+                        institution_id=inst_id,
+                        event=NotificationEvent.TRAINING_TOPIC_DELETED,
+                        context={
+                            "topic_name": training.name,
+                            "admin_name": admin_name,
+                            "reason": f"{reason} (Afecta solicitud {r.request_code})"
+                        },
+                        severity_override=NotificationType.DANGER,
+                        redirect_url=f"/requests/{r.id}/detail",
+                        action_text="Ver Solicitud"
+                    )
+        except Exception as notif_err:
+            current_app.logger.warning(f"No se pudo emitir notificación TRAINING_TOPIC_DELETED: {notif_err}")
+
+        return jsonify({
+            'success': True,
+            'message': 'Tema formativo eliminado exitosamente.'
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"[trainings.delete_training] Error al realizar borrado lógico: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Ocurrió un error al intentar eliminar el tema formativo.'
+        }), 500
+
+
+        
+        # ---------------------------------------------------------------------------
+# Vista Focalizada de Módulo Rector: Despliegue de Temas Formativos
+# ---------------------------------------------------------------------------
+
+@trainings_bp.route('/module/<int:module_id>', methods=['GET'])
+@login_required
+@check_permissions('view_training_catalog')
+def module_topics(module_id: int):
+    """
+    Vista focalizada de un Módulo Rector.
+    Lista todos los temas formativos oficiales asociados a dicho módulo en formato tabular.
+    - Solicitantes: Acceso solo a módulos activos y temas activos (STAT-001) no eliminados.
+    - Administradores: Acceso a todos los temas registrados (activos e inactivos) no eliminados.
+    """
+    module = get_module_by_id(module_id)
+    if not module:
+        abort(404)
+
+    is_admin_user = _is_admin()
+
+    # Si el módulo está inactivo y no es administrador, no permitir acceso
+    if not module.is_active and not is_admin_user:
+        abort(404)
+
+    # Parámetros de búsqueda y paginación
+    search_query = request.args.get('search', '').strip()
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+
+    # Consulta base: temas del módulo no eliminados lógicamente
+    query = (
+        Training.query
+        .join(Status, Training.status_id == Status.id)
+        .filter(
+            Training.training_module_id == module.id,
+            Training.deleted_at.is_(None)
+        )
+    )
+
+    # Si es solicitante, filtrar estrictamente temas con estatus activo (STAT-001)
+    if not is_admin_user:
+        query = query.filter(Status.status_code == 'STAT-001')
+
+    # Filtro opcional por búsqueda
+    if search_query:
+        sanitized_term = search_query.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+        search_pattern = f"%{sanitized_term}%"
+        query = query.filter(Training.name.ilike(search_pattern))
+
+    pagination = query.order_by(Training.id.asc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    trainings = pagination.items
+
+    return render_template(
+        'trainings/module_topics.html',
+        module=module,
+        trainings=trainings,
+        pagination=pagination,
+        total_topics=pagination.total,
+        search_query=search_query,
+        is_super_admin=_is_super_admin(),
+        is_admin=is_admin_user,
+        user_role=_get_user_role()
+    )

@@ -1,0 +1,368 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Generar Reportes – SAGES{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/analytics.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="analytics-container">
+
+    <!-- ── CABECERA ESTILO BANNER INSTITUCIONAL ── -->
+    <div class="dashboard-banner">
+        <div class="banner-date">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span id="current-wizard-date"></span>
+        </div>
+        <div class="banner-title">
+            Generador de Reportes Parametrizados
+        </div>
+    </div>
+
+    <!-- ── BOTÓN VOLVER AL TABLERO (DEBAJO DEL CABEZAL) ── -->
+    <div class="wizard-nav-toolbar">
+        <a href="{{ url_for('analytics.index') }}" class="btn-cancel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            <span>Volver al Tablero</span>
+        </a>
+    </div>
+
+    <!-- ── LAYOUT DE 2 COLUMNAS: WIZARD (IZQ) Y FILTROS LATERALES (DER) ── -->
+    <div class="wizard-main-layout">
+
+        <!-- ========================================================
+             COLUMNA IZQUIERDA: ASISTENTE EN 2 PASOS
+             ======================================================== -->
+        <main class="wizard-card-container">
+
+            <!-- Stepper Superior -->
+            <div class="wizard-stepper">
+                <div class="wizard-step-indicator active" id="step-nav-1">
+                    <div class="step-circle">1</div>
+                    <div class="step-label-group">
+                        <span class="step-number-text">PASO 1</span>
+                        <span class="step-title-text">Parámetros del Reporte</span>
+                    </div>
+                </div>
+                <div class="wizard-step-connector"></div>
+                <div class="wizard-step-indicator" id="step-nav-2">
+                    <div class="step-circle">2</div>
+                    <div class="step-label-group">
+                        <span class="step-number-text">PASO 2</span>
+                        <span class="step-title-text">Opciones de Exportación</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulario Principal -->
+            <form id="form-report-wizard" method="POST" action="#">
+                {{ form.hidden_tag() }}
+
+                <!-- ── ETAPA 1: PARÁMETROS DEL REPORTE ── -->
+                <section class="wizard-panel active" id="wizard-panel-1">
+                    <div class="wizard-panel-header">
+                        <h2>Configuración General del Reporte</h2>
+                        <p>Especifique la naturaleza de la información que desea consolidar en el archivo.</p>
+                    </div>
+
+                    <!-- 1. Nombre del Reporte -->
+                    <div class="wizard-form-group">
+                        <label class="wizard-label" for="{{ form.report_name.id }}">
+                            Nombre del Reporte <span class="required-mark">*</span>
+                        </label>
+                        {{ form.report_name(class="wizard-input", placeholder="Ej: Resumen de Rendimiento y Cobertura Marzo 2026", maxlength="150") }}
+                        <span class="wizard-hint">Este título figurará en la cabecera oficial del archivo generado.</span>
+                    </div>
+
+                    <!-- 2. Tipo de Reporte -->
+                    <div class="wizard-form-group">
+                        <label class="wizard-label" for="{{ form.report_type.id }}">
+                            Tipo de Reporte <span class="required-mark">*</span>
+                        </label>
+                        {{ form.report_type(class="wizard-select") }}
+                        <span class="wizard-hint">Seleccione la dimensión institucional a evaluar.</span>
+                    </div>
+
+                    <!-- 3. Fuentes de Datos a Incluir -->
+                    <div class="wizard-form-group" style="margin-top: 1.5rem;">
+                        <label class="wizard-label">Fuentes de Datos a Incluir</label>
+                        <div class="wizard-checkbox-grid">
+                            
+                            <label class="wizard-checkbox-card">
+                                {{ form.include_user_data(id="chk-include-user") }}
+                                <div class="checkbox-text">
+                                    <strong>Datos de Usuario / Solicitante</strong>
+                                    <span>Cédula, nombre, cargo directivo y teléfonos de contacto del plantel.</span>
+                                </div>
+                            </label>
+
+                            <label class="wizard-checkbox-card">
+                                {{ form.include_request_details(id="chk-include-requests") }}
+                                <div class="checkbox-text">
+                                    <strong>Detalles Operativos de Solicitud</strong>
+                                    <span>Código de trámite REQ, fecha de radicación, módulo rector y tema formativo.</span>
+                                </div>
+                            </label>
+
+                            <label class="wizard-checkbox-card">
+                                {{ form.include_metrics(id="chk-include-metrics") }}
+                                <div class="checkbox-text">
+                                    <strong>Métricas y Totales Agregados</strong>
+                                    <span>Sumatorias, tasa de resolución, justificaciones de demora y promedios de satisfacción.</span>
+                                </div>
+                            </label>
+
+                        </div>
+                    </div>
+
+                    <div class="wizard-footer-nav">
+                        <div></div>
+                        <button type="button" id="btn-next-step" class="btn-wizard-next">
+                            <span>Siguiente: Opciones de Formato</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                <polyline points="12 5 19 12 12 19"></polyline>
+                            </svg>
+                        </button>
+                    </div>
+                </section>
+
+                <!-- ── ETAPA 2: OPCIONES DE EXPORTACIÓN Y DESPACHO ── -->
+                <section class="wizard-panel" id="wizard-panel-2" style="display: none;">
+                    <div class="wizard-panel-header">
+                        <h2>Formato de Archivo y Canal de Entrega</h2>
+                        <p>Seleccione la salida documental adecuada para su presentación o almacenamiento local.</p>
+                    </div>
+
+                    <!-- 1. Formato de Archivo (Botones Seleccionables) -->
+                    <div class="wizard-form-group">
+                        <label class="wizard-label">Formato de Archivo <span class="required-mark">*</span></label>
+                        
+                        <div class="format-cards-selector">
+                            <!-- Opción PDF -->
+                            <label class="format-card selected" data-format="pdf">
+                                <input type="radio" name="export_format" value="pdf" checked style="display: none;">
+                                <div class="format-icon pdf-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                                        <polyline points="10 9 9 9 8 9"></polyline>
+                                    </svg>
+                                </div>
+                                <div class="format-title">Documento PDF</div>
+                                <div class="format-desc">Informe formal con membrete oficial CORPOELEC y orientación horizontal.</div>
+                            </label>
+
+                            <!-- Opción Excel -->
+                            <label class="format-card" data-format="xlsx">
+                                <input type="radio" name="export_format" value="xlsx" style="display: none;">
+                                <div class="format-icon xlsx-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                        <line x1="9" y1="3" x2="9" y2="21"></line>
+                                        <line x1="3" y1="9" x2="21" y2="9"></line>
+                                    </svg>
+                                </div>
+                                <div class="format-title">Excel (.xlsx)</div>
+                                <div class="format-desc">Hoja de cálculo estructurada con estilos, celdas tipadas y sanitización.</div>
+                            </label>
+
+                            <!-- Opción CSV -->
+                            <label class="format-card" data-format="csv">
+                                <input type="radio" name="export_format" value="csv" style="display: none;">
+                                <div class="format-icon csv-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                                        <polyline points="13 2 13 9 20 9"></polyline>
+                                    </svg>
+                                </div>
+                                <div class="format-title">Datos CSV</div>
+                                <div class="format-desc">Archivo plano con codificación UTF-8 con BOM delimitado por punto y coma.</div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 2. Canal de Entrega -->
+                    <div class="wizard-form-group" style="margin-top: 1.75rem;">
+                        <label class="wizard-label">Canal de Entrega</label>
+                        
+                        <div class="delivery-options-wrap">
+                            <label class="delivery-radio-label">
+                                <input type="radio" name="delivery_method" value="local" checked id="delivery-local">
+                                <div class="delivery-radio-text">
+                                    <strong>Guardar en este Equipo</strong>
+                                    <span>Descarga binaria inmediata a través del navegador web.</span>
+                                </div>
+                            </label>
+
+                            <label class="delivery-radio-label">
+                                <input type="radio" name="delivery_method" value="email" id="delivery-email">
+                                <div class="delivery-radio-text">
+                                    <strong>Enviar por Correo Electrónico Institucional</strong>
+                                    <span>Despacho asíncrono con archivo adjunto enviado directamente a su buzón personal.</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="wizard-footer-nav">
+                        <button type="button" id="btn-prev-step" class="btn-wizard-prev">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="19" y1="12" x2="5" y2="12"></line>
+                                <polyline points="12 19 5 12 12 5"></polyline>
+                            </svg>
+                            <span>Anterior: Parámetros</span>
+                        </button>
+                        
+                        <button type="button" id="btn-submit-wizard" class="btn-wizard-generate">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            <span>Generar Reporte</span>
+                        </button>
+                    </div>
+                </section>
+
+            </form>
+        </main>
+
+        <!-- ========================================================
+             COLUMNA DERECHA: BARRA LATERAL DE FILTROS SINCRONIZADA
+             ======================================================== -->
+        <aside class="indicators-filter-sidebar">
+            <div class="sidebar-filter-header">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                </svg>
+                <h3>Filtros de Segmentación</h3>
+            </div>
+
+            <div class="filter-sidebar-form">
+                
+                <!-- 1. Modalidad Temporal -->
+                <div class="filter-section-group">
+                    <label class="filter-group-title">Rango de Tiempo</label>
+                    <div class="radio-time-selector">
+                        <label class="radio-label">
+                            <input type="radio" name="w_time_mode" value="month" {% if not ctx.preselected.date_from %}checked{% endif %} id="w-radio-month">
+                            <span>Mes</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="w_time_mode" value="range" {% if ctx.preselected.date_from %}checked{% endif %} id="w-radio-range">
+                            <span>Rango de fecha</span>
+                        </label>
+                    </div>
+
+                    <div id="w-wrapper-month" class="temporal-input-box" style="{% if ctx.preselected.date_from %}display: none;{% endif %}">
+                        <select id="w-filter-month" class="filter-control">
+                            <option value="1">Enero</option>
+                            <option value="2">Febrero</option>
+                            <option value="3">Marzo</option>
+                            <option value="4">Abril</option>
+                            <option value="5">Mayo</option>
+                            <option value="6">Junio</option>
+                            <option value="7">Julio</option>
+                            <option value="8">Agosto</option>
+                            <option value="9" {% if ctx.preselected.month == 9 or not ctx.preselected.month %}selected{% endif %}>Septiembre</option>
+                            <option value="10" {% if ctx.preselected.month == 10 %}selected{% endif %}>Octubre</option>
+                            <option value="11" {% if ctx.preselected.month == 11 %}selected{% endif %}>Noviembre</option>
+                            <option value="12" {% if ctx.preselected.month == 12 %}selected{% endif %}>Diciembre</option>
+                        </select>
+                    </div>
+
+                    <div id="w-wrapper-range" class="temporal-input-box" style="{% if not ctx.preselected.date_from %}display: none;{% endif %}">
+                        <div class="date-input-row">
+                            <label>Desde:</label>
+                            <input type="date" id="w-date-from" class="filter-control" value="{{ ctx.preselected.date_from }}">
+                        </div>
+                        <div class="date-input-row" style="margin-top: 0.5rem;">
+                            <label>Hasta:</label>
+                            <input type="date" id="w-date-to" class="filter-control" value="{{ ctx.preselected.date_to }}">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Ámbito Territorial (Blindaje Anti-IDOR) -->
+                <div class="filter-section-group">
+                    <label class="filter-group-title">Ámbito Territorial</label>
+                    
+                    <div class="filter-field-item">
+                        <label for="w-filter-state">Estado:</label>
+                        {% if ctx.user_role == 'super_admin' %}
+                        <select id="w-filter-state" class="filter-control">
+                            <option value="">Todos los Estados (Nacional)</option>
+                            {% for st in ctx.states %}
+                            <option value="{{ st.id }}" {% if ctx.preselected.state_id == st.id %}selected{% endif %}>{{ st.name }}</option>
+                            {% endfor %}
+                        </select>
+                        {% else %}
+                        <input type="text" class="filter-control locked-field" value="{{ ctx.user_state.state_name }}" readonly title="Jurisdicción fija asignada">
+                        <input type="hidden" id="w-filter-state" value="{{ ctx.user_state.state_id }}">
+                        {% endif %}
+                    </div>
+
+                    <div class="filter-field-item">
+                        <label for="w-filter-municipality">Municipio:</label>
+                        <select id="w-filter-municipality" class="filter-control" {% if ctx.user_role == 'super_admin' and not ctx.preselected.state_id %}disabled{% endif %}>
+                            <option value="">Todos los Municipios</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-field-item">
+                        <label for="w-filter-parish">Parroquia:</label>
+                        <select id="w-filter-parish" class="filter-control" disabled>
+                            <option value="">Todas las Parroquias</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 3. Clasificación Institucional (SR-F-023) -->
+                <div class="filter-section-group">
+                    <label class="filter-group-title">Clasificación Institucional</label>
+
+                    <div class="filter-field-item">
+                        <label for="w-filter-scope">Sector:</label>
+                        <select id="w-filter-scope" class="filter-control">
+                            <option value="">Públicos y Privados</option>
+                            {% for sc in ctx.institution_scopes %}
+                            <option value="{{ sc.id }}" {% if ctx.preselected.institution_scope_id == sc.id %}selected{% endif %}>{{ sc.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="filter-field-item">
+                        <label for="w-filter-level">Nivel Educativo:</label>
+                        <select id="w-filter-level" class="filter-control">
+                            <option value="">Todos los Niveles</option>
+                            {% for lv in ctx.educational_levels %}
+                            <option value="{{ lv.id }}" {% if ctx.preselected.educational_level_id == lv.id %}selected{% endif %}>{{ lv.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+            </div>
+        </aside>
+
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='JS/sweetalert2.all.min.js') }}"></script>
+<script src="{{ url_for('static', filename='JS/analytics_wizard.js') }}"></script>
+{% endblock %}

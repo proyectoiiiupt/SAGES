@@ -3,11 +3,14 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/dashboard.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/users_list.css') }}">
+{% if metrics.is_super_admin %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/dashboard_map.css') }}">
+{% endif %}
 <style>
-    /* Layout de cuadrícula ajustado a 70% / 30% */
+    /* Layout de cuadrícula ajustado a 70% / 30% para super_admin, o 100% para otros */
     .dashboard-bottom-grid {
         display: grid;
-        grid-template-columns: 70% 30%;
+        grid-template-columns: {% if metrics.is_super_admin %}70% 30%{% else %}1fr{% endif %};
         gap: 1.5rem;
         margin-top: 2rem;
     }
@@ -275,10 +278,81 @@
             </div>
         </div>
 
-        <!-- Columna Derecha: Espacio reservado para el Mapa -->
-        <div class="map-placeholder" style="border: 2px dashed #cbd5e1; border-radius: 12px; display: flex; align-items: center; justify-content: center; min-height: 300px; background: #f8fafc;">
-            <span style="color: #94a3b8; font-weight: 500; text-align: center; padding: 1rem;">Espacio reservado para el Mapa (Futura Iteración)</span>
+        {% if metrics.is_super_admin %}
+        <!-- Columna Derecha: Widget del Mapa Geográfico Nacional -->
+        <div class="map-widget-card" id="dashboard-map-widget">
+            <div class="map-widget-header">
+                <div class="map-widget-title-row">
+                    <h3 class="map-widget-title">
+                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+                            <line x1="8" y1="2" x2="8" y2="18"></line>
+                            <line x1="16" y1="6" x2="16" y2="22"></line>
+                        </svg>
+                        Distribución Nacional
+                    </h3>
+                    <span class="map-badge-scope">26 Estados</span>
+                </div>
+                <!-- Chips de Filtrado Rápido -->
+                <div class="map-status-chips">
+                    <button type="button" class="map-chip chip-all active" data-filter="all">
+                        <span class="chip-dot"></span> Todas
+                        <span class="chip-counter" id="chip-total-all">0</span>
+                    </button>
+                    <button type="button" class="map-chip chip-red" data-filter="red">
+                        <span class="chip-dot"></span> Nuevas
+                        <span class="chip-counter" id="chip-total-red">0</span>
+                    </button>
+                    <button type="button" class="map-chip chip-yellow" data-filter="yellow">
+                        <span class="chip-dot"></span> En Trámite
+                        <span class="chip-counter" id="chip-total-yellow">0</span>
+                    </button>
+                    <button type="button" class="map-chip chip-green" data-filter="green">
+                        <span class="chip-dot"></span> Completadas
+                        <span class="chip-counter" id="chip-total-green">0</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Contenedor del Mapa SVG -->
+            <div class="map-svg-container" id="map-svg-wrapper">
+                <div class="map-loading-overlay" id="map-loading-overlay">
+                    <div class="map-spinner"></div>
+                    <span>Cargando mapa territorial...</span>
+                </div>
+                <!-- Tooltip flotante global del mapa -->
+                <div id="map-floating-tooltip" class="map-tooltip"></div>
+                <!-- Controles de Zoom Flotantes -->
+                <div class="map-zoom-controls">
+                    <button type="button" class="map-zoom-btn" id="btn-zoom-in" title="Acercar (+)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    </button>
+                    <button type="button" class="map-zoom-btn" id="btn-zoom-out" title="Alejar (-)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    </button>
+                    <button type="button" class="map-zoom-btn" id="btn-zoom-reset" title="Restaurar vista inicial">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Leyenda de Estatus -->
+            <div class="map-legend">
+                <span class="legend-item"><span class="legend-dot dot-red"></span>Nuevas</span>
+                <span class="legend-item"><span class="legend-dot dot-yellow"></span>En Proceso</span>
+                <span class="legend-item"><span class="legend-dot dot-green"></span>Completadas</span>
+                <span class="legend-item"><span class="legend-dot dot-neutral"></span>Sin Solicitudes</span>
+            </div>
+
+            <!-- Footer del Widget -->
+            <div class="map-widget-footer">
+                <p class="map-hint-text">Pulsa un estado para ver demanda</p>
+                <a href="{{ url_for('dashboard.map_fullscreen_view') }}" class="btn-map-expand">
+                    Ver mapa completo &rarr;
+                </a>
+            </div>
         </div>
+        {% endif %}
     </div>
 
 </div>
@@ -286,4 +360,7 @@
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='JS/dashboard.js') }}"></script>
+{% if metrics.is_super_admin %}
+<script src="{{ url_for('static', filename='JS/dashboard_map.js') }}"></script>
+{% endif %}
 {% endblock %}

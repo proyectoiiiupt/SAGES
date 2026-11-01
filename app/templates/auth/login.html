@@ -55,7 +55,7 @@
             {% set first_message = messages[0][1] if messages else '' %}
             {% set is_password_success = (first_message == 'Contraseña actualizada. Inicia sesión con tu nueva contraseña.') %}
             
-            <div id="mensajeError" class="error-container {% if first_category == 'success' and not is_password_success %}success{% endif %}" style="display: {% if messages and not is_password_success %}block{% else %}none{% endif %};">
+            <div id="mensajeError" class="error-container {% if first_category in ['success', 'info'] and not is_password_success %}success{% endif %}" style="display: {% if messages and not is_password_success %}block{% else %}none{% endif %};">
                 {% if not is_password_success %}{{ first_message }}{% endif %}
             </div>
 
@@ -64,7 +64,7 @@
             {% endif %}
             {% endwith %}
 
-            <form id="corpoelecLoginForm" action="{{ url_for('auth.login') }}" method="POST" class="auth-form" novalidate>
+            <form id="corpoelecLoginForm" action="{{ url_for('auth.login', next=request.args.get('next')) if request.args.get('next') else url_for('auth.login') }}" method="POST" class="auth-form" novalidate>
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="form-group">
                     <label class="form-label" for="id_card">N° de Cédula</label>

@@ -1,0 +1,90 @@
+<!-- Modal Asíncrono de Lectura de Justificación de Mora SLA -->
+<div class="audit-modal-backdrop" id="justificationModal" tabindex="-1" role="dialog" aria-labelledby="justificationModalTitle" aria-hidden="true" style="display: none;">
+    <div class="audit-modal-dialog" role="document">
+        <div class="audit-modal-content">
+            <!-- Cabecera del Modal -->
+            <div class="audit-modal-header">
+                <div class="audit-modal-header-left">
+                    <div class="audit-modal-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="audit-modal-title" id="justificationModalTitle">Descargo Operativo</h2>
+                        <span class="audit-modal-subtitle">Inspección de Justificación Técnica de Demora SLA</span>
+                    </div>
+                </div>
+                <button type="button" class="audit-modal-close" id="closeJustificationModalBtn" aria-label="Cerrar modal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Cuerpo del Modal -->
+            <div class="audit-modal-body">
+                <!-- Loader interno del modal -->
+                <div class="audit-modal-loader" id="modalLoader" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="sr-only">Cargando descargo...</span>
+                    </div>
+                    <p>Consultando el descargo registrado en base de datos...</p>
+                </div>
+
+                <!-- Contenido con datos del descargo -->
+                <div class="audit-modal-data" id="modalDataContent">
+                    <div class="audit-detail-grid">
+                        <div class="audit-detail-item">
+                            <span class="detail-label">Plantel Educativo</span>
+                            <span class="detail-value text-bold" id="modal-institution-name">-</span>
+                        </div>
+                        <div class="audit-detail-item">
+                            <span class="detail-label">Tipo de Demora</span>
+                            <span class="detail-badge" id="modal-justification-type">-</span>
+                        </div>
+                        <div class="audit-detail-item">
+                            <span class="detail-label">Motivo Oficial Tipificado</span>
+                            <span class="detail-value text-primary font-semibold" id="modal-reason-name">-</span>
+                        </div>
+                        <div class="audit-detail-item">
+                            <span class="detail-label">Fecha y Hora de Registro</span>
+                            <span class="detail-value" id="modal-created-at">-</span>
+                        </div>
+                        <div class="audit-detail-item audit-detail-full">
+                            <span class="detail-label">Funcionario Declarante</span>
+                            <span class="detail-value" id="modal-submitted-by">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Caja de justificación circunstanciada -->
+                    <div class="audit-justification-box">
+                        <div class="audit-justification-title">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="16" x2="12" y2="12"></line>
+                                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                            </svg>
+                            Texto Circunstanciado del Descargo Técnico
+                        </div>
+                        <p class="audit-justification-text" id="modal-justification-text">
+                            -
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pie del Modal -->
+            <div class="audit-modal-footer">
+                <button type="button" class="btn-modal-close" id="modalCloseActionBtn">
+                    Cerrar Inspección
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

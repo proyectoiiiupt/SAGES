@@ -1,0 +1,138 @@
+<!-- Modal de Inspección Forense de Evidencias Digitales Custodiadas (US-45) -->
+<div class="evidence-modal-backdrop" id="evidenceInspectionModal" role="dialog" aria-modal="true" aria-labelledby="evidenceInspectionModalLabel" style="display: none;">
+    <div class="evidence-modal-dialog" role="document">
+        <div class="evidence-modal-content">
+            
+            <!-- Cabecera del Visor -->
+            <div class="evidence-modal-header">
+                <div class="evidence-header-info">
+                    <div class="evidence-header-icon" id="evidence-header-icon-box">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                    </div>
+                    <div>
+                        <h5 class="evidence-modal-title" id="evidenceInspectionModalLabel">Inspección de Documento Custodiado</h5>
+                        <div class="evidence-meta-strip">
+                            <span class="badge-evidence-type" id="evidence-modal-badge-format">DOCUMENTO</span>
+                            <span class="evidence-meta-text" id="evidence-modal-filename">soporte_documental</span>
+                            <span class="evidence-meta-separator">•</span>
+                            <span class="evidence-meta-text" id="evidence-modal-filesize">0 KB</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="evidence-header-actions">
+                    <a href="#" id="evidence-download-btn" class="btn-evidence-tool btn-evidence-download" title="Descargar soporte probatorio original" target="_blank" download>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        <span>Descargar</span>
+                    </a>
+                    <button type="button" class="btn-evidence-close" id="closeEvidenceModalBtn" aria-label="Cerrar visor">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Cuerpo del Visor Multimedia -->
+            <div class="evidence-modal-body">
+                
+                <!-- Spinner de Carga -->
+                <div id="evidence-loading-state" class="evidence-loading-overlay">
+                    <div class="evidence-spinner-ring"></div>
+                    <p class="evidence-loading-text">Cargando soporte custodiado de forma segura...</p>
+                </div>
+
+                <!-- Banner de Alerta / Error de Carga -->
+                <div id="evidence-error-state" class="evidence-error-banner" style="display: none;">
+                    <div class="evidence-error-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                    </div>
+                    <div>
+                        <h6 class="evidence-error-title">No fue posible cargar el soporte documental</h6>
+                        <p class="evidence-error-desc">El archivo solicitado no se encuentra disponible físicamente en el servidor de resguardo o el acceso fue restringido por política de custodia.</p>
+                    </div>
+                </div>
+
+                <!-- Viewport PDF -->
+                <div id="evidence-pdf-container" class="evidence-viewport-container" style="display: none;">
+                    <iframe id="evidence-pdf-frame" src="about:blank" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>
+                </div>
+
+                <!-- Viewport Imagen (Fotografías / Actas) -->
+                <div id="evidence-image-container" class="evidence-viewport-container" style="display: none;">
+                    <!-- Barra de Herramientas Flotante para Imagen -->
+                    <div class="evidence-floating-toolbar">
+                        <button type="button" class="evidence-tool-btn" id="btn-rotate-left" title="Rotar 90° a la izquierda">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M2.5 2v6h6"></path>
+                                <path d="M2.66 15.57a10 10 0 1 0 .57-8.38L2.5 8"></path>
+                            </svg>
+                        </button>
+                        <button type="button" class="evidence-tool-btn" id="btn-rotate-right" title="Rotar 90° a la derecha">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21.5 2v6h-6"></path>
+                                <path d="M21.34 15.57a10 10 0 1 1-.57-8.38L21.5 8"></path>
+                            </svg>
+                        </button>
+                        <div class="toolbar-divider"></div>
+                        <button type="button" class="evidence-tool-btn" id="btn-zoom-in" title="Acercar (+)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                <line x1="11" y1="8" x2="11" y2="14"></line>
+                                <line x1="8" y1="11" x2="14" y2="11"></line>
+                            </svg>
+                        </button>
+                        <button type="button" class="evidence-tool-btn" id="btn-zoom-out" title="Alejar (-)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                <line x1="8" y1="11" x2="14" y2="11"></line>
+                            </svg>
+                        </button>
+                        <div class="toolbar-divider"></div>
+                        <button type="button" class="evidence-tool-btn" id="btn-zoom-reset" title="Restablecer tamaño y orientación">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                                <path d="M3 3v5h5"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Lienzo de Inspección de Imagen -->
+                    <div class="evidence-img-stage" id="evidence-img-stage">
+                        <img id="evidence-image-preview" src="" alt="Evidencia Documental Custodiada" class="evidence-img-element" />
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Pie del Visor -->
+            <div class="evidence-modal-footer">
+                <div class="evidence-footer-caption">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    </svg>
+                    <span>Documento bajo custodia digital inalterable con protección contra salto de directorio (Path Traversal).</span>
+                </div>
+                <button type="button" class="btn-evidence-secondary" id="closeEvidenceModalSecondaryBtn">Cerrar Visor</button>
+            </div>
+
+        </div>
+    </div>
+</div>

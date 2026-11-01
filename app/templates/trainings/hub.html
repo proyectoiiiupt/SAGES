@@ -1,0 +1,322 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Catálogo de Formación – SAGES{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/trainings.css') }}">
+{% endblock %}
+
+{% block content %}
+{# ──────────────────────────────────────────────────────────────────────
+   HUB DE NAVEGACIÓN POR MÓDULOS RECTORES
+   Propósito: Landing de Formación con tarjetas de alto impacto visual
+   ────────────────────────────────────────────────────────────────────── #}
+
+<div class="hub-page">
+
+    {# ╔══════════════════════════════════════════════════════════════╗
+       ║  CABECERA DE PÁGINA (estándar instituciones)                 ║
+       ╚══════════════════════════════════════════════════════════════╝ #}
+    <div class="page-header">
+        <div class="page-title">
+            <h1>Catálogo de Formación</h1>
+        </div>
+        <div class="page-date">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span id="hub-current-date"></span>
+        </div>
+    </div>
+
+    {# ╔══════════════════════════════════════════════════════════════╗
+       ║  BANDA DE INFO: descripción + badge + botones              ║
+       ╚══════════════════════════════════════════════════════════════╝ #}
+    <div class="hub-info-band">
+
+        {# Izquierda: descripción #}
+        <div class="hub-info-left">
+            <p class="hub-subtitle">Módulos Rectores del Programa de Uso Racional y Eficiente de la Energía. Selecciona un módulo para explorar los temas disponibles.</p>
+        </div>
+
+        {# Derecha: botones de acción (administradores) #}
+        {% if is_admin %}
+        <div class="hub-actions-bar" role="toolbar" aria-label="Acciones de administración">
+
+            {# Alternar a Vista Tabular #}
+            <a href="{{ url_for('trainings.list_all') }}"
+               id="btn-toggle-view"
+               class="hub-btn hub-btn-view"
+               title="Cambiar a Vista Tabular"
+               aria-label="Alternar a Vista Tabular">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="3" y1="9" x2="21" y2="9"/>
+                    <line x1="3" y1="15" x2="21" y2="15"/>
+                    <line x1="9" y1="9" x2="9" y2="21"/>
+                    <line x1="15" y1="9" x2="15" y2="21"/>
+                </svg>
+                Vista Tabular
+            </a>
+
+            {% if is_super_admin %}
+            <div class="hub-actions-separator" aria-hidden="true"></div>
+
+            {# Importación Masiva #}
+            <a href="{{ url_for('trainings.bulk_upload_view') }}"
+               id="btn-bulk-import"
+               class="hub-btn hub-btn-import"
+               title="Importación Masiva desde CSV/Excel"
+               aria-label="Importación Masiva de Temas Formativos">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="16 16 12 12 8 16"/>
+                    <line x1="12" y1="12" x2="12" y2="21"/>
+                    <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+                </svg>
+                Importación Masiva
+            </a>
+
+            {# Nuevo Módulo Rector #}
+            <a href="{{ url_for('trainings.new_module') }}"
+               id="btn-new-module"
+               class="hub-btn hub-btn-secondary"
+               title="Crear un nuevo Módulo Rector"
+               aria-label="Agregar Nuevo Módulo Rector">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="16"/>
+                    <line x1="8" y1="12" x2="16" y2="12"/>
+                </svg>
+                Módulo Rector
+            </a>
+
+            {# Nuevo Tema (acción primaria) #}
+            <a href="{{ url_for('trainings.new_training') }}"
+               id="btn-new-topic"
+               class="hub-btn hub-btn-primary"
+               title="Crear un nuevo Tema Formativo"
+               aria-label="Agregar Nuevo Tema Formativo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nuevo Tema
+            </a>
+            {% endif %}
+
+        </div>
+        {% endif %}
+
+    </div>{# /hub-info-band #}
+
+
+    {# Badge de estado suelto, encima de las tarjetas #}
+    <div class="hub-grid-header">
+        <span class="hub-status-badge" role="status" aria-label="Estado del catálogo">
+            <span class="status-dot" aria-hidden="true"></span>
+            {% set active_modules_count = modules | selectattr('is_active') | list | length %}
+            {{ active_modules_count }} Módulo{% if active_modules_count != 1 %}s{% endif %} Rector{% if active_modules_count != 1 %}es{% endif %} Operativo{% if active_modules_count != 1 %}s{% endif %}
+        </span>
+    </div>
+
+    {# ╔══════════════════════════════════════════════════════════════╗
+       ║  CUADRÍCULA DE MÓDULOS RECTORES                             ║
+       ╚══════════════════════════════════════════════════════════════╝ #}
+    <section class="hub-modules-grid" aria-label="Módulos Rectores de la UREE">
+
+        {% if modules %}
+            {% for module in modules %}
+
+            {# Clase de color predeterminado #}
+            {% set mod_class = 'mod-001' %}
+
+            {# Icono SVG predeterminado para toda tarjeta #}
+            {% set icon_svg %}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+            {% endset %}
+
+            {# ──────────────────────────────────────────────────────────
+               TARJETA DE MÓDULO RECTOR
+               ────────────────────────────────────────────────────────── #}
+            <article class="module-card {{ mod_class }} {% if not module.is_active %}module-card-inactive{% endif %}"
+                     id="card-module-{{ module.id }}"
+                     data-module-url="{{ url_for('trainings.module_topics', module_id=module.id) }}"
+                     role="article"
+                     tabindex="0"
+                     aria-labelledby="module-name-{{ module.id }}">
+
+                {# ── Cabecera de tarjeta ─────────────────────────────── #}
+                <div class="module-card-header">
+                    <div class="module-icon-wrap" aria-hidden="true">
+                        {{ icon_svg }}
+                    </div>
+                    <div class="module-badges">
+                        {% if module.is_active %}
+                        <span class="badge-status active" aria-label="Estado: Activo">Activo</span>
+                        {% else %}
+                        <span class="badge-status inactive" aria-label="Estado: Inactivo">Inactivo</span>
+                        {% endif %}
+                        {% if is_super_admin %}
+                        <a href="{{ url_for('trainings.edit_module', module_id=module.id) }}"
+                           class="btn-module-edit"
+                           id="btn-edit-module-{{ module.id }}"
+                           title="Editar Módulo Rector"
+                           aria-label="Editar Módulo {{ module.name }}">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                            <span>Editar</span>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {# ── Cuerpo de tarjeta ───────────────────────────────── #}
+                <div class="module-card-body">
+                    <h2 class="module-name" id="module-name-{{ module.id }}">{{ module.name }}</h2>
+                    <p class="module-description">{{ module.description }}</p>
+                </div>
+
+                {# ── Contador de Temas (cargado asincrónamente) ─────────
+                   data-module-id es el selector clave para trainings_hub.js
+                ──────────────────────────────────────────────────────── #}
+                <div class="module-counter-wrap"
+                     role="status"
+                     aria-live="polite"
+                     aria-label="Cargando contador de temas para {{ module.name }}">
+                    <div data-module-id="{{ module.id }}"
+                         style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+                        {# Skeleton loader – reemplazado por trainings_hub.js #}
+                        <div class="skeleton-line" style="width: 55%;" aria-hidden="true"></div>
+                    </div>
+                </div>
+
+                {# ── Pie de tarjeta: Botón Explorar ─────────────────── #}
+                <div class="module-card-footer">
+                    <a href="{{ url_for('trainings.module_topics', module_id=module.id) }}"
+                       id="btn-explore-{{ module.id }}"
+                       class="btn-explore"
+                       role="button"
+                       aria-label="Explorar temas de {{ module.name }}">
+                        Explorar Temas
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                            <polyline points="12 5 19 12 12 19"/>
+                        </svg>
+                    </a>
+                </div>
+
+            </article>
+
+            {% endfor %}
+
+        {% else %}
+
+            {# Estado vacío: sin módulos registrados o inactivos #}
+            <div class="hub-empty-state" role="alert" aria-live="polite">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                </svg>
+                <p>No hay Módulos Rectores activos disponibles en este momento.<br>
+                   Contacte al administrador del sistema.</p>
+            </div>
+
+        {% endif %}
+
+    </section>{# /hub-modules-grid #}
+
+</div>{# /hub-page #}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='JS/trainings_hub.js') }}"></script>
+<script>
+    (function () {
+        const el = document.getElementById('hub-current-date');
+        if (!el) return;
+        const options = { day: 'numeric', month: 'long', year: 'numeric' };
+        const today = new Date();
+        const formattedDate = today.toLocaleDateString('es-ES', options);
+        el.textContent = formattedDate.replace(' de 20', ', 20');
+    })();
+
+    // Captura de mensajes Flash de Flask con SweetAlert2
+    document.addEventListener('DOMContentLoaded', function() {
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    let iconType = {{ category | tojson }};
+                    let titleText = 'Notificación';
+
+                    if (iconType === 'success') {
+                        titleText = '¡Éxito!';
+                    } else if (iconType === 'error' || iconType === 'danger') {
+                        iconType = 'error';
+                        titleText = '¡Atención!';
+                    } else if (iconType === 'warning') {
+                        titleText = 'Advertencia';
+                    } else {
+                        iconType = 'info';
+                    }
+
+                    Swal.fire({
+                        title: titleText,
+                        text: {{ message | tojson }},
+                        icon: iconType,
+                        confirmButtonColor: '#0d9488',
+                        confirmButtonText: 'Aceptar'
+                    });
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    });
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                (function () {
+                    let iconType = {{ category | tojson }};
+                    let titleText = 'Notificación';
+
+                    if (iconType === 'success') {
+                        titleText = '¡Éxito!';
+                    } else if (iconType === 'error' || iconType === 'danger') {
+                        iconType = 'error';
+                        titleText = '¡Atención!';
+                    } else if (iconType === 'warning') {
+                        titleText = 'Advertencia';
+                    } else {
+                        iconType = 'info';
+                    }
+
+                    Swal.fire({
+                        title: titleText,
+                        text: {{ message | tojson }},
+                        icon: iconType,
+                        confirmButtonColor: '#0d9488',
+                        confirmButtonText: 'Aceptar'
+                    });
+                })();
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+});
+</script>
+{% endblock %}

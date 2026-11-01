@@ -43,14 +43,21 @@
         <p class="card-description">Gestión y configuración del sistema</p>
         <span class="card-arrow">
             Ver detalles
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
         </span>
     </a>
     {% endif %}
 
-    {# Gestión de Solicitudes #}
-    {% if 'manage_requests' in user_permissions %}
-    <a href="#" class="card card-green">
+{# Gestión de Solicitudes #}
+{% if 'manage_requests' in user_permissions %}
+    {% if user_role == 'super_admin' %}
+        <a href="{{ url_for('requests.national_monitoring') }}" class="card card-green">
+    {% else %}
+        <a href="{{ url_for('requests.state_admin_dashboard') }}" class="card card-green">
+    {% endif %}
         <div class="card-header">
             <div class="card-title">Gestión de Solicitudes</div>
             <div class="card-icon">
@@ -67,14 +74,17 @@
         <p class="card-description">Revisa y procesa solicitudes pendientes</p>
         <span class="card-arrow">
             Ver detalles
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
         </span>
     </a>
     {% endif %}
 
     {# Crear Solicitud -> Nueva Solicitud (Applicant) #}
     {% if 'create_request' in user_permissions %}
-    <a href="#" class="card card-blue">
+    <a href="{{ url_for('requests.new_request_wizard') }}" class="card card-blue">
         <div class="card-header">
             <div class="card-title">Nueva Solicitud</div>
             <div class="card-icon">
@@ -90,12 +100,15 @@
         <p class="card-description">Inicia una nueva solicitud de formación</p>
         <span class="card-arrow">
             Ver detalles
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
         </span>
     </a>
 
     {# Crear Solicitud -> Mis Solicitudes (Applicant) #}
-    <a href="#" class="card card-cyan">
+    <a href="{{ url_for('requests.applicant_dashboard') }}" class="card card-cyan">
         <div class="card-header">
             <div class="card-title">Mis Solicitudes</div>
             <div class="card-icon">
@@ -109,14 +122,17 @@
         <p class="card-description">Consulta el estado de tus solicitudes</p>
         <span class="card-arrow">
             Ver detalles
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
         </span>
     </a>
     {% endif %}
 
     {# Catálogo de Formación #}
     {% if 'view_training_catalog' in user_permissions %}
-    <a href="#" class="card card-blue">
+    <a href="{{ url_for('trainings.index') }}" class="card card-blue">
         <div class="card-header">
             <div class="card-title">Catálogo de Formación</div>
             <div class="card-icon">
@@ -130,7 +146,10 @@
         <p class="card-description">Explora los cursos y programas disponibles</p>
         <span class="card-arrow">
             Ver detalles
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
         </span>
     </a>
     {% endif %}
@@ -153,14 +172,17 @@
         <p class="card-description">Registra un nuevo evento o taller de formación</p>
         <span class="card-arrow">
             Ver detalles
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
         </span>
     </a>
     {% endif %}
 
     {# Estadísticas y Reportes #}
     {% if 'view_statistics' in user_permissions %}
-    <a href="#" class="card card-cyan">
+    <a href="{{ url_for('analytics.index') }}" class="card card-cyan">
         <div class="card-header">
             <div class="card-title">Estadísticas y Reportes</div>
             <div class="card-icon">
@@ -175,7 +197,10 @@
         <p class="card-description">Indicadores y reportes de desempeño</p>
         <span class="card-arrow">
             Ver detalles
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
         </span>
     </a>
     {% endif %}
@@ -198,7 +223,10 @@
         <p class="card-description">Administra cuentas y permisos de acceso</p>
         <span class="card-arrow">
             Ver detalles
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
         </span>
     </a>
     {% endif %}
@@ -221,7 +249,10 @@
         <p class="card-description">Añade un nuevo usuario al sistema</p>
         <span class="card-arrow">
             Ver detalles
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
         </span>
     </a>
     {% endif %}
@@ -246,7 +277,10 @@
         <p class="card-description">Gestiona las instituciones registradas</p>
         <span class="card-arrow">
             Ver detalles
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
         </span>
     </a>
     {% endif %}
@@ -271,14 +305,17 @@
         <p class="card-description">Ver y editar datos de mi institución</p>
         <span class="card-arrow">
             Ver detalles
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
         </span>
     </a>
     {% endif %}
 
     {# Configuración #}
     {% if 'system_configuration' in user_permissions %}
-    <a href="#" class="card card-cyan">
+    <a href="{{ url_for('configurations.index') }}" class="card card-cyan">
         <div class="card-header">
             <div class="card-title">Configuración</div>
             <div class="card-icon">
@@ -294,7 +331,10 @@
         <p class="card-description">Ajustes generales del sistema</p>
         <span class="card-arrow">
             Ver detalles
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
         </span>
     </a>
     {% endif %}
@@ -317,4 +357,22 @@
         }
     });
 </script>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        {% for category, message in messages %}
+        Swal.fire({
+            icon: '{{ "warning" if category == "warning" else ("error" if category == "danger" else "info") }}',
+            title: '{{ "Acceso Restringido" if category == "warning" else "Información Institucional" }}',
+            text: {{ message | tojson }},
+            confirmButtonText: 'Entendido',
+            confirmButtonColor: '#019577'
+        });
+        {% endfor %}
+    });
+</script>
+{% endif %}
+{% endwith %}
 {% endblock %}

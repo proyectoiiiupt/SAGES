@@ -47,10 +47,12 @@ def before_flush_listener(session, flush_context, instances):
     Interceptor que captura los objetos mutados justo antes de que se envíen
     las consultas SQL a la base de datos (flush).
     """
+    if session.info.get('skip_auto_audit'):
+        return
 
     # Iterar sobre las inserciones nuevas
     for instance in session.new:
-        if isinstance(instance, AuditableMixin):
+        if isinstance(instance, AuditableMixin) and not getattr(instance, '_skip_auto_audit', False):
             # En inserts, todo es new_values
             new_vals = {
                 c.key: getattr(instance, c.key)
@@ -81,7 +83,7 @@ def before_flush_listener(session, flush_context, instances):
 
     # Iterar sobre las actualizaciones
     for instance in session.dirty:
-        if isinstance(instance, AuditableMixin):
+        if isinstance(instance, AuditableMixin) and not getattr(instance, '_skip_auto_audit', False):
             old_vals, new_vals = extract_entity_delta(instance)
 
             # Solo registrar si efectivamente hubo cambios en campos no excluidos
@@ -106,7 +108,7 @@ def before_flush_listener(session, flush_context, instances):
 
     # Iterar sobre las eliminaciones
     for instance in session.deleted:
-        if isinstance(instance, AuditableMixin):
+        if isinstance(instance, AuditableMixin) and not getattr(instance, '_skip_auto_audit', False):
             old_vals = {
                 c.key: getattr(instance, c.key)
                 for c in instance.__mapper__.columns
@@ -120,7 +122,7 @@ def before_flush_listener(session, flush_context, instances):
 
             BinnacleService.create_log_entry(
                 module=module,
-                action_type='ELIMINAR',  # Puedes agregarlo a ActionType si lo prefieres
+                action_type=AuditAction.ELIMINAR.value,
                 description=f"Registro eliminado en {target_table} (ID: {record_id})",
                 status=AuditStatus.COMPLETADO.value,
                 target_table=target_table,

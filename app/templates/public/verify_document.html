@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>CORPOELEC | Validación de Autenticidad Documental QR</title>
+
+    <!-- Favicon Institucional -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/icon_corpoelec.png') }}">
+
+    <!-- Fuentes Google Fonts para tipografía moderna y legible -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Hoja de Estilos del Portal de Validación -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/verify_document.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/verify_document.css') }}">
+</head>
+
+<body>
+    <!-- 1. Cintillo Institucional de la República Bolivariana de Venezuela -->
+    <header class="gov-header">
+        <img src="{{ url_for('static', filename='img/mppee-cintillo.jpg') }}"
+            alt="Cintillo Oficial MPPEE - República Bolivariana de Venezuela" class="gov-cintillo">
+    </header>
+
+    <!-- 2. Barra de Identidad Corporativa CORPOELEC -->
+    <div class="brand-bar">
+        <div class="brand-container">
+            <img src="{{ url_for('static', filename='img/logo_corpoelec.png') }}" alt="Logotipo Oficial CORPOELEC"
+                class="brand-logo">
+            <div class="brand-info">
+                <span class="brand-system">SAGES — Sistema de Gestión de Solicitudes de Formación</span>
+                <span class="brand-department">Gerencia General de Uso Racional y Eficiente de la Energía (UREE)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Contenedor Principal de la Credencial -->
+    <main class="verify-wrapper">
+        <div class="verify-card {% if is_valid %}card-valid{% else %}card-invalid{% endif %}">
+
+            {% if is_valid %}
+            <!-- ============================================================
+                 ESTADO AUTÉNTICO (SELLO VERDE OFICIAL)
+            ============================================================ -->
+            <div class="badge-status-header header-valid">
+                <div class="icon-pulse-wrapper icon-valid">
+                    <svg class="status-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        <path d="M9 12l2 2 4-4" />
+                    </svg>
+                </div>
+                <div class="header-titles">
+                    <span class="seal-pill seal-pill-valid">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="12" cy="12" r="10" />
+                        </svg>
+                        Sello Digital Verificado
+                    </span>
+                    <h1 class="status-title">Documento Auténtico y Verificado</h1>
+                    <p class="status-subtitle">Certificación oficial emitida por el Sistema SAGES — CORPOELEC</p>
+                </div>
+            </div>
+
+            <!-- Resumen del Trámite y Estatus -->
+            <div class="dossier-hero">
+                <div class="dossier-code-box">
+                    <span class="dossier-label">Código Oficial del Trámite</span>
+                    <span class="dossier-code">{{ doc.request_code }}</span>
+                </div>
+                <div class="dossier-status-box">
+                    <span class="dossier-label">Estatus en Sistema</span>
+                    <span class="status-pill {{ doc.status_badge_class }}">{{ doc.status_name }}</span>
+                </div>
+            </div>
+
+            <!-- Bloques Informativos del Expediente -->
+            <div class="dossier-grid">
+
+                <!-- Plantel Educativo -->
+                <div class="dossier-item item-full">
+                    <div class="item-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3" />
+                        </svg>
+                    </div>
+                    <div class="item-content">
+                        <span class="item-title">Institución Beneficiaria</span>
+                        <span class="item-value highlight">{{ doc.institution_name }}</span>
+                        <span class="item-meta">Código DEA: <strong>{{ doc.plantel_code }}</strong></span>
+                    </div>
+                </div>
+
+                <!-- Ubicación Geográfica -->
+                <div class="dossier-item item-full">
+                    <div class="item-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                            <circle cx="12" cy="10" r="3" />
+                        </svg>
+                    </div>
+                    <div class="item-content">
+                        <span class="item-title">Ubicación del Servicio</span>
+                        <span class="item-value">{{ doc.location }}</span>
+                        <span class="item-meta">Jurisdicción: Estado {{ doc.state_name }}</span>
+                    </div>
+                </div>
+
+                <!-- Actividad Formativa UREE -->
+                <div class="dossier-item item-full">
+                    <div class="item-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                        </svg>
+                    </div>
+                    <div class="item-content">
+                        <span class="item-title">Programa y Tema Formativo</span>
+                        <span class="item-value">{{ doc.training_name }}</span>
+                        <span class="item-meta">Módulo Rector: {{ doc.module_name }}</span>
+                    </div>
+                </div>
+
+                <!-- Fecha Oficial del Trámite -->
+                <div class="dossier-item">
+                    <div class="item-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                            <line x1="16" y1="2" x2="16" y2="6" />
+                            <line x1="8" y1="2" x2="8" y2="6" />
+                            <line x1="3" y1="10" x2="21" y2="10" />
+                        </svg>
+                    </div>
+                    <div class="item-content">
+                        <span class="item-title">{{ doc.official_date_label }}</span>
+                        <span class="item-value">{{ doc.official_date }}</span>
+                    </div>
+                </div>
+
+                <!-- Facilitador o Dependencia Responsable -->
+                <div class="dossier-item">
+                    <div class="item-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                        </svg>
+                    </div>
+                    <div class="item-content">
+                        <span class="item-title">Atención / Facilitador UREE</span>
+                        <span class="item-value">{{ doc.facilitator_name }}</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Bloque de Autenticación Criptográfica -->
+            <div class="crypto-badge">
+                <div class="crypto-info">
+                    <span class="crypto-label">Sello Criptográfico SHA-256</span>
+                    <span class="crypto-hash">{{ doc.token_display }}</span>
+                </div>
+                <div class="crypto-shield">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    </svg>
+                </div>
+            </div>
+
+            {% else %}
+            <!-- ============================================================
+                 ESTADO INVÁLIDO (ALERTA ROJA INSTITUCIONAL)
+            ============================================================ -->
+            <div class="badge-status-header header-invalid">
+                <div class="icon-pulse-wrapper icon-invalid">
+                    <svg class="status-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="15" y1="9" x2="9" y2="15" />
+                        <line x1="9" y1="9" x2="15" y2="15" />
+                    </svg>
+                </div>
+                <div class="header-titles">
+                    <span class="seal-pill seal-pill-invalid">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="12" cy="12" r="10" />
+                        </svg>
+                        Alerta de Validación
+                    </span>
+                    <h1 class="status-title text-danger">Documento No Válido o No Encontrado</h1>
+                    <p class="status-subtitle">El código escaneado no corresponde a un documento legítimo emitido por
+                        CORPOELEC.</p>
+                </div>
+            </div>
+
+            <div class="alert-box-danger">
+                <div class="alert-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path
+                            d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                        <line x1="12" y1="9" x2="12" y2="13" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                </div>
+                <div class="alert-text">
+                    <strong>Advertencia Institucional:</strong>
+                    <p>{{ error_message }}</p>
+                </div>
+            </div>
+
+            <div class="invalid-advice">
+                <h3>¿Qué debe hacer si tiene este documento impreso?</h3>
+                <ul>
+                    <li>Verifique que el Código QR no esté sucio, arrugado o recortado e intente escanear nuevamente.
+                    </li>
+                    <li>Comuníquese directamente con la Coordinación Estadal de Uso Racional y Eficiente de la Energía
+                        (UREE) de CORPOELEC.</li>
+                    <li>Todo comprobante auténtico cuenta con correlativo oficial y sello digital avalado por el
+                        Ministerio del Poder Popular para la Energía Eléctrica.</li>
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- 4. Pie de la Credencial: Marca de Tiempo y Seguridad -->
+            <footer class="verify-footer">
+                <div class="footer-clock">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    <span>Consulta efectuada el <strong>{{ query_timestamp }}</strong></span>
+                </div>
+                <p class="footer-legal">
+                    Portal Oficial de Validación Institucional en Tiempo Real. Sistema SAGES &bull; Corporación
+                    Eléctrica Nacional (CORPOELEC). República Bolivariana de Venezuela.
+                </p>
+            </footer>
+
+        </div>
+    </main>
+</body>
+
+</html>

@@ -1,0 +1,479 @@
+/* ==========================================================================
+   Estilos para Dashboard de Administrador Estadal
+   ========================================================================== */
+
+.state-dashboard-container {
+    padding: 20px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+    min-height: calc(100vh - 60px);
+}
+
+/* 1. Banner Superior */
+.dashboard-banner {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 14px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.05);
+    margin-bottom: 24px;
+    border-left: 4px solid #019577;
+    flex-direction: row-reverse;
+}
+
+.banner-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #111827;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: -0.3px;
+    margin: 0;
+}
+
+.banner-date {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #6B7280;
+    font-weight: 500;
+    background: #F1F5F9;
+    padding: 10px 18px;
+    border-radius: 30px;
+    font-size: 0.875rem;
+    letter-spacing: 0.2px;
+}
+
+.banner-date svg {
+    width: 17px;
+    height: 17px;
+    color: #019577;
+    flex-shrink: 0;
+}
+
+/* 2. Cuadrícula de KPIs */
+:root {
+    --dash-blue-bg: #f0f7ff;
+    --dash-blue-border: #38bdf8;
+    --dash-blue-icon-bg: #e0f2fe;
+    --dash-blue-icon: #0284c7;
+
+    --dash-green-bg: #f0fdf4;
+    --dash-green-border: #4ade80;
+    --dash-green-icon-bg: #dcfce7;
+    --dash-green-icon: #16a34a;
+
+    --dash-amber-bg: #fffbeb;
+    --dash-amber-border: #facc15;
+    --dash-amber-icon-bg: #fef3c7;
+    --dash-amber-icon: #d97706;
+
+    --dash-red-bg: #fff1f2;
+    --dash-red-border: #fb7185;
+    --dash-red-icon-bg: #ffe4e6;
+    --dash-red-icon: #e11d48;
+}
+
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.25rem;
+    width: 100%;
+    margin-bottom: 25px;
+}
+
+.kpi-card {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 1.25rem 1.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+    border: 2px solid transparent;
+    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.kpi-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.kpi-card-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.kpi-icon-container {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.25s ease;
+}
+
+.kpi-card:hover .kpi-icon-container {
+    transform: scale(1.08);
+}
+
+.kpi-icon-container svg {
+    width: 24px;
+    height: 24px;
+}
+
+.kpi-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.kpi-label {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #334155;
+    line-height: 1.2;
+}
+
+.kpi-sublabel {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+.kpi-value {
+    font-size: 1.85rem;
+    font-weight: 800;
+    color: #1e293b;
+    letter-spacing: -0.5px;
+    margin-left: 0.75rem;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Variantes de Color */
+.kpi-blue {
+    background: linear-gradient(135deg, #ffffff 60%, var(--dash-blue-bg) 100%);
+    border-color: #bae6fd;
+}
+
+.kpi-blue .kpi-icon-container {
+    background: var(--dash-blue-icon-bg);
+    color: var(--dash-blue-icon);
+}
+
+.kpi-green {
+    background: linear-gradient(135deg, #ffffff 60%, var(--dash-green-bg) 100%);
+    border-color: #bbf7d0;
+}
+
+.kpi-green .kpi-icon-container {
+    background: var(--dash-green-icon-bg);
+    color: var(--dash-green-icon);
+}
+
+.kpi-amber {
+    background: linear-gradient(135deg, #ffffff 60%, var(--dash-amber-bg) 100%);
+    border-color: #fde047;
+}
+
+.kpi-amber .kpi-icon-container {
+    background: var(--dash-amber-icon-bg);
+    color: var(--dash-amber-icon);
+}
+
+.kpi-red {
+    background: linear-gradient(135deg, #ffffff 60%, var(--dash-red-bg) 100%);
+    border-color: #fecdd3;
+}
+
+.kpi-red .kpi-icon-container {
+    background: var(--dash-red-icon-bg);
+    color: var(--dash-red-icon);
+}
+
+/* 3. Controles (Filtros y Búsqueda) */
+.dashboard-controls-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.search-box {
+    display: flex;
+    align-items: center;
+    background: white;
+    padding: 8px 15px;
+    border-radius: 20px;
+    border: 1px solid #ddd;
+    flex: 1;
+    min-width: 250px;
+}
+
+.search-box svg {
+    width: 18px;
+    height: 18px;
+    color: #999;
+    margin-right: 10px;
+}
+
+.search-box input {
+    border: none;
+    outline: none;
+    width: 100%;
+    font-size: 0.95rem;
+}
+
+.filters-group {
+    display: flex;
+    gap: 10px;
+}
+
+.control-select {
+    padding: 8px 15px;
+    border-radius: 20px;
+    border: 1px solid #ddd;
+    background-color: white;
+    color: #555;
+    outline: none;
+    font-weight: 500;
+}
+
+.actions-group {
+    display: flex;
+    gap: 10px;
+    margin-left: auto;
+}
+
+.btn-action {
+    padding: 8px 20px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid #ddd;
+    transition: all 0.2s;
+}
+
+.btn-action.white {
+    background-color: white;
+    color: #333;
+}
+
+.btn-action.white:hover {
+    background-color: #f1f1f1;
+}
+
+.btn-action.blue {
+    background-color: #eff6ff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+}
+
+.btn-action.blue:hover {
+    background-color: #dbeafe;
+    border-color: #93c5fd;
+}
+
+.btn-action.green {
+    background-color: #019577;
+    /* SAGES Green */
+    color: white;
+    border-color: #019577;
+}
+
+.btn-action.green:hover {
+    background-color: #017a62;
+}
+
+/* 4. Tabla y Responsividad */
+.table-responsive-container {
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+    overflow-x: auto;
+}
+
+.sages-state-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 0.9rem;
+    min-width: 900px;
+}
+
+.sages-state-table thead tr {
+    background: #f8fafc;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.sages-state-table th {
+    /* Padding reducido para aprovechar el espacio (12px 16px) */
+    padding: 0.75rem 1rem;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: #475569;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.sages-state-table tbody tr {
+    border-bottom: 1px solid #e2e8f0;
+    transition: background-color 0.2s ease;
+}
+
+.sages-state-table tbody tr:nth-child(odd) {
+    background-color: #ffffff;
+}
+
+.sages-state-table tbody tr:nth-child(even) {
+    background-color: #f8fafc;
+}
+
+.sages-state-table tbody tr:hover {
+    background-color: #f1f5f9;
+}
+
+.sages-state-table td {
+    padding: 0.75rem 1rem;
+    vertical-align: middle;
+    color: #334155;
+}
+
+.sages-state-table .action-btn {
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.sages-state-table .view-btn {
+    background: #e0f2fe;
+    color: #0284c7;
+    border: 1px solid #bae6fd;
+}
+
+.sages-state-table .view-btn:hover {
+    background: #0284c7;
+    color: #ffffff;
+    box-shadow: 0 4px 8px rgba(2, 132, 199, 0.25);
+    transform: translateY(-1px);
+}
+
+.sages-state-table .view-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.traffic-badge {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    display: inline-block;
+    text-align: center;
+    min-width: 100px;
+    white-space: nowrap;/
+}
+
+.badge-red {
+    background-color: #fe7972;
+    color: #a20707;
+}
+
+.badge-yellow {
+    background-color: #ffe48d;
+    color: #c57702;
+}
+
+.badge-green {
+    background-color: #52e0b8;
+    color: #129261;
+}
+
+/* 7. Paginación */
+.pagination-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+}
+
+.pagination-info {
+    color: #888;
+    font-size: 0.9rem;
+}
+
+.pagination-buttons {
+    display: flex;
+    gap: 5px;
+}
+
+.page-link {
+    padding: 5px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    text-decoration: none;
+    color: #333;
+    background: white;
+    transition: all 0.2s;
+}
+
+.page-link:hover:not(.disabled):not(.active) {
+    background-color: #f1f1f1;
+}
+
+.page-link.active {
+    background-color: #019577;
+    color: white;
+    border-color: #019577;
+}
+
+.page-link.disabled {
+    color: #ccc;
+    background: #f9f9f9;
+    cursor: not-allowed;
+}
+
+/* 6. Truncamiento de Texto para la Tabla (UI UX) */
+.truncate-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 320px;
+    display: block;
+    cursor: help;
+}
+
+@media (max-width: 1400px) {
+    .truncate-text {
+        max-width: 240px;
+    }
+}
+
+@media (max-width: 1024px) {
+    .truncate-text {
+        max-width: 150px;
+    }
+}

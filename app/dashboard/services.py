@@ -235,3 +235,212 @@ def get_audit_logs(limit=None):
     mock_logs = []
     
     return mock_logs[:limit] if limit else mock_logs
+
+# ─────────────────────────────────────────────────────────────
+# BLOQUE MAPA GEOGRÁFICO NACIONAL (Exclusivo super_admin)
+# ─────────────────────────────────────────────────────────────
+
+def get_map_states_distribution():
+    """
+    Calcula los totales de solicitudes y el semáforo operativo para
+    todos los estados de Venezuela (Nivel Nacional).
+    """
+    try:
+        # Obtener todos los estados registrados en BD (26 entidades)
+        all_states = State.query.order_by(State.id).all()
+        
+        # Consulta agregada de solicitudes agrupada por estado
+        agg_query = db.session.query(
+            State.id.label('state_id'),
+            func.count(case((Status.status_code == 'STAT-003', Request.id))).label('red_new'),
+            func.count(case((Status.status_code.in_(['STAT-004', 'STAT-005', 'STAT-006']), Request.id))).label('yellow_in_progress'),
+            func.count(case((Status.status_code == 'STAT-007', Request.id))).label('green_completed'),
+            func.count(case((Status.status_code.in_(['STAT-008', 'STAT-009']), Request.id))).label('gray_closed'),
+            func.count(Request.id).label('total')
+        ).join(Request.status)\
+         .join(Request.institutional_staff)\
+         .join(InstitutionalStaff.institution)\
+         .join(Institution.parish)\
+         .join(Parish.municipality)\
+         .join(Municipality.state)\
+         .group_by(State.id).all()
+        
+        metrics_by_state = {r.state_id: r for r in agg_query}
+        
+        states_data = []
+        national_totals = {
+            'red_new': 0,
+            'yellow_in_progress': 0,
+            'green_completed': 0,
+            'gray_closed': 0,
+            'total': 0
+        }
+        
+        for state in all_states:
+            m = metrics_by_state.get(state.id)
+            red = int(m.red_new) if m else 0
+            yellow = int(m.yellow_in_progress) if m else 0
+            green = int(m.green_completed) if m else 0
+            gray = int(m.gray_closed) if m else 0
+            total = int(m.total) if m else 0
+            
+            # Acumular totales nacionales
+            national_totals['red_new'] += red
+            national_totals['yellow_in_progress'] += yellow
+            national_totals['green_completed'] += green
+            national_totals['gray_closed'] += gray
+            national_totals['total'] += total
+            
+            # Determinación de color semafórico predominante
+            # Prioridad operativa: Rojo > Amarillo > Verde > Gris
+            if red > 0:
+                predominant_color = 'red'
+            elif yellow > 0:
+                predominant_color = 'yellow'
+            elif green > 0:
+                predominant_color = 'green'
+            else:
+                predominant_color = 'gray'
+            
+            # Tasa de resolución estadal
+            resolution_rate = round((green / total) * 100) if total > 0 else 0
+            
+            states_data.append({
+                'state_id': state.id,
+                'state_code': state.state_code,
+                'name': state.name,
+                'red_new': red,
+                'yellow_in_progress': yellow,
+                'green_completed': green,
+                'gray_closed': gray,
+                'total': total,
+                'resolution_rate': resolution_rate,
+                'predominant_color': predominant_color
+            })
+            
+        return {
+            'states': states_data,
+            'summary': national_totals
+        }
+        
+    except Exception as e:
+        print(f"Error al calcular distribución del mapa nacional: {e}")
+        return {
+            'states': [],
+            'summary': {
+                'red_new': 0,
+                'yellow_in_progress': 0,
+                'green_completed': 0,
+                'gray_closed': 0,
+                'total': 0
+            }
+        }
+
+
+def get_state_demand_details(state_id: int):
+    """
+    Obtiene el detalle de demanda y actividad para un estado seleccionado.
+    """
+    from app.models.training_model import Training
+    
+    try:
+        state = db.session.get(State, state_id)
+        if not state:
+            return None
+            
+        # 1. Métricas del semáforo para el estado
+        state_metrics_row = db.session.query(
+            func.count(case((Status.status_code == 'STAT-003', Request.id))).label('red_new'),
+            func.count(case((Status.status_code.in_(['STAT-004', 'STAT-005', 'STAT-006']), Request.id))).label('yellow_in_progress'),
+            func.count(case((Status.status_code == 'STAT-007', Request.id))).label('green_completed'),
+            func.count(case((Status.status_code.in_(['STAT-008', 'STAT-009']), Request.id))).label('gray_closed'),
+            func.count(Request.id).label('total')
+        ).join(Request.status)\
+         .join(Request.institutional_staff)\
+         .join(InstitutionalStaff.institution)\
+         .join(Institution.parish)\
+         .join(Parish.municipality)\
+         .filter(Municipality.state_id == state_id).first()
+        
+        red = int(state_metrics_row.red_new) if state_metrics_row and state_metrics_row.red_new else 0
+        yellow = int(state_metrics_row.yellow_in_progress) if state_metrics_row and state_metrics_row.yellow_in_progress else 0
+        green = int(state_metrics_row.green_completed) if state_metrics_row and state_metrics_row.green_completed else 0
+        gray = int(state_metrics_row.gray_closed) if state_metrics_row and state_metrics_row.gray_closed else 0
+        total = int(state_metrics_row.total) if state_metrics_row and state_metrics_row.total else 0
+        resolution_rate = round((green / total) * 100) if total > 0 else 0
+        
+        # 2. Top 3 Formaciones más solicitadas
+        top_trainings = db.session.query(
+            Training.name,
+            Training.training_code,
+            func.count(Request.id).label('count')
+        ).select_from(Request)\
+         .join(Request.training)\
+         .join(Request.institutional_staff)\
+         .join(InstitutionalStaff.institution)\
+         .join(Institution.parish)\
+         .join(Parish.municipality)\
+         .filter(Municipality.state_id == state_id)\
+         .group_by(Training.name, Training.training_code)\
+         .order_by(func.count(Request.id).desc())\
+         .limit(3).all()
+        
+        # 3. Últimas 5 Solicitudes registradas
+        recent_requests = db.session.query(
+            Request.id,
+            Request.request_code,
+            Request.created_at,
+            Status.status_code,
+            Status.status_name,
+            Institution.institution_name,
+            Training.name.label('training_name')
+        ).select_from(Request)\
+         .join(Request.status)\
+         .join(Request.training)\
+         .join(Request.institutional_staff)\
+         .join(InstitutionalStaff.institution)\
+         .join(Institution.parish)\
+         .join(Parish.municipality)\
+         .filter(Municipality.state_id == state_id)\
+         .order_by(Request.id.desc())\
+         .limit(5).all()
+        
+        return {
+            'state': {
+                'id': state.id,
+                'name': state.name,
+                'state_code': state.state_code
+            },
+            'breakdown': {
+                'red_new': red,
+                'yellow_in_progress': yellow,
+                'green_completed': green,
+                'gray_closed': gray,
+                'total': total,
+                'resolution_rate': resolution_rate
+            },
+            'top_trainings': [
+                {
+                    'name': t.name,
+                    'code': t.training_code,
+                    'count': int(t.count)
+                }
+                for t in top_trainings
+            ],
+            'recent_requests': [
+                {
+                    'id': r.id,
+                    'request_code': r.request_code,
+                    'status_code': r.status_code,
+                    'status_name': r.status_name,
+                    'institution_name': r.institution_name,
+                    'training_name': r.training_name,
+                    'created_at': r.created_at.strftime('%d/%m/%Y %H:%M') if r.created_at else ''
+                }
+                for r in recent_requests
+            ]
+        }
+        
+    except Exception as e:
+        print(f"Error al obtener detalle de demanda para estado {state_id}: {e}")
+        return None

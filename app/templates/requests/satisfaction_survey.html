@@ -1,0 +1,253 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}SAGES - Encuesta de Satisfacción | {{ req.request_code }}{% endblock %}
+
+{% block extra_css %}
+<!-- Hoja de estilos del módulo de solicitante (incluye widget de encuesta) -->
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_applicant.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="survey-page-container">
+
+    <!-- ================================================================
+         CABECERA INSTITUCIONAL
+         ================================================================ -->
+    <div class="survey-header-banner">
+        <div class="survey-header-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            </svg>
+        </div>
+        <div class="survey-header-text">
+            <h1 class="survey-main-title">¡Queremos conocer tu opinión!</h1>
+            <p class="survey-subtitle">
+                Encuesta de Satisfacción — Formación Comunitaria UREE.<br>
+                Tu opinión es fundamental para seguir mejorando nuestras jornadas de
+                Uso Racional y Eficiente de la Energía (UREE). Te tomará menos de un minuto.
+            </p>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         TARJETA DE DATOS DEL TRÁMITE (solo lectura)
+         ================================================================ -->
+    <div class="survey-info-card">
+        <div class="survey-info-grid">
+            <div class="survey-info-item">
+                <span class="survey-info-label">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+                    </svg>
+                    Código de Solicitud
+                </span>
+                <span class="survey-info-value survey-code-badge">{{ req.request_code }}</span>
+            </div>
+            <div class="survey-info-item">
+                <span class="survey-info-label">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"></path>
+                        <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"></path>
+                    </svg>
+                    Tema Formativo
+                </span>
+                <span class="survey-info-value">{{ req.training.name }}</span>
+            </div>
+            <div class="survey-info-item">
+                <span class="survey-info-label">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                    Plantel Educativo
+                </span>
+                <span class="survey-info-value">
+                    {{ req.institutional_staff.institution.institution_name }}
+                </span>
+            </div>
+            {% if req.plannings %}
+            <div class="survey-info-item">
+                <span class="survey-info-label">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    Fecha de Jornada
+                </span>
+                <span class="survey-info-value">
+                    {% set p = req.plannings[0] %}
+                    {% if p.planned_for %}
+                        {{ p.planned_for.strftime('%d/%m/%Y') }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ================================================================
+         FORMULARIO DE EVALUACIÓN
+         ================================================================ -->
+    <form method="POST"
+          id="surveyForm"
+          action="{{ url_for('requests.satisfaction_survey', request_id=req.id) }}">
+
+        {{ form.hidden_tag() }}
+
+        <!-- ------------------------------------------------------------
+             DIMENSIÓN 1 — Actividad Formativa
+             ------------------------------------------------------------ -->
+        <div class="survey-question-card" id="card-score_activity">
+            <div class="survey-question-number">01</div>
+            <div class="survey-question-body">
+                <p class="survey-question-text">
+                    ¿Qué le pareció la <strong>actividad formativa</strong> de hoy?
+                </p>
+                <div class="star-rating-group" data-field="score_activity" id="group-score_activity">
+                    {% for i in range(1, 6) %}
+                    <button type="button"
+                            class="star"
+                            data-value="{{ i }}"
+                            aria-label="{{ i }} estrella{% if i != 1 %}s{% endif %}"
+                            title="{{ i }} de 5">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="1.5" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77
+                                     l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                    </button>
+                    {% endfor %}
+                </div>
+                <input type="hidden" name="score_activity" id="score_activity" value="">
+                <p class="star-error-msg" id="err-score_activity" style="display:none;">
+                    Por favor, seleccione una calificación para esta pregunta.
+                </p>
+            </div>
+        </div>
+
+        <!-- ------------------------------------------------------------
+             DIMENSIÓN 2 — Facilitador / Instructor
+             ------------------------------------------------------------ -->
+        <div class="survey-question-card" id="card-score_instructor">
+            <div class="survey-question-number">02</div>
+            <div class="survey-question-body">
+                <p class="survey-question-text">
+                    ¿La persona encargada <strong>explicó los temas con claridad</strong>
+                    y logró resolver las dudas del grupo?
+                </p>
+                <div class="star-rating-group" data-field="score_instructor" id="group-score_instructor">
+                    {% for i in range(1, 6) %}
+                    <button type="button"
+                            class="star"
+                            data-value="{{ i }}"
+                            aria-label="{{ i }} estrella{% if i != 1 %}s{% endif %}"
+                            title="{{ i }} de 5">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="1.5" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77
+                                     l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                    </button>
+                    {% endfor %}
+                </div>
+                <input type="hidden" name="score_instructor" id="score_instructor" value="">
+                <p class="star-error-msg" id="err-score_instructor" style="display:none;">
+                    Por favor, seleccione una calificación para esta pregunta.
+                </p>
+            </div>
+        </div>
+
+        <!-- ------------------------------------------------------------
+             DIMENSIÓN 3 — Respuesta de Gestión / Administración
+             ------------------------------------------------------------ -->
+        <div class="survey-question-card" id="card-score_admin_response">
+            <div class="survey-question-number">03</div>
+            <div class="survey-question-body">
+                <p class="survey-question-text">
+                    ¿Qué tan <strong>eficiente fue la respuesta de nuestro equipo</strong>
+                    al momento de recibir y agendar su solicitud de formación?
+                </p>
+                <div class="star-rating-group" data-field="score_admin_response" id="group-score_admin_response">
+                    {% for i in range(1, 6) %}
+                    <button type="button"
+                            class="star"
+                            data-value="{{ i }}"
+                            aria-label="{{ i }} estrella{% if i != 1 %}s{% endif %}"
+                            title="{{ i }} de 5">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="1.5" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77
+                                     l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                    </button>
+                    {% endfor %}
+                </div>
+                <input type="hidden" name="score_admin_response" id="score_admin_response" value="">
+                <p class="star-error-msg" id="err-score_admin_response" style="display:none;">
+                    Por favor, seleccione una calificación para esta pregunta.
+                </p>
+            </div>
+        </div>
+
+        <!-- ------------------------------------------------------------
+             COMENTARIOS OPCIONALES
+             ------------------------------------------------------------ -->
+        <div class="survey-comment-card">
+            <label class="survey-comment-label" for="comment">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path>
+                </svg>
+                Comentarios y sugerencias adicionales
+                <span class="optional-badge">Opcional</span>
+            </label>
+            <textarea name="comment"
+                      id="comment"
+                      class="survey-comment-box"
+                      maxlength="1000"
+                      rows="4"
+                      placeholder="Añade comentarios o sugerencias adicionales para nuestro equipo..."></textarea>
+            <span class="comment-char-counter"><span id="charCount">0</span> / 1000</span>
+        </div>
+
+        <!-- ------------------------------------------------------------
+             BOTÓN DE ENVÍO
+             ------------------------------------------------------------ -->
+        <div class="survey-submit-area">
+            <button type="submit" class="btn-survey-submit" id="btnSubmitSurvey">
+                <span class="btn-survey-text">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none"
+                         stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                    Enviar encuesta
+                </span>
+                <span class="btn-survey-loading" style="display:none;">
+                    <svg class="btn-spinner" viewBox="0 0 24 24" width="18" height="18"
+                         fill="none" stroke="currentColor" stroke-width="2.5">
+                        <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
+                        <path d="M12 2a10 10 0 0110 10" stroke-linecap="round"/>
+                    </svg>
+                    Enviando...
+                </span>
+            </button>
+        </div>
+
+    </form>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='JS/requests_survey.js') }}"></script>
+{% endblock %}

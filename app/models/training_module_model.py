@@ -1,9 +1,13 @@
 from app.extensions import db
 from datetime import datetime, timezone
+from app.binnacle.mixins import AuditableMixin
+from app.binnacle.types import AuditModule
 
-class TrainingModule(db.Model):
+class TrainingModule(db.Model, AuditableMixin):
     __tablename__ = 'training_modules'
     __table_args__ = {'schema': 'sages'}
+    __audit_module__ = AuditModule.TRAININGS.value
+    __audit_exclude_fields__ = {'created_at', 'updated_at'}
 
     id = db.Column(db.BigInteger, primary_key=True)
     module_code = db.Column(db.String(50), unique=True, nullable=False, index=True) # ej: MOD-001

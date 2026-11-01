@@ -40,12 +40,16 @@ def create_app(config_class=Config) -> Flask:
         from app.models.parish_model import Parish
         from app.models.municipality_model import Municipality
         from sqlalchemy.orm import joinedload, selectinload
-        return User.query.options(
-            joinedload(User.roles_assoc).joinedload(RoleUser.role).joinedload(Role.permissions_assoc).joinedload(PermissionRole.permission),
-            joinedload(User.person).selectinload(Person.institutional_staff).joinedload(InstitutionalStaff.position),
-            joinedload(User.person).selectinload(Person.institutional_staff).joinedload(InstitutionalStaff.institution),
-            joinedload(User.person).selectinload(Person.company_staff).joinedload(CompanyStaff.place).joinedload(Place.parish).joinedload(Parish.municipality).joinedload(Municipality.state)
-        ).get(int(user_id))
+        return db.session.get(
+            User,
+            int(user_id),
+            options=[
+                joinedload(User.roles_assoc).joinedload(RoleUser.role).joinedload(Role.permissions_assoc).joinedload(PermissionRole.permission),
+                joinedload(User.person).selectinload(Person.institutional_staff).joinedload(InstitutionalStaff.position),
+                joinedload(User.person).selectinload(Person.institutional_staff).joinedload(InstitutionalStaff.institution),
+                joinedload(User.person).selectinload(Person.company_staff).joinedload(CompanyStaff.place).joinedload(Place.parish).joinedload(Parish.municipality).joinedload(Municipality.state)
+            ]
+        )
 
     from app.auth import auth_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -79,9 +83,25 @@ def create_app(config_class=Config) -> Flask:
     from app.dashboard import dashboard_bp
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
 
+    # Registro del blueprint de Formación (Módulos Rectores y Temas)
+    from app.trainings import trainings_bp
+    app.register_blueprint(trainings_bp, url_prefix='/training')
+    
     # Registro del blueprint de Auditoría / Bitácora
     from app.binnacle.routes import binnacle_bp
     app.register_blueprint(binnacle_bp, url_prefix='/binnacle')
+
+    # Registro del blueprint de Solicitudes (UREE)
+    from app.requests import requests_bp
+    app.register_blueprint(requests_bp, url_prefix='/requests')
+
+    # Registro del blueprint de Analítica y Estadísticas
+    from app.analytics import analytics_bp
+    app.register_blueprint(analytics_bp, url_prefix='/analytics')
+
+    # Registro del blueprint de Configuraciones
+    from app.configurations import configurations_bp
+    app.register_blueprint(configurations_bp, url_prefix='/configurations')
 
     @app.route('/')
     def index():
@@ -110,6 +130,8 @@ def create_app(config_class=Config) -> Flask:
     @check_permissions('view_home')
     def home_applicant():
         return render_template('home.html')
+
+
     
     @app.errorhandler(RateLimitExceeded)
     def handle_rate_limit(e):

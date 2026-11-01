@@ -5,6 +5,7 @@ from app.extensions import db
 from app.models.binnacle_model import Binnacle
 from app.binnacle.types import AuditStatus, AuditModule, AuditAction
 from app.binnacle.context import get_audit_context
+from app.binnacle.sanitizers import sanitize_payload
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,9 @@ class BinnacleService:
         """
         context = get_audit_context()
 
+        safe_old = sanitize_payload(old_values) if old_values else None
+        safe_new = sanitize_payload(new_values) if new_values else None
+
         log = Binnacle(
             module=module,
             action_type=action_type,
@@ -86,8 +90,8 @@ class BinnacleService:
             status=status,
             target_table=target_table,
             record_id=record_id,
-            old_values=old_values,
-            new_values=new_values,
+            old_values=safe_old,
+            new_values=safe_new,
             user_id=context['user_id'],
             user_identifier=user_identifier,
             ip_address=context['ip_address'],

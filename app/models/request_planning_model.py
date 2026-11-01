@@ -1,7 +1,12 @@
 from app.extensions import db
 from datetime import datetime, timezone
+from app.binnacle.mixins import AuditableMixin
+from app.binnacle.types import AuditModule
 
-class RequestPlanning(db.Model):
+class RequestPlanning(db.Model, AuditableMixin):
+    __audit_module__ = AuditModule.REQUESTS.value
+    __audit_exclude_fields__ = {'created_at', 'updated_at'}
+
     __tablename__ = 'request_plannings'
     __table_args__ = {'schema': 'sages'}
 
@@ -10,11 +15,13 @@ class RequestPlanning(db.Model):
     acceptance_deadline = db.Column(db.DateTime(timezone=True), nullable=True)
     accepted_at = db.Column(db.DateTime(timezone=True), nullable=True)
     planned_for = db.Column(db.Date, nullable=True)
+    original_planned_for = db.Column(db.Date, nullable=True)
     execution_deadline = db.Column(db.DateTime(timezone=True), nullable=True)
     attended = db.Column(db.Boolean, nullable=False, default=False)
     attended_at = db.Column(db.DateTime(timezone=True), nullable=True)
     is_exceeded = db.Column(db.Boolean, nullable=False, default=False)
     time_exceeded = db.Column(db.Integer, nullable=True)
+    rescheduled_count = db.Column(db.Integer, nullable=False, default=0)
 
     # Relaciones
     request = db.relationship('Request', back_populates='plannings')
