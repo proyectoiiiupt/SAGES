@@ -138,3 +138,12 @@ document.addEventListener('DOMContentLoaded', () => {
     setupToggle('ac-password2', 'ac-togglePassword2', 'ac-toggleIcon2');
 });
 
+// ==========================================
+// PREVENCIÓN DE BFCACHE EN ACTIVACIÓN DE CUENTA
+// ==========================================
+window.addEventListener('pageshow', function (event) {
+    if (event.persisted) {
+        window.location.reload();
+    }
+});
+

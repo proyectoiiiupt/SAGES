@@ -396,4 +396,22 @@ document.addEventListener('DOMContentLoaded', () => {
         setupToggle('password',  'togglePassword1', 'toggleIcon1');
         setupToggle('password2', 'togglePassword2', 'toggleIcon2');
     }
+
+    if (document.getElementById('verifyCodeForm') || document.getElementById('newPasswordForm')) {
+        if (window.history && window.history.pushState) {
+            window.history.pushState(null, null, window.location.href);
+            window.addEventListener('popstate', function () {
+                window.history.pushState(null, null, window.location.href);
+            });
+        }
+    }
+});
+
+// ==========================================
+// PREVENCIÓN DE BFCACHE EN RECUPERACIÓN DE CLAVE
+// ==========================================
+window.addEventListener('pageshow', function (event) {
+    if (event.persisted) {
+        window.location.reload();
+    }
 });

@@ -110,3 +110,12 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 });
+
+// ==========================================
+// PREVENCIÓN DE BFCACHE (BACK-FORWARD CACHE) EN VISTAS DEL SISTEMA
+// ==========================================
+window.addEventListener('pageshow', function (event) {
+    if (event.persisted) {
+        window.location.reload();
+    }
+});

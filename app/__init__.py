@@ -143,6 +143,10 @@ def create_app(config_class=Config) -> Flask:
     @app.route('/verify-code', methods=['GET', 'POST'])
     @limiter.limit("10 per 5 minutes", methods=["POST"])
     def verify_code():
+        # Si el código ya fue verificado con éxito, evitar volver atrás; avanzar a nueva contraseña
+        if session.get('pw_reset_verified'):
+            return redirect(url_for('new_password'))
+
         import re
         import time
         # Recibe 'email' desde la sesión y un código por POST; valida expiración
@@ -300,11 +304,17 @@ def create_app(config_class=Config) -> Flask:
     @app.after_request
     def add_security_headers(response):
         """
-        Añadir cabeceras de seguridad y prevenir caché.
+        Añadir cabeceras de seguridad y prevenir almacenamiento en caché de vistas dinámicas y autenticadas.
         """
-        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, public, max-age=0"
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Expires"] = "0"
+        # Recursos estáticos: permitir caché del navegador para optimizar rendimiento
+        if request.path.startswith('/static/'):
+            response.headers["Cache-Control"] = "public, max-age=3600"
+        else:
+            # Vistas dinámicas, autenticadas y flujos de seguridad: directivas estrictas de no-store según OWASP
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "SAMEORIGIN"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"

@@ -203,3 +203,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
+
+// ==========================================
+// PREVENCIÓN DE BFCACHE EN LOGIN
+// ==========================================
+window.addEventListener('pageshow', function (event) {
+    if (event.persisted) {
+        window.location.reload();
+    }
+});

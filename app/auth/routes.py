@@ -179,6 +179,7 @@ def logout():
         status=AuditStatus.COMPLETADO.value
     )
     logout_user()
+    session.clear()
     if request.is_json or (request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html):
         return jsonify({"message": "Sesión cerrada correctamente."}), 200
         
@@ -205,6 +206,9 @@ def handle_forbidden(e):
 @auth_bp.route('/password', methods=['GET', 'POST'])
 @limiter.limit("5 per 15 minutes", methods=["POST"])
 def password():
+    # Si el código ya fue verificado, evitar volver atrás; avanzar a nueva contraseña
+    if session.get('pw_reset_verified'):
+        return redirect(url_for('new_password'))
 
     if current_user.is_authenticated:
         role_name = 'applicant'
