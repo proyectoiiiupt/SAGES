@@ -137,16 +137,7 @@ def get_all_institutions(filters=None, user=None, page=1, per_page=10):
         if filters:
             if filters.get('search_name'):
                 search_term = filters['search_name']
-                try:
-                    search_id = int(search_term)
-                    query = query.filter(
-                        or_(
-                            Institution.id == search_id,
-                            Institution.institution_name.ilike(f"%{search_term}%")
-                        )
-                    )
-                except ValueError:
-                    query = query.filter(Institution.institution_name.ilike(f"%{search_term}%"))
+                query = query.filter(Institution.institution_name.ilike(f"%{search_term}%"))
             if filters.get('institution_type'):
                 query = query.filter(Institution.institution_type_id == filters['institution_type'])
             if filters.get('institution_scope'):

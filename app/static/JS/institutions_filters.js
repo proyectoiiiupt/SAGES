@@ -9,7 +9,7 @@ function updateParishesByState() {
     
     if (selectedStateId) {
         // Cargar parroquias del estado seleccionado
-        fetch(`/api/parishes-by-state/${selectedStateId}`)
+        fetch(`/institutions/api/parishes-by-state/${selectedStateId}`)
             .then(response => response.json())
             .then(data => {
                 data.parishes.forEach(parish => {
