@@ -248,13 +248,15 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 
-// 0. Renderizar la fecha actual en el banner superior sin día de la semana
+// 0. Renderizar la fecha actual en el banner superior (time-formatter.js / es-VE)
 const dateDisplay = document.getElementById('current-date-display');
 if (dateDisplay) {
-    const today = new Date();
-    const options = { day: 'numeric', month: 'long', year: 'numeric' };
-    // Usamos es-VE para mantener la configuración regional de Venezuela
-    const formattedDate = today.toLocaleDateString('es-VE', options);
-    // Aplica el formato requerido: "10 de octubre, 2026"
-    dateDisplay.textContent = formattedDate.replace(' de 20', ', 20');
+    if (typeof formatCurrentDate === 'function') {
+        formatCurrentDate(dateDisplay, 'full-date');
+    } else {
+        const today = new Date();
+        const options = { day: 'numeric', month: 'long', year: 'numeric' };
+        const formattedDate = today.toLocaleDateString('es-VE', options);
+        dateDisplay.textContent = formattedDate.replace(' de 20', ', 20');
+    }
 }

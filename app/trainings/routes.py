@@ -10,6 +10,7 @@ Endpoints:
 import re
 import io
 from datetime import datetime, time
+from app.utils.timezone import caracas_date_range_to_utc
 from flask import render_template, jsonify, abort, request, redirect, url_for, flash, current_app, send_file
 from flask_login import login_required, current_user
 from sqlalchemy import func
@@ -382,21 +383,12 @@ def list_all():
             else:
                 query = query.filter(Status.status_code == filter_status)
 
-        # Filtro por Rango de Fecha de Creación
-        if date_from:
-            try:
-                dt_from = datetime.strptime(date_from, '%Y-%m-%d')
-                query = query.filter(Training.created_at >= dt_from)
-            except ValueError:
-                pass
-
-        if date_to:
-            try:
-                dt_to = datetime.strptime(date_to, '%Y-%m-%d')
-                dt_to = datetime.combine(dt_to.date(), time.max)
-                query = query.filter(Training.created_at <= dt_to)
-            except ValueError:
-                pass
+        # Filtro por Rango de Fecha de Creación (normalizado a UTC desde zona Venezuela)
+        start_utc, end_utc = caracas_date_range_to_utc(date_from, date_to)
+        if start_utc:
+            query = query.filter(Training.created_at >= start_utc)
+        if end_utc:
+            query = query.filter(Training.created_at <= end_utc)
 
         # Ordenamiento natural secuencial por número de formación
         query = query.order_by(Training.id.asc())

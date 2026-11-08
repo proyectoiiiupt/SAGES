@@ -6,13 +6,16 @@
 let searchTimeout;
 
 document.addEventListener('DOMContentLoaded', function () {
-    // Set dynamic date in Spanish format
+    // Set dynamic date in Venezuelan Spanish format (time-formatter.js)
     const dateElement = document.getElementById('current-date');
     if (dateElement) {
-        const options = { day: 'numeric', month: 'long', year: 'numeric' };
-        const today = new Date();
-        const formattedDate = today.toLocaleDateString('es-ES', options);
-        dateElement.textContent = formattedDate.replace(' de 20', ', 20');
+        if (typeof formatCurrentDate === 'function') {
+            formatCurrentDate(dateElement, 'full-date');
+        } else {
+            const today = new Date();
+            const options = { day: 'numeric', month: 'long', year: 'numeric' };
+            dateElement.textContent = today.toLocaleDateString('es-VE', options);
+        }
     }
 });
 

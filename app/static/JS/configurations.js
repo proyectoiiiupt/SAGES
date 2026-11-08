@@ -12,10 +12,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================================
     const dateElement = document.getElementById('config-date-text');
     if (dateElement) {
-        const today = new Date();
-        const options = { day: 'numeric', month: 'long', year: 'numeric' };
-        const formattedDate = today.toLocaleDateString('es-ES', options);
-        dateElement.textContent = formattedDate.replace(' de 20', ', 20');
+        if (typeof formatCurrentDate === 'function') {
+            formatCurrentDate(dateElement, 'full-date');
+        } else {
+            const today = new Date();
+            const options = { day: 'numeric', month: 'long', year: 'numeric' };
+            dateElement.textContent = today.toLocaleDateString('es-VE', options);
+        }
     }
 
     // =========================================================================

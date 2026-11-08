@@ -1541,9 +1541,9 @@ def verify_document_token(token: str):
     from datetime import datetime, timezone, timedelta
     from app.requests.services import validate_document_qr_token
 
-    # Marca de tiempo de la consulta en tiempo real (Hora legal de Venezuela UTC-4)
-    vzla_tz = timezone(timedelta(hours=-4))
-    now_vzla = datetime.now(vzla_tz)
+    # Marca de tiempo de la consulta en tiempo real (Hora legal de Venezuela America/Caracas)
+    from app.utils.timezone import get_caracas_now
+    now_vzla = get_caracas_now()
     query_timestamp = now_vzla.strftime("%d/%m/%Y a las %I:%M:%S %p")
 
     # 1. Fast-Fail: Validación sintáctica de 64 caracteres alfanuméricos hexadecimales
@@ -1933,8 +1933,8 @@ def verify_request_token(token):
             matched_req = candidate
             break
 
-    vzla_tz = timezone(timedelta(hours=-4))
-    now_vzla = datetime.now(vzla_tz)
+    from app.utils.timezone import get_caracas_now
+    now_vzla = get_caracas_now()
 
     return render_template(
         'requests/verify_report.html',

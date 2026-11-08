@@ -4,14 +4,16 @@
  */
 
 document.addEventListener('DOMContentLoaded', function () {
-    // 1. Formatear y mostrar la fecha actual en español
+    // 1. Formatear y mostrar la fecha actual (Estandarizado con time-formatter.js / es-VE)
     const dateElement = document.getElementById('dashboard-date-text');
     if (dateElement) {
-        const today = new Date();
-        const options = { day: 'numeric', month: 'long', year: 'numeric' };
-        const formattedDate = today.toLocaleDateString('es-ES', options);
-        // Formato requerido: "1 de abril, 2026"
-        dateElement.textContent = formattedDate.replace(' de 20', ', 20');
+        if (typeof formatCurrentDate === 'function') {
+            formatCurrentDate(dateElement, 'full-date');
+        } else {
+            const today = new Date();
+            const options = { day: 'numeric', month: 'long', year: 'numeric' };
+            dateElement.textContent = today.toLocaleDateString('es-VE', options);
+        }
     }
 
     // 2. Animación suave para los números de los indicadores (KPIs)

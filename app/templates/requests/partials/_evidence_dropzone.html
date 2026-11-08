@@ -197,7 +197,7 @@
                                     <span class="evidence-format-pill {{ 'pill-pdf' if ev.is_pdf else 'pill-image' }}">{{ ev.format }}</span>
                                     <span class="evidence-weight-text">{{ ev.file_weight_str }}</span>
                                 </div>
-                                <span class="evidence-date-text">{{ ev.created_at }}</span>
+                                <span class="evidence-date-text local-datetime" data-utc="{{ ev.created_at.isoformat() if ev.created_at and ev.created_at.isoformat is defined else ev.created_at }}" data-format="standard">{{ ev.created_at_str or ev.created_at }}</span>
                             </div>
 
                             <!-- Acciones de la tarjeta -->

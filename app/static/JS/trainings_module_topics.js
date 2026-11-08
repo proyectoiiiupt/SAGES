@@ -33,10 +33,14 @@
         const dateEl = document.getElementById('current-date');
         if (!dateEl) return;
 
-        const options = { day: 'numeric', month: 'long', year: 'numeric' };
-        const today = new Date();
-        const formatted = today.toLocaleDateString('es-ES', options);
-        dateEl.textContent = formatted.charAt(0).toUpperCase() + formatted.slice(1);
+        if (typeof formatCurrentDate === 'function') {
+            formatCurrentDate(dateEl, 'full-date');
+        } else {
+            const options = { day: 'numeric', month: 'long', year: 'numeric' };
+            const today = new Date();
+            const formatted = today.toLocaleDateString('es-VE', options);
+            dateEl.textContent = formatted.charAt(0).toUpperCase() + formatted.slice(1);
+        }
     }
 
     /* ────────────────────────────────────────────────────────────────── */

@@ -1,11 +1,14 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // --- Código del calendario ---
+    // --- Código del calendario (time-formatter.js / es-VE) ---
     const dateElement = document.getElementById('current-date');
     if (dateElement) {
-        const options = { day: 'numeric', month: 'long', year: 'numeric' };
-        const today = new Date();
-        const formattedDate = today.toLocaleDateString('es-ES', options);
-        dateElement.textContent = formattedDate.replace(' de 20', ', 20');
+        if (typeof formatCurrentDate === 'function') {
+            formatCurrentDate(dateElement, 'full-date');
+        } else {
+            const today = new Date();
+            const options = { day: 'numeric', month: 'long', year: 'numeric' };
+            dateElement.textContent = today.toLocaleDateString('es-VE', options);
+        }
     }
 
     // --- Buscador y filtros automáticos ---

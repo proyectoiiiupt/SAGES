@@ -14,10 +14,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Mostrar fecha local actual
     const dateDisplay = document.getElementById('audit-current-date');
     if (dateDisplay) {
-        const options = { day: 'numeric', month: 'long', year: 'numeric' };
-        const today = new Date();
-        const formattedDate = today.toLocaleDateString('es-ES', options);
-        dateDisplay.textContent = formattedDate.replace(' de 20', ', 20');
+        if (typeof formatCurrentDate === 'function') {
+            formatCurrentDate(dateDisplay, 'full-date');
+        } else {
+            const today = new Date();
+            const options = { day: 'numeric', month: 'long', year: 'numeric' };
+            dateDisplay.textContent = today.toLocaleDateString('es-VE', options);
+        }
     }
 
     // 2. Control de Filtros reactivos y Búsqueda con Debounce

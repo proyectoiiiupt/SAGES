@@ -5,11 +5,15 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Setear la fecha actual en la cabecera
+    // Setear la fecha actual en la cabecera (time-formatter.js / es-VE)
     const dateElement = document.getElementById('current-date');
     if (dateElement) {
-        const options = { year: 'numeric', month: 'long', day: 'numeric' };
-        dateElement.textContent = new Date().toLocaleDateString('es-ES', options);
+        if (typeof formatCurrentDate === 'function') {
+            formatCurrentDate(dateElement, 'full-date');
+        } else {
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            dateElement.textContent = new Date().toLocaleDateString('es-VE', options);
+        }
     }
     // Helper para escapar HTML y prevenir XSS
     function escapeHTML(str) {

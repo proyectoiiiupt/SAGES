@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from app.utils.timezone import get_caracas_today
 from flask_wtf import FlaskForm
 from wtforms import DateField, TextAreaField, SelectField, IntegerField, BooleanField
 from wtforms.validators import DataRequired, Length, NumberRange, Optional, ValidationError
@@ -128,13 +129,14 @@ class PlanTrainingForm(FlaskForm):
         if not field.data:
             return
 
-        if field.data <= date.today():
+        today_vzla = get_caracas_today()
+        if field.data <= today_vzla:
             raise ValidationError("La fecha debe ser estrictamente posterior al día de hoy.")
             
         if field.data.weekday() >= 5:  # 5 es Sábado, 6 es Domingo
             raise ValidationError("La fecha debe ser un día hábil (lunes a viernes).")
             
-        max_allowed_date = date.today() + timedelta(days=30)
+        max_allowed_date = today_vzla + timedelta(days=30)
         if field.data > max_allowed_date:
             raise ValidationError(f"No puede planificar solicitudes más allá del {max_allowed_date.strftime('%d/%m/%Y')}.")
 
@@ -173,7 +175,7 @@ class RescheduleRequestForm(FlaskForm):
     def validate_new_planned_for(self, field):
         if not field.data:
             return
-        if field.data <= date.today():
+        if field.data <= get_caracas_today():
             raise ValidationError("La nueva fecha debe ser estrictamente posterior al día de hoy.")
         if field.data.weekday() >= 5:  # 5 es Sábado, 6 es Domingo
             raise ValidationError("La fecha debe ser un día hábil (lunes a viernes).")

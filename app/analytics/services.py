@@ -1,6 +1,7 @@
 import calendar
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta, time, date
+from app.utils.timezone import caracas_date_range_to_utc, get_caracas_now
 from sqlalchemy import func, case, and_, extract
 from app.extensions import db
 from app.models.request_model import Request
@@ -686,34 +687,9 @@ class AnalyticsService:
         else:
             raw_from = params.get('date_from')
             raw_to = params.get('date_to')
-
-            if raw_from:
-                if isinstance(raw_from, datetime):
-                    start_date = raw_from if raw_from.tzinfo else raw_from.replace(tzinfo=timezone.utc)
-                elif isinstance(raw_from, date):
-                    start_date = datetime.combine(raw_from, time.min).replace(tzinfo=timezone.utc)
-                else:
-                    try:
-                        start_date = datetime.strptime(str(raw_from).strip(), '%Y-%m-%d').replace(tzinfo=timezone.utc)
-                    except ValueError:
-                        start_date = now - timedelta(days=30)
-            else:
-                start_date = now - timedelta(days=30)
-
-            if raw_to:
-                if isinstance(raw_to, datetime):
-                    end_date = raw_to if raw_to.tzinfo else raw_to.replace(tzinfo=timezone.utc)
-                elif isinstance(raw_to, date):
-                    end_date = datetime.combine(raw_to, time.max).replace(tzinfo=timezone.utc)
-                else:
-                    try:
-                        end_date = datetime.strptime(str(raw_to).strip(), '%Y-%m-%d').replace(
-                            hour=23, minute=59, second=59, tzinfo=timezone.utc
-                        )
-                    except ValueError:
-                        end_date = now
-            else:
-                end_date = now
+            s_utc, e_utc = caracas_date_range_to_utc(raw_from, raw_to)
+            start_date = s_utc or (now - timedelta(days=30))
+            end_date = e_utc or now
 
         # ── 3. CONSTRUCCIÓN DE LA CONSULTA RELACIONAL ──
         scoped_filters = {

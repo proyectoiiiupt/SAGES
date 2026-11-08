@@ -14,12 +14,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusSelect = document.getElementById('monitoring-status-select');
     const dateDisplay = document.getElementById('monitoring-current-date');
 
-    // 1. Mostrar fecha local actual
+    // 1. Mostrar fecha local actual (time-formatter.js / es-VE)
     if (dateDisplay) {
-        const options = { day: 'numeric', month: 'long', year: 'numeric' };
-        const today = new Date();
-        const formattedDate = today.toLocaleDateString('es-ES', options);
-        dateDisplay.textContent = formattedDate.replace(' de 20', ', 20');
+        if (typeof formatCurrentDate === 'function') {
+            formatCurrentDate(dateDisplay, 'full-date');
+        } else {
+            const options = { day: 'numeric', month: 'long', year: 'numeric' };
+            const today = new Date();
+            const formattedDate = today.toLocaleDateString('es-VE', options);
+            dateDisplay.textContent = formattedDate.replace(' de 20', ', 20');
+        }
     }
 
     if (!filterForm) return;

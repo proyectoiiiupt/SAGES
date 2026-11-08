@@ -175,7 +175,7 @@
 
                 <div class="tarjeta tarjeta-registro">
                     <span class="etiqueta-superior">Fecha de Registro:</span>
-                    <span class="fecha-valor">{{ training.created_at.strftime('%d/%m/%Y %H:%M') if training.created_at else 'N/D' }}</span>
+                    <span class="fecha-valor local-datetime" data-utc="{{ training.created_at.isoformat() if training.created_at else '' }}" data-format="standard">{{ training.created_at.strftime('%d/%m/%Y %H:%M') if training.created_at else 'N/D' }}</span>
                 </div>
             </div>
 

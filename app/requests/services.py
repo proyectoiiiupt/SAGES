@@ -1,4 +1,5 @@
 from datetime import datetime, timezone, timedelta
+from app.utils.timezone import CARACAS_TZ, get_caracas_now, get_caracas_today, to_caracas_time, caracas_date_range_to_utc
 from sqlalchemy import func, case, or_, and_, text
 from sqlalchemy.orm import joinedload
 from app.extensions import db
@@ -1331,7 +1332,7 @@ def reschedule_training_session(
     else:
         parsed_date = new_date
 
-    if parsed_date <= date_cls.today():
+    if parsed_date <= get_caracas_today():
         db.session.rollback()
         return False, "La nueva fecha debe ser estrictamente posterior al día de hoy.", {}
 
@@ -2512,7 +2513,7 @@ def check_closure_spam_alert(req, user_id: int = None) -> dict:
     if not active_planning:
         return {'should_trigger': False}
 
-    today = date_cls.today()
+    today = get_caracas_today()
     planned_date = active_planning.planned_for
 
     # El día de la formación (planned_date == today) se está cumpliendo la formación;
@@ -2783,7 +2784,7 @@ def submit_closure_reschedule(
     except ValueError:
         return False, "Formato de fecha invalido."
 
-    if new_date <= date_cls.today():
+    if new_date <= get_caracas_today():
         return False, "La nueva fecha debe ser posterior a hoy."
 
     if not justification_text or len(justification_text.strip()) < 20:
@@ -3100,11 +3101,12 @@ def get_active_workspace_context(request_id: int, current_user=None) -> dict:
             }
 
         active_planning = get_request_active_planning(req)
-        today_utc = datetime.now(timezone.utc).date()
+        today_vzla = get_caracas_today()
 
         # 4. Transición automática desatendida por llegada de la fecha pautada a STAT-006 (En Proceso)
-        # Aplica si está en STAT-005 (Planificada) o STAT-004 con fecha agendada
-        if active_planning and active_planning.planned_for and active_planning.planned_for <= today_utc:
+        # Aplica si está en STAT-005 (Planificada) o STAT-004 con fecha agendada.
+        # Se evalúa en la fecha oficial de Venezuela (America/Caracas, UTC-4) para evitar transiciones antes de la medianoche.
+        if active_planning and active_planning.planned_for and active_planning.planned_for <= today_vzla:
             if status_code in ('STAT-004', 'STAT-005'):
                 status_in_process = Status.query.filter_by(status_code='STAT-006').first()
                 if status_in_process and req.status_id != status_in_process.id:
@@ -3128,8 +3130,7 @@ def get_active_workspace_context(request_id: int, current_user=None) -> dict:
         evidence_metrics = compute_workspace_evidence_metrics(req.evidences)
 
         # 5.1 Evaluación de Bloqueo ANS (has_delay_block) y Semáforo (idéntico a Ficha Técnica)
-        vzla_tz = timezone(timedelta(hours=-4))
-        now_local = datetime.now(vzla_tz)
+        now_local = get_caracas_now()
         has_delay_block = False
         hours_diff = 0
 
@@ -4745,28 +4746,14 @@ def get_historical_requests(user: User, filters: dict = None, page: int = 1, per
             )
         )
 
-    # Filtros de Rango de Fecha (finished_at)
+    # Filtros de Rango de Fecha (finished_at) ajustados a la zona horaria de Venezuela
     date_from = filters.get('date_from')
-    if date_from:
-        try:
-            if isinstance(date_from, str):
-                df = datetime.strptime(date_from, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-            else:
-                df = date_from
-            query = query.filter(Request.finished_at >= df)
-        except Exception:
-            pass
-
     date_to = filters.get('date_to')
-    if date_to:
-        try:
-            if isinstance(date_to, str):
-                dt = (datetime.strptime(date_to, "%Y-%m-%d") + timedelta(days=1)).replace(tzinfo=timezone.utc)
-            else:
-                dt = date_to + timedelta(days=1)
-            query = query.filter(Request.finished_at < dt)
-        except Exception:
-            pass
+    start_utc, end_utc = caracas_date_range_to_utc(date_from, date_to)
+    if start_utc:
+        query = query.filter(Request.finished_at >= start_utc)
+    if end_utc:
+        query = query.filter(Request.finished_at <= end_utc)
 
     # 5. Carga ansiosa profunda (joinedload) para evitar N+1
     query = query.options(

@@ -1,11 +1,15 @@
 document.addEventListener('DOMContentLoaded', function () {
-    // 1. Fecha dinámica en cabecera
+    // 1. Fecha dinámica en cabecera (time-formatter.js / es-VE)
     const dateEl = document.getElementById('current-indicators-date');
     if (dateEl) {
-        const options = { day: 'numeric', month: 'long', year: 'numeric' };
-        const today = new Date();
-        const formattedDate = today.toLocaleDateString('es-ES', options);
-        dateEl.textContent = formattedDate.replace(' de 20', ', 20');
+        if (typeof formatCurrentDate === 'function') {
+            formatCurrentDate(dateEl, 'full-date');
+        } else {
+            const options = { day: 'numeric', month: 'long', year: 'numeric' };
+            const today = new Date();
+            const formattedDate = today.toLocaleDateString('es-VE', options);
+            dateEl.textContent = formattedDate.replace(' de 20', ', 20');
+        }
     }
 
     // 2. Alternancia de selectores temporales (Mes vs Rango)

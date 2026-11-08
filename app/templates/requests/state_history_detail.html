@@ -167,7 +167,7 @@
       {% endif %}
       <div class="hist-close-date">
         Fecha de Cierre:
-        {% if detail.finished_at_vzla %}<strong>{{ detail.finished_at_vzla.strftime('%d/%m/%Y  %I:%M %p') }}</strong>{% else %}<strong>N/A</strong>{% endif %}
+        {% if detail.finished_at_vzla %}<strong>{{ detail.finished_at_vzla.strftime('%d/%m/%Y %I:%M %p') if detail.finished_at_vzla.strftime is defined else detail.finished_at_vzla }}</strong>{% else %}<strong>N/A</strong>{% endif %}
       </div>
     </div>
   </div>

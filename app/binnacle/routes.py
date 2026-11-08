@@ -3,6 +3,7 @@ from io import StringIO
 from flask import Blueprint, jsonify, render_template, request, Response
 from app.models.binnacle_model import Binnacle 
 from app.models.user_model import User
+from app.utils.timezone import to_caracas_time, caracas_date_range_to_utc
 
 binnacle_bp = Blueprint('binnacle', __name__, url_prefix='/binnacle')
 
@@ -13,9 +14,10 @@ def index():
     
     logs_formateados = []
     for r in registros:
+        dt_vzla = to_caracas_time(r.created_at)
         logs_formateados.append({
             "id": r.id,
-            "date": r.created_at.strftime("%Y-%m-%d %I:%M %p") if r.created_at else "",
+            "date": dt_vzla.strftime("%d/%m/%Y %I:%M %p") if dt_vzla else "",
             "user": r.user.full_name if r.user else "No registrado",
             "module": r.module,
             "action": r.action_type,
@@ -33,7 +35,8 @@ def get_log_details(log_id):
     if not log:
         return jsonify({"success": False, "message": "Registro no encontrado."}), 404
 
-    fecha_form = log.created_at.strftime("%d/%m/%Y, %I:%M:%S %p UTC") if log.created_at else "Desconocida"
+    dt_vzla = to_caracas_time(log.created_at)
+    fecha_form = dt_vzla.strftime("%d/%m/%Y, %I:%M:%S %p") if dt_vzla else "Desconocida"
 
     if log.user:
         user_data = {
@@ -90,10 +93,11 @@ def get_logs_filtered():
     
     query = Binnacle.query
 
-    if fecha_desde:
-        query = query.filter(Binnacle.created_at >= f"{fecha_desde} 00:00:00")
-    if fecha_hasta:
-        query = query.filter(Binnacle.created_at <= f"{fecha_hasta} 23:59:59")
+    start_utc, end_utc = caracas_date_range_to_utc(fecha_desde, fecha_hasta)
+    if start_utc:
+        query = query.filter(Binnacle.created_at >= start_utc)
+    if end_utc:
+        query = query.filter(Binnacle.created_at <= end_utc)
     if modulo:
         query = query.filter(Binnacle.module == modulo)
     if accion:
@@ -113,9 +117,10 @@ def get_logs_filtered():
     
     logs_formateados = []
     for r in pagination.items:
+        dt_vzla = to_caracas_time(r.created_at)
         logs_formateados.append({
             "id": r.id,
-            "date": r.created_at.strftime("%Y-%m-%d %I:%M %p") if r.created_at else "",
+            "date": dt_vzla.strftime("%d/%m/%Y %I:%M %p") if dt_vzla else "",
             "user": getattr(r.user, 'full_name', 'No registrado') if r.user else "No registrado",
             "module": r.module,
             "action": r.action_type,
@@ -145,8 +150,9 @@ def export_logs():
     
     query = Binnacle.query
 
-    if fecha_desde: query = query.filter(Binnacle.created_at >= f"{fecha_desde} 00:00:00")
-    if fecha_hasta: query = query.filter(Binnacle.created_at <= f"{fecha_hasta} 23:59:59")
+    start_utc, end_utc = caracas_date_range_to_utc(fecha_desde, fecha_hasta)
+    if start_utc: query = query.filter(Binnacle.created_at >= start_utc)
+    if end_utc: query = query.filter(Binnacle.created_at <= end_utc)
     if modulo: query = query.filter(Binnacle.module == modulo)
     if accion: query = query.filter(Binnacle.action_type == accion)
     
@@ -168,7 +174,8 @@ def export_logs():
         data.truncate(0)
 
         for r in registros:
-            fecha = r.created_at.strftime("%Y-%m-%d %I:%M %p") if r.created_at else "N/A"
+            dt_vzla = to_caracas_time(r.created_at)
+            fecha = dt_vzla.strftime("%d/%m/%Y %I:%M %p") if dt_vzla else "N/A"
             user_name = getattr(r.user, 'full_name', 'No registrado') if r.user else "No registrado"
             status = "Fallido" if "FALLIDO" in (r.action_type or "").upper() else "Completado"
             

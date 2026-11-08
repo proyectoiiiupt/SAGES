@@ -505,7 +505,7 @@
 
         const [y, m, d] = dateStr.split('-');
         const dateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
-        const dateLabel = dateObj.toLocaleDateString('es-ES', {
+        const dateLabel = dateObj.toLocaleDateString('es-VE', {
             weekday: 'long',
             day: 'numeric',
             month: 'long',

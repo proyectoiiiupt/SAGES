@@ -16,6 +16,7 @@ from app.models.company_staff_model import CompanyStaff
 from app.models.place_model import Place
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, case
+from app.utils.timezone import to_caracas_time
 
 
 def get_user_state_info(user):
@@ -435,7 +436,7 @@ def get_state_demand_details(state_id: int):
                     'status_name': r.status_name,
                     'institution_name': r.institution_name,
                     'training_name': r.training_name,
-                    'created_at': r.created_at.strftime('%d/%m/%Y %H:%M') if r.created_at else ''
+                    'created_at': to_caracas_time(r.created_at).strftime('%d/%m/%Y %I:%M %p') if r.created_at else ''
                 }
                 for r in recent_requests
             ]
