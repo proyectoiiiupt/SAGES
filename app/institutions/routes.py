@@ -272,7 +272,6 @@ def edit_institution(institution_id):
         
         elif request.method == 'POST':
             if not form.validate():
-                flash('Por favor, corrija los errores en el formulario.', 'danger')
                 return render_template('institutions/edit.html', institution=institution, is_applicant=(user_role == 'applicant'),
                                      institution_types=institution_types, institution_scopes=institution_scopes,
                                      institution_dependencies=institution_dependencies, dependencies_list=dependencies_list,

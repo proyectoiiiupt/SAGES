@@ -622,6 +622,11 @@ def update_institution_contact_infrastructure(institution_id, institution_data, 
         db.session.commit()
         
         changed_fields = {}
+        if old_values['phone'] != institution.phone:
+            phone_val = institution.phone
+            if phone_val and len(phone_val) == 11 and not phone_val.startswith('('):
+                phone_val = f"({phone_val[:4]})-{phone_val[4:]}"
+            changed_fields["Teléfono"] = phone_val
         if old_values['address'] != institution.address:
             changed_fields["Dirección"] = institution.address
             
@@ -642,6 +647,10 @@ def update_institution_contact_infrastructure(institution_id, institution_data, 
                     changed_fields["Municipio"] = institution.parish.municipality.name
                     if hasattr(institution.parish.municipality, 'state') and institution.parish.municipality.state:
                         changed_fields["Estado"] = institution.parish.municipality.state.name
+            if 'city_id' in institution_data and institution_data['city_id'] and old_values.get('city_id') != institution_data.get('city_id'):
+                city_obj = db.session.get(City, institution_data['city_id'])
+                if city_obj:
+                    changed_fields["Ciudad"] = city_obj.name
         
         # Modificado por
         if current_user and hasattr(current_user, 'person') and current_user.person:
@@ -661,7 +670,7 @@ def update_institution_contact_infrastructure(institution_id, institution_data, 
         )
         
         try:
-            if is_admin and len(changed_fields) > 1: # > 1 para que solo se dispare si aparte del Modificado Por, algo mas cambió
+            if len(changed_fields) > 1: # > 1 para que solo se dispare si aparte del Modificado Por, algo mas cambió
                 from app.notifications.services import NotificationService
                 from app.notifications.enums import NotificationEvent
                 NotificationService.notify_institution_affiliates(
@@ -671,7 +680,7 @@ def update_institution_contact_infrastructure(institution_id, institution_data, 
                         "institution_name": institution.institution_name,
                         "_display": changed_fields
                     },
-                    redirect_url="/institutions/profile",
+                    redirect_url="/institutions/my-institution",
                     action_text="Ver Detalles"
                 )
         except Exception as e:

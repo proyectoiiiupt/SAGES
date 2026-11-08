@@ -1,4 +1,4 @@
-// Script para el formulario de edición de instituciones
+﻿// Script para el formulario de edición de instituciones
 document.addEventListener('DOMContentLoaded', function() {
     // Mostrar fecha actual (time-formatter.js / es-VE)
     const dateElement = document.getElementById('current-date');
@@ -443,21 +443,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // === Validación en tiempo real ===
     
-    // Formateo de nombre de institución (solo letras, title case)
+    // Validación visual del nombre de institución
     if (institutionNameInput) {
         institutionNameInput.addEventListener('input', function(e) {
-            // Solo permitir letras y espacios
-            let value = this.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
-            
-            // Convertir a minúsculas y luego a title case
-            value = value.toLowerCase().replace(/\b\w/g, function(char) {
-                return char.toUpperCase();
-            });
-            
-            this.value = value;
-            
             // Validación visual
-            if (value && value !== '') {
+            if (this.value && this.value !== '') {
                 this.classList.add('success');
                 this.classList.remove('error');
             } else {
