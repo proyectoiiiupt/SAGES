@@ -447,3 +447,27 @@ def create_administrative_user(data: dict, creator_user: User) -> Tuple[bool, st
         db.session.rollback()
         return False, f"Ocurrió un error inesperado al crear el usuario: {str(e)}", {}
 
+
+def get_user_state_id(user: Optional[User]) -> Optional[int]:
+    """
+    Obtiene el ID del estado geográfico asociado a un usuario,
+    inspeccionando su vinculación institucional o corporativa.
+    """
+    if not user or not getattr(user, 'person', None):
+        return None
+
+    person_id = user.person.id
+
+    inst_staff = InstitutionalStaff.query.filter_by(person_id=person_id).first()
+    if inst_staff and inst_staff.institution and inst_staff.institution.parish:
+        if inst_staff.institution.parish.municipality:
+            return inst_staff.institution.parish.municipality.state_id
+
+    comp_staff = CompanyStaff.query.filter_by(person_id=person_id).first()
+    if comp_staff and comp_staff.place and comp_staff.place.parish:
+        if comp_staff.place.parish.municipality:
+            return comp_staff.place.parish.municipality.state_id
+
+    return None
+
+

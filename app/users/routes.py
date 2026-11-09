@@ -20,7 +20,13 @@ from app.models.status_model import Status
 from app.users.forms import UserUpdateForm, AdminUserRegisterForm
 from app.utils.activation_utils import generate_activation_token
 from app.utils.email_utils import send_applicant_activation_email, send_administrative_activation_email
-from app.users.services import get_corpoelec_places_by_state, get_administrative_positions, create_administrative_user
+from app.users.services import (
+    get_corpoelec_places_by_state,
+    get_administrative_positions,
+    create_administrative_user,
+    get_user_state_id
+)
+from app.decorators.auth_decorators import role_required, check_permissions
 from app.binnacle.decorators import audit_activity
 from app.binnacle.services import BinnacleService
 from app.binnacle.types import AuditModule, AuditAction, AuditStatus
@@ -225,13 +231,29 @@ def list_users():
 
 @users_bp.route('/view/<int:user_id>', methods=['GET'])
 @login_required
+@role_required('super_admin', 'state_admin')
+@check_permissions('manage_users')
 @audit_activity(module=AuditModule.USERS.value, action_type=AuditAction.CONSULTA_DETALLE.value, description="Consulta del perfil detallado de un usuario")
 def view_user(user_id):
+    current_user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
+    if current_user_role not in ['super_admin', 'state_admin']:
+        abort(403)
+
     user = User.query.get_or_404(user_id)
     person = user.person
     
-    current_user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
     viewed_role = user.roles_assoc[0].role.name if user.roles_assoc else 'applicant'
+
+    # Validación estricta de jerarquía y jurisdicción territorial para Administrador Estadal
+    if current_user_role == 'state_admin':
+        if viewed_role not in ['applicant', 'director', 'directora']:
+            abort(403)
+
+        admin_state_id = get_user_state_id(current_user)
+        target_state_id = get_user_state_id(user)
+
+        if not admin_state_id or admin_state_id != target_state_id:
+            abort(403)
 
     def format_venezuelan_phone(phone_str):
         if not phone_str or phone_str == 'N/A': return 'N/A'
