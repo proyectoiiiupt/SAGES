@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 
 def send_email(to_email: str, subject: str, html_content: str, text_content: str, attachments: list = None) -> bool:
     """Utilidad global para el envío de correos con formato HTML, texto y soporte para archivos adjuntos."""
-    smtp_user = os.getenv('SMTP_USER') or os.getenv('EMAIL_USER')
-    smtp_pass = os.getenv('SMTP_PASS')
+    smtp_user = (os.getenv('SMTP_USER') or os.getenv('EMAIL_USER') or '').strip()
+    smtp_pass = (os.getenv('SMTP_PASS') or '').strip()
     
     if not smtp_user or not smtp_pass:
         error_msg = "SMTP no configurado: falta SMTP_USER o SMTP_PASS en el archivo .env"
@@ -260,15 +260,31 @@ def send_invitation_email(to_email: str, link: str, institution_name: str) -> bo
     """
     return send_email(to_email, subject, html_content, text_content)
 
-def send_applicant_activation_email(to_email: str, token: str) -> bool:
+def send_applicant_activation_email(to_email: str, token: str, full_name: str = "", institution_name: str = "") -> bool:
     """Envía el enlace de activación al solicitante tras aprobar su registro (US-10)."""
+    import html
     activation_url = url_for('auth.activate_account', token=token, _external=True)
     subject = "Solicitud Aprobada — Active su Cuenta en SAGES"
     
+    clean_to_email = to_email.strip().lower() if to_email else ""
+    safe_name = html.escape(full_name).strip() if full_name else ""
+    safe_institution = html.escape(institution_name).strip() if institution_name else ""
+
+    # Saludo y destinatario personalizado
+    if safe_name:
+        greeting_text = f"Estimado/a {safe_name},"
+        greeting_html = f"Estimado/a <strong>{safe_name}</strong>,"
+    else:
+        greeting_text = "Estimado/a representante,"
+        greeting_html = "Estimado/a representante,"
+
+    inst_text = f" con la institución educativa {safe_institution}" if safe_institution else " con la institución educativa"
+    inst_html = f" con la institución educativa <strong>{safe_institution}</strong>" if safe_institution else " con la institución educativa"
+    
     text_content = (
-        f"Estimado/a representante,\n\n"
-        f"Su comprobante de vinculación ha sido validado satisfactoriamente.\n\n"
-        f"Para activar su cuenta, haga clic en el siguiente enlace:\n{activation_url}\n\n"
+        f"{greeting_text}\n\n"
+        f"Le informamos que su comprobante de vinculación{inst_text} ha sido revisado y validado satisfactoriamente por la Coordinación de UREE.\n\n"
+        f"Para habilitar su acceso y comenzar la carga de solicitudes, defina su contraseña de acceso seguro haciendo clic en el siguiente enlace:\n{activation_url}\n\n"
         f"Este enlace tiene una caducidad estricta de 48 horas.\n"
     )
 
@@ -289,7 +305,7 @@ def send_applicant_activation_email(to_email: str, token: str) -> bool:
                 <td align="center" style="padding: 0 40px;">
                     <h2 style="font-size: 22px; font-weight: 700; color: #1f2937; margin: 10px 0 20px 0; text-transform: uppercase; letter-spacing: 0.5px;">VALIDACIÓN DE CUENTA EXITOSA</h2>
                     <p style="font-size: 15px; color: #4b5563; margin: 0 0 15px 0; line-height: 1.6; text-align: left;">
-                        Estimado/a representante, le informamos que su comprobante de vinculación con la institución educativa ha sido revisado y <strong>validado satisfactoriamente</strong> por la Coordinación de UREE.
+                        {greeting_html} le informamos que su comprobante de vinculación{inst_html} ha sido revisado y <strong>validado satisfactoriamente</strong> por la Coordinación de UREE.
                     </p>
                     <p style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.6; text-align: left;">
                         Para habilitar su acceso y comenzar la carga de solicitudes, defina su contraseña de acceso seguro haciendo clic en el siguiente botón:
@@ -315,7 +331,7 @@ def send_applicant_activation_email(to_email: str, token: str) -> bool:
     </html>
     """
     # Despacho en hilo independiente para no bloquear el request de aprobación
-    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content))
+    thread = threading.Thread(target=send_email, args=(clean_to_email, subject, html_content, text_content))
     thread.start()
     return True
 

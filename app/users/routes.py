@@ -702,11 +702,13 @@ def approve_request(staff_id):
             staff.status_id = status_in_progress.id 
         db.session.commit()
 
+        full_name = f"{person.first_name} {person.last_name}".strip()
+        inst_name = staff.institution.institution_name if hasattr(staff, 'institution') and staff.institution else "Plantel Asignado"
+
         try:
             from app.notifications.services import NotificationService
             from app.notifications.enums import NotificationEvent
-            user_name = f"{person.first_name} {person.last_name}".strip()
-            inst_name = staff.institution.institution_name if hasattr(staff, 'institution') and staff.institution else "Plantel Asignado"
+            user_name = full_name
             state_name = "su jurisdicción"
             if hasattr(staff, 'institution') and staff.institution and staff.institution.parish and hasattr(staff.institution.parish, 'municipality') and staff.institution.parish.municipality and hasattr(staff.institution.parish.municipality, 'state'):
                 state_name = staff.institution.parish.municipality.state.name
@@ -737,18 +739,23 @@ def approve_request(staff_id):
         BinnacleService.create_log_entry(
             module=AuditModule.USERS.value,
             action_type=AuditAction.APROBACION_SOLICITUD_REGISTRO.value,
-            description=f'Solicitud aprobada exitosamente para {person.first_name} {person.last_name}',
+            description=f'Solicitud aprobada exitosamente para {full_name}',
             target_table='sages.institutional_staff',
             record_id=staff.id,
             status=AuditStatus.COMPLETADO.value
         )
 
-        # 2. Llamada a la función de correo en hilo independiente DESPUÉS del commit
-        send_applicant_activation_email(person.email, token)
+        # 2. Llamada a la función de correo en hilo independiente DESPUÉS del commit con datos completos del destinatario
+        send_applicant_activation_email(
+            to_email=person.email,
+            token=token,
+            full_name=full_name,
+            institution_name=inst_name
+        )
 
         return jsonify({
             'status': 'success',
-            'message': f'Solicitud aprobada exitosamente. Se ha generado el enlace de activación para {person.first_name} {person.last_name}.'
+            'message': f'Solicitud aprobada exitosamente. Se ha generado el enlace de activación para {full_name}.'
         })
 
     except Exception as e:
