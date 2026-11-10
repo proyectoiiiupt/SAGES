@@ -1,4 +1,4 @@
-from flask import request, jsonify, redirect, url_for, flash, render_template, session
+from flask import request, jsonify, redirect, url_for, flash, render_template, session, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from app.auth import auth_bp
 from app.auth.services import authenticate_user
@@ -87,12 +87,19 @@ def login():
             )
             remember_me = False
             if is_api:
-                remember_me = data.get('remember', False)
+                remember_me = bool(data.get('remember', False))
             else:
-                remember_me = request.form.get('remember') == 'true'
+                remember_val = request.form.get('remember', '')
+                remember_me = str(remember_val).lower() in ['true', 'on', '1']
 
+            session.permanent = remember_me
             login_user(user, remember=remember_me)
             
+            # Extraer rol tempranamente para evitar UnboundLocalError en caso de fallo en notificaciones
+            role_name = 'applicant'
+            if user.roles_assoc and len(user.roles_assoc) > 0:
+                role_name = user.roles_assoc[0].role.name
+
             try:
                 from app.notifications.services import NotificationService
                 from app.notifications.enums import NotificationEvent
@@ -103,11 +110,6 @@ def login():
                     user_id=user.id, 
                     event_code=NotificationEvent.USER_WELCOME_FIRST_LOGIN.value
                 ).first()
-                
-                # Extraer rol tempranamente para la notificacion
-                role_name = 'applicant'
-                if user.roles_assoc and len(user.roles_assoc) > 0:
-                    role_name = user.roles_assoc[0].role.name
                     
                 role_instructions = {
                     'super_admin': 'Como Super Administrador tienes acceso total a la configuración del sistema, gestión de planteles, y auditoría general.',
@@ -170,21 +172,29 @@ def login():
     return render_template('auth/login.html')
 
 @auth_bp.route('/logout', methods=['GET', 'POST'])
-@login_required
 def logout():
-    BinnacleService.log_security_event(
-        action_type=AuditAction.LOGOUT.value,
-        description='Cierre de sesión manual',
-        user=current_user,
-        status=AuditStatus.COMPLETADO.value
-    )
-    logout_user()
+    if current_user.is_authenticated:
+        BinnacleService.log_security_event(
+            action_type=AuditAction.LOGOUT.value,
+            description='Cierre de sesión manual',
+            user=current_user,
+            status=AuditStatus.COMPLETADO.value
+        )
     session.clear()
+    logout_user()
+
     if request.is_json or (request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html):
-        return jsonify({"message": "Sesión cerrada correctamente."}), 200
-        
-    flash("Has cerrado sesión.", 'success')
-    return redirect(url_for('auth.login'))
+        response = jsonify({"message": "Sesión cerrada correctamente."})
+    else:
+        flash("Has cerrado sesión.", 'success')
+        response = redirect(url_for('auth.login'))
+
+    response.delete_cookie(
+        current_app.config.get('REMEMBER_COOKIE_NAME', 'remember_token'),
+        path=current_app.config.get('REMEMBER_COOKIE_PATH', '/'),
+        domain=current_app.config.get('REMEMBER_COOKIE_DOMAIN')
+    )
+    return response
 
 @login_manager.unauthorized_handler
 def handle_unauthorized():

@@ -23,10 +23,6 @@ def create_app(config_class=Config) -> Flask:
         from app.binnacle.listeners import register_audit_listeners
         register_audit_listeners(db)
 
-    @app.before_request
-    def make_session_permanent():
-        session.permanent = True
-
     @login_manager.user_loader
     def load_user(user_id):
         from app.models.user_model import User
