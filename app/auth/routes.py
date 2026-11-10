@@ -7,6 +7,7 @@ from flask_limiter.errors import RateLimitExceeded
 from urllib.parse import urlparse, urljoin
 import secrets
 import time
+from datetime import timedelta
 from app.utils.email_utils import send_recovery_email
 from app.models.person_model import Person
 from app.auth.token_store import set_token, get_remaining_seconds, invalidate_token
@@ -92,8 +93,13 @@ def login():
                 remember_val = request.form.get('remember', '')
                 remember_me = str(remember_val).lower() in ['true', 'on', '1']
 
+            session_token = secrets.token_hex(32)
+            session['session_token'] = session_token
             session.permanent = remember_me
             login_user(user, remember=remember_me)
+
+            from app.auth.session_store import set_active_session
+            set_active_session(user.id, session_token)
             
             # Extraer rol tempranamente para evitar UnboundLocalError en caso de fallo en notificaciones
             role_name = 'applicant'
@@ -147,15 +153,28 @@ def login():
             redirect_target = next_page or url_for(f'home_{role_name}')
 
             if is_api:
-                return jsonify({
+                response = jsonify({
                     "message": msg, 
                     "user_id": user.id, 
                     "role": role_name,
                     "redirect_url": redirect_target
-                }), 200
+                })
             else:
                 flash(msg, 'success')
-                return redirect(redirect_target)
+                response = redirect(redirect_target)
+
+            if remember_me:
+                max_age = int(current_app.config.get('REMEMBER_COOKIE_DURATION', timedelta(hours=1)).total_seconds())
+                response.set_cookie(
+                    'sages_session_token',
+                    session_token,
+                    max_age=max_age,
+                    httponly=True,
+                    samesite=current_app.config.get('REMEMBER_COOKIE_SAMESITE', 'Lax'),
+                    secure=current_app.config.get('REMEMBER_COOKIE_SECURE', False)
+                )
+
+            return response
         else:
             BinnacleService.log_security_event(
                 action_type=AuditAction.LOGIN_FALLIDO.value,
@@ -174,10 +193,19 @@ def login():
 @auth_bp.route('/logout', methods=['GET', 'POST'])
 def logout():
     if current_user.is_authenticated:
+        from app.auth.session_store import clear_active_session
+        user_real = None
+        try:
+            user_real = current_user._get_current_object()
+        except Exception:
+            pass
+        clear_token = session.get('session_token') or request.cookies.get('sages_session_token')
+        if clear_token:
+            clear_active_session(current_user.id, token=clear_token)
         BinnacleService.log_security_event(
             action_type=AuditAction.LOGOUT.value,
             description='Cierre de sesión manual',
-            user=current_user,
+            user=user_real,
             status=AuditStatus.COMPLETADO.value
         )
     session.clear()
@@ -194,15 +222,24 @@ def logout():
         path=current_app.config.get('REMEMBER_COOKIE_PATH', '/'),
         domain=current_app.config.get('REMEMBER_COOKIE_DOMAIN')
     )
+    response.delete_cookie(
+        'sages_session_token',
+        path=current_app.config.get('REMEMBER_COOKIE_PATH', '/'),
+        domain=current_app.config.get('REMEMBER_COOKIE_DOMAIN')
+    )
     return response
 
 @login_manager.unauthorized_handler
 def handle_unauthorized():
-
-    if request.is_json or (request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html):
-        return jsonify({"error": "Authentication required."}), 401
+    is_api = (
+        request.is_json
+        or request.path.startswith('/api/')
+        or '/api/' in request.path
+        or (request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html)
+    )
+    if is_api:
+        return jsonify({"error": "Authentication required.", "session_expired": True}), 401
     
-
     return render_template('auth/unauthorized.html'), 401
 
 @auth_bp.app_errorhandler(403)

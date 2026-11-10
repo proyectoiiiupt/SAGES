@@ -33,8 +33,8 @@ class BinnacleService:
         """
         context = get_audit_context()
 
-        # Si pasan el objeto de usuario, usamos su id
-        user_id = user.id if user else context.get('user_id')
+        # Si pasan el objeto de usuario, usamos su id de forma segura sin fallar en proxies
+        user_id = getattr(user, 'id', None) if user else context.get('user_id')
 
         # En caso de no haber ID, intentamos extraer user_identifier explícito
 

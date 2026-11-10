@@ -297,6 +297,105 @@ def create_app(config_class=Config) -> Flask:
 
         return render_template('auth/new_password.html')
 
+    @app.before_request
+    def validate_single_active_session():
+        """
+        Garantiza que solo exista 1 sesión activa por cuenta (Single Active Session).
+        Si se detecta un inicio de sesión concurrente en otro dispositivo o navegador,
+        la sesión previa es invalidada y cerrada de forma segura.
+        """
+        if request.path.startswith('/static/'):
+            return
+
+        from flask_login import current_user
+        if not current_user.is_authenticated:
+            return
+
+        if request.endpoint == 'auth.logout':
+            return
+
+        from app.auth.session_store import get_active_session, set_active_session
+        active_token = get_active_session(current_user.id)
+        # Recuperar token desde session de Flask o desde la cookie persistente de Recordarme
+        client_token = session.get('session_token') or request.cookies.get('sages_session_token')
+
+        # Si en el servidor no hay ninguna sesión activa registrada (ej. reinicio de caché o sesión preexistente):
+        if active_token is None:
+            import secrets
+            token_to_set = client_token or secrets.token_hex(32)
+            session['session_token'] = token_to_set
+            set_active_session(current_user.id, token_to_set)
+            return
+
+        # Si el token del cliente no coincide con la sesión activa en el servidor:
+        if not client_token or client_token != active_token:
+            from flask_login import logout_user
+
+            # Obtener el objeto User real antes de cerrar sesión para evitar el proxy AnonymousUserMixin
+            user_real = None
+            try:
+                user_real = current_user._get_current_object()
+            except Exception:
+                pass
+
+            try:
+                BinnacleService.log_security_event(
+                    action_type=AuditAction.LOGOUT.value,
+                    description='Sesión cerrada automáticamente por detección de inicio de sesión concurrente en otro dispositivo',
+                    user=user_real,
+                    status=AuditStatus.COMPLETADO.value
+                )
+            except Exception:
+                pass
+
+            session.clear()
+            logout_user()
+
+            msg = "Tu sesión ha sido cerrada debido a que se inició sesión en otro dispositivo o navegador."
+            flash(msg, 'warning')
+
+            is_api = (
+                request.is_json
+                or request.path.startswith('/api/')
+                or '/api/' in request.path
+                or (request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html)
+            )
+
+            if is_api:
+                resp = jsonify({
+                    "error": msg,
+                    "session_expired": True
+                })
+                resp.status_code = 401
+                resp.delete_cookie(
+                    app.config.get('REMEMBER_COOKIE_NAME', 'remember_token'),
+                    path=app.config.get('REMEMBER_COOKIE_PATH', '/'),
+                    domain=app.config.get('REMEMBER_COOKIE_DOMAIN')
+                )
+                resp.delete_cookie(
+                    'sages_session_token',
+                    path=app.config.get('REMEMBER_COOKIE_PATH', '/'),
+                    domain=app.config.get('REMEMBER_COOKIE_DOMAIN')
+                )
+                return resp
+
+            response = redirect(url_for('auth.login'))
+            response.delete_cookie(
+                app.config.get('REMEMBER_COOKIE_NAME', 'remember_token'),
+                path=app.config.get('REMEMBER_COOKIE_PATH', '/'),
+                domain=app.config.get('REMEMBER_COOKIE_DOMAIN')
+            )
+            response.delete_cookie(
+                'sages_session_token',
+                path=app.config.get('REMEMBER_COOKIE_PATH', '/'),
+                domain=app.config.get('REMEMBER_COOKIE_DOMAIN')
+            )
+            return response
+
+        # Si se autenticó por 'Recordarme' y la sesión de 30 min expiró, restaurar en session
+        if not session.get('session_token') and client_token:
+            session['session_token'] = client_token
+
     @app.after_request
     def add_security_headers(response):
         """

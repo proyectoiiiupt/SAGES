@@ -16,15 +16,24 @@ document.addEventListener("DOMContentLoaded", function () {
     function fetchUnreadCount() {
         if (document.hidden) return; // Do not poll if page is hidden
 
-        fetch('/notifications/api/unread-count')
-            .then(response => {
-                // Si la sesión expiró y redirige al login, o da error 401/403
-                if (!response.ok || response.redirected) {
-                    stopPolling();
-                    throw new Error('Sesión expirada o no autorizada');
-                }
-                return response.json();
-            })
+        fetch('/notifications/api/unread-count', {
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            // Si la sesión expiró o fue desplazada (HTTP 401), redirigir de inmediato al login
+            if (response.status === 401) {
+                stopPolling();
+                window.location.href = '/auth/login';
+                return;
+            }
+            if (!response.ok || response.redirected) {
+                stopPolling();
+                throw new Error('Sesión expirada o no autorizada');
+            }
+            return response.json();
+        })
             .then(data => {
                 if (data.unread_count > 0) {
                     badge.innerText = data.unread_count > 99 ? '99+' : data.unread_count;
@@ -64,13 +73,18 @@ document.addEventListener("DOMContentLoaded", function () {
         clearInterval(pollingTimer);
     }
 
-    // Page Visibility API
+    // Page Visibility API & Window Focus (detección inmediata al enfocar la pestaña)
     document.addEventListener("visibilitychange", function () {
         if (document.hidden) {
             stopPolling();
         } else {
+            fetchUnreadCount();
             startPolling();
         }
+    });
+
+    window.addEventListener("focus", function () {
+        fetchUnreadCount();
     });
 
     // Start on load
