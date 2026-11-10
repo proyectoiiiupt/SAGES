@@ -4,7 +4,7 @@ Proporciona validación de seguridad y reglas de inserción de datos.
 """
 from flask_wtf import FlaskForm
 from wtforms import StringField, SelectField, TextAreaField
-from wtforms.validators import DataRequired, Length, Regexp, Optional
+from wtforms.validators import DataRequired, Length, Regexp
 
 
 class InstitutionEditForm(FlaskForm):
@@ -73,15 +73,6 @@ class InstitutionEditForm(FlaskForm):
         validators=[DataRequired(message='Debe seleccionar una ciudad')]
     )
     
-    # Datos de Contacto (Todos los usuarios)
-    phone = StringField(
-        'Teléfono Principal',
-        validators=[
-            DataRequired(message='El teléfono principal es requerido'),
-            Length(min=11, max=14, message='El teléfono debe tener entre 11 y 14 caracteres')
-        ]
-    )
-    
     address = TextAreaField(
         'Dirección Detallada',
         validators=[
@@ -141,17 +132,8 @@ class InstitutionEditForm(FlaskForm):
 class InstitutionEditApplicantForm(FlaskForm):
     """
     Formulario WTForm simplificado para applicants.
-    Solo permite editar teléfono y dirección.
+    Permite editar la dirección detallada.
     """
-    
-    phone = StringField(
-        'Teléfono Principal',
-        validators=[
-            DataRequired(message='El teléfono principal es requerido'),
-            Regexp(r'^\(\d{4}\)-\d{7}$', message='Formato inválido. Debe ser (XXXX)-XXXXXXX (ej: (0414)-1234567)'),
-            Length(min=14, max=14, message='El teléfono debe tener 14 caracteres')
-        ]
-    )
     
     address = TextAreaField(
         'Dirección Detallada',

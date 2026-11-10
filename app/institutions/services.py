@@ -449,16 +449,6 @@ def validate_institution_data(institution_data, is_admin=False):
     """Valida los datos de una institución antes de actualizar."""
     errors = {}
     
-    if 'phone' in institution_data:
-        phone = institution_data['phone']
-        if not phone or phone.strip() == '':
-            errors['phone'] = 'El teléfono es obligatorio'
-        else:
-            clean_phone = phone.replace('(', '').replace(')', '').replace('-', '').strip()
-            pattern = r'^\d{11}$'
-            if not re.match(pattern, clean_phone):
-                errors['phone'] = 'Formato de teléfono inválido. Debe ser (XXXX)-XXXXXXX (ej: (0414)-1234567)'
-    
     if 'address' in institution_data:
         address = institution_data['address']
         if not address or address.strip() == '':
@@ -569,7 +559,6 @@ def update_institution_contact_infrastructure(institution_id, institution_data, 
             return None, False, 'Institución no encontrada'
         
         old_values = {
-            'phone': institution.phone,
             'address': institution.address
         }
         
@@ -587,9 +576,6 @@ def update_institution_contact_infrastructure(institution_id, institution_data, 
             if institution.parish and institution.parish.locations and len(institution.parish.locations) > 0:
                 old_values['city_id'] = institution.parish.locations[0].city_id
         
-        if 'phone' in institution_data:
-            clean_phone = institution_data['phone'].replace('(', '').replace(')', '').replace('-', '').strip()
-            institution.phone = clean_phone
         if 'address' in institution_data:
             institution.address = institution_data['address']
         
@@ -622,11 +608,6 @@ def update_institution_contact_infrastructure(institution_id, institution_data, 
         db.session.commit()
         
         changed_fields = {}
-        if old_values['phone'] != institution.phone:
-            phone_val = institution.phone
-            if phone_val and len(phone_val) == 11 and not phone_val.startswith('('):
-                phone_val = f"({phone_val[:4]})-{phone_val[4:]}"
-            changed_fields["Teléfono"] = phone_val
         if old_values['address'] != institution.address:
             changed_fields["Dirección"] = institution.address
             

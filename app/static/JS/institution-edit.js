@@ -1,4 +1,4 @@
-﻿// Script para el formulario de edición de instituciones
+// Script para el formulario de edición de instituciones
 document.addEventListener('DOMContentLoaded', function() {
     // Mostrar fecha actual (time-formatter.js / es-VE)
     const dateElement = document.getElementById('current-date');
@@ -70,7 +70,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Elementos del formulario
     const form = document.querySelector('.edit-form');
-    const phoneInput = document.getElementById('phone');
     const institutionNameInput = document.getElementById('institution_name');
     const addressInput = document.getElementById('address');
     const institutionTypeSelect = document.getElementById('institution_type');
@@ -285,7 +284,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
-    } else {
+    } else if (stateSelect || municipalitySelect || parishSelect || citySelect) {
         console.error('No se encontraron todos los selects de ubicación');
     }
     
@@ -459,63 +458,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Validación de teléfono con formateo automático
-    if (phoneInput) {
-        // Formatear el teléfono existente al cargar (si viene sin formato de la BD)
-        const existingPhone = phoneInput.value;
-        if (existingPhone) {
-            // Limpiar cualquier caracter no numérico
-            let cleanPhone = existingPhone.replace(/[^0-9]/g, '');
-            
-            // Si tiene 11 dígitos y no está formateado, formatearlo
-            if (cleanPhone.length === 11 && !existingPhone.includes('(')) {
-                phoneInput.value = '(' + cleanPhone.slice(0, 4) + ')-' + cleanPhone.slice(4);
-            }
-        }
-        
-        phoneInput.addEventListener('input', function(e) {
-            // Solo permitir números
-            let value = this.value.replace(/[^0-9]/g, '');
-            
-            // Limitar a máximo 11 dígitos
-            if (value.length > 11) {
-                value = value.slice(0, 11);
-            }
-            
-            // Formatear automáticamente: (XXXX)-XXXXXXX
-            if (value.length > 4) {
-                value = '(' + value.slice(0, 4) + ')-' + value.slice(4);
-            }
-            
-            this.value = value;
-            
-            // Validación visual
-            if (value && value.length === 14) { // ( + 4 dígitos + ) + - + 7 dígitos = 14 caracteres
-                this.classList.add('success');
-                this.classList.remove('error');
-            } else {
-                this.classList.remove('success');
-                if (this.hasAttribute('required') && value.length < 14) {
-                    this.classList.add('error');
-                }
-            }
-        });
-        
-        phoneInput.addEventListener('blur', function() {
-            // Validación visual al perder el foco
-            let value = this.value;
-            if (value && value.length === 14) {
-                this.classList.add('success');
-                this.classList.remove('error');
-            } else {
-                this.classList.remove('success');
-                if (this.hasAttribute('required') && value.length < 14) {
-                    this.classList.add('error');
-                }
-            }
-        });
-    }
-    
     // Validación de dirección
     if (addressInput) {
         addressInput.addEventListener('input', function() {
@@ -573,9 +515,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 showLoaderOnConfirm: true
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // El backend se encarga de limpiar el teléfono, así que enviamos con el guión
-                    console.log('Enviando formulario con teléfono:', phoneInput ? phoneInput.value : 'No encontrado');
-
                     // Enviar formulario
                     form.submit();
                 }
@@ -620,9 +559,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // === Lógica para opciones de dependencia según tipo de institución ===
-    const currentDependencyId = document.getElementById('current_dependency_id');
-    
-    if (institutionTypeSelect && institutionDependencySelect) {
+    if (institutionTypeSelect && institutionDependencySelect && institutionTypeSelect.tagName === 'SELECT' && institutionDependencySelect.tagName === 'SELECT') {
         let dependenciesList = window.dependenciesList || [];
         
         const dependenciesDict = {};

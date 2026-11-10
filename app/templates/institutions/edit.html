@@ -1,7 +1,7 @@
 {# 
     Template: Editar Institución
-    Formulario para actualizar datos de contacto de una institución.
-    Los campos plantel_code y ubicación están bloqueados (solo lectura) para applicants.
+    Formulario para actualizar datos de una institución.
+    Los campos de datos generales y ubicación territorial están bloqueados (solo lectura) para applicants.
     Accesible para applicants (solo su institución afiliada), state_admin y super_admin.
 #}
 {% extends "layouts/base.html" %}
@@ -52,7 +52,7 @@
         <div class="edit-card">
             <div class="edit-header">
                 <h2>{{ institution.institution_name }}</h2>
-                <span class="edit-subtitle">Actualice los datos de contacto</span>
+                <span class="edit-subtitle">{% if is_applicant %}Información de la institución{% else %}Actualice los datos de la institución{% endif %}</span>
             </div>
 
             {% if is_applicant %}
@@ -66,7 +66,7 @@
                 </div>
                 <div class="info-content">
                     <h4>Información para el Usuario</h4>
-                    <p>Como usuario solicitante, solo puedes actualizar tu teléfono y dirección detallada. Para modificar otros datos de la institución, contacta con el administrador.</p>
+                    <p>Como usuario solicitante, solo puedes actualizar la dirección detallada. Para modificar otros datos de la institución, contacta con el administrador.</p>
                 </div>
             </div>
             {% else %}
@@ -87,112 +87,132 @@
 
             <form method="POST" action="{{ url_for('institutions.edit_institution', institution_id=institution.id) }}" class="edit-form">
                 {{ form.hidden_tag() }}
-                {% if not is_applicant %}
-                <!-- Sección de Datos Generales (Solo Administradores) -->
+                <!-- Sección de Datos Generales -->
                 <div class="form-section">
                     <h3>Datos Generales</h3>
                     <div class="form-row">
                         <div class="form-group">
                             <label for="plantel_code">Código del Plantel (DEA):</label>
-                            <div class="plantel-code-container">
-                                {{ form.plantel_code(readonly=True, class="readonly-field") }}
-                                <button type="button" id="unlock-plantel-code" class="btn-unlock" title="Desbloquear edición de código">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                                    </svg>
-                                </button>
-                            </div>
-                            {% if form.plantel_code.errors %}
-                                <span class="error-message">{{ form.plantel_code.errors[0] }}</span>
+                            {% if is_applicant %}
+                                <input type="text" id="plantel_code" name="plantel_code" value="{{ institution.plantel_code }}" readonly class="readonly-field">
+                            {% else %}
+                                <div class="plantel-code-container">
+                                    {{ form.plantel_code(readonly=True, class="readonly-field") }}
+                                    <button type="button" id="unlock-plantel-code" class="btn-unlock" title="Desbloquear edición de código">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                                {% if form.plantel_code.errors %}
+                                    <span class="error-message">{{ form.plantel_code.errors[0] }}</span>
+                                {% endif %}
                             {% endif %}
                         </div>
                         <div class="form-group">
                             <label for="institution_name">Nombre:</label>
-                            {{ form.institution_name(placeholder="Nombre de la institución") }}
-                            {% if form.institution_name.errors %}
-                                <span class="error-message">{{ form.institution_name.errors[0] }}</span>
+                            {% if is_applicant %}
+                                <input type="text" id="institution_name" name="institution_name" value="{{ institution.institution_name }}" readonly class="readonly-field">
+                            {% else %}
+                                {{ form.institution_name(placeholder="Nombre de la institución") }}
+                                {% if form.institution_name.errors %}
+                                    <span class="error-message">{{ form.institution_name.errors[0] }}</span>
+                                {% endif %}
                             {% endif %}
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label for="institution_type">Tipo:</label>
-                            {{ form.institution_type }}
-                            {% if form.institution_type.errors %}
-                                <span class="error-message">{{ form.institution_type.errors[0] }}</span>
+                            {% if is_applicant %}
+                                <input type="text" id="applicant_institution_type" value="{{ institution.institution_type.name if institution.institution_type else 'No asignado' }}" readonly class="readonly-field">
+                            {% else %}
+                                {{ form.institution_type }}
+                                {% if form.institution_type.errors %}
+                                    <span class="error-message">{{ form.institution_type.errors[0] }}</span>
+                                {% endif %}
                             {% endif %}
                         </div>
                         <div class="form-group">
                             <label for="institution_scope">Alcance:</label>
-                            {{ form.institution_scope }}
-                            {% if form.institution_scope.errors %}
-                                <span class="error-message">{{ form.institution_scope.errors[0] }}</span>
+                            {% if is_applicant %}
+                                <input type="text" id="applicant_institution_scope" value="{{ institution.institution_scope.name if institution.institution_scope else 'No asignado' }}" readonly class="readonly-field">
+                            {% else %}
+                                {{ form.institution_scope }}
+                                {% if form.institution_scope.errors %}
+                                    <span class="error-message">{{ form.institution_scope.errors[0] }}</span>
+                                {% endif %}
                             {% endif %}
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label for="institution_dependency">Dependencia:</label>
-                            {{ form.institution_dependency }}
-                            {% if form.institution_dependency.errors %}
-                                <span class="error-message">{{ form.institution_dependency.errors[0] }}</span>
+                            {% if is_applicant %}
+                                <input type="text" id="applicant_institution_dependency" value="{{ institution.institution_dependency.name if institution.institution_dependency else 'No asignada' }}" readonly class="readonly-field">
+                            {% else %}
+                                {{ form.institution_dependency }}
+                                {% if form.institution_dependency.errors %}
+                                    <span class="error-message">{{ form.institution_dependency.errors[0] }}</span>
+                                {% endif %}
                             {% endif %}
                         </div>
                     </div>
                 </div>
 
-                <!-- Sección de Ubicación (Solo Administradores) -->
+                <!-- Sección de Ubicación -->
                 <div class="form-section">
                     <h3>Ubicación</h3>
                     <div class="form-row">
                         <div class="form-group">
                             <label for="state_id">Estado:</label>
-                            {{ form.state_id }}
-                            <input type="hidden" id="current_state_id" value="{{ institution.parish.municipality.state_id if institution.parish and institution.parish.municipality and institution.parish.municipality.state else '' }}">
-                            {% if form.state_id.errors %}
-                                <span class="error-message">{{ form.state_id.errors[0] }}</span>
+                            {% if is_applicant %}
+                                <input type="text" id="state" value="{{ institution.parish.municipality.state.name if institution.parish and institution.parish.municipality and institution.parish.municipality.state else 'No asignado' }}" readonly class="readonly-field">
+                            {% else %}
+                                {{ form.state_id }}
+                                <input type="hidden" id="current_state_id" value="{{ institution.parish.municipality.state_id if institution.parish and institution.parish.municipality and institution.parish.municipality.state else '' }}">
+                                {% if form.state_id.errors %}
+                                    <span class="error-message">{{ form.state_id.errors[0] }}</span>
+                                {% endif %}
                             {% endif %}
                         </div>
                         <div class="form-group">
                             <label for="municipality_id">Municipio:</label>
-                            {{ form.municipality_id }}
-                            <input type="hidden" id="current_municipality_id" value="{{ institution.parish.municipality_id if institution.parish and institution.parish.municipality else '' }}">
-                            {% if form.municipality_id.errors %}
-                                <span class="error-message">{{ form.municipality_id.errors[0] }}</span>
+                            {% if is_applicant %}
+                                <input type="text" id="municipality" value="{{ institution.parish.municipality.name if institution.parish and institution.parish.municipality else 'No asignado' }}" readonly class="readonly-field">
+                            {% else %}
+                                {{ form.municipality_id }}
+                                <input type="hidden" id="current_municipality_id" value="{{ institution.parish.municipality_id if institution.parish and institution.parish.municipality else '' }}">
+                                {% if form.municipality_id.errors %}
+                                    <span class="error-message">{{ form.municipality_id.errors[0] }}</span>
+                                {% endif %}
                             {% endif %}
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label for="parish_id">Parroquia:</label>
-                            {{ form.parish_id }}
-                            <input type="hidden" id="current_parish_id" value="{{ institution.parish_id if institution.parish else '' }}">
-                            {% if form.parish_id.errors %}
-                                <span class="error-message">{{ form.parish_id.errors[0] }}</span>
+                            {% if is_applicant %}
+                                <input type="text" id="parish" value="{{ institution.parish.name if institution.parish else 'No asignada' }}" readonly class="readonly-field">
+                            {% else %}
+                                {{ form.parish_id }}
+                                <input type="hidden" id="current_parish_id" value="{{ institution.parish_id if institution.parish else '' }}">
+                                {% if form.parish_id.errors %}
+                                    <span class="error-message">{{ form.parish_id.errors[0] }}</span>
+                                {% endif %}
                             {% endif %}
                         </div>
                         <div class="form-group">
                             <label for="city_id">Ciudad:</label>
-                            {{ form.city_id }}
-                            <input type="hidden" id="current_city_id" value="{{ current_city_id if current_city_id else '' }}">
-                            {% if form.city_id.errors %}
-                                <span class="error-message">{{ form.city_id.errors[0] }}</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
-
-                <!-- Sección de Datos de Contacto (Todos los usuarios) -->
-                <div class="form-section">
-                    <h3>Datos de Contacto</h3>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="phone">Teléfono Principal:</label>
-                            {{ form.phone(placeholder="Ejemplo: (0414)-1234567") }}
-                            {% if form.phone.errors %}
-                                <span class="error-message">{{ form.phone.errors[0] }}</span>
+                            {% if is_applicant %}
+                                <input type="text" id="city" value="{{ current_city_name if current_city_name else 'No asignada' }}" readonly class="readonly-field">
+                            {% else %}
+                                {{ form.city_id }}
+                                <input type="hidden" id="current_city_id" value="{{ current_city_id if current_city_id else '' }}">
+                                {% if form.city_id.errors %}
+                                    <span class="error-message">{{ form.city_id.errors[0] }}</span>
+                                {% endif %}
                             {% endif %}
                         </div>
                     </div>

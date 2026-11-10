@@ -211,13 +211,17 @@ def edit_institution(institution_id):
         dependencies_list = [{'id': dep.id, 'name': dep.name} for dep in institution_dependencies]
         
         current_city_id = None
+        current_city_name = None
         try:
             if institution.parish and institution.parish.locations and len(institution.parish.locations) > 0:
                 location = institution.parish.locations[0]
                 if location and hasattr(location, 'city_id'):
                     current_city_id = location.city_id
+                if location and hasattr(location, 'city') and location.city:
+                    current_city_name = location.city.name
         except Exception:
             current_city_id = None
+            current_city_name = None
         
         if user_role == 'applicant':
             form = InstitutionEditApplicantForm()
@@ -225,11 +229,6 @@ def edit_institution(institution_id):
             form = InstitutionEditForm()
         
         if request.method == 'GET':
-            phone_value = institution.phone
-            if phone_value and len(phone_value) == 11 and not phone_value.startswith('('):
-                phone_value = '(' + phone_value[:4] + ')-' + phone_value[4:]
-            
-            form.phone.data = phone_value
             form.address.data = institution.address
             
             if user_role != 'applicant':
@@ -268,17 +267,16 @@ def edit_institution(institution_id):
             return render_template('institutions/edit.html', institution=institution, is_applicant=(user_role == 'applicant'),
                                  institution_types=institution_types, institution_scopes=institution_scopes,
                                  institution_dependencies=institution_dependencies, dependencies_list=dependencies_list,
-                                 current_city_id=current_city_id, form=form)
+                                 current_city_id=current_city_id, current_city_name=current_city_name, form=form)
         
         elif request.method == 'POST':
             if not form.validate():
                 return render_template('institutions/edit.html', institution=institution, is_applicant=(user_role == 'applicant'),
                                      institution_types=institution_types, institution_scopes=institution_scopes,
                                      institution_dependencies=institution_dependencies, dependencies_list=dependencies_list,
-                                     current_city_id=current_city_id, form=form)
+                                     current_city_id=current_city_id, current_city_name=current_city_name, form=form)
             
             institution_data = {
-                'phone': form.phone.data,
                 'address': form.address.data
             }
             
@@ -307,7 +305,7 @@ def edit_institution(institution_id):
                 return render_template('institutions/edit.html', institution=institution, is_applicant=(user_role == 'applicant'),
                                      institution_types=institution_types, institution_scopes=institution_scopes,
                                      institution_dependencies=institution_dependencies, dependencies_list=dependencies_list,
-                                     current_city_id=current_city_id, form=form)
+                                     current_city_id=current_city_id, current_city_name=current_city_name, form=form)
     except Exception as e:
         print(f"Error en edit_institution: {e}")
         flash("Error al procesar la solicitud", 'danger')
