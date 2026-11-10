@@ -382,11 +382,51 @@
             errorEl.classList.remove('visible');
         }
 
-        // Auto clear error on type
-        input.addEventListener('input', clearError);
+        // Bloquear caracteres no permitidos al presionar teclas (solo permite letras, números y guión)
+        input.addEventListener('keydown', (e) => {
+            // Permitir teclas de control: Backspace, Tab, Enter, Arrows, Delete, Ctrl/Cmd shortcuts
+            if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                if (!/[a-zA-Z0-9-]/.test(e.key)) {
+                    e.preventDefault();
+                }
+            }
+        });
+
+        // Manejar pegado de texto saneándolo inmediatamente
+        input.addEventListener('paste', (e) => {
+            e.preventDefault();
+            const text = (e.clipboardData || window.clipboardData).getData('text') || '';
+            const clean = text.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+            const start = input.selectionStart || 0;
+            const end = input.selectionEnd || 0;
+            const current = input.value;
+            const nextVal = (current.slice(0, start) + clean + current.slice(end)).slice(0, 20);
+            input.value = nextVal;
+            const newCursor = Math.min(20, start + clean.length);
+            input.setSelectionRange(newCursor, newCursor);
+            clearError();
+        });
+
+        // Auto uppercase, sanitización en tiempo real y limpiar error al escribir
+        input.addEventListener('input', () => {
+            const start = input.selectionStart;
+            const end = input.selectionEnd;
+            const original = input.value;
+            const cleaned = original.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+            if (original !== cleaned) {
+                input.value = cleaned;
+                if (start !== null && end !== null) {
+                    const diff = original.length - cleaned.length;
+                    const newPos = Math.max(0, start - diff);
+                    input.setSelectionRange(newPos, newPos);
+                }
+            }
+            clearError();
+        });
 
         btn.addEventListener('click', async () => {
-            const raw = input.value.trim();
+            const raw = input.value.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+            input.value = raw;
             if (!raw) {
                 showError('El código de plantel es obligatorio.');
                 input.focus();

@@ -136,16 +136,16 @@ class PlantelCodeForm(FlaskForm):
     """
     plantel_code = StringField(
         'Código de Plantel',
+        filters=[lambda x: x.strip().upper() if isinstance(x, str) else x],
         validators=[
             DataRequired(message='El código de plantel es obligatorio.'),
             Length(
-                min=3, max=MAX_CODE_LEN,
+                min=4, max=20,
                 message='El código debe tener entre %(min)d y %(max)d caracteres.'
             ),
             Regexp(
-                r'^[A-Za-z0-9\-_]{3,50}$',
-                message='Solo se permiten letras, números, guiones y '
-                        'guiones bajos (mín. 3 caracteres).'
+                r'^[A-Z0-9\-]{4,20}$',
+                message='Código inválido. Solo se permiten letras mayúsculas, números y guión medio (ej. DEA: OD07010105, OPSU: 1042, o RIF).'
             ),
         ]
     )
@@ -197,13 +197,14 @@ class InstitutionForm(FlaskForm):
     """
     plantel_code = StringField(
         'Código de Plantel',
+        filters=[lambda x: x.strip().upper() if isinstance(x, str) else x],
         validators=[
             DataRequired(message='El código de plantel es obligatorio.'),
-            Length(min=3, max=MAX_CODE_LEN,
+            Length(min=4, max=20,
                    message='El código debe tener entre %(min)d y %(max)d caracteres.'),
             Regexp(
-                r'^[A-Za-z0-9\-_]{3,50}$',
-                message='Código de plantel con formato inválido.'
+                r'^[A-Z0-9\-]{4,20}$',
+                message='Código de plantel con formato inválido. Solo se permiten letras, números y guión.'
             ),
         ]
     )

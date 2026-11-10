@@ -916,3 +916,74 @@
 .swal2-container {
     z-index: 99999 !important;
 }
+
+/* ── Tooltip informativo para campos ─────────────────────── */
+.info-tooltip-container {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.info-tooltip-btn {
+    background: none;
+    border: none;
+    padding: 2px 4px;
+    cursor: pointer;
+    color: #94a3b8;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.info-tooltip-btn:hover,
+.info-tooltip-btn:focus-visible {
+    color: #1fcab0;
+    outline: none;
+}
+
+.info-tooltip-bubble {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    bottom: calc(100% + 8px);
+    right: 0;
+    width: 270px;
+    max-width: calc(100vw - 60px);
+    background: #1e293b;
+    color: #f8fafc;
+    font-size: 0.75rem;
+    line-height: 1.45;
+    padding: 0.65rem 0.85rem;
+    border-radius: 8px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    transform: translateY(4px);
+    font-weight: 400;
+    text-align: left;
+}
+
+.info-tooltip-bubble::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    right: 8px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #1e293b transparent transparent transparent;
+}
+
+.info-tooltip-container:hover .info-tooltip-bubble,
+.info-tooltip-btn:focus .info-tooltip-bubble,
+.info-tooltip-btn:focus-visible .info-tooltip-bubble {
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.uppercase-input {
+    text-transform: uppercase;
+}

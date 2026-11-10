@@ -166,8 +166,8 @@ def validate_plantel():
         first_error = errors[0] if errors else 'Datos inválidos.'
         return jsonify({'error': first_error}), 400
 
-    # Usar el valor limpio que WTForms procesó (strip aplicado por el field)
-    clean_code = form.plantel_code.data.strip()
+    # Usar el valor limpio que WTForms procesó (strip y upper aplicados por el field)
+    clean_code = form.plantel_code.data.strip().upper()
 
     inst = services.get_institution_by_plantel_code(clean_code)
 
@@ -488,7 +488,7 @@ def complete_registration():
         )
 
         inst_data = {
-            'plantel_code':              inst_form.plantel_code.data.strip(),
+            'plantel_code':              inst_form.plantel_code.data.strip().upper(),
             'institution_name':          formatted_name,
             'institution_type_id':       inst_type_obj.id,
             'institution_scope_id':      inst_form.institution_scope_id.data,
