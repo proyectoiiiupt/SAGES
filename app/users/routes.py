@@ -1,7 +1,7 @@
 import datetime
 from flask import Blueprint, render_template, request, abort, redirect, url_for, flash, jsonify, current_app, send_from_directory, session
 from flask_login import login_required, current_user
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from app.extensions import db
 from app.models.user_model import User
 from app.models.person_model import Person
@@ -152,20 +152,26 @@ def list_users():
              query = query.filter(User.id == 0)
             
         if search_query:
+            clean_digits = ''.join(filter(str.isdigit, search_query))
             search_pattern = f"%{search_query}%"
             if search_query.isdigit():
                 query = query.filter(
                     (Person.identification_number.ilike(search_pattern)) |
-                    (User.user_name.ilike(search_pattern)) |
-                    (User.id == int(search_query))
+                    (User.user_name.ilike(search_pattern))
                 )
             else:
-                query = query.filter(
-                    (User.user_name.ilike(search_pattern)) |
-                    (Person.first_name.ilike(search_pattern)) |
-                    (Person.last_name.ilike(search_pattern)) |
-                    (Person.identification_number.ilike(search_pattern))
-                )
+                conditions = [
+                    User.user_name.ilike(search_pattern),
+                    Person.first_name.ilike(search_pattern),
+                    Person.last_name.ilike(search_pattern),
+                    func.concat(Person.first_name, ' ', Person.last_name).ilike(search_pattern),
+                    Person.identification_number.ilike(search_pattern)
+                ]
+                if clean_digits:
+                    digits_pattern = f"%{clean_digits}%"
+                    conditions.append(Person.identification_number.ilike(digits_pattern))
+                    conditions.append(User.user_name.ilike(digits_pattern))
+                query = query.filter(or_(*conditions))
 
         if user_role == 'super_admin' and filter_role and filter_role.isdigit():
             query = query.filter(User.roles_assoc.any(role_id=int(filter_role)))
