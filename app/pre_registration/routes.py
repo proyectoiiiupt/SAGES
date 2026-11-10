@@ -24,7 +24,6 @@ Protección CSRF:
 from flask import request, jsonify, render_template, current_app
 import json
 import time
-import requests as http_requests
 import threading
 from app.models.institution_type_model import InstitutionType
 from app.pre_registration import pre_registration_bp
@@ -338,9 +337,8 @@ def complete_registration():
     Flujo:
       1. Flask-WTF verifica X-CSRFToken. Si falla o falta, aborta con 400 automáticamente.
       2. Extrae el payload JSON y el archivo binario del multipart/form-data.
-      3. Valida el CAPTCHA con el servicio Cloudflare Turnstile.
-      4. Ejecuta InstitutionForm y PersonForm para validar las respectivas secciones lógicas.
-      5. Según la bandera 'join_existing', se bifurca para unirse a una institución o 
+      3. Ejecuta InstitutionForm y PersonForm para validar las respectivas secciones lógicas.
+      4. Según la bandera 'join_existing', se bifurca para unirse a una institución o 
          crear una nueva (llamando a la capa de servicios).
 
     Returns:
@@ -362,24 +360,6 @@ def complete_registration():
     document_type = request.form.get('document_type')
     if not evidence_file or not document_type:
         return jsonify({'errors': ['Por favor, seleccione el tipo de documento y adjunte su comprobante para poder continuar.']}), 400
-
-    # ── Validación de CAPTCHA (Cloudflare Turnstile) ──────────────────
-    captcha_token = payload.get('captcha_token')
-    if not captcha_token:
-        return jsonify({'errors': ['Falta el token de seguridad CAPTCHA.']}), 400
-
-    secret_key = current_app.config.get('CAPTCHA_SECRET_KEY')
-    verify_url = 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
-    try:
-        cf_response = http_requests.post(verify_url, data={
-            'secret': secret_key,
-            'response': captcha_token
-        }, timeout=5)
-        cf_result = cf_response.json()
-        if not cf_result.get('success'):
-            return jsonify({'errors': ['No pudimos verificar su validación de seguridad (CAPTCHA). Por favor, marque la casilla nuevamente.']}), 400
-    except http_requests.exceptions.RequestException:
-        return jsonify({'errors': ['Error de comunicación con el servicio de seguridad. Intente más tarde.']}), 400
 
     # ── Determinar la ruta según el flag del frontend ──────────────────────
     is_delegated = payload.get('is_delegated', False)

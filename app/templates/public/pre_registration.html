@@ -7,7 +7,7 @@
     <title>Pre-Registro Institucional | SAGES - CORPOELEC</title>
     <!-- 
         Vista HTML para el flujo de pre-registro institucional público.
-        Esta plantilla utiliza Jinja2 para inyectar variables de configuración (CSRF, CAPTCHA)
+        Esta plantilla utiliza Jinja2 para inyectar variables de configuración (CSRF)
         y datos de catálogos estáticos pre-cargados (para reducir peticiones AJAX).
         Contiene modales (comprobante y declaración jurada) manejados por pre_registration.js.
     -->
@@ -22,10 +22,6 @@
         y lo envía como header X-CSRFToken en cada petición POST.
     -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
-
-    <!-- Cloudflare Turnstile Script -->
-    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-
 
     <!-- SweetAlert2 local -->
     <link rel="stylesheet" href="{{ url_for('static', filename='CSS/sweetalert2.min.css') }}">
@@ -580,12 +576,6 @@
                             Este documento será de uso estrictamente confidencial para la validación administrativa
                             interna.
                         </p>
-                    </div>
-
-                    <!-- Cloudflare Turnstile CAPTCHA Widget -->
-                    <div class="form-section" style="margin-top:1.75rem; display: flex; justify-content: center;">
-                        <div class="cf-turnstile" data-sitekey="{{ config['CAPTCHA_SITE_KEY'] }}" data-theme="light">
-                        </div>
                     </div>
 
                     <div class="form-nav">

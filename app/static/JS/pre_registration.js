@@ -10,7 +10,7 @@
  *  - Gestión del modal de carga de evidencias y declaración jurada.
  */
 
-/* global Swal, turnstile */
+/* global Swal */
 'use strict';
 
 (function () {
@@ -680,10 +680,9 @@
             const btnText = btnSubmit.querySelector('.btn-text');
             if (!btnText) return;
 
-            const captchaToken = document.querySelector('[name="cf-turnstile-response"]')?.value;
             const hasVoucher = !!window._voucherFile;
 
-            let text = (captchaToken && hasVoucher) ? "Aceptar" : "Validar";
+            let text = hasVoucher ? "Aceptar" : "Validar";
 
             // Solo actualizar si el texto cambió, para evitar re-render innecesario
             if (!btnText.textContent.includes(text)) {
@@ -696,8 +695,6 @@
                 `;
             }
         }
-        // Ejecutar evento al resolver CAPTCHA
-        document.querySelector('.cf-turnstile')?.addEventListener('cf-turnstile-callback', updateSubmitButtonState);
         window._updateSubmitBtnState = updateSubmitButtonState;
         updateSubmitButtonState(); // initial call
 
@@ -799,9 +796,6 @@
             }
             setLoading(btnSubmit, false);
 
-            // ── Capturar el token del CAPTCHA generado por Turnstile ──────────────
-            const captchaToken = document.querySelector('[name="cf-turnstile-response"]')?.value;
-
             // ── Validar que el comprobante fue adjuntado ──────────────────────
             if (!window._voucherFile) {
                 Swal.fire({
@@ -811,18 +805,6 @@
                         '<p style="font-size:.85rem;color:#6b7280;margin-top:.5rem;">Desplácese hasta la sección "Comprobante de Vinculación" y suba su documento.</p>',
                     confirmButtonColor: '#1fcab0',
                     confirmButtonText: 'Entendido'
-                });
-                return;
-            }
-
-            // ── Validar CAPTCHA ──────────────────────────────────────────────────────
-            if (!captchaToken) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Verificación requerida',
-                    text: 'Por favor, complete el desafío de seguridad (CAPTCHA) antes de continuar.',
-                    confirmButtonText: 'Aceptar',
-                    confirmButtonColor: '#1fcab0',
                 });
                 return;
             }
@@ -839,7 +821,7 @@
     /**
      * Construye el payload final y lo envía al servidor para registrar la institución.
      * 
-     * Engloba los datos institucionales, los personales, el token CAPTCHA y
+     * Engloba los datos institucionales, los personales y
      * el archivo de comprobante en un FormData (multipart/form-data).
      * 
      * @param {HTMLButtonElement} btnConfirm - Botón que disparó el evento.
@@ -875,15 +857,12 @@
             position_id: qs('#sel-position')?.value || '',
         };
 
-        const captchaToken = document.querySelector('[name="cf-turnstile-response"]')?.value;
-
         setLoading(btnConfirm, true);
         try {
             const formData = new FormData();
             formData.append('payload', JSON.stringify({
                 institution: institutionPayload,
                 person: personPayload,
-                captcha_token: captchaToken,
                 join_existing: window._joinExisting === true,
                 plantel_code_existing: validatedPlantelCode,
                 is_delegated: window._isDelegated === true,
@@ -915,10 +894,6 @@
                 window.location.href = '/';
 
             } else if (status === 400 && data.errors) {
-                // Si el error fue por el CAPTCHA, lo reseteamos para que el usuario intente de nuevo sin recargar la página
-                if (data.errors.some(e => e.includes('CAPTCHA')) && typeof turnstile !== 'undefined') {
-                    turnstile.reset();
-                }
                 const errList = data.errors.map(e => `<li>${e}</li>`).join('');
                 Swal.fire({
                     icon: 'error', title: 'Datos inválidos',
