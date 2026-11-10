@@ -96,12 +96,14 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="#" class="action-btn view-btn" title="Ver detalles de persona">
+                            {% if user.user_id %}
+                            <a href="{{ url_for('users.view_user', user_id=user.user_id) }}" class="action-btn view-btn" title="Ver detalles del usuario">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                     <circle cx="12" cy="12" r="3"></circle>
                                 </svg>
                             </a>
+                            {% endif %}
                         </td>
                     </tr>
                     {% else %}

@@ -371,38 +371,57 @@ def toggle_institution_status(institution_id):
 
 
 def get_institution_users(institution_id, page=1, per_page=10):
-    """Obtiene los usuarios afiliados a una institución específica con paginación."""
+    """Obtiene los usuarios afiliados a una institución específica con paginación.
+    Solo incluye usuarios con cuenta activa (STAT-001).
+    """
     try:
-        base_query = InstitutionalStaff.query.filter_by(institution_id=institution_id)
+        # Filtrar solo staff con usuario activo (STAT-001) para el índice base
+        active_status = Status.query.filter_by(status_code='STAT-001').first()
+        active_status_id = active_status.id if active_status else None
+
+        base_query = (
+            InstitutionalStaff.query
+            .join(Person, InstitutionalStaff.person_id == Person.id)
+            .join(User, Person.id == User.person_id)
+            .filter(
+                InstitutionalStaff.institution_id == institution_id,
+                InstitutionalStaff.status_id == active_status_id,
+                User.status_id == active_status_id
+            )
+        )
         all_ids_query = base_query.order_by(InstitutionalStaff.id.asc())
         all_ids = [staff.id for staff in all_ids_query.all()]
         id_to_index = {id: index + 1 for index, id in enumerate(all_ids)}
-        
+
         query = InstitutionalStaff.query.options(
-            joinedload(InstitutionalStaff.person).joinedload(Person.user),
-            joinedload(InstitutionalStaff.position),
-            joinedload(InstitutionalStaff.institution)
-        ).filter_by(institution_id=institution_id)
-        
+            joinedload(InstitutionalStaff.person).joinedload(Person.user).joinedload(User.status),
+            joinedload(InstitutionalStaff.position)
+        ).join(Person, InstitutionalStaff.person_id == Person.id).join(User, Person.id == User.person_id).filter(
+            InstitutionalStaff.institution_id == institution_id,
+            InstitutionalStaff.status_id == active_status_id,
+            User.status_id == active_status_id
+        )
+
         total = query.count()
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
-        
+
         users_data = []
         for staff in pagination.items:
             person = staff.person
             user = person.user if person else None
-            
+
             user_status = None
             if user and user.status:
                 user_status = {
                     'status_code': user.status.status_code,
                     'status_name': user.status.status_name
                 }
-            
+
             original_index = id_to_index.get(staff.id, 0)
-            
+
             user_info = {
                 'staff_id': staff.id,
+                'user_id': user.id if user else None,
                 'person_id': person.id if person else None,
                 'person_code': person.person_code if person else 'N/A',
                 'full_name': f"{person.first_name} {person.last_name}" if person else 'N/A',
