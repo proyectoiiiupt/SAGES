@@ -4,8 +4,6 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <!-- Llamamos al CSS correcto de listas -->
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/users_list.css') }}">
-<!-- FontAwesome para los iconos (si no lo tienes en base.html) -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 {% endblock %}
 
 {% block content %}
@@ -27,7 +25,7 @@
 
     <!-- 1. NUEVO: Cartel Informativo -->
     <div style="background-color: #f0fdf4; color: #166534; padding: 16px 20px; border-radius: 8px; margin-bottom: 24px; font-size: 14px; border-left: 5px solid #16a34a; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 12px;">
-        <i class="fas fa-info-circle" style="font-size: 20px;"></i>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
         <span><strong>Atención:</strong> Por favor, visualice la evidencia adjunta de cada solicitud antes de habilitar las opciones para aprobar o rechazar.</span>
     </div>
     
@@ -75,19 +73,19 @@
                                     <!-- BOTÓN VER -->
                                     <button type="button" class="btn-clear" style="padding: 6px 12px; font-size: 13px; border: 1px solid #94a3b8; border-radius: 6px; cursor: pointer; background-color: white; color: #334155; display: flex; align-items: center; gap: 6px;" 
                                             onclick="abrirModalEvidencia('{{ req.id }}')">
-                                        <i class="fas fa-eye"></i> Ver
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Ver
                                     </button>
                             
                                     <!-- 2. BOTÓN APROBAR: Bloqueado por defecto -->
                                     <button type="button" id="btn-aprobar-{{ req.id }}" class="btn-register" 
                                             style="padding: 6px 12px; font-size: 13px; border: none; border-radius: 6px; cursor: not-allowed; opacity: 0.5; background-color: #10b981; color: white; display: flex; align-items: center; gap: 6px;" disabled>
-                                        <i class="fas fa-check"></i> Aprobar
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Aprobar
                                     </button>
                                 
                                     <!-- 3. BOTÓN RECHAZAR: Modificado para bloquear por defecto con ícono de prohibido -->
                                     <button type="button" id="btn-rechazar-{{ req.id }}" class="btn-clear" 
                                             style="padding: 6px 12px; font-size: 13px; border: none; border-radius: 6px; cursor: not-allowed; opacity: 0.5; background-color: #ef4444; color: white; display: flex; align-items: center; gap: 6px;" disabled>
-                                        <i class="fas fa-ban"></i> Rechazar
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg> Rechazar
                                     </button>
 
                                 </div>
@@ -110,9 +108,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- CDN de SweetAlert2 para el Modal -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
 <script>
     // Al cargar la página, revisamos el localStorage para desbloquear los botones de las evidencias ya vistas
     document.addEventListener("DOMContentLoaded", function() {
