@@ -1,5 +1,5 @@
 import datetime
-from flask import Blueprint, render_template, request, abort, redirect, url_for, flash, jsonify, current_app, send_from_directory
+from flask import Blueprint, render_template, request, abort, redirect, url_for, flash, jsonify, current_app, send_from_directory, session
 from flask_login import login_required, current_user
 from sqlalchemy import or_
 from app.extensions import db
@@ -558,7 +558,21 @@ def profile():
 
                 if success:
                     flash(message, 'success')
-                    return redirect(url_for('users.profile', tab='security'))
+                    response = redirect(url_for('users.profile', tab='security'))
+                    if request.cookies.get('sages_session_token') and session.get('session_token'):
+                        from datetime import timedelta
+                        max_age = int(current_app.config.get('REMEMBER_COOKIE_DURATION', timedelta(hours=1)).total_seconds())
+                        response.set_cookie(
+                            'sages_session_token',
+                            session['session_token'],
+                            max_age=max_age,
+                            httponly=True,
+                            samesite=current_app.config.get('REMEMBER_COOKIE_SAMESITE', 'Lax'),
+                            secure=current_app.config.get('REMEMBER_COOKIE_SECURE', False),
+                            path=current_app.config.get('REMEMBER_COOKIE_PATH', '/'),
+                            domain=current_app.config.get('REMEMBER_COOKIE_DOMAIN')
+                        )
+                    return response
                 else:
                     flash(message, 'danger')
                     active_tab = 'security'
