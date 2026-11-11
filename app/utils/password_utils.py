@@ -2,7 +2,6 @@ import secrets
 from flask import has_request_context, session
 from flask_login import current_user
 from app.extensions import db, bcrypt
-from app.auth.session_store import set_active_session
 
 def check_user_password(pw_hash: str, password: str) -> bool:
     """
@@ -28,6 +27,8 @@ def change_user_password(user, new_password: str) -> bool:
     y rota el token de sesión activa para invalidar inmediatamente cualquier
     sesión previa abierta en otros dispositivos o navegadores.
     """
+    from app.auth.session_store import set_active_session
+
     user.password = hash_password(new_password)
     db.session.add(user)
     db.session.commit()

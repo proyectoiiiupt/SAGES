@@ -491,8 +491,6 @@ def purge_expired_pending_users(days_limit: int = 7) -> int:
     from app.models.institution_model import Institution
     from app.models.institution_level_model import InstitutionLevel
     from app.models.staff_evidence_model import StaffEvidence
-    from app.models.training_model import Training
-    from app.models.request_model import Request
 
     logger = logging.getLogger(__name__)
     purged_count = 0
@@ -570,17 +568,14 @@ def purge_expired_pending_users(days_limit: int = 7) -> int:
                 if person:
                     db.session.delete(person)
 
-                # Si la institución no tiene más personal ni formaciones/solicitudes, eliminarla para liberar el plantel
+                # Si la institución no tiene más personal, eliminarla para liberar el plantel
                 if inst_to_check:
                     remaining_staff = InstitutionalStaff.query.filter(
                         InstitutionalStaff.institution_id == inst_to_check.id
                     ).count()
                     if remaining_staff == 0:
-                        has_trainings = Training.query.filter_by(institution_id=inst_to_check.id).first() is not None
-                        has_requests = Request.query.filter_by(institution_id=inst_to_check.id).first() is not None
-                        if not has_trainings and not has_requests:
-                            InstitutionLevel.query.filter_by(institution_id=inst_to_check.id).delete()
-                            db.session.delete(inst_to_check)
+                        InstitutionLevel.query.filter_by(institution_id=inst_to_check.id).delete()
+                        db.session.delete(inst_to_check)
 
                 db.session.commit()
                 purged_count += 1
@@ -649,11 +644,8 @@ def purge_expired_pending_users(days_limit: int = 7) -> int:
                         InstitutionalStaff.institution_id == inst.id
                     ).count()
                     if remaining_staff == 0:
-                        has_trainings = Training.query.filter_by(institution_id=inst.id).first() is not None
-                        has_requests = Request.query.filter_by(institution_id=inst.id).first() is not None
-                        if not has_trainings and not has_requests:
-                            InstitutionLevel.query.filter_by(institution_id=inst.id).delete()
-                            db.session.delete(inst)
+                        InstitutionLevel.query.filter_by(institution_id=inst.id).delete()
+                        db.session.delete(inst)
 
                 db.session.commit()
                 purged_count += 1
