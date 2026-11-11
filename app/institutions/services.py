@@ -332,7 +332,7 @@ def toggle_institution_status(institution_id):
 
         BinnacleService.create_log_entry(
             module=AuditModule.INSTITUTIONS.value,
-            action_type=AuditAction.CAMBIO_ESTATUS.value,
+            action_type=AuditAction.CAMBIO_ESTATUS_INSTITUCION.value,
             description=f'Institución {institution.institution_code} cambiada a {new_status}. {affected_users_count} usuarios afiliados actualizados en cascada.',
             target_table='institutions',
             record_id=institution.id,

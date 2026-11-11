@@ -6,6 +6,7 @@ import re
 
 from flask import render_template, flash, redirect, request, jsonify, abort, url_for
 from flask_login import login_required, current_user
+from werkzeug.exceptions import HTTPException
 from app.institutions import institutions_bp
 from app.institutions.services import (
     get_all_institutions, get_institution_by_id, get_filter_options,
@@ -113,19 +114,30 @@ def view_institution(institution_id):
 def toggle_institution_status_route(institution_id):
     """Ruta AJAX para alternar el estatus de una institución entre Activo e Inactivo."""
     try:
+        institution = get_institution_by_id(institution_id)
+        if not institution:
+            abort(404)
+
+        is_super_admin = any(
+            role_assoc.role.name == 'super_admin'
+            for role_assoc in current_user.roles_assoc
+        ) if current_user and current_user.roles_assoc else False
+
+        if not is_super_admin:
+            user_state_info = get_user_state_info(current_user)
+            admin_state_id = user_state_info.get('state_id') if user_state_info else None
+            inst_state_id = (
+                institution.parish.municipality.state_id
+                if (institution.parish and institution.parish.municipality)
+                else None
+            )
+            if not admin_state_id or inst_state_id != admin_state_id:
+                abort(403)
+
         institution, new_status, affected_users = toggle_institution_status(institution_id)
         
         if institution is None:
             return jsonify({'success': False, 'message': new_status, 'affected_users': 0}), 404
-
-        BinnacleService.create_log_entry(
-            module=AuditModule.INSTITUTIONS.value,
-            action_type=AuditAction.CAMBIO_ESTATUS_INSTITUCION.value,
-            description=f'Institución {institution.institution_code} cambiada a {new_status}. {affected_users} usuarios afiliados afectados en cascada.',
-            target_table='sages.institutions',
-            record_id=institution.id,
-            status=AuditStatus.MODIFICADO.value
-        )
         
         return jsonify({
             'success': True,
@@ -134,6 +146,8 @@ def toggle_institution_status_route(institution_id):
             'status_code': institution.status.status_code,
             'affected_users': affected_users
         })
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error en toggle_institution_status_route: {e}")
         return jsonify({'success': False, 'message': f'Error: {str(e)}', 'affected_users': 0}), 500
@@ -199,6 +213,22 @@ def edit_institution(institution_id):
         institution = get_institution_by_id(institution_id)
         if not institution:
             abort(404)
+        
+        is_super_admin = any(
+            role_assoc.role.name == 'super_admin'
+            for role_assoc in current_user.roles_assoc
+        ) if current_user and current_user.roles_assoc else False
+
+        if not is_super_admin and user_role != 'applicant':
+            user_state_info = get_user_state_info(current_user)
+            admin_state_id = user_state_info.get('state_id') if user_state_info else None
+            inst_state_id = (
+                institution.parish.municipality.state_id
+                if (institution.parish and institution.parish.municipality)
+                else None
+            )
+            if not admin_state_id or inst_state_id != admin_state_id:
+                abort(403)
         
         from app.models.institution_type_model import InstitutionType
         from app.models.institution_scope_model import InstitutionScope
@@ -306,6 +336,8 @@ def edit_institution(institution_id):
                                      institution_types=institution_types, institution_scopes=institution_scopes,
                                      institution_dependencies=institution_dependencies, dependencies_list=dependencies_list,
                                      current_city_id=current_city_id, current_city_name=current_city_name, form=form)
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error en edit_institution: {e}")
         flash("Error al procesar la solicitud", 'danger')
