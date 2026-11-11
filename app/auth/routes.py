@@ -7,12 +7,20 @@ from flask_limiter.errors import RateLimitExceeded
 from urllib.parse import urlparse, urljoin
 import secrets
 import time
-from datetime import timedelta
-from app.utils.email_utils import send_recovery_email
+from datetime import datetime, timezone, timedelta
+from app.utils.email_utils import (
+    send_recovery_email,
+    send_applicant_activation_email,
+    send_administrative_activation_email
+)
 from app.models.person_model import Person
 from app.auth.token_store import set_token, get_remaining_seconds, invalidate_token
 from app.auth.forms import ActivationPasswordForm
-from app.utils.activation_utils import verify_activation_token
+from app.utils.activation_utils import (
+    verify_activation_token,
+    inspect_activation_token,
+    generate_activation_token
+)
 from app.models.institutional_staff_model import InstitutionalStaff
 from app.models.user_model import User
 from app.models.role_user_model import RoleUser  # Cambiado a RoleUser
@@ -375,8 +383,50 @@ def cancel_reset():
 @auth_bp.route('/activate/<token>', methods=['GET', 'POST'])
 def activate_account(token):
     # 1. Validar la firma y expiración del token
-    payload = verify_activation_token(token)
-    if not payload:
+    token_status, payload = inspect_activation_token(token)
+
+    # Si el token es legítimo pero expiró (>48h) y el usuario aún está pendiente de activación
+    if token_status == 'expired' and payload:
+        person = Person.query.get(payload.get('person_id'))
+        flow = payload.get('flow', 'applicant')
+        is_pending = False
+        is_within_7_days = True
+
+        if person:
+            if person.user:
+                if person.user.status_id == 6:
+                    is_pending = True
+                    if person.user.created_at:
+                        if (datetime.now(timezone.utc) - person.user.created_at).total_seconds() > 7 * 86400:
+                            is_within_7_days = False
+            else:
+                staff_chk = InstitutionalStaff.query.filter_by(person_id=person.id).first()
+                if staff_chk and staff_chk.status_id == 6:
+                    is_pending = True
+                    if staff_chk.created_at:
+                        if (datetime.now(timezone.utc) - staff_chk.created_at).total_seconds() > 7 * 86400:
+                            is_within_7_days = False
+
+        if is_pending:
+            if not is_within_7_days:
+                flash('El plazo máximo de 7 días para activar la cuenta ha expirado. Por razones de seguridad el registro ha sido anulado. Por favor, realice una nueva solicitud.', 'warning')
+                return redirect(url_for('auth.login'))
+
+            raw_email = payload.get('email') or (person.email if person else '')
+            parts = raw_email.split('@') if '@' in raw_email else [raw_email, '']
+            u_part = parts[0]
+            masked_u = (u_part[:2] + '*' * (len(u_part) - 2)) if len(u_part) > 2 else (u_part + '*')
+            masked_email = f"{masked_u}@{parts[1]}" if len(parts) > 1 else raw_email
+
+            return render_template(
+                'auth/activate_expired.html',
+                token=token,
+                person=person,
+                flow=flow,
+                masked_email=masked_email
+            )
+
+    if token_status != 'valid' or not payload:
         BinnacleService.log_security_event(
             action_type=AuditAction.ACTIVACION_TOKEN_INVALIDO.value,
             description='Intento de activación con token inválido o expirado',
@@ -386,24 +436,18 @@ def activate_account(token):
         return redirect(url_for('auth.login'))
 
     person = Person.query.get_or_404(payload['person_id'])
-    
     flow = payload.get('flow', 'applicant')
 
-    # Para el flujo de solicitantes, si ya tiene usuario, significa que ya se activó
-    if flow == 'applicant' and person.user:
+    # Guard: verificar si la cuenta ya fue activada previamente
+    if person.user and person.user.status_id == 1:
         flash('Esta cuenta ya fue activada previamente. Por favor inicie sesión.', 'info')
         return redirect(url_for('auth.login'))
 
-    # Guard de un solo uso para el flujo administrative
-    if flow == 'administrative':
-        admin_user = person.user
-        if not admin_user:
-            flash('El usuario administrativo no fue encontrado. Contacte a soporte.', 'danger')
-            return redirect(url_for('auth.login'))
-        _active_check = Status.query.filter_by(status_code='STAT-001').first()
-        if _active_check and admin_user.status_id == _active_check.id:
-            flash('Esta cuenta ya fue activada previamente. Por favor inicie sesión.', 'info')
-            return redirect(url_for('auth.login'))
+    # Guard de vigencia máxima de 7 días
+    ref_date = person.user.created_at if person.user else None
+    if ref_date and (datetime.now(timezone.utc) - ref_date).total_seconds() > 7 * 86400:
+        flash('El plazo máximo de 7 días para activar la cuenta ha expirado. El registro ha sido anulado. Por favor solicite un nuevo registro.', 'warning')
+        return redirect(url_for('auth.login'))
 
     if flow == 'applicant':
         staff = InstitutionalStaff.query.get_or_404(payload['staff_id'])
@@ -414,50 +458,48 @@ def activate_account(token):
 
     if form.validate_on_submit():
         try:
-            if flow == 'applicant':
-                # 2. Crear la cuenta de usuario vinculada
-                new_user = User(
+            active_status = Status.query.filter_by(status_code='STAT-001').first()
+            active_id = active_status.id if active_status else 1
+
+            user = person.user
+            if not user:
+                # Fallback para registros históricos que no hayan sido pre-creados
+                user = User(
                     user_code=_generate_short_code('USR', User, 'user_code'),
                     user_name=person.identification_number,
                     person_id=person.id,
-                    status_id=1,
+                    status_id=active_id,
                     password=hash_password(form.password.data)
                 )
-                db.session.add(new_user)
+                db.session.add(user)
                 db.session.flush()
 
-                # 3. Asignar rol por defecto (applicant)
                 applicant_role = Role.query.filter_by(name='applicant').first()
                 if applicant_role:
-                    user_role = RoleUser(user_id=new_user.id, role_id=applicant_role.id)
+                    user_role = RoleUser(user_id=user.id, role_id=applicant_role.id)
                     db.session.add(user_role)
-
-                # 4. Actualizar el estatus institucional a Activo/Aprobado
-                staff.status_id = 1
-            elif flow == 'administrative':
-                # El User fue pre-creado en services.py con STAT-006 (En proceso).
-                # El guard anterior garantiza que person.user existe y está en STAT-006.
-                user = person.user
-                # 1. Contraseña definitiva con bcrypt (utilitario centralizado)
+            else:
                 user.password = hash_password(form.password.data)
-                # 2. Activar User: STAT-006 -> STAT-001
-                active_status = Status.query.filter_by(status_code='STAT-001').first()
-                if active_status:
-                    user.status_id = active_status.id
-                    # 3. Activar CompanyStaff: STAT-006 -> STAT-001
-                    staff.status_id = active_status.id
+                user.status_id = active_id
+
+            if flow == 'applicant':
+                staff.status_id = active_id
+                if staff.institution and staff.institution.status_id != active_id:
+                    staff.institution.status_id = active_id
+            elif flow == 'administrative':
+                staff.status_id = active_id
 
             db.session.commit()
 
             if flow == 'applicant':
                 BinnacleService.log_security_event(
                     action_type=AuditAction.ACTIVACION_CUENTA.value,
-                    description=f'Activación de cuenta y creación de credenciales para solicitante {person.first_name} {person.last_name}',
-                    user=new_user,
+                    description=f'Activación de cuenta y asignación de credenciales para solicitante {person.first_name} {person.last_name}',
+                    user=user,
                     status=AuditStatus.COMPLETADO.value
                 )
             elif flow == 'administrative':
-                sede_name = staff.place.name if hasattr(staff, 'place') else staff.institution.institution_name
+                sede_name = staff.place.name if hasattr(staff, 'place') else "CORPOELEC"
                 BinnacleService.log_security_event(
                     action_type=AuditAction.ACTIVACION_CUENTA.value,
                     description=f'Activación de cuenta administrativa para {person.first_name} {person.last_name} (Sede: {sede_name})',
@@ -474,4 +516,72 @@ def activate_account(token):
             flash('Ocurrió un error al intentar activar la cuenta.', 'danger')
 
     return render_template('auth/activate.html', form=form, person=person, staff=staff, flow=flow)
+
+
+@auth_bp.route('/activate/resend/<token>', methods=['POST'])
+@limiter.limit("5 per hour")
+def resend_activation_from_token(token):
+    """
+    Permite al usuario con token expirado regenerar y reenviar un nuevo enlace de activación.
+    """
+    token_status, payload = inspect_activation_token(token)
+    if token_status != 'expired' or not payload:
+        flash('No se pudo verificar el enlace para renovación. Por favor contacte al administrador.', 'danger')
+        return redirect(url_for('auth.login'))
+
+    person = Person.query.get(payload.get('person_id'))
+    if not person:
+        flash('Usuario no encontrado.', 'danger')
+        return redirect(url_for('auth.login'))
+
+    flow = payload.get('flow', 'applicant')
+
+    # Guard: verificar si ya completó su activación
+    if person.user and person.user.status_id == 1:
+        flash('Esta cuenta ya fue activada previamente. Por favor inicie sesión.', 'info')
+        return redirect(url_for('auth.login'))
+
+    # Guard de vigencia máxima de 7 días
+    ref_date = person.user.created_at if person.user else None
+    if ref_date and (datetime.now(timezone.utc) - ref_date).total_seconds() > 7 * 86400:
+        flash('El plazo máximo de 7 días para activar la cuenta ha expirado. Por razones de seguridad el registro ha sido anulado. Por favor solicite un nuevo registro.', 'warning')
+        return redirect(url_for('auth.login'))
+
+    # Generar un nuevo token fresco con vigencia de 48h
+    payload['user_id'] = person.user.id if person.user else None
+    new_token = generate_activation_token(payload)
+    full_name = f"{person.first_name} {person.last_name}".strip()
+
+    if flow == 'applicant':
+        staff = InstitutionalStaff.query.get(payload.get('staff_id'))
+        inst_name = staff.institution.institution_name if staff and staff.institution else ""
+        send_applicant_activation_email(
+            to_email=person.email,
+            token=new_token,
+            full_name=full_name,
+            institution_name=inst_name
+        )
+    else:
+        staff = CompanyStaff.query.get(payload.get('staff_id'))
+        place_name = staff.place.name if staff and staff.place else "CORPOELEC"
+        role_display = "Personal Administrativo"
+        if person.user and person.user.roles_assoc:
+            r_name = person.user.roles_assoc[0].role.name
+            role_display = "Super Administrador" if r_name == 'super_admin' else "Administrador Estadal"
+        send_administrative_activation_email(
+            to_email=person.email,
+            token=new_token,
+            role_name=role_display,
+            place_name=place_name,
+            full_name=full_name
+        )
+
+    BinnacleService.log_security_event(
+        action_type=AuditAction.ACTIVACION_CUENTA.value,
+        description=f'Regeneración y reenvío de enlace de activación para {full_name} ({person.email})',
+        status=AuditStatus.COMPLETADO.value
+    )
+
+    flash(f'Hemos enviado un nuevo enlace de activación a su correo registrado. Revise su bandeja de entrada o carpeta de spam.', 'success')
+    return redirect(url_for('auth.login'))
 

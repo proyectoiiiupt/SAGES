@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAGES - Enlace Expirado</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/icon_corpoelec.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/activate.css') }}">
+    <style>
+        .expired-card {
+            max-width: 520px;
+            margin: 40px auto;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e5e7eb;
+            overflow: hidden;
+            text-align: center;
+            padding: 40px 30px;
+        }
+        .expired-icon {
+            width: 64px;
+            height: 64px;
+            background-color: #fef2f2;
+            color: #ef4444;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px auto;
+        }
+        .expired-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 12px;
+        }
+        .expired-text {
+            font-size: 15px;
+            color: #4b5563;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+        .info-pill {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 24px;
+            text-align: left;
+            font-size: 14px;
+            color: #334155;
+        }
+        .info-pill-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+        .info-pill-row:last-child {
+            margin-bottom: 0;
+        }
+        .btn-resend {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            background: linear-gradient(90deg, #1c3d73 0%, #1fcab0 100%);
+            color: #ffffff;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            text-decoration: none;
+        }
+        .btn-resend:hover {
+            opacity: 0.9;
+        }
+        .btn-back-login {
+            display: inline-block;
+            margin-top: 18px;
+            color: #64748b;
+            font-size: 14px;
+            text-decoration: none;
+        }
+        .btn-back-login:hover {
+            color: #1c3d73;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body class="activate-body">
+    <header class="ac-header-label">
+        <p>Sistema de Gestión de Solicitudes de Formación - CORPOELEC</p>
+    </header>
+
+    <div class="expired-card">
+        <div class="expired-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+        </div>
+
+        <h1 class="expired-title">Enlace de Activación Expirado</h1>
+        <p class="expired-text">
+            Por motivos de seguridad, los enlaces para establecer contraseña tienen una validez de <strong>48 horas</strong> y este enlace ya ha caducado.
+        </p>
+
+        <div class="info-pill">
+            <div class="info-pill-row">
+                <span style="color: #64748b;">Titular:</span>
+                <strong>{{ person.first_name }} {{ person.last_name }}</strong>
+            </div>
+            <div class="info-pill-row">
+                <span style="color: #64748b;">Cédula:</span>
+                <span>{{ person.identification_type }}-{{ person.identification_number }}</span>
+            </div>
+            <div class="info-pill-row">
+                <span style="color: #64748b;">Correo:</span>
+                <span>{{ masked_email }}</span>
+            </div>
+        </div>
+
+        <p style="font-size: 14px; color: #64748b; margin-bottom: 20px;">
+            Haga clic en el siguiente botón para generar y recibir un nuevo enlace de activación en su correo registrado:
+        </p>
+
+        <form action="{{ url_for('auth.resend_activation_from_token', token=token) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn-resend">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <polyline points="1 20 1 14 7 14"></polyline>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+                <span>Reenviar Nuevo Enlace de Activación</span>
+            </button>
+        </form>
+
+        <a href="{{ url_for('auth.login') }}" class="btn-back-login">&larr; Volver al inicio de sesión</a>
+    </div>
+</body>
+</html>
+

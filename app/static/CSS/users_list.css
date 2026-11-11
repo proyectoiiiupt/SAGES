@@ -229,6 +229,31 @@
     color: #b91c1c;
 }
 
+.status-pending {
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fde68a;
+}
+
+.btn-resend-user {
+    display: inline-flex;
+    align-items: center;
+    background: #f59e0b;
+    color: #ffffff;
+    border: none;
+    border-radius: 50px;
+    padding: 0.25rem 0.7rem;
+    font-size: 0.8rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    margin-left: 0.4rem;
+}
+
+.btn-resend-user:hover {
+    background: #d97706;
+}
+
 .btn-view {
     background: #e0f2fe;
     color: #0284c7;

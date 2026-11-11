@@ -94,7 +94,27 @@
         </div>
 
         <!-- Controles de Acción (US-15 y US-16) -->
-        {% if current_role == 'super_admin' %}
+        {% if user.status_id == 6 %}
+        <div style="margin-top: 2rem; display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background-color: #fefce8; border: 1px solid #fef08a; border-radius: 8px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="display: inline-block; width: 12px; height: 12px; background-color: #f59e0b; border-radius: 50%;"></span>
+                <div>
+                    <div style="font-weight: 700; color: #854d0e; font-size: 15px;">Cuenta Pendiente de Activación</div>
+                    <div style="font-size: 13px; color: #a16207; margin-top: 2px;">El usuario no ha definido su contraseña mediante el enlace de activación.</div>
+                </div>
+            </div>
+            <button type="button" class="btn-resend-activation"
+                    onclick="reenviarEnlaceDetalle('{{ user.id }}', '{{ user.person.email if user.person else '' }}', '{{ user.person.first_name if user.person else '' }} {{ user.person.last_name if user.person else '' }}')"
+                    style="display: inline-flex; align-items: center; gap: 8px; background-color: #f59e0b; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; transition: background 0.2s;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <polyline points="1 20 1 14 7 14"></polyline>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+                Reenviar Enlace de Activación
+            </button>
+        </div>
+        {% elif current_role == 'super_admin' %}
         <div style="margin-top: 2rem; display: flex; justify-content: space-between; align-items: center; padding: 0 20px 20px 20px;">
             
             <!-- Switch de Estatus (Aparecerá en el extremo izquierdo) -->
@@ -317,5 +337,57 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+function reenviarEnlaceDetalle(userId, email, fullName) {
+    if (typeof Swal === 'undefined') {
+        alert('Cargando componentes, por favor espere un momento...');
+        return;
+    }
+
+    Swal.fire({
+        title: '¿Reenviar enlace de activación?',
+        html: `Se regenerará un nuevo enlace válido por 48 horas y se enviará al correo:<br><strong>${email || 'registrado'}</strong> (${fullName.trim()})`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#1c3d73',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, reenviar',
+        cancelButtonText: 'Cancelar',
+        showLoaderOnConfirm: true,
+        preConfirm: () => {
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+            return fetch(`/users/${userId}/resend-activation`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => {
+                        throw new Error(err.message || 'Error en la petición');
+                    });
+                }
+                return response.json();
+            })
+            .catch(error => {
+                Swal.showValidationMessage(`Error: ${error.message}`);
+            });
+        },
+        allowOutsideClick: () => !Swal.isLoading()
+    }).then((result) => {
+        if (result.isConfirmed && result.value && result.value.status === 'success') {
+            Swal.fire({
+                icon: 'success',
+                title: '¡Enlace enviado!',
+                text: result.value.message || 'El nuevo enlace ha sido enviado con éxito.',
+                confirmButtonColor: '#1c3d73'
+            });
+        }
+    });
+}
 </script>
 {% endblock %}

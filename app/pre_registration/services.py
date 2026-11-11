@@ -120,6 +120,11 @@ def is_identification_available(identification_number: str) -> bool:
         bool: True si no existe en BD, False en caso contrario.
     """
     from app.models.person_model import Person
+    try:
+        from app.users.services import purge_expired_pending_users
+        purge_expired_pending_users()
+    except Exception:
+        pass
     return not Person.query.filter_by(identification_number=identification_number).first()
 
 
@@ -134,6 +139,11 @@ def is_email_available(email: str) -> bool:
         bool: True si no existe en BD, False en caso contrario.
     """
     from app.models.person_model import Person
+    try:
+        from app.users.services import purge_expired_pending_users
+        purge_expired_pending_users()
+    except Exception:
+        pass
     return not Person.query.filter_by(email=email.lower()).first()
 
 

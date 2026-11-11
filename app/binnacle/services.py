@@ -71,7 +71,8 @@ class BinnacleService:
         old_values: Optional[dict] = None,
         new_values: Optional[dict] = None,
         user_identifier: Optional[str] = None,
-        session_instance: Optional[Session] = None
+        session_instance: Optional[Session] = None,
+        user_id: Optional[int] = -1
     ) -> Optional[Binnacle]:
         """
         Crea un registro de auditoría asociado a la sesión activa (por defecto db.session).
@@ -83,6 +84,13 @@ class BinnacleService:
         safe_old = sanitize_payload(old_values) if old_values else None
         safe_new = sanitize_payload(new_values) if new_values else None
 
+        if user_id != -1:
+            actual_user_id = user_id
+        elif user_identifier == 'SISTEMA':
+            actual_user_id = None
+        else:
+            actual_user_id = context['user_id']
+
         log = Binnacle(
             module=module,
             action_type=action_type,
@@ -92,7 +100,7 @@ class BinnacleService:
             record_id=record_id,
             old_values=safe_old,
             new_values=safe_new,
-            user_id=context['user_id'],
+            user_id=actual_user_id,
             user_identifier=user_identifier,
             ip_address=context['ip_address'],
             user_agent=context['user_agent'],

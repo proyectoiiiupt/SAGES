@@ -17,6 +17,10 @@ from app.models.municipality_model import Municipality
 from app.models.staff_evidence_model import StaffEvidence
 from app.models.position_model import Position  
 from app.models.status_model import Status
+import secrets
+from app.extensions import db, bcrypt
+from app.models.role_user_model import RoleUser
+from app.pre_registration.services import _generate_short_code
 from app.users.forms import UserUpdateForm, AdminUserRegisterForm
 from app.utils.activation_utils import generate_activation_token
 from app.utils.email_utils import send_applicant_activation_email, send_administrative_activation_email
@@ -24,7 +28,8 @@ from app.users.services import (
     get_corpoelec_places_by_state,
     get_administrative_positions,
     create_administrative_user,
-    get_user_state_id
+    get_user_state_id,
+    purge_expired_pending_users
 )
 from app.decorators.auth_decorators import role_required, check_permissions
 from app.binnacle.decorators import audit_activity
@@ -64,6 +69,12 @@ def list_users():
     
     if user_role not in ['super_admin', 'state_admin']:
         abort(403)
+
+    # Purga automática de usuarios pendientes con más de 7 días sin activar
+    try:
+        purge_expired_pending_users()
+    except Exception as e:
+        print(f"[PURGE ERROR]: {e}")
 
     page = request.args.get('page', 1, type=int)
     search_query = request.args.get('search', '').strip()
@@ -246,6 +257,15 @@ def view_user(user_id):
         abort(403)
 
     user = User.query.get_or_404(user_id)
+
+    # Si es un usuario pendiente (STAT-006) y superó los 7 días, purgar y redirigir
+    if user.status_id == 6 and user.created_at:
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        if (now_utc - user.created_at).total_seconds() > 7 * 86400:
+            purge_expired_pending_users()
+            flash('El plazo máximo de 7 días para activar este usuario ha expirado y su registro fue cancelado por seguridad.', 'info')
+            return redirect(url_for('users.list_users'))
+
     person = user.person
     
     viewed_role = user.roles_assoc[0].role.name if user.roles_assoc else 'applicant'
@@ -374,6 +394,15 @@ def edit_user(user_id):
         abort(403)
 
     user = User.query.get_or_404(user_id)
+
+    # Si es un usuario pendiente (STAT-006) y superó los 7 días, purgar y redirigir
+    if user.status_id == 6 and user.created_at:
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        if (now_utc - user.created_at).total_seconds() > 7 * 86400:
+            purge_expired_pending_users()
+            flash('El plazo máximo de 7 días para activar este usuario ha expirado y su registro fue cancelado por seguridad.', 'info')
+            return redirect(url_for('users.list_users'))
+
     person = user.person
     
     # Determinar si el usuario pertenece a una institución o empresa para el cargo
@@ -702,24 +731,48 @@ def approve_request(staff_id):
         return jsonify({'status': 'error', 'message': 'El registro no posee información de persona asociada.'}), 400
 
     # Comprobar que no posea ya una cuenta de usuario activa
-    if person.user:
-        return jsonify({'status': 'error', 'message': 'Esta persona ya posee un usuario registrado en el sistema.'}), 400
+    if person.user and person.user.status_id == 1:
+        return jsonify({'status': 'error', 'message': 'Esta persona ya posee un usuario activo registrado en el sistema.'}), 400
 
-    try:  # CORREGIDO: ttry -> try
+    try:
+        # 1. Actualizar el estatus del InstitutionalStaff a STAT-006 (En Proceso)
+        status_in_progress = Status.query.filter_by(status_code='STAT-006').first()
+        status_in_progress_id = status_in_progress.id if status_in_progress else 6
+        staff.status_id = status_in_progress_id
+
+        # 2. Pre-crear o actualizar User con status_id = 6 y clave temporal aleatoria (igual que create_administrative_user)
+        user = person.user
+        if not user:
+            temp_password = secrets.token_urlsafe(10)
+            user = User(
+                user_code=_generate_short_code('USR', User, 'user_code'),
+                person_id=person.id,
+                user_name=person.identification_number,
+                password=bcrypt.generate_password_hash(temp_password).decode('utf-8'),
+                status_id=status_in_progress_id
+            )
+            db.session.add(user)
+            db.session.flush()
+
+            # 3. Asignar rol applicant en RoleUser
+            applicant_role = Role.query.filter_by(name='applicant').first()
+            if applicant_role:
+                role_user = RoleUser(user_id=user.id, role_id=applicant_role.id)
+                db.session.add(role_user)
+        else:
+            user.status_id = status_in_progress_id
+
         # Generación del token seguro con vigencia de 48h
         payload = {
             'person_id': person.id,
+            'user_id': user.id,
             'staff_id': staff.id,
             'flow': 'applicant',
             'email': person.email
         }
         token = generate_activation_token(payload)
 
-        # 1. Actualizar el estatus del InstitutionalStaff a STAT-006 (En Proceso)
-        # DESCOMENTADO para cumplir con la Sección 3.2 del documento de especificaciones
-        status_in_progress = Status.query.filter_by(status_code='STAT-006').first()
-        if status_in_progress:
-            staff.status_id = status_in_progress.id 
+        # Commit atómico
         db.session.commit()
 
         full_name = f"{person.first_name} {person.last_name}".strip()
@@ -765,7 +818,7 @@ def approve_request(staff_id):
             status=AuditStatus.COMPLETADO.value
         )
 
-        # 2. Llamada a la función de correo en hilo independiente DESPUÉS del commit con datos completos del destinatario
+        # Envío del correo con credenciales/enlace
         send_applicant_activation_email(
             to_email=person.email,
             token=token,
@@ -782,6 +835,110 @@ def approve_request(staff_id):
         db.session.rollback()
         print(f"[ERROR APPROVE REQUEST]: {e}")
         return jsonify({'status': 'error', 'message': 'Ocurrió un error interno al procesar la aprobación.'}), 500
+
+
+@users_bp.route('/<int:user_id>/resend-activation', methods=['POST'])
+@login_required
+def resend_activation_admin(user_id):
+    """
+    Permite a Super Admin o Admin Estadal reenviar el enlace de activación (48h)
+    a cualquier usuario pendiente (STAT-006) visible en su lista de usuarios.
+    """
+    user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
+    if user_role not in ['super_admin', 'state_admin']:
+        return jsonify({'status': 'error', 'message': 'No tiene permisos para realizar esta acción.'}), 403
+
+    target_user = User.query.get_or_404(user_id)
+    if target_user.status_id != 6:
+        return jsonify({'status': 'error', 'message': 'Solo se puede reenviar el enlace a usuarios en estado Pendiente.'}), 400
+
+    if target_user.created_at:
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        if (now_utc - target_user.created_at).total_seconds() > 7 * 86400:
+            purge_expired_pending_users()
+            return jsonify({'status': 'error', 'message': 'El plazo máximo de 7 días para activar esta cuenta ha expirado y el registro ha sido cancelado.'}), 400
+
+    target_person = target_user.person
+    if not target_person:
+        return jsonify({'status': 'error', 'message': 'El usuario no tiene datos personales asociados.'}), 400
+
+    target_role_name = target_user.roles_assoc[0].role.name if target_user.roles_assoc and target_user.roles_assoc[0].role else 'applicant'
+
+    # Admin Estadal solo puede gestionar solicitantes de su estado
+    if user_role == 'state_admin':
+        if target_role_name not in ['applicant', 'director', 'directora']:
+            return jsonify({'status': 'error', 'message': 'No tiene permisos para gestionar este usuario.'}), 403
+
+        admin_state_id = None
+        if current_user.person:
+            inst = InstitutionalStaff.query.filter_by(person_id=current_user.person.id).first()
+            if inst and inst.institution and inst.institution.parish and inst.institution.parish.municipality:
+                admin_state_id = inst.institution.parish.municipality.state_id
+            else:
+                comp = CompanyStaff.query.filter_by(person_id=current_user.person.id).first()
+                if comp and comp.place and comp.place.parish and comp.place.parish.municipality:
+                    admin_state_id = comp.place.parish.municipality.state_id
+
+        target_inst = InstitutionalStaff.query.filter_by(person_id=target_person.id).first()
+        target_state_id = None
+        if target_inst and target_inst.institution and target_inst.institution.parish and target_inst.institution.parish.municipality:
+            target_state_id = target_inst.institution.parish.municipality.state_id
+
+        if admin_state_id and target_state_id and admin_state_id != target_state_id:
+            return jsonify({'status': 'error', 'message': 'El usuario no pertenece a su jurisdicción estatal.'}), 403
+
+    # Determinar si es flujo applicant o administrative
+    if target_role_name in ['super_admin', 'state_admin']:
+        flow = 'administrative'
+        comp_staff = CompanyStaff.query.filter_by(person_id=target_person.id).first()
+        staff_id = comp_staff.id if comp_staff else None
+    else:
+        flow = 'applicant'
+        inst_staff = InstitutionalStaff.query.filter_by(person_id=target_person.id).first()
+        staff_id = inst_staff.id if inst_staff else None
+
+    payload = {
+        'person_id': target_person.id,
+        'user_id': target_user.id,
+        'staff_id': staff_id,
+        'flow': flow,
+        'email': target_person.email
+    }
+    new_token = generate_activation_token(payload)
+    full_name = f"{target_person.first_name} {target_person.last_name}".strip()
+
+    if flow == 'applicant':
+        inst_name = inst_staff.institution.institution_name if inst_staff and inst_staff.institution else "su institución educativa"
+        send_applicant_activation_email(
+            to_email=target_person.email,
+            token=new_token,
+            full_name=full_name,
+            institution_name=inst_name
+        )
+    else:
+        role_display = "Super Administrador" if target_role_name == 'super_admin' else "Administrador Estadal"
+        place_name = comp_staff.place.name if comp_staff and comp_staff.place else "CORPOELEC"
+        send_administrative_activation_email(
+            to_email=target_person.email,
+            token=new_token,
+            role_name=role_display,
+            place_name=place_name,
+            full_name=full_name
+        )
+
+    BinnacleService.create_log_entry(
+        module=AuditModule.USERS.value,
+        action_type=AuditAction.ACTIVACION_CUENTA.value,
+        description=f'Reenvío de enlace de activación por {current_user.user_name} para {full_name} ({target_person.email})',
+        target_table='sages.users',
+        record_id=target_user.id,
+        status=AuditStatus.COMPLETADO.value
+    )
+
+    return jsonify({
+        'status': 'success',
+        'message': f'Se ha reenviado el enlace de activación exitosamente a {target_person.email}.'
+    })
 
 
 # ==========================================

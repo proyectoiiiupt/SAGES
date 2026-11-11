@@ -14,8 +14,24 @@ def verify_activation_token(token: str, max_age_seconds: int = 172800) -> dict |
     Verifica la integridad de la firma y la vigencia temporal (48 horas por defecto).
     Retorna el diccionario de datos o None si expiró o fue alterado.
     """
+    status, payload = inspect_activation_token(token, max_age_seconds)
+    return payload if status == 'valid' else None
+
+
+def inspect_activation_token(token: str, max_age_seconds: int = 172800) -> tuple[str, dict | None]:
+    """
+    Inspecciona el token distinguiendo entre:
+    - ('valid', payload): Válido y dentro de las 48 horas.
+    - ('expired', payload): Token auténtico pero fuera del plazo de 48 horas.
+    - ('invalid', None): Token alterado o firma no válida.
+    """
     serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'], salt='sages-account-activation')
     try:
-        return serializer.loads(token, max_age=max_age_seconds)
-    except (BadSignature, SignatureExpired):
-        return None
+        return 'valid', serializer.loads(token, max_age=max_age_seconds)
+    except SignatureExpired as e:
+        try:
+            return 'expired', serializer.load_payload(e.payload)
+        except Exception:
+            return 'invalid', None
+    except BadSignature:
+        return 'invalid', None
