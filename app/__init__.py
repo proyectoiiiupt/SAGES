@@ -136,6 +136,19 @@ def create_app(config_class=Config) -> Flask:
         flash("Demasiados intentos. Por favor espere antes de continuar.", 'danger')
         return render_template('auth/login.html'), 429
 
+    from flask_wtf.csrf import CSRFError
+    @app.errorhandler(CSRFError)
+    def handle_csrf_error(e):
+        if (request.is_json or 
+            request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 
+            (request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html)):
+            return jsonify({
+                "success": False,
+                "message": "Token de seguridad (CSRF) inválido o expirado. Por favor recargue la página."
+            }), 400
+        flash("La sesión de seguridad o el token ha expirado. Por favor, intente de nuevo.", "warning")
+        return redirect(request.referrer or url_for('auth.login'))
+
     @app.route('/verify-code', methods=['GET', 'POST'])
     @limiter.limit("10 per 5 minutes", methods=["POST"])
     def verify_code():

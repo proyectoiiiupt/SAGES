@@ -298,6 +298,7 @@ def toggle_institution_status(institution_id):
     """
     Alterna el estatus de una institución entre Activo (STAT-001) e Inactivo (STAT-002).
     También actualiza automáticamente el estatus de los usuarios afiliados.
+    No permite inactivar si la institución tiene solicitudes de formación pendientes (STAT-003, STAT-004) o en proceso (STAT-006).
     """
     try:
         institution = db.session.get(Institution, institution_id)
@@ -311,6 +312,27 @@ def toggle_institution_status(institution_id):
             return None, 'Estados no configurados correctamente', 0
         
         if institution.status_id == active_status.id:
+            # Verificar si la institución tiene solicitudes de formación pendientes o en proceso
+            from app.models.request_model import Request
+            pending_statuses = Status.query.filter(
+                Status.status_code.in_(['STAT-003', 'STAT-004', 'STAT-006'])
+            ).all()
+            pending_status_ids = [s.id for s in pending_statuses]
+
+            if pending_status_ids:
+                pending_requests = (
+                    db.session.query(Request)
+                    .join(Request.institutional_staff)
+                    .filter(
+                        InstitutionalStaff.institution_id == institution_id,
+                        Request.status_id.in_(pending_status_ids),
+                        Request.historical == False
+                    )
+                    .first()
+                )
+                if pending_requests:
+                    return None, 'No se puede inactivar la institución porque tiene solicitudes de formación pendientes o en proceso.', 0
+
             institution.status_id = inactive_status.id
             new_institution_status = inactive_status
             new_status = 'Inactivo'

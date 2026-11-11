@@ -65,14 +65,34 @@ document.addEventListener('DOMContentLoaded', function() {
             this.disabled = true;
             
             try {
+                const csrfToken = this.dataset.csrfToken
+                    || document.getElementById('institution_csrf_token')?.value
+                    || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                    || document.querySelector('input[name="csrf_token"]')?.value
+                    || '';
+
                 const response = await fetch(`/institutions/${institutionId}/toggle-status`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                    }
+                        'X-CSRFToken': csrfToken,
+                        'X-CSRF-Token': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ csrf_token: csrfToken })
                 });
                 
-                const data = await response.json();
+                let data;
+                try {
+                    data = await response.json();
+                } catch (parseError) {
+                    data = {
+                        success: false,
+                        message: response.status === 400
+                            ? 'Error de validación de seguridad (CSRF). Por favor recargue la página.'
+                            : `Error del servidor (Código ${response.status})`
+                    };
+                }
                 
                 if (data.success) {
                     // Update button state
@@ -110,13 +130,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         confirmButtonText: 'Aceptar'
                     });
                 } else {
-                    // Mensaje de error con SweetAlert2
+                    // Diferenciar error de validación de negocio (422) de error técnico
+                    const isValidationError = response.status === 422;
                     await Swal.fire({
-                        title: 'Error',
-                        text: data.message,
-                        icon: 'error',
-                        confirmButtonColor: '#d33',
-                        confirmButtonText: 'Aceptar'
+                        title: isValidationError ? 'Acción no permitida' : 'Error',
+                        html: isValidationError
+                            ? `<span>${data.message}</span><br><br><span style="font-size: 0.88em; color: #6b7280;">Gestione las solicitudes pendientes antes de inactivar la institución.</span>`
+                            : data.message,
+                        icon: isValidationError ? 'warning' : 'error',
+                        confirmButtonColor: isValidationError ? '#f59e0b' : '#d33',
+                        confirmButtonText: 'Entendido'
                     });
                 }
             } catch (error) {

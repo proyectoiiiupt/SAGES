@@ -215,8 +215,9 @@ Accesible para usuarios con roles super_admin, state_admin y applicant.
 
             {% if not is_applicant %}
             <div class="detail-actions">
+                <input type="hidden" id="institution_csrf_token" value="{{ csrf_token() }}">
                 <button class="toggle-status-btn" id="toggle-btn" data-institution-id="{{ institution.id }}"
-                    data-current-status="{{ institution.status.status_code }}" title="Cambiar estatus">
+                    data-current-status="{{ institution.status.status_code }}" data-csrf-token="{{ csrf_token() }}" title="Cambiar estatus">
                     <span class="toggle-slider"></span>
                 </button>
                 <span class="toggle-label">Cambiar estatus</span>
@@ -276,6 +277,6 @@ Accesible para usuarios con roles super_admin, state_admin y applicant.
     });
 </script>
 {% if not is_applicant %}
-<script src="{{ url_for('static', filename='JS/institution-toggle.js') }}"></script>
+<script src="{{ url_for('static', filename='JS/institution-toggle.js') }}?v={{ range(1000, 99999) | random }}"></script>
 {% endif %}
 {% endblock %}

@@ -137,7 +137,9 @@ def toggle_institution_status_route(institution_id):
         institution, new_status, affected_users = toggle_institution_status(institution_id)
         
         if institution is None:
-            return jsonify({'success': False, 'message': new_status, 'affected_users': 0}), 404
+            is_validation_error = new_status and new_status.startswith('No se puede')
+            status_code = 422 if is_validation_error else 404
+            return jsonify({'success': False, 'message': new_status, 'affected_users': 0}), status_code
         
         return jsonify({
             'success': True,
