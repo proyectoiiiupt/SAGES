@@ -167,7 +167,7 @@
                     {% else %}
                     {# Mensaje cuando no hay instituciones #}
                     <tr>
-                        <td colspan="{% if current_user.roles_assoc[0].role.name == 'super_admin' %}7{% else %}7{% endif %}" class="no-data">No hay planteles registrados</td>
+                        <td colspan="6" class="no-data">No hay planteles registrados</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -233,7 +233,7 @@
         searchTimeout = setTimeout(updateFilters, 500);
     }
 
-    function updateFilters() {
+    function updateFilters(page = 1) {
         const searchName = document.getElementById('search_name').value;
         const institutionType = document.getElementById('institution_type').value;
         const institutionDependency = document.getElementById('institution_dependency').value;
@@ -261,43 +261,13 @@
         url.searchParams.delete('state_id');
         {% endif %}
 
-        // Resetear a página 1 cuando se cambian filtros
-        url.searchParams.set('page', '1');
+        url.searchParams.set('page', page);
 
         window.location.href = url.toString();
     }
 
     function goToPage(page) {
-        let url = new URL(window.location.href);
-        url.searchParams.set('page', page);
-        // Mantener todos los filtros actuales
-        const searchName = document.getElementById('search_name').value;
-        const institutionType = document.getElementById('institution_type').value;
-        const institutionDependency = document.getElementById('institution_dependency').value;
-        const status = document.getElementById('status').value;
-
-        url.searchParams.set('search_name', searchName);
-        url.searchParams.set('institution_type', institutionType);
-        url.searchParams.set('institution_dependency', institutionDependency);
-        url.searchParams.set('status', status);
-
-        {% if current_user.roles_assoc and current_user.roles_assoc[0].role.name == 'super_admin' %}
-        // Super_admin: manejar filtro state_id
-        const stateIdElement = document.getElementById('state_id');
-        if (stateIdElement) {
-            url.searchParams.set('state_id', stateIdElement.value);
-        }
-        url.searchParams.delete('parish_id');
-        {% else %}
-        // State_admin: solo manejar parish_id
-        const parishIdElement = document.getElementById('parish_id');
-        if (parishIdElement) {
-            url.searchParams.set('parish_id', parishIdElement.value);
-        }
-        url.searchParams.delete('state_id');
-        {% endif %}
-
-        window.location.href = url.toString();
+        updateFilters(page);
     }
 </script>
 {% endblock %}

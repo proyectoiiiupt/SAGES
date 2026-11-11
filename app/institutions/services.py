@@ -127,9 +127,21 @@ def get_all_institutions(filters=None, user=None, page=1, per_page=10):
             base_query = base_query.join(Parish).join(Municipality).join(State).filter(
                 State.state_code == user_state_info['state_code']
             )
+
+        # Filtrar únicamente instituciones aprobadas (STAT-001 Activo, STAT-002 Inactivo)
+        approved_statuses = Status.query.filter(Status.status_code.in_(['STAT-001', 'STAT-002'])).all()
+        approved_status_ids = [s.id for s in approved_statuses]
+
+        if approved_status_ids:
+            query = query.filter(Institution.status_id.in_(approved_status_ids))
+            base_query = base_query.filter(Institution.status_id.in_(approved_status_ids))
+        else:
+            pending_status = Status.query.filter_by(status_code='STAT-004').first()
+            if pending_status:
+                query = query.filter(Institution.status_id != pending_status.id)
+                base_query = base_query.filter(Institution.status_id != pending_status.id)
         
-        all_ids_query = base_query.order_by(Institution.id.asc())
-        all_ids = [institution.id for institution in all_ids_query.all()]
+        all_ids = [r[0] for r in base_query.with_entities(Institution.id).order_by(Institution.id.asc()).all()]
         id_to_index = {id: index + 1 for index, id in enumerate(all_ids)}
 
         query = query.order_by(Institution.id)
