@@ -131,11 +131,13 @@
                 </span>
             </div>
 
-            <!-- Botón de Edición (Aparecerá en el extremo derecho) -->
+            <!-- Botón de Edición (Aparecerá en el extremo derecho solo si no es otro Super Admin) -->
+            {% if viewed_role != 'super_admin' or user.id == current_user.id %}
             <a href="{{ url_for('users.edit_user', user_id=user.id) }}" class="btn-edit" 
                style="padding: 10px 20px; color: white; background-color: #f0ad4e; text-decoration: none; border-radius: 5px; font-weight: bold; cursor: pointer;">
                 Editar Información
             </a>
+            {% endif %}
         </div>
         {% endif %}
 

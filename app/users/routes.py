@@ -396,6 +396,12 @@ def edit_user(user_id):
 
     user = User.query.get_or_404(user_id)
 
+    # Bloquear edición entre pares Super Admin
+    target_is_super_admin = any(ra.role.name == 'super_admin' for ra in user.roles_assoc if ra.role)
+    if target_is_super_admin and user.id != current_user.id:
+        flash('No está permitido editar los datos de otro Super Administrador.', 'warning')
+        return redirect(url_for('users.view_user', user_id=user.id))
+
     # Si es un usuario pendiente (STAT-006) y superó los 7 días, purgar y redirigir
     if user.status_id == 6 and user.created_at:
         now_utc = datetime.datetime.now(datetime.timezone.utc)
