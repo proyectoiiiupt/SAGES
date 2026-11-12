@@ -54,8 +54,8 @@
                 {{ form.hidden_tag() }}
             {% endif %}
 
-            <div class="data-grid-container">
-                <!-- Columna Izquierda: Datos del usuario -->
+            <div class="data-grid-container" style="grid-template-columns: 1fr; max-width: 800px;">
+                <!-- Columna: Datos del usuario -->
                 <div class="data-column">
                     <h4 class="figma-title-green">Datos del usuario</h4>
                     <div class="info-grid">
@@ -98,33 +98,9 @@
                         </div>
                     </div>
                 </div>
-                
-                <div class="vertical-divider"></div>
-                
-                <!-- Columna Derecha: Contacto (AHORA DE SOLO LECTURA) -->
-                <div class="data-column">
-                    <h4 class="figma-title-green">Contacto</h4>
-                    <div class="info-grid">
-                        
-                        <div>
-                            <label class="figma-label">Teléfono Principal</label>
-                            <input type="tel" name="mobile" value="{{ user.person.mobile if user.person else '' }}" class="figma-input locked-box" readonly>
-                        </div>
-                        
-                        <div>
-                            <label class="figma-label">Teléfono Secundario</label>
-                            <input type="tel" name="phone" value="{{ user.person.phone if user.person else '' }}" class="figma-input locked-box" readonly>
-                        </div>
-                        
-                        <div class="full-width">
-                            <label class="figma-label">Correo Electrónico</label>
-                            <input type="email" name="email" value="{{ user.person.email if user.person and user.person.email else '' }}" class="figma-input locked-box" readonly>
-                        </div>
-                    </div>
-                </div>
             </div>
             
-            <div class="profile-status-section">
+            <div class="profile-status-section" style="padding-left: 20px;">
                 {% if user_role == 'super_admin' %}
                     <div class="form-actions-container">
                         <a href="{{ url_for('users.view_user', user_id=user.id) }}" class="btn-cancel btn-cancel-swal">
