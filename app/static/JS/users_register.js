@@ -207,15 +207,35 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
 
+        // 2. Validar Teléfono Móvil (inmediatamente después del correo electrónico)
+        const mobile = document.getElementById('mobile');
+        if (!mobile.value.trim()) {
+            Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'El teléfono móvil es requerido', confirmButtonColor: '#0ea5e9' });
+            mobile.focus();
+            return false;
+        }
+        if (mobile.value.length < 14) {
+            Swal.fire({ icon: 'warning', title: 'Datos inválidos', text: 'Teléfono móvil válido requerido', confirmButtonColor: '#0ea5e9' });
+            mobile.focus();
+            return false;
+        }
+
+        // Teléfono Local (opcional, validar si se ingresaron datos parciales)
+        const phone = document.getElementById('phone');
+        if (phone && phone.value.trim() && phone.value.length < 14) {
+            Swal.fire({ icon: 'warning', title: 'Datos inválidos', text: 'Teléfono local debe ser un número válido o dejarse vacío', confirmButtonColor: '#0ea5e9' });
+            phone.focus();
+            return false;
+        }
+
+        // 3. Asignación Corporativa (Rol, Cargo, Estado, Sede)
         const role = document.getElementById('role');
         const position = document.getElementById('position');
-        const mobile = document.getElementById('mobile');
 
         if (!role.value) { Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'Seleccione un rol', confirmButtonColor: '#0ea5e9' }); role.focus(); return false; }
         if (!position.value) { Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'Seleccione un cargo', confirmButtonColor: '#0ea5e9' }); position.focus(); return false; }
         if (!stateSelect.value) { Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'Seleccione un estado', confirmButtonColor: '#0ea5e9' }); stateSelect.focus(); return false; }
         if (!placeSelect.value) { Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'Seleccione una sede', confirmButtonColor: '#0ea5e9' }); placeSelect.focus(); return false; }
-        if (!mobile.value.trim() || mobile.value.length < 14) { Swal.fire({ icon: 'warning', title: 'Datos inválidos', text: 'Teléfono móvil válido requerido', confirmButtonColor: '#0ea5e9' }); mobile.focus(); return false; }
 
         return true;
     }
