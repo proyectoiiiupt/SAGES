@@ -43,7 +43,8 @@ class UserUpdateForm(FlaskForm):
         filters=[lambda x: x.replace('.', '').strip() if x else x],
         validators=[
         DataRequired(message="La cédula es obligatoria."), 
-        Length(min=7, max=8, message="Longitud de cédula inválida.")
+        Length(min=7, max=8, message="Longitud de cédula inválida."),
+        validate_cedula_number()
     ])
     
     first_name = StringField('Primer Nombre', validators=[
@@ -100,7 +101,8 @@ class ProfileContactForm(FlaskForm):
     """
     email = StringField('Correo Electrónico', validators=[
         DataRequired(message="El correo electrónico es obligatorio."),
-        Length(max=100, message="El correo no puede superar los 100 caracteres.")
+        Length(max=100, message="El correo no puede superar los 100 caracteres."),
+        Email(message="El correo electrónico tiene un formato inválido.")
     ])
 
     mobile = StringField('Teléfono Principal', 
