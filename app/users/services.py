@@ -216,18 +216,26 @@ def update_user_contact(user: User, email: str, mobile: str, phone: str) -> Tupl
     if not person:
         return False, "No se encontró el registro de persona asociado al usuario."
 
-    email = (email or '').strip()
+    email_clean = (email or '').strip().lower()
     mobile = (mobile or '').strip()
     phone = (phone or '').strip()
 
-    if not email:
+    if not email_clean:
         return False, "El correo electrónico es obligatorio."
 
-    if '@' not in email or '.' not in email.split('@')[-1]:
+    if '@' not in email_clean or '.' not in email_clean.split('@')[-1]:
         return False, "El correo electrónico no tiene un formato válido."
 
+    # Validar que el correo no esté en uso por otra persona
+    existing_person = Person.query.filter(
+        db.func.lower(Person.email) == email_clean,
+        Person.id != person.id
+    ).first()
+    if existing_person:
+        return False, "El correo electrónico ya se encuentra registrado por otro usuario."
+
     try:
-        person.email = email
+        person.email = email_clean
         person.mobile = mobile
         person.phone = phone if phone else None
         db.session.add(person)
@@ -241,6 +249,9 @@ def update_user_contact(user: User, email: str, mobile: str, phone: str) -> Tupl
         )
 
         return True, "Los datos de contacto han sido actualizados exitosamente."
+    except IntegrityError:
+        db.session.rollback()
+        return False, "El correo electrónico ya se encuentra registrado por otro usuario."
     except Exception as e:
         db.session.rollback()
         print(f"[ERROR UPDATE CONTACT]: {e}")
@@ -363,15 +374,16 @@ def create_administrative_user(data: dict, creator_user: User) -> Tuple[bool, st
         state = State.query.get(state_id)
         state_name = state.name if state else ""
             
-        # Verificar duplicados en Person
+        # Verificar duplicados en Person y User
         email_clean = str(data.get('email')).strip().lower()
         id_number_clean = str(data.get('identification_number')).strip()
         
         if Person.query.filter(db.func.lower(Person.email) == email_clean).first():
-            return False, "El correo electrónico ya está registrado.", {}
+            return False, "El correo electrónico ya se encuentra registrado por otro usuario.", {}
             
-        if Person.query.filter_by(identification_number=id_number_clean).first():
-            return False, "La cédula de identidad ya está registrada.", {}
+        if Person.query.filter_by(identification_number=id_number_clean).first() or \
+           User.query.filter_by(user_name=id_number_clean).first():
+            return False, "La cédula de identidad ya se encuentra registrada por otro usuario.", {}
             
         # STAT-006: el User no puede iniciar sesión hasta que active mediante el enlace.
         # auth/services.py L26 rechaza logins de usuarios que no sean STAT-001.
@@ -442,7 +454,12 @@ def create_administrative_user(data: dict, creator_user: User) -> Tuple[bool, st
 
     except IntegrityError as e:
         db.session.rollback()
-        return False, "Error de integridad referencial. Es posible que el usuario ya exista.", {}
+        err_str = str(e).lower()
+        if 'email' in err_str:
+            return False, "El correo electrónico ya se encuentra registrado por otro usuario.", {}
+        elif 'identification_number' in err_str or 'user_name' in err_str:
+            return False, "La cédula de identidad ya se encuentra registrada por otro usuario.", {}
+        return False, "Ya existe un usuario con estos datos en el sistema.", {}
     except Exception as e:
         db.session.rollback()
         return False, f"Ocurrió un error inesperado al crear el usuario: {str(e)}", {}

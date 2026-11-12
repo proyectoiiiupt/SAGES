@@ -199,3 +199,20 @@ class AdminUserRegisterForm(FlaskForm):
         DataRequired(message="El cargo es obligatorio."),
         validate_fk_exists('Position')
     ])
+
+    def validate_identification_number(self, field):
+        raw_id = re.sub(r'\D', '', field.data) if field.data else ''
+        if raw_id:
+            from app.models.person_model import Person
+            from app.models.user_model import User
+            if Person.query.filter_by(identification_number=raw_id).first() or \
+               User.query.filter_by(user_name=raw_id).first():
+                raise ValidationError("La cédula de identidad ya se encuentra registrada por otro usuario.")
+
+    def validate_email(self, field):
+        email_clean = (field.data or '').strip().lower()
+        if email_clean:
+            from app.models.person_model import Person
+            from app.extensions import db
+            if Person.query.filter(db.func.lower(Person.email) == email_clean).first():
+                raise ValidationError("El correo electrónico ya se encuentra registrado por otro usuario.")

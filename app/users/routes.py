@@ -2,6 +2,7 @@ import datetime
 from flask import Blueprint, render_template, request, abort, redirect, url_for, flash, jsonify, current_app, send_from_directory, session
 from flask_login import login_required, current_user
 from sqlalchemy import or_, func
+from sqlalchemy.exc import IntegrityError
 from app.extensions import db
 from app.models.user_model import User
 from app.models.person_model import Person
@@ -420,10 +421,23 @@ def edit_user(user_id):
             # Quitamos los puntos de la cédula antes de guardar en base de datos
             raw_cedula = form.identification_number.data.replace('.', '').strip()
             
-            changed_fields = {}
+            # Validar unicidad previa de cédula si fue modificada
             if person.identification_number != raw_cedula:
+                duplicate_person = Person.query.filter(
+                    Person.identification_number == raw_cedula,
+                    Person.id != person.id
+                ).first()
+                duplicate_user = User.query.filter(
+                    User.user_name == raw_cedula,
+                    User.id != user.id
+                ).first()
+                if duplicate_person or duplicate_user:
+                    flash('La cédula de identidad ya se encuentra registrada por otro usuario.', 'danger')
+                    return render_template('users/edit_user.html', user=user, current_role=user_role, form=form)
+
                 changed_fields["Cédula"] = raw_cedula
-            person.identification_number = raw_cedula
+                person.identification_number = raw_cedula
+                user.user_name = raw_cedula
             
             new_first_name = form.first_name.data.strip().title()
             if person.first_name != new_first_name:
@@ -478,6 +492,10 @@ def edit_user(user_id):
             flash('Datos del usuario actualizados exitosamente.', 'success')
             return redirect(url_for('users.view_user', user_id=user.id))
             
+        except IntegrityError as e:
+            db.session.rollback()
+            print(f"[INTEGRITY ERROR EDIT USER]: {e}")
+            flash('La cédula de identidad ya se encuentra registrada por otro usuario.', 'danger')
         except Exception as e:
             db.session.rollback()
             print(f"[ERROR EDIT USER]: {e}")
@@ -1032,7 +1050,22 @@ def register_admin():
             'is_active': False
         }
         
-        success, message, result_data = create_administrative_user(data, current_user)
+        try:
+            success, message, result_data = create_administrative_user(data, current_user)
+        except IntegrityError as e:
+            db.session.rollback()
+            err_str = str(e).lower()
+            if 'email' in err_str:
+                flash("El correo electrónico ya se encuentra registrado por otro usuario.", "danger")
+            elif 'identification_number' in err_str or 'user_name' in err_str:
+                flash("La cédula de identidad ya se encuentra registrada por otro usuario.", "danger")
+            else:
+                flash("Ya existe un usuario con estos datos en el sistema.", "danger")
+            return render_template('users/register_admin.html', form=form, current_role=user_role)
+        except Exception as e:
+            db.session.rollback()
+            flash("Ocurrió un error inesperado al procesar el registro.", "danger")
+            return render_template('users/register_admin.html', form=form, current_role=user_role)
         
         if success:
             # Generar token y enviar correo
@@ -1065,6 +1098,10 @@ def register_admin():
             return redirect(url_for('users.list_users'))
         else:
             flash(message, 'danger')
+    elif request.method == 'POST':
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(error, 'danger')
             
 
 
