@@ -1,1 +1,1 @@
-from .auth_decorators import check_permissions, role_required
+from .auth_decorators import check_permissions, role_required, institution_active_required

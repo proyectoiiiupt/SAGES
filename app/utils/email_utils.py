@@ -1135,5 +1135,110 @@ def send_training_completed_survey_email(
     return True
 
 
+def send_institution_inactivated_email(
+    to_email: str,
+    full_name: str,
+    institution_name: str,
+    institution_code: str
+) -> bool:
+    """
+    Envía 1 solo correo al representante/director de una institución cuando
+    ésta es marcada como Inactiva. Las cuentas de los usuarios permanecen
+    activas pero en modo solo lectura hasta que la institución sea reactivada.
+    Se despacha en hilo secundario para no bloquear la respuesta HTTP.
+    """
+    import html as _html
+    safe_name = _html.escape(full_name or "Representante")
+    safe_institution = _html.escape(institution_name or "")
+    safe_code = _html.escape(institution_code or "")
+
+    subject = f"Institución {safe_code} marcada como Inactiva — SAGES UREE"
+
+    text_content = (
+        f"Estimado/a {safe_name},\n\n"
+        f"Le informamos que la institución {safe_institution} ({safe_code}) ha sido marcada como INACTIVA "
+        f"en el Sistema SAGES.\n\n"
+        f"Sus credenciales de acceso permanecen activas, sin embargo, mientras la institución se encuentre "
+        f"inactiva no podrá registrar nuevas solicitudes de formación. Las solicitudes en curso conservan su estado.\n\n"
+        f"Si tiene alguna consulta, comuníquese con la Coordinación UREE de CORPOELEC.\n\n"
+        f"Este mensaje fue generado automáticamente. Por favor no responda a este correo."
+    )
+
+    logo_html = get_logo_html()
+    html_content = f"""<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background-color:#f3f4f6;font-family:Arial,Helvetica,sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;padding:30px 0;">
+        <tr>
+            <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0"
+                       style="background-color:#ffffff;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);max-width:600px;width:100%;">
+                    <!-- Cabecera -->
+                    <tr>
+                        <td align="center" style="background-color:#1c3d73;padding:28px 40px;">
+                            {logo_html}
+                        </td>
+                    </tr>
+                    <!-- Banda de alerta -->
+                    <tr>
+                        <td style="background-color:#dc2626;padding:12px 40px;">
+                            <p style="margin:0;color:#ffffff;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">
+                                ⚠ Institución Marcada como Inactiva
+                            </p>
+                        </td>
+                    </tr>
+                    <!-- Cuerpo -->
+                    <tr>
+                        <td style="padding:32px 40px;">
+                            <h2 style="font-size:20px;font-weight:700;color:#1f2937;margin:0 0 20px 0;text-transform:uppercase;letter-spacing:0.5px;">
+                                Aviso de Inactivación Institucional
+                            </h2>
+                            <p style="font-size:15px;color:#4b5563;margin:0 0 16px 0;line-height:1.6;">
+                                Estimado/a <strong>{safe_name}</strong>,
+                            </p>
+                            <p style="font-size:15px;color:#4b5563;margin:0 0 16px 0;line-height:1.6;">
+                                Le informamos que la institución <strong>{safe_institution}</strong>
+                                (Código: <strong>{safe_code}</strong>) ha sido marcada como
+                                <strong style="color:#dc2626;">INACTIVA</strong> en el Sistema SAGES.
+                            </p>
+                            <!-- Recuadro informativo -->
+                            <div style="background-color:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px 20px;margin:20px 0;">
+                                <p style="margin:0 0 8px 0;font-size:14px;font-weight:700;color:#991b1b;">
+                                    ¿Qué significa esto para usted?
+                                </p>
+                                <ul style="margin:0;padding-left:20px;color:#7f1d1d;font-size:14px;line-height:1.8;">
+                                    <li>Su cuenta permanece <strong>activa</strong>; puede iniciar sesión con normalidad.</li>
+                                    <li>Mientras la institución esté inactiva, <strong>no podrá registrar nuevas solicitudes</strong> de formación.</li>
+                                    <li>Las solicitudes en curso conservan su estado y seguimiento.</li>
+                                    <li>Verá un aviso prominente en su panel de inicio.</li>
+                                </ul>
+                            </div>
+                            <p style="font-size:15px;color:#4b5563;margin:0 0 24px 0;line-height:1.6;">
+                                Si tiene alguna consulta o considera que se trata de un error, comuníquese con la
+                                Coordinación UREE de CORPOELEC.
+                            </p>
+                            <hr style="border:0;border-top:1px solid #e5e7eb;margin:24px 0 20px 0;">
+                            <p style="font-size:12px;color:#9ca3af;line-height:1.6;margin:0;">
+                                * Este mensaje fue generado de forma automática por el sistema SAGES. No responda a este correo.
+                            </p>
+                        </td>
+                    </tr>
+                    <!-- Pie -->
+                    <tr>
+                        <td align="center" style="background-color:#f9fafb;padding:20px;font-size:11px;color:#9ca3af;border-top:1px solid #e5e7eb;">
+                            &copy; 2026 SAGES &mdash; CORPOELEC. Todos los derechos reservados.
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>"""
+
+    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content))
+    thread.start()
+    return True
 
 

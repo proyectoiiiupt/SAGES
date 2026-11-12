@@ -43,9 +43,15 @@
             Volver al detalle
         </a>
         {% if current_user.roles_assoc and current_user.roles_assoc[0].role.name == 'applicant' %}
-        <a href="{{ url_for('institutions.invite_institution_collaborator', institution_id=institution.id) }}" class="btn-view-users">
-            Invitar colaborador
-        </a>
+            {% if institution.status and institution.status.status_code == 'STAT-001' %}
+            <a href="{{ url_for('institutions.invite_institution_collaborator', institution_id=institution.id) }}" class="btn-view-users">
+                Invitar colaborador
+            </a>
+            {% else %}
+            <button class="btn-view-users" disabled style="opacity: 0.55; cursor: not-allowed; background-color: #6b7280; border-color: #6b7280;" title="Institución inactiva: la invitación de colaboradores está suspendida.">
+                Invitar colaborador (Inactivo)
+            </button>
+            {% endif %}
         {% endif %}
     </div>
 

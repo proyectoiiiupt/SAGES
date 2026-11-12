@@ -24,6 +24,36 @@
 {# Lógica dinámica basada en permisos del usuario #}
 {% set user_permissions = current_user.permissions %}
 
+{# Banner de modo solo lectura: visible únicamente al applicant con institución inactiva #}
+{% if 'create_request' in user_permissions and institution_active is defined and not institution_active %}
+<div class="institution-readonly-banner" role="alert" aria-live="polite">
+    <div class="institution-readonly-banner__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+             stroke-linecap="round" stroke-linejoin="round" width="24" height="24" aria-hidden="true">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+    </div>
+    <div class="institution-readonly-banner__body">
+        <p class="institution-readonly-banner__title">Tu institución está en modo Solo Lectura</p>
+        <p class="institution-readonly-banner__message">
+            Tu plantel educativo se encuentra <strong>inactivo</strong>. Puedes consultar tus solicitudes
+            existentes, pero <strong>no podrás registrar nuevas solicitudes de formación</strong> hasta que
+            sea reactivado. Contacta con tu Coordinación UREE si consideras que es un error.
+        </p>
+    </div>
+    <a href="{{ url_for('institutions.my_institution') }}" class="institution-readonly-banner__link">
+        Ver mi institución
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"
+             stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+            <line x1="5" y1="12" x2="19" y2="12"/>
+            <polyline points="12 5 19 12 12 19"/>
+        </svg>
+    </a>
+</div>
+{% endif %}
+
 <div class="dashboard-grid">
 
     {# Panel Administrativo #}
@@ -84,7 +114,14 @@
 
     {# Crear Solicitud -> Nueva Solicitud (Applicant) #}
     {% if 'create_request' in user_permissions %}
+    {% set inst_active = institution_active if institution_active is defined else True %}
+    {% if inst_active %}
     <a href="{{ url_for('requests.new_request_wizard') }}" class="card card-blue">
+    {% else %}
+    <a href="#" class="card card-blue card--disabled" aria-disabled="true"
+       title="Tu institución está inactiva. No puedes registrar nuevas solicitudes."
+       onclick="return false;">
+    {% endif %}
         <div class="card-header">
             <div class="card-title">Nueva Solicitud</div>
             <div class="card-icon">
@@ -97,9 +134,12 @@
                 </svg>
             </div>
         </div>
-        <p class="card-description">Inicia una nueva solicitud de formación</p>
+        <p class="card-description">
+            {% if inst_active %}Inicia una nueva solicitud de formación
+            {% else %}Institución inactiva — solo lectura{% endif %}
+        </p>
         <span class="card-arrow">
-            Ver detalles
+            {% if inst_active %}Ver detalles{% else %}No disponible{% endif %}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="5" y1="12" x2="19" y2="12"></line>
                 <polyline points="12 5 19 12 12 19"></polyline>

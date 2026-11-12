@@ -125,7 +125,17 @@ def create_app(config_class=Config) -> Flask:
     @role_required('applicant')
     @check_permissions('view_home')
     def home_applicant():
-        return render_template('home.html')
+        from app.models.user_model import User as _User
+        institution_active = True
+        try:
+            _u = _User.query.get(current_user.id)
+            if _u and _u.person and _u.person.institutional_staff:
+                _inst = _u.person.institutional_staff[0].institution
+                if _inst and _inst.status:
+                    institution_active = (_inst.status.status_code != 'STAT-002')
+        except Exception:
+            pass
+        return render_template('home.html', institution_active=institution_active)
 
 
     

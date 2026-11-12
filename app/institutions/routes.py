@@ -13,7 +13,7 @@ from app.institutions.services import (
     toggle_institution_status, get_institution_users, update_institution_contact_infrastructure,
     get_user_state_info, create_institution_invitation
 )
-from app.decorators import role_required
+from app.decorators import role_required, institution_active_required
 from app.models.municipality_model import Municipality
 from app.models.parish_model import Parish
 from app.models.city_model import City
@@ -448,6 +448,7 @@ def get_parishes_api(municipality_id):
 @institutions_bp.route('/<int:institution_id>/users/invite', methods=['GET', 'POST'])
 @login_required
 @role_required('applicant')
+@institution_active_required
 def invite_institution_collaborator(institution_id):
     institution = get_institution_by_id(institution_id)
     if not institution:

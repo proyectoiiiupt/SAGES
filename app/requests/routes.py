@@ -1,6 +1,6 @@
 from flask import render_template, request, jsonify, redirect, url_for, send_from_directory, abort, current_app
 from flask_login import login_required, current_user
-from app.decorators.auth_decorators import role_required, check_permissions
+from app.decorators.auth_decorators import role_required, check_permissions, institution_active_required
 from functools import wraps
 from app.requests import requests_bp
 from app.requests.services import get_applicant_active_requests, get_pending_survey_request
@@ -53,6 +53,7 @@ def applicant_dashboard():
 @login_required
 @role_required('applicant')
 @check_permissions('create_request')
+@institution_active_required
 def new_request_wizard():
     """
     Renderiza el wizard de 3 pasos (US-34) para registrar una solicitud.
@@ -64,10 +65,6 @@ def new_request_wizard():
     user = User.query.get(current_user.id)
     if not user or not user.person or not user.person.institutional_staff:
         return "Acceso denegado: Institución no vinculada.", 403
-        
-    institution = user.person.institutional_staff[0].institution
-    if not institution or institution.status.status_code == 'STAT-002':
-        return "Acceso denegado: Institución inactiva.", 403
 
     form = NewRequestWizardForm()
     
@@ -89,6 +86,7 @@ def new_request_wizard():
 @login_required
 @role_required('applicant')
 @check_permissions('create_request')
+@institution_active_required
 @limiter.limit("20 per minute", methods=["POST"], key_func=lambda: str(current_user.id))
 def check_duplicity():
     """
@@ -122,6 +120,7 @@ def check_duplicity():
 @login_required
 @role_required('applicant')
 @check_permissions('create_request')
+@institution_active_required
 @limiter.limit("10 per minute", methods=["POST"], key_func=lambda: str(current_user.id))
 def submit_new_request():
     """

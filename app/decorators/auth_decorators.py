@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import request, abort, jsonify
+from flask import request, abort, jsonify, flash, redirect, url_for
 from flask_login import current_user
 from app.models.permission_model import Permission
 
@@ -68,3 +68,73 @@ def role_required(*role_names):
             return f(*args, **kwargs)
         return decorated_function
     return decorator
+
+
+def institution_active_required(f):
+    """
+    Decorador que bloquea el acceso a una vista si la institución del usuario
+    está inactiva (STAT-002). Las cuentas de usuario permanecen activas; solo
+    se impide la creación de nuevas solicitudes u otras acciones reservadas a
+    planteles activos.
+
+    - Requests JSON/AJAX: devuelve 403 con mensaje JSON.
+    - Requests normales: redirige al home del solicitante con un mensaje flash.
+
+    Uso:
+        @login_required
+        @role_required('applicant')
+        @institution_active_required
+        def create_request():
+            ...
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return abort(401)
+
+        try:
+            from app.models.status_model import Status
+
+            person = getattr(current_user, 'person', None)
+            staff_list = getattr(person, 'institutional_staff', []) if person else []
+            if not staff_list:
+                # Sin institución afiliada: dejar pasar (otro control gestiona esto)
+                return f(*args, **kwargs)
+
+            institution = getattr(staff_list[0], 'institution', None)
+
+            # Cargar la institución si solo tenemos institution_id
+            if institution is None and hasattr(staff_list[0], 'institution_id'):
+                from app.models.institution_model import Institution
+                institution = Institution.query.get(staff_list[0].institution_id)
+
+            if institution is None:
+                return f(*args, **kwargs)
+
+            inactive_status = Status.query.filter_by(status_code='STAT-002').first()
+            if inactive_status and institution.status_id == inactive_status.id:
+                is_ajax = (
+                    request.is_json
+                    or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+                    or (
+                        request.accept_mimetypes.accept_json
+                        and not request.accept_mimetypes.accept_html
+                    )
+                )
+                if is_ajax:
+                    return jsonify({
+                        "error": "Tu institución se encuentra inactiva. No es posible realizar esta acción mientras el plantel esté en modo solo lectura."
+                    }), 403
+
+                flash(
+                    "Tu institución se encuentra inactiva. No puedes crear nuevas solicitudes mientras el plantel esté en modo solo lectura.",
+                    "warning"
+                )
+                return redirect(url_for('home_applicant'))
+
+        except Exception as exc:
+            # En caso de error inesperado, registrar y dejar pasar (fail-open controlado)
+            print(f"[institution_active_required] Error verificando estado de institución: {exc}")
+
+        return f(*args, **kwargs)
+    return decorated_function

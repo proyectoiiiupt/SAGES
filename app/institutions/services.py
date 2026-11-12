@@ -297,20 +297,22 @@ def get_filter_options(user=None):
 def toggle_institution_status(institution_id):
     """
     Alterna el estatus de una institución entre Activo (STAT-001) e Inactivo (STAT-002).
-    También actualiza automáticamente el estatus de los usuarios afiliados.
+    Al inactivar NO se cambia User.status en cascada: las cuentas quedan activas en modo
+    solo lectura. Se bloquea la creación de solicitudes mediante @institution_active_required.
+    Se envía 1 solo correo al representante/director de la institución.
     No permite inactivar si la institución tiene solicitudes de formación pendientes (STAT-003, STAT-004) o en proceso (STAT-006).
     """
     try:
         institution = db.session.get(Institution, institution_id)
         if not institution:
             return None, 'Institución no encontrada', 0
-        
+
         active_status = Status.query.filter_by(status_code='STAT-001').first()
         inactive_status = Status.query.filter_by(status_code='STAT-002').first()
-        
+
         if not active_status or not inactive_status:
             return None, 'Estados no configurados correctamente', 0
-        
+
         if institution.status_id == active_status.id:
             # Verificar si la institución tiene solicitudes de formación pendientes o en proceso
             from app.models.request_model import Request
@@ -334,28 +336,20 @@ def toggle_institution_status(institution_id):
                     return None, 'No se puede inactivar la institución porque tiene solicitudes de formación pendientes o en proceso.', 0
 
             institution.status_id = inactive_status.id
-            new_institution_status = inactive_status
             new_status = 'Inactivo'
         else:
             institution.status_id = active_status.id
-            new_institution_status = active_status
             new_status = 'Activo'
-        
-        staff_list = InstitutionalStaff.query.options(
-            joinedload(InstitutionalStaff.person).joinedload(Person.user).joinedload(User.status)
-        ).filter_by(institution_id=institution_id).all()
-        
+
+        # Al inactivar NO se modifica User.status en cascada.
+        # Las cuentas permanecen activas en modo solo lectura con banner en Home.
+        # La creación de solicitudes se bloquea con @institution_active_required.
         affected_users_count = 0
-        for staff in staff_list:
-            if staff.person and staff.person.user:
-                user = staff.person.user
-                user.status_id = new_institution_status.id
-                affected_users_count += 1
 
         BinnacleService.create_log_entry(
             module=AuditModule.INSTITUTIONS.value,
             action_type=AuditAction.CAMBIO_ESTATUS_INSTITUCION.value,
-            description=f'Institución {institution.institution_code} cambiada a {new_status}. {affected_users_count} usuarios afiliados actualizados en cascada.',
+            description=f'Institución {institution.institution_code} cambiada a {new_status}. Cuentas de usuarios afiliados conservadas activas en modo solo lectura (sin cascada).',
             target_table='institutions',
             record_id=institution.id,
             status=AuditStatus.MODIFICADO.value
@@ -363,19 +357,23 @@ def toggle_institution_status(institution_id):
 
         db.session.commit()
         db.session.refresh(institution)
-        
+
+        # --- Notificación interna a todos los afiliados ---
         try:
             from app.notifications.services import NotificationService
             from app.notifications.enums import NotificationEvent
-            event_type = NotificationEvent.INSTITUTION_ACTIVATED if new_status == 'Activo' else NotificationEvent.INSTITUTION_INACTIVATED
-            
             from flask_login import current_user
+
             modificado_por = "Administración Central"
             if current_user and hasattr(current_user, 'person') and current_user.person:
                 modificado_por = f"{current_user.person.first_name} {current_user.person.last_name}".strip()
 
+            event_type = (
+                NotificationEvent.INSTITUTION_ACTIVATED
+                if new_status == 'Activo'
+                else NotificationEvent.INSTITUTION_INACTIVATED
+            )
             context = {"institution_name": institution.institution_name}
-            
             if new_status != 'Activo':
                 context["_display"] = {
                     "Institución": institution.institution_name,
@@ -396,12 +394,76 @@ def toggle_institution_status(institution_id):
             )
         except Exception as e:
             print(f"Error enviando notificacion de estatus: {e}")
-            
+
+        # --- Correo al representante/director (solo al inactivar, 1 solo correo) ---
+        if new_status == 'Inactivo':
+            try:
+                _send_inactivation_email_to_representative(institution)
+            except Exception as e:
+                print(f"Error enviando correo de inactivación al representante: {e}")
+
         return institution, new_status, affected_users_count
     except Exception as e:
         print(f"Error en toggle_institution_status: {e}")
         db.session.rollback()
         return None, f'Error: {str(e)}', 0
+
+
+def _send_inactivation_email_to_representative(institution):
+    """
+    Envía 1 solo correo de notificación de inactivación al representante o director
+    principal de la institución (primer staff con cargo POS-001, POS-002 o POS-003,
+    o bien el primer staff con cuenta activa si ninguno de esos cargos existe).
+    """
+    from app.utils.email_utils import send_institution_inactivated_email
+
+    # Cargos representativos prioritarios: Rector, Vicerrector Académico, Director
+    priority_codes = ('POS-001', 'POS-002', 'POS-003')
+
+    staff_list = (
+        InstitutionalStaff.query
+        .options(
+            joinedload(InstitutionalStaff.person).joinedload(Person.user),
+            joinedload(InstitutionalStaff.position)
+        )
+        .filter_by(institution_id=institution.id)
+        .all()
+    )
+
+    # Buscar primero por cargo prioritario
+    representative = None
+    for code in priority_codes:
+        for staff in staff_list:
+            if (
+                staff.position
+                and staff.position.position_code == code
+                and staff.person
+                and staff.person.email
+            ):
+                representative = staff
+                break
+        if representative:
+            break
+
+    # Si no hay cargo prioritario, tomar el primer staff con e-mail
+    if not representative:
+        for staff in staff_list:
+            if staff.person and staff.person.email:
+                representative = staff
+                break
+
+    if not representative:
+        print(f"[INFO] Institución {institution.institution_code}: sin representante con correo para notificación de inactivación.")
+        return
+
+    person = representative.person
+    full_name = f"{person.first_name} {person.last_name}".strip()
+    send_institution_inactivated_email(
+        to_email=person.email,
+        full_name=full_name,
+        institution_name=institution.institution_name,
+        institution_code=institution.institution_code
+    )
 
 
 def get_institution_users(institution_id, page=1, per_page=10):
