@@ -119,7 +119,9 @@
             
             <!-- Switch de Estatus (Aparecerá en el extremo izquierdo) -->
             <div class="switch-container">
-                <form id="statusForm" action="{{ url_for('users.toggle_status', user_id=user.id) }}" method="POST" style="display: none;"></form>
+                <form id="statusForm" action="{{ url_for('users.toggle_status', user_id=user.id) }}" method="POST" style="display: none;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                </form>
                 
                 <label class="switch">
                     <input type="checkbox" id="status-switch" {% if user.status_id == 1 %}checked{% endif %} data-status="{{ user.status_id }}">
