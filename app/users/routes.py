@@ -421,6 +421,8 @@ def edit_user(user_id):
             # Quitamos los puntos de la cédula antes de guardar en base de datos
             raw_cedula = form.identification_number.data.replace('.', '').strip()
             
+            changed_fields = {}
+            
             # Validar unicidad previa de cédula si fue modificada
             if person.identification_number != raw_cedula:
                 duplicate_person = Person.query.filter(
@@ -502,15 +504,6 @@ def edit_user(user_id):
             flash('Ocurrió un error al intentar guardar en la base de datos.', 'error')
         
     elif request.method == 'POST':
-    
-       
-        if person:
-            person.identification_number = request.form.get('identification_number', person.identification_number)
-            person.first_name = request.form.get('first_name', person.first_name)
-            person.second_name = request.form.get('second_name', person.second_name)
-            person.last_name = request.form.get('last_name', person.last_name)
-            person.middle_name = request.form.get('middle_name', person.middle_name)
-
         for field, errors in form.errors.items():
             for error in errors:
                 flash(f"{error}", 'error')

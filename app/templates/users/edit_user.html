@@ -65,7 +65,7 @@
                             <label class="figma-label">Cédula de Identidad</label>
                             <div class="id-container">
                                 <input type="text" id="identification_number" name="identification_number" 
-                                       value="{{ user.person.identification_number }}" readonly 
+                                       value="{{ request.form.get('identification_number', user.person.identification_number if user.person else '') }}" readonly 
                                        class="figma-input locked-box" style="flex-grow: 1;">
                                 {% if user_role == 'super_admin' %}
                                     <button type="button" id="unlockIdBtn" class="btn-unlock" title="Desbloquear para editar">🔓</button>
@@ -75,20 +75,20 @@
                         
                         <div>
                             <label class="figma-label">Primer Nombre</label>
-                            <input type="text" name="first_name" value="{{ user.person.first_name if user.person else '' }}" class="figma-input format-name editable-field" required>
+                            <input type="text" name="first_name" value="{{ request.form.get('first_name', user.person.first_name if user.person else '') }}" class="figma-input format-name editable-field" required>
                         </div>
                         <div>
                             <label class="figma-label">Segundo Nombre</label>
-                            <input type="text" name="second_name" value="{{ user.person.second_name if user.person else '' }}" class="figma-input format-name editable-field">
+                            <input type="text" name="second_name" value="{{ request.form.get('second_name', user.person.second_name if user.person else '') }}" class="figma-input format-name editable-field">
                         </div>
                         
                         <div>
                             <label class="figma-label">Primer Apellido</label>
-                            <input type="text" name="last_name" value="{{ user.person.last_name if user.person else '' }}" class="figma-input format-name editable-field" required>
+                            <input type="text" name="last_name" value="{{ request.form.get('last_name', user.person.last_name if user.person else '') }}" class="figma-input format-name editable-field" required>
                         </div>
                         <div>
                             <label class="figma-label">Segundo Apellido</label>
-                            <input type="text" name="middle_name" value="{{ user.person.middle_name if user.person else '' }}" class="figma-input format-name editable-field">
+                            <input type="text" name="middle_name" value="{{ request.form.get('middle_name', user.person.middle_name if user.person else '') }}" class="figma-input format-name editable-field">
                         </div>
 
                         <!-- Cargo del usuario -->
