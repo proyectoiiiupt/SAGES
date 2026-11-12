@@ -400,7 +400,7 @@ def create_administrative_user(data: dict, creator_user: User) -> Tuple[bool, st
             person_id=person.id,
             user_name=id_number_clean,
             password=bcrypt.generate_password_hash(temp_password).decode('utf-8'),
-            status_id=status_in_progress.id if status_in_progress else 1
+            status_id=status_in_progress.id if status_in_progress else 6
         )
         db.session.add(user)
         db.session.flush()
@@ -410,7 +410,7 @@ def create_administrative_user(data: dict, creator_user: User) -> Tuple[bool, st
             person_id=person.id,
             place_id=place.id,
             position_id=data.get('position_id'),
-            status_id=status_in_progress.id if status_in_progress else 1
+            status_id=status_in_progress.id if status_in_progress else 6
         )
         db.session.add(company_staff)
         db.session.flush()

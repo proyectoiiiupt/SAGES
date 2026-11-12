@@ -515,6 +515,10 @@ def toggle_status(user_id):
 
     user = User.query.get_or_404(user_id)
     
+    if user.status_id == 6:
+        flash('No se puede cambiar el estatus de un usuario pendiente de activación.', 'warning')
+        return redirect(url_for('users.view_user', user_id=user.id))
+    
     # 1 = Activo, 2 = Inactivo
     old_status = user.status_id
     new_status = 2 if old_status == 1 else 1 
