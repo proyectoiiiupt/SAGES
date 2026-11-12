@@ -92,10 +92,16 @@
                         </div>
 
                         <!-- Cargo del usuario -->
-                        <div class="full-width" style="margin-top: 15px;">
+                        <div {% if comp_staff %}style="margin-top: 15px;"{% else %}class="full-width" style="margin-top: 15px;"{% endif %}>
                             <label class="figma-label">Cargo del usuario</label>
                             {{ form.position(class="figma-input editable-field", style="width: 100%;") }}
                         </div>
+                        {% if comp_staff %}
+                        <div style="margin-top: 15px;">
+                            <label class="figma-label">Sede de Trabajo (CORPOELEC)</label>
+                            {{ form.place(class="figma-input editable-field", style="width: 100%;") }}
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>

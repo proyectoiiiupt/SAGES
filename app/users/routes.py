@@ -422,6 +422,30 @@ def edit_user(user_id):
     # Poblamos las opciones del dropdown directamente desde la BD
     form.position.choices = [(p.id, p.name) for p in Position.query.order_by(Position.name).all()]
 
+    if comp_staff:
+        corpoelec_places = Place.query.join(Company).filter(
+            Company.company_code == 'COMP-001',
+            Place.status_id == 1
+        ).order_by(Place.name).all()
+
+        place_choices = []
+        for p in corpoelec_places:
+            state_name = ''
+            if p.parish and p.parish.municipality and p.parish.municipality.state:
+                state_name = f" ({p.parish.municipality.state.name})"
+            place_choices.append((p.id, f"{p.name}{state_name}"))
+
+        if comp_staff.place and comp_staff.place_id not in [c[0] for c in place_choices]:
+            curr_p = comp_staff.place
+            state_name = ''
+            if curr_p.parish and curr_p.parish.municipality and curr_p.parish.municipality.state:
+                state_name = f" ({curr_p.parish.municipality.state.name})"
+            place_choices.insert(0, (curr_p.id, f"{curr_p.name}{state_name}"))
+
+        form.place.choices = place_choices
+    else:
+        form.place.choices = []
+
     if form.validate_on_submit():
         try:
             # Quitamos los puntos de la cédula antes de guardar en base de datos
@@ -441,7 +465,7 @@ def edit_user(user_id):
                 ).first()
                 if duplicate_person or duplicate_user:
                     flash('La cédula de identidad ya se encuentra registrada por otro usuario.', 'danger')
-                    return render_template('users/edit_user.html', user=user, current_role=user_role, form=form)
+                    return render_template('users/edit_user.html', user=user, current_role=user_role, form=form, comp_staff=comp_staff)
 
                 changed_fields["Cédula"] = raw_cedula
                 person.identification_number = raw_cedula
@@ -472,6 +496,13 @@ def edit_user(user_id):
                 pos_name = dict(form.position.choices).get(form.position.data, "Actualizado")
                 changed_fields["Cargo"] = pos_name
                 staff_record.position_id = form.position.data
+
+            # Guardamos la nueva sede si es personal corporativo
+            if comp_staff and form.place.data and comp_staff.place_id != form.place.data:
+                new_place = Place.query.get(form.place.data)
+                if new_place:
+                    changed_fields["Sede"] = new_place.name
+                    comp_staff.place_id = new_place.id
                     
             db.session.commit()
             
@@ -514,11 +545,13 @@ def edit_user(user_id):
             for error in errors:
                 flash(f"{error}", 'error')
     else:
-        # Pre-seleccionar el cargo actual al cargar la vista GET
+        # Pre-seleccionar el cargo y la sede actuales al cargar la vista GET
         if staff_record and staff_record.position_id:
             form.position.data = staff_record.position_id
+        if comp_staff and comp_staff.place_id:
+            form.place.data = comp_staff.place_id
 
-    return render_template('users/edit_user.html', user=user, current_role=user_role, form=form)
+    return render_template('users/edit_user.html', user=user, current_role=user_role, form=form, comp_staff=comp_staff)
 
 @users_bp.route('/toggle_status/<int:user_id>', methods=['POST'])
 @login_required

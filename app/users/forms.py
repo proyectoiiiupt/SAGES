@@ -72,6 +72,10 @@ class UserUpdateForm(FlaskForm):
         DataRequired(message="El cargo es obligatorio.")
     ])
 
+    place = SelectField('Sede', coerce=safe_int_coerce, validate_choice=False, validators=[
+        Optional()
+    ])
+
 
 class ChangePasswordForm(FlaskForm):
     current_password = PasswordField('Contraseña Actual', validators=[
