@@ -35,6 +35,65 @@ def get_module_by_id(module_id: int) -> Optional[TrainingModule]:
         return None
 
 
+def _notify_module_status_changed(module: TrainingModule, user_id: int) -> None:
+    """
+    Emite notificación a 'state_admin' (y 'applicant' si fue reactivado)
+    al cambiar el estatus operativo de un Módulo Rector.
+    """
+    try:
+        from app.notifications.services import NotificationService
+        from app.notifications.enums import NotificationEvent, NotificationType
+
+        admin_name = "Administrador"
+        try:
+            from flask_login import current_user
+            if current_user and getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'id', None) == user_id:
+                admin_name = getattr(current_user, 'full_name', getattr(current_user, 'user_name', 'Administrador'))
+            elif user_id:
+                from app.models.user_model import User
+                actor = User.query.get(user_id)
+                if actor and actor.full_name:
+                    admin_name = actor.full_name
+        except Exception:
+            if user_id:
+                try:
+                    from app.models.user_model import User
+                    actor = User.query.get(user_id)
+                    if actor and actor.full_name:
+                        admin_name = actor.full_name
+                except Exception:
+                    pass
+
+        is_now_active = module.is_active
+        sev = NotificationType.SUCCESS if is_now_active else NotificationType.WARNING
+        action_lbl = "reactivado y habilitado" if is_now_active else "inactivado temporalmente"
+        ctx = {
+            "module_name": module.name,
+            "action_label": action_lbl,
+            "admin_name": admin_name
+        }
+        NotificationService.notify_role(
+            role_name="state_admin",
+            event=NotificationEvent.TRAINING_MODULE_STATUS_CHANGED,
+            context=ctx,
+            exclude_user_id=user_id,
+            severity_override=sev,
+            redirect_url="/trainings/",
+            action_text="Ver Módulos"
+        )
+        if is_now_active:
+            NotificationService.notify_role(
+                role_name="applicant",
+                event=NotificationEvent.TRAINING_MODULE_STATUS_CHANGED,
+                context=ctx,
+                severity_override=NotificationType.SUCCESS,
+                redirect_url="/requests/catalog",
+                action_text="Explorar Catálogo"
+            )
+    except Exception as notif_err:
+        logger.warning(f"[trainings.services] No se pudo emitir notificación TRAINING_MODULE_STATUS_CHANGED: {notif_err}")
+
+
 def update_training_module(
     module: TrainingModule,
     name: str,
@@ -138,6 +197,10 @@ def update_training_module(
                 )
             except Exception as audit_err:
                 logger.error(f"[trainings.services.update_training_module] Error registrando bitácora: {audit_err}")
+
+        # 5. Notificación al cambiar estatus operativo del módulo
+        if status_changed:
+            _notify_module_status_changed(module, user_id)
 
         logger.info(
             f"[trainings.services.update_training_module] Módulo {module.id} ({module.module_code}) "
@@ -554,6 +617,9 @@ def toggle_module_status(module_id: int, user_id: int) -> Tuple[bool, str, Optio
             )
         except Exception as audit_err:
             logger.error(f"[trainings.services.toggle_module_status] Error registrando bitácora: {audit_err}")
+
+        # Notificación Post-Commit: Cambio de disponibilidad de módulo rector
+        _notify_module_status_changed(module, user_id)
 
         logger.info(
             f"[trainings.services.toggle_module_status] Módulo {module.id} ({module.module_code}) "

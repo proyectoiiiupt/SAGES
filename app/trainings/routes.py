@@ -254,39 +254,6 @@ def toggle_module_status_route(module_id: int):
     """
     success, message, module, active_count = toggle_module_status(module_id, current_user.id)
 
-    # Notificación Post-Commit: Cambio de disponibilidad de módulo rector
-    if success and module:
-        try:
-            admin_name = _get_actor_name(current_user)
-            is_now_active = module.is_active
-            sev = NotificationType.SUCCESS if is_now_active else NotificationType.WARNING
-            action_lbl = "reactivado y habilitado" if is_now_active else "inactivado temporalmente"
-            ctx = {
-                "module_name": module.name,
-                "action_label": action_lbl,
-                "admin_name": admin_name
-            }
-            NotificationService.notify_role(
-                role_name="state_admin",
-                event=NotificationEvent.TRAINING_MODULE_STATUS_CHANGED,
-                context=ctx,
-                exclude_user_id=current_user.id,
-                severity_override=sev,
-                redirect_url="/trainings/",
-                action_text="Ver Módulos"
-            )
-            if is_now_active:
-                NotificationService.notify_role(
-                    role_name="applicant",
-                    event=NotificationEvent.TRAINING_MODULE_STATUS_CHANGED,
-                    context=ctx,
-                    severity_override=NotificationType.SUCCESS,
-                    redirect_url="/requests/catalog",
-                    action_text="Explorar Catálogo"
-                )
-        except Exception as notif_err:
-            current_app.logger.warning(f"No se pudo emitir notificación TRAINING_MODULE_STATUS_CHANGED: {notif_err}")
-
     is_ajax = (
         request.is_json or
         request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
