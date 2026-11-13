@@ -350,6 +350,16 @@ def parse_training_file(file_storage) -> Tuple[List[Dict[str, Any]], List[Dict[s
     existing_db_map = {(r[0], r[1]): r[2] for r in existing_trainings}
 
     for idx, row in enumerate(data_rows, start=2):
+        # Ignorar fila instructiva o de ayuda de la plantilla si está presente
+        row_str_sample = " ".join(str(c).lower().strip() for c in row if c is not None)
+        if (
+            "ve a la pestaña" in row_str_sample
+            or "ve a la pestana" in row_str_sample
+            or "catalogo y copia" in row_str_sample
+            or row_str_sample.startswith("->")
+        ):
+            continue
+
         # Asegurarse de que la fila tenga suficientes columnas para los índices
         max_idx_needed = max(mod_idx, name_idx, desc_idx)
         if len(row) <= max_idx_needed:
@@ -436,7 +446,7 @@ def parse_training_file(file_storage) -> Tuple[List[Dict[str, Any]], List[Dict[s
         })
 
     summary = {
-        'total_rows': len(data_rows),
+        'total_rows': len(valid_rows) + len(invalid_rows),
         'valid_count': len(valid_rows),
         'invalid_count': len(invalid_rows)
     }

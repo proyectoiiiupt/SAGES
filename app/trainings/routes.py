@@ -914,13 +914,6 @@ def bulk_upload_template():
     headers = ["codigo_modulo", "nombre_tema", "descripcion"]
     ws.append(headers)
     
-    # Datos de ejemplo e instrucciones directas
-    ws.append([
-        "-> Ve a la pestaña 'Catalogo' y copia un valor", 
-        "Tema de Ejemplo", 
-        "Descripción de ejemplo del tema formativo."
-    ])
-    
     # Ajuste básico de ancho
     ws.column_dimensions['A'].width = 35
     ws.column_dimensions['B'].width = 40
