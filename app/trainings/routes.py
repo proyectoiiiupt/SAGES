@@ -1145,7 +1145,7 @@ def bulk_download_errors():
 
 @trainings_bp.route('/toggle_status/<int:training_id>', methods=['POST'])
 @login_required
-@role_required('super_admin', 'state_admin')
+@role_required('super_admin')
 def toggle_training_status(training_id: int):
     """
     Alterna el estatus de un tema formativo entre Activo e Inactivo.
