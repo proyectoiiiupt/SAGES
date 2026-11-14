@@ -6,7 +6,6 @@
       - Resumen contextual genérico del Módulo Rector.
       - Búsqueda reactiva de temas.
       - Tabla semántica con descripción sintética y botón explícito 'Ver Detalle'.
-      - Modal institucional de detalle con opción de cierre.
 #}
 {% extends "layouts/base.html" %}
 
@@ -133,20 +132,15 @@
                                 {% endif %}
                             </td>
                             <td class="text-center">
-                                {#
-                                    Nota de alcance:
-                                    La acción de visualización detallada está reservada
-                                    para una tarea posterior del plan de desarrollo de SAGES.
-                                #}
-                                <button type="button"
-                                        class="action-btn view-btn"
-                                        title="Ver detalles del tema"
-                                        aria-label="Ver detalles de {{ training.name }}">
+                                <a href="{{ url_for('trainings.view_training_detail', id=training.id) }}"
+                                   class="action-btn view-btn"
+                                   title="Ver detalles del tema"
+                                   aria-label="Ver detalles de {{ training.name }}">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                         <circle cx="12" cy="12" r="3"></circle>
                                     </svg>
-                                </button>
+                                </a>
                             </td>
                         </tr>
                         {% endfor %}

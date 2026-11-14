@@ -6,10 +6,6 @@
  *  1. Inicializar la fecha dinámica del sistema en formato institucional español.
  *  2. Búsqueda y filtrado reactivo en tiempo real con debounce.
  *  3. Navegación de página con persistencia del filtro de búsqueda.
- *
- * Nota de alcance:
- *  La acción de visualización detallada (modal) está reservada
- *  para una tarea posterior del plan de desarrollo de SAGES.
  */
 
 (function () {
@@ -98,7 +94,7 @@
 
 
     /**
-     * 4. Navegación de Página con Persistencia del Filtro de Búsqueda
+     * 3. Navegación de Página con Persistencia del Filtro de Búsqueda
      * Construye la URL destino conservando el query param 'search' si está activo.
      * @param {number} pageNum - Número de página objetivo
      */
