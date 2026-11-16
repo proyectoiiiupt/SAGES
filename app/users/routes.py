@@ -707,18 +707,38 @@ def profile():
 @login_required
 def list_requests():
     user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
-    if user_role != 'state_admin':
+    if user_role not in ['state_admin', 'super_admin']:
         abort(403)
 
-    target_state_id = None
-    if current_user.person:
-        admin_inst = InstitutionalStaff.query.filter_by(person_id=current_user.person.id).first()
-        if admin_inst and admin_inst.institution and admin_inst.institution.parish:
-            target_state_id = admin_inst.institution.parish.municipality.state_id
-            
-    # Filtro simplificado basado estrictamente en las instrucciones del líder técnico
     status_pending = Status.query.filter_by(status_code='STAT-004').first()
-    pending_requests = InstitutionalStaff.query.filter_by(status_id=status_pending.id).all() if status_pending else []
+
+    if not status_pending:
+        pending_requests = []
+    elif user_role == 'super_admin':
+        pending_requests = (
+            InstitutionalStaff.query
+            .filter_by(status_id=status_pending.id)
+            .order_by(InstitutionalStaff.created_at.desc())
+            .all()
+        )
+    else:
+        # Admin Estadal: solo ve solicitudes del estado que tiene asignado
+        admin_state_id = get_user_state_id(current_user)
+        if not admin_state_id:
+            pending_requests = []
+        else:
+            pending_requests = (
+                InstitutionalStaff.query
+                .join(Institution, InstitutionalStaff.institution_id == Institution.id)
+                .join(Parish, Institution.parish_id == Parish.id)
+                .join(Municipality, Parish.municipality_id == Municipality.id)
+                .filter(
+                    InstitutionalStaff.status_id == status_pending.id,
+                    Municipality.state_id == admin_state_id
+                )
+                .order_by(InstitutionalStaff.created_at.desc())
+                .all()
+            )
 
     return render_template(
         'users/requests_list.html', 
@@ -748,6 +768,21 @@ from app.models.staff_evidence_model import StaffEvidence
 @users_bp.route('/requests/<int:staff_id>/evidence', methods=['GET'])
 @login_required
 def get_evidence(staff_id):
+    user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
+    if user_role not in ['state_admin', 'super_admin']:
+        return jsonify({"status": "error", "message": "No tiene permisos para consultar evidencia."}), 403
+
+    staff = InstitutionalStaff.query.get_or_404(staff_id)
+    if user_role == 'state_admin':
+        admin_state_id = get_user_state_id(current_user)
+        req_state_id = (
+            staff.institution.parish.municipality.state_id
+            if staff.institution and staff.institution.parish and staff.institution.parish.municipality
+            else None
+        )
+        if not admin_state_id or admin_state_id != req_state_id:
+            return jsonify({'status': 'error', 'message': 'No tiene permisos para consultar evidencias de otra jurisdicción territorial.'}), 403
+
     # Buscamos la evidencia del usuario usando el modelo correcto
     evidence = StaffEvidence.query.filter_by(institutional_staff_id=staff_id).first()
 
@@ -790,6 +825,17 @@ def approve_request(staff_id):
         return jsonify({'status': 'error', 'message': 'No tiene permisos para realizar esta acción.'}), 403
 
     staff = InstitutionalStaff.query.get_or_404(staff_id)
+
+    if user_role == 'state_admin':
+        admin_state_id = get_user_state_id(current_user)
+        req_state_id = (
+            staff.institution.parish.municipality.state_id
+            if staff.institution and staff.institution.parish and staff.institution.parish.municipality
+            else None
+        )
+        if not admin_state_id or admin_state_id != req_state_id:
+            return jsonify({'status': 'error', 'message': 'No tiene permisos para gestionar solicitudes de otra jurisdicción territorial.'}), 403
+
     person = staff.person
 
     if not person:
