@@ -75,20 +75,24 @@
                         
                         <div>
                             <label class="figma-label">Primer Nombre</label>
-                            <input type="text" name="first_name" value="{{ request.form.get('first_name', user.person.first_name if user.person else '') }}" class="figma-input format-name editable-field" required>
+                            <input type="text" name="first_name" value="{{ request.form.get('first_name', (user.person.first_name or '') if user.person else '') }}" class="figma-input format-name editable-field" required>
                         </div>
                         <div>
                             <label class="figma-label">Segundo Nombre</label>
-                            <input type="text" name="second_name" value="{{ request.form.get('second_name', user.person.second_name if user.person else '') }}" class="figma-input format-name editable-field">
+                            {% set current_sec = request.form.get('second_name') if request.method == 'POST' else (user.person.second_name if user.person else '') %}
+                            {% if current_sec and current_sec|lower in ['none', 'null', 'n/a', 's/d'] %}{% set current_sec = '' %}{% endif %}
+                            <input type="text" name="second_name" value="{{ current_sec or '' }}" class="figma-input format-name editable-field">
                         </div>
                         
                         <div>
                             <label class="figma-label">Primer Apellido</label>
-                            <input type="text" name="last_name" value="{{ request.form.get('last_name', user.person.last_name if user.person else '') }}" class="figma-input format-name editable-field" required>
+                            <input type="text" name="last_name" value="{{ request.form.get('last_name', (user.person.last_name or '') if user.person else '') }}" class="figma-input format-name editable-field" required>
                         </div>
                         <div>
                             <label class="figma-label">Segundo Apellido</label>
-                            <input type="text" name="middle_name" value="{{ request.form.get('middle_name', user.person.middle_name if user.person else '') }}" class="figma-input format-name editable-field">
+                            {% set current_mid = request.form.get('middle_name') if request.method == 'POST' else (user.person.middle_name if user.person else '') %}
+                            {% if current_mid and current_mid|lower in ['none', 'null', 'n/a', 's/d'] %}{% set current_mid = '' %}{% endif %}
+                            <input type="text" name="middle_name" value="{{ current_mid or '' }}" class="figma-input format-name editable-field">
                         </div>
 
                         <!-- Cargo del usuario -->

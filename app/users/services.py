@@ -93,6 +93,8 @@ def get_user_profile_data(user: User) -> Dict[str, Any]:
         second_n = (getattr(person, 'second_name', '') or '').strip()
         last_n = (getattr(person, 'last_name', '') or '').strip()
         middle_n = (getattr(person, 'middle_name', '') or '').strip()
+        if second_n.lower() in ('none', 'null', 'n/a', 's/d'): second_n = ''
+        if middle_n.lower() in ('none', 'null', 'n/a', 's/d'): middle_n = ''
         
         full_first_name = f"{first_n} {second_n}".strip() if first_n else 'N/A'
         full_last_name = f"{last_n} {middle_n}".strip() if last_n else 'N/A'

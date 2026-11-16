@@ -303,6 +303,8 @@ def view_user(user_id):
         second_n = getattr(person, 'second_name', '') or ''
         last_n = getattr(person, 'last_name', '') or ''
         middle_n = getattr(person, 'middle_name', '') or ''
+        if second_n.strip().lower() in ('none', 'null', 'n/a', 's/d'): second_n = ''
+        if middle_n.strip().lower() in ('none', 'null', 'n/a', 's/d'): middle_n = ''
         
         user.full_first_name = f"{first_n} {second_n}".strip() if first_n else 'N/A'
         user.full_last_name = f"{last_n} {middle_n}".strip() if last_n else 'N/A'
@@ -481,8 +483,10 @@ def edit_user(user_id):
                 changed_fields["Primer Nombre"] = new_first_name
             person.first_name = new_first_name
             
-            new_second_name = form.second_name.data.strip().title() if form.second_name.data else None
-            if person.second_name != new_second_name:
+            raw_second = (form.second_name.data or '').strip()
+            new_second_name = raw_second.title() if raw_second and raw_second.lower() not in ('none', 'null', 'n/a', 's/d') else None
+            curr_second = person.second_name.strip() if person.second_name and person.second_name.strip().lower() not in ('none', 'null', 'n/a', 's/d') else None
+            if curr_second != new_second_name:
                 changed_fields["Segundo Nombre"] = new_second_name if new_second_name else "S/D"
             person.second_name = new_second_name
             
@@ -491,8 +495,10 @@ def edit_user(user_id):
                 changed_fields["Primer Apellido"] = new_last_name
             person.last_name = new_last_name
             
-            new_middle_name = form.middle_name.data.strip().title() if form.middle_name.data else None
-            if person.middle_name != new_middle_name:
+            raw_middle = (form.middle_name.data or '').strip()
+            new_middle_name = raw_middle.title() if raw_middle and raw_middle.lower() not in ('none', 'null', 'n/a', 's/d') else None
+            curr_middle = person.middle_name.strip() if person.middle_name and person.middle_name.strip().lower() not in ('none', 'null', 'n/a', 's/d') else None
+            if curr_middle != new_middle_name:
                 changed_fields["Segundo Apellido"] = new_middle_name if new_middle_name else "S/D"
             person.middle_name = new_middle_name
             

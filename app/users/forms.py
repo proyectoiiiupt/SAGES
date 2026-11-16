@@ -52,7 +52,9 @@ class UserUpdateForm(FlaskForm):
         Regexp(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$', message="Solo se permiten letras y espacios.")
     ])
     
-    second_name = StringField('Segundo Nombre', validators=[
+    second_name = StringField('Segundo Nombre', 
+        filters=[lambda x: None if (not x or str(x).strip().lower() in ('', 'none', 'null', 'n/a', 's/d')) else str(x).strip()],
+        validators=[
         Optional(), 
         Regexp(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$', message="Solo se permiten letras y espacios.")
     ])
@@ -62,7 +64,9 @@ class UserUpdateForm(FlaskForm):
         Regexp(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$', message="Solo se permiten letras y espacios.")
     ])
     
-    middle_name = StringField('Segundo Apellido', validators=[
+    middle_name = StringField('Segundo Apellido', 
+        filters=[lambda x: None if (not x or str(x).strip().lower() in ('', 'none', 'null', 'n/a', 's/d')) else str(x).strip()],
+        validators=[
         Optional(), 
         Regexp(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$', message="Solo se permiten letras y espacios.")
     ])
@@ -152,7 +156,9 @@ class AdminUserRegisterForm(FlaskForm):
         Regexp(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$', message="Solo se permiten letras y espacios.")
     ])
     
-    second_name = StringField('Segundo Nombre', validators=[
+    second_name = StringField('Segundo Nombre', 
+        filters=[lambda x: None if (not x or str(x).strip().lower() in ('', 'none', 'null', 'n/a', 's/d')) else str(x).strip()],
+        validators=[
         Optional(), 
         Regexp(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$', message="Solo se permiten letras y espacios.")
     ])
@@ -162,7 +168,9 @@ class AdminUserRegisterForm(FlaskForm):
         Regexp(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$', message="Solo se permiten letras y espacios.")
     ])
     
-    middle_name = StringField('Segundo Apellido', validators=[
+    middle_name = StringField('Segundo Apellido', 
+        filters=[lambda x: None if (not x or str(x).strip().lower() in ('', 'none', 'null', 'n/a', 's/d')) else str(x).strip()],
+        validators=[
         Optional(), 
         Regexp(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$', message="Solo se permiten letras y espacios.")
     ])
