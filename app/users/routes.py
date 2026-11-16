@@ -453,8 +453,11 @@ def edit_user(user_id):
             
             changed_fields = {}
             
-            # Validar unicidad previa de cédula si fue modificada
-            if person.identification_number != raw_cedula:
+            # Validar unicidad previa y sincronizar cédula con user.user_name
+            cedula_cambio = person.identification_number != raw_cedula
+            user_name_desfasado = user.user_name != raw_cedula
+
+            if cedula_cambio or user_name_desfasado:
                 duplicate_person = Person.query.filter(
                     Person.identification_number == raw_cedula,
                     Person.id != person.id
@@ -467,8 +470,10 @@ def edit_user(user_id):
                     flash('La cédula de identidad ya se encuentra registrada por otro usuario.', 'danger')
                     return render_template('users/edit_user.html', user=user, current_role=user_role, form=form, comp_staff=comp_staff)
 
-                changed_fields["Cédula"] = raw_cedula
-                person.identification_number = raw_cedula
+                if cedula_cambio:
+                    changed_fields["Cédula"] = raw_cedula
+                    person.identification_number = raw_cedula
+
                 user.user_name = raw_cedula
             
             new_first_name = form.first_name.data.strip().title()
