@@ -948,6 +948,82 @@ def approve_request(staff_id):
         return jsonify({'status': 'error', 'message': 'Ocurrió un error interno al procesar la aprobación.'}), 500
 
 
+@users_bp.route('/requests/<int:staff_id>/reject', methods=['POST'])
+@login_required
+def reject_request(staff_id):
+    """
+    Rechaza una solicitud de registro pendiente (STAT-004), cambiando el estatus a STAT-008 (Rechazado).
+    Aplica control de jerarquía y escudo territorial para Administrador Estadal.
+    """
+    user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
+    if user_role not in ['state_admin', 'super_admin']:
+        return jsonify({'status': 'error', 'message': 'No tiene permisos para realizar esta acción.'}), 403
+
+    staff = InstitutionalStaff.query.get_or_404(staff_id)
+
+    # Validación de jurisdicción territorial para Administrador Estadal
+    if user_role == 'state_admin':
+        admin_state_id = get_user_state_id(current_user)
+        req_state_id = (
+            staff.institution.parish.municipality.state_id
+            if staff.institution and staff.institution.parish and staff.institution.parish.municipality
+            else None
+        )
+        if not admin_state_id or admin_state_id != req_state_id:
+            return jsonify({'status': 'error', 'message': 'No tiene permisos para gestionar solicitudes de otra jurisdicción territorial.'}), 403
+
+    person = staff.person
+    if not person:
+        return jsonify({'status': 'error', 'message': 'El registro no posee información de persona asociada.'}), 400
+
+    try:
+        status_rejected = Status.query.filter_by(status_code='STAT-008').first()
+        status_rejected_id = status_rejected.id if status_rejected else 8
+
+        status_pending = Status.query.filter_by(status_code='STAT-004').first()
+        status_pending_id = status_pending.id if status_pending else 4
+
+        # 1. Cambiar estatus de InstitutionalStaff a STAT-008
+        staff.status_id = status_rejected_id
+
+        # 2. Si la institución asociada está pendiente y no tiene otros miembros activos/aprobados, rechazarla también
+        if staff.institution and staff.institution.status_id == status_pending_id:
+            other_active = InstitutionalStaff.query.filter(
+                InstitutionalStaff.institution_id == staff.institution_id,
+                InstitutionalStaff.id != staff.id,
+                InstitutionalStaff.status_id.in_([1, 6])
+            ).first()
+            if not other_active:
+                staff.institution.status_id = status_rejected_id
+
+        # 3. Si existía un usuario asociado pendiente, marcarlo como rechazado
+        if person.user and person.user.status_id in [status_pending_id, 6]:
+            person.user.status_id = status_rejected_id
+
+        db.session.commit()
+
+        full_name = f"{person.first_name} {person.last_name}".strip()
+
+        BinnacleService.create_log_entry(
+            module=AuditModule.USERS.value,
+            action_type=AuditAction.RECHAZO_SOLICITUD_REGISTRO.value,
+            description=f'Solicitud rechazada exitosamente para {full_name}',
+            target_table='sages.institutional_staff',
+            record_id=staff.id,
+            status=AuditStatus.RECHAZADO.value
+        )
+
+        return jsonify({
+            'status': 'success',
+            'message': f'La solicitud de {full_name} ha sido rechazada exitosamente.'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"[ERROR REJECT REQUEST]: {e}")
+        return jsonify({'status': 'error', 'message': 'Ocurrió un error interno al procesar el rechazo de la solicitud.'}), 500
+
+
 @users_bp.route('/<int:user_id>/resend-activation', methods=['POST'])
 @login_required
 def resend_activation_admin(user_id):
