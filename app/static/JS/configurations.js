@@ -757,18 +757,87 @@ document.addEventListener('DOMContentLoaded', () => {
         if (modalPlace) modalPlace.style.display = 'none';
     }
 
+    function resetPlaceModalForm() {
+        if (formPlace) formPlace.reset();
+        if (placeIdHidden) placeIdHidden.value = '';
+        const munSel = document.getElementById('place_municipality');
+        const parishSel = document.getElementById('place_parish');
+        if (munSel) { fillSelect(munSel, [], '— Seleccione Municipio —'); munSel.disabled = true; }
+        if (parishSel) { fillSelect(parishSel, [], '— Seleccione Parroquia —'); parishSel.disabled = true; }
+    }
+
+    function hasPlaceFormData() {
+        if (placeIdHidden && placeIdHidden.value) return true;
+        const name = document.getElementById('place_name')?.value?.trim();
+        const phone = document.getElementById('place_phone')?.value?.trim();
+        const address = document.getElementById('place_address')?.value?.trim();
+        const state = document.getElementById('place_state')?.value;
+        return Boolean(name || phone || address || state);
+    }
+
+    // Validación de confirmación al cancelar el formulario de sede
+    async function confirmCancelPlaceModal() {
+        const isEdit = Boolean(placeIdHidden && placeIdHidden.value);
+        const title = isEdit ? '¿Desea cancelar la edición?' : '¿Desea cancelar el registro?';
+        const text = isEdit
+            ? 'Los cambios no guardados se perderán. ¿Está seguro de que desea cancelar?'
+            : 'Se perderán todos los datos ingresados en el formulario de la sede.';
+
+        if (typeof Swal !== 'undefined') {
+            const result = await Swal.fire({
+                title: title,
+                text: text,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Sí, cancelar',
+                cancelButtonText: 'No, continuar',
+                target: 'body'
+            });
+
+            if (result.isConfirmed) {
+                closePlaceModal();
+                resetPlaceModalForm();
+            }
+        } else {
+            if (window.confirm(`${title}\n${text}`)) {
+                closePlaceModal();
+                resetPlaceModalForm();
+            }
+        }
+    }
+
     // Cerrar con X y botón Cancelar
     const btnClosePlaceX  = document.getElementById('btn-close-place-modal-x');
     const btnCancelPlace  = document.getElementById('btn-cancel-place-modal');
-    if (btnClosePlaceX) btnClosePlaceX.addEventListener('click', closePlaceModal);
-    if (btnCancelPlace) btnCancelPlace.addEventListener('click', closePlaceModal);
-
-    // Cerrar al hacer clic fuera del card
-    if (modalPlace) {
-        modalPlace.addEventListener('click', e => {
-            if (e.target === modalPlace) closePlaceModal();
+    if (btnCancelPlace) {
+        btnCancelPlace.addEventListener('click', (e) => {
+            e.preventDefault();
+            confirmCancelPlaceModal();
         });
     }
+
+    if (btnClosePlaceX) {
+        btnClosePlaceX.addEventListener('click', (e) => {
+            e.preventDefault();
+            confirmCancelPlaceModal();
+        });
+    }
+
+    // Delegación global en document para el botón Cancelar y la X del modal de sede
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('#btn-cancel-place-modal') || e.target.closest('#btn-close-place-modal-x')) {
+            e.preventDefault();
+            confirmCancelPlaceModal();
+            return;
+        }
+
+        // Clic fuera del card (en el backdrop)
+        if (e.target === modalPlace) {
+            confirmCancelPlaceModal();
+        }
+    });
 
     // ── Abrir en modo CREACIÓN ──────────────────────────────────────────────
 
@@ -777,15 +846,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnNewPlace.addEventListener('click', () => {
             if (modalPlaceTitle)  modalPlaceTitle.textContent = 'Registrar Nueva Sede';
             if (btnSavePlaceText) btnSavePlaceText.textContent = 'Guardar Sede';
-            if (placeIdHidden)    placeIdHidden.value = '';
-            if (formPlace)        formPlace.reset();
-
-            // Resetear cascada
-            const munSel    = document.getElementById('place_municipality');
-            const parishSel = document.getElementById('place_parish');
-            if (munSel)    { fillSelect(munSel,    [], '— Seleccione Municipio —'); munSel.disabled    = true; }
-            if (parishSel) { fillSelect(parishSel, [], '— Seleccione Parroquia —'); parishSel.disabled = true; }
-
+            resetPlaceModalForm();
             openPlaceModal();
         });
     }

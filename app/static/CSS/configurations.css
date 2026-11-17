@@ -1515,3 +1515,9 @@
     color: #e53e3e;
 }
 
+/* SweetAlert2 siempre por encima de cualquier modal en Configuraciones */
+.swal2-container {
+    z-index: 99999 !important;
+}
+
+
