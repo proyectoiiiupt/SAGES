@@ -764,19 +764,108 @@ def list_requests():
     )
 
 @users_bp.route('/descargar_evidencia/<path:filename>')
+@login_required
 def serve_evidence(filename):
+    """
+    Descarga o visualización protegida de evidencias físicas.
+    Requiere autenticación (@login_required) y valida que el usuario sea:
+    1. Super Administrador (super_admin),
+    2. Administrador Estadal de la misma jurisdicción territorial (state_admin), o
+    3. El usuario dueño del documento / solicitante (owner / applicant).
+    Cuenta con blindaje estricto anti-Path Traversal.
+    """
     directorio_base = current_app.config.get('UPLOAD_FOLDER', 'uploads')
-    
-    # Agregamos estos prints para ver la ruta exacta en la terminal
-    print(f"\n--- DEBUG EVIDENCIA ---")
-    print(f"Directorio Base: {directorio_base}")
-    print(f"Nombre del archivo (BD): {filename}")
-    print(f"-----------------------\n")
-    
+
+    # 1. Normalización y protección estricta anti-Path Traversal
+    clean_filename = filename.replace('\\', '/').lstrip('/')
+    if '..' in clean_filename:
+        abort(403)
+
+    safe_base = os.path.abspath(directorio_base)
+    target_path = os.path.abspath(os.path.join(safe_base, clean_filename))
+    if not target_path.startswith(safe_base):
+        abort(403)
+
+    if not os.path.exists(target_path):
+        abort(404)
+
+    # 2. Control de Acceso y Permisos (RBAC / Propiedad)
+    user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
+    is_authorized = False
+
+    if user_role == 'super_admin':
+        is_authorized = True
+    else:
+        # Buscar la evidencia en StaffEvidence
+        base_name = os.path.basename(clean_filename)
+        evidence = StaffEvidence.query.filter(
+            or_(
+                StaffEvidence.file_path == clean_filename,
+                StaffEvidence.file_path.endswith(f"/{base_name}"),
+                StaffEvidence.file_path == base_name,
+                StaffEvidence.file_name == base_name
+            )
+        ).first()
+
+        if evidence and evidence.institutional_staff:
+            staff = evidence.institutional_staff
+            
+            # Caso A: El usuario actual es el dueño del documento
+            is_owner = False
+            if current_user.person_id and staff.person_id == current_user.person_id:
+                is_owner = True
+            elif staff.user_id and staff.user_id == current_user.id:
+                is_owner = True
+            elif staff.person and staff.person.user and staff.person.user.id == current_user.id:
+                is_owner = True
+
+            if is_owner:
+                is_authorized = True
+            elif user_role == 'state_admin':
+                # Caso B: Administrador Estadal de la misma jurisdicción territorial
+                admin_state_id = get_user_state_id(current_user)
+                req_state_id = (
+                    staff.institution.parish.municipality.state_id
+                    if staff.institution and staff.institution.parish and staff.institution.parish.municipality
+                    else None
+                )
+                if admin_state_id and admin_state_id == req_state_id:
+                    is_authorized = True
+        else:
+            # Buscar en RequestEvidence por si se trata de una evidencia de solicitud formativa
+            from app.models.request_evidence_model import RequestEvidence
+            req_evidence = RequestEvidence.query.filter(
+                or_(
+                    RequestEvidence.file_path == clean_filename,
+                    RequestEvidence.file_path.endswith(f"/{base_name}"),
+                    RequestEvidence.file_path == base_name,
+                    RequestEvidence.file_name == base_name
+                )
+            ).first()
+
+            if req_evidence and req_evidence.request:
+                req = req_evidence.request
+                # Dueño de la solicitud
+                if req.created_by_id == current_user.id or req.applicant_id == current_user.id:
+                    is_authorized = True
+                elif user_role == 'state_admin':
+                    admin_state_id = get_user_state_id(current_user)
+                    req_state_id = (
+                        req.institution.parish.municipality.state_id
+                        if req.institution and req.institution.parish and req.institution.parish.municipality
+                        else None
+                    )
+                    if admin_state_id and admin_state_id == req_state_id:
+                        is_authorized = True
+
+    if not is_authorized:
+        abort(403)
+
     try:
-        return send_from_directory(directorio_base, filename)
+        response = send_from_directory(directorio_base, clean_filename)
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        return response
     except FileNotFoundError:
-        print("ERROR: No se encontró el archivo en la ruta combinada.")
         abort(404)
 
 import os
