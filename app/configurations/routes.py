@@ -21,7 +21,6 @@ from app.configurations.services import (
     get_role_permissions,
     get_all_roles_matrix,
     update_role_permissions,
-    get_last_backup_log,
     get_corporate_branding_data,
     update_corporate_branding,
     FileValidationError
@@ -54,7 +53,7 @@ def index():
     """
     Ruta base del módulo de configuraciones.
     Renderiza la interfaz con todas las subvistas, incluyendo datos corporativos,
-    matriz de roles, listado de sedes paginado y monitoreo de respaldos.
+    matriz de roles y listado de sedes paginado.
     """
     page       = request.args.get('page', 1, type=int)
     per_page   = 10
@@ -62,15 +61,12 @@ def index():
     states     = State.query.order_by(State.name).all()
     form       = PlaceForm()
     roles_matrix = get_all_roles_matrix()
-    last_backup = get_last_backup_log()
 
     # Precarga de datos corporativos e identidad visual (US-58)
     corporate_data = get_corporate_branding_data()
     corporate_form = CorporateDataForm(data={
         'company_name': corporate_data.get('company_name', ''),
-        'rif': corporate_data.get('rif', ''),
-        'central_phone': corporate_data.get('central_phone', ''),
-        'fiscal_address': corporate_data.get('fiscal_address', '')
+        'rif': corporate_data.get('rif', '')
     })
 
     return render_template(
@@ -82,8 +78,7 @@ def index():
         corporate_form=corporate_form,
         corporate_data=corporate_data,
         per_page=per_page,
-        roles_matrix=roles_matrix,
-        last_backup=last_backup
+        roles_matrix=roles_matrix
     )
 
 
@@ -126,12 +121,10 @@ def update_corporate():
         try:
             admin_name = _get_actor_name(current_user)
             company_name = form.data.get('company_name', 'CORPOELEC')
-            rif_val = form.data.get('rif', '')
-            phone_val = form.data.get('central_phone', '')
             ctx = {
                 "admin_name": admin_name,
                 "company_name": company_name,
-                "updated_fields": f"RIF: {rif_val}, Teléfono: {phone_val}"
+                "updated_fields": "Identidad visual y parámetros institucionales"
             }
             NotificationService.notify_role(
                 role_name="state_admin",

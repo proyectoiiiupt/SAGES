@@ -47,16 +47,6 @@
                     </svg>
                     <span>Roles y Permisos</span>
                 </button>
-
-                <button type="button" class="config-tab-btn" data-tab="backups" id="btn-tab-backups">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
-                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
-                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
-                    </svg>
-                    <span>Respaldos (Backups)</span>
-                </button>
             </div>
 
             <!-- Grupo 2: ORGANIZACIÓN -->
@@ -210,100 +200,7 @@
             </section>
 
             <!-- ══════════════════════════════════════════════════════════ -->
-            <!-- SUBVISTA 2: RESPALDOS DEL SISTEMA (#tab-backups)          -->
-            <!-- ══════════════════════════════════════════════════════════ -->
-            <section class="config-tab-content" id="tab-backups">
-                <div class="content-card">
-                    <div class="card-header-group">
-                        <div>
-                            <h2 class="section-title">Respaldos del Sistema (Backups)</h2>
-                            <p class="section-description">Monitoreo de copias de seguridad de la base de datos
-                                PostgreSQL gestionadas por el departamento de TI.</p>
-                        </div>
-                    </div>
-
-                    <!-- Cuadrícula de KPIs -->
-                    <div class="backup-kpi-grid">
-                        <div class="backup-kpi-card">
-                            <div class="kpi-icon-wrapper bg-green-light">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                                </svg>
-                            </div>
-                            <div>
-                                <span class="kpi-label">Último Respaldo Generado</span>
-                                {% if last_backup %}
-                                <strong class="kpi-main-val local-datetime"
-                                    data-utc="{{ last_backup.created_at.isoformat() }}" data-format="full">
-                                    {{ last_backup.created_at.strftime('%d/%m/%Y, %I:%M %p') }}
-                                </strong>
-                                <span class="kpi-sub-val kpi-sub-val--success">Estado: Exitoso (TI)</span>
-                                {% else %}
-                                <strong class="kpi-main-val kpi-main-val--muted">Sin respaldos registrados</strong>
-                                <span class="kpi-sub-val kpi-sub-val--warning">Estado: Sin eventos registrados</span>
-                                {% endif %}
-                            </div>
-                        </div>
-
-                        <div class="backup-kpi-card">
-                            <div class="kpi-icon-wrapper bg-blue-light">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <polyline points="12 6 12 12 16 14"></polyline>
-                                </svg>
-                            </div>
-                            <div class="kpi-text-block">
-                                <span class="kpi-label">Responsable de Respaldos</span>
-                                <strong class="kpi-main-val">Departamento de Infraestructura</strong>
-                                <span class="kpi-sub-val">Gestionado por el equipo de TI institucional</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Panel Informativo de Políticas Institucionales y Seguridad -->
-                    <div class="backup-actions-panel">
-                        <div class="action-card action-card--teal">
-                            <div class="action-info">
-                                <div class="action-card-header">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#007865"
-                                        stroke-width="2">
-                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                                    </svg>
-                                    <h3 class="action-card-title">Acceso y Descarga de Respaldos</h3>
-                                </div>
-                                <p class="action-card-body">
-                                    Los respaldos de la base de datos son gestionados de forma exclusiva por el equipo
-                                    de infraestructura de TI. Por razones de seguridad institucional, no es posible
-                                    descargar ni exportar los datos directamente desde esta plataforma.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div class="action-card action-card--blue">
-                            <div class="action-info">
-                                <div class="action-card-header">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0284c7"
-                                        stroke-width="2">
-                                        <polyline points="4 17 10 11 4 5"></polyline>
-                                        <line x1="12" y1="19" x2="20" y2="19"></line>
-                                    </svg>
-                                    <h3 class="action-card-title">¿Necesita recuperar información?</h3>
-                                </div>
-                                <p class="action-card-body">
-                                    Si requiere recuperar datos del sistema ante alguna eventualidad, comuníquese con el
-                                    equipo de soporte técnico de TI. El personal autorizado se encargará de gestionar el
-                                    proceso de restauración de forma segura.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ══════════════════════════════════════════════════════════ -->
-            <!-- SUBVISTA 3: DATOS CORPORATIVOS (#tab-corporate)           -->
+            <!-- SUBVISTA 2: DATOS CORPORATIVOS (#tab-corporate)           -->
             <!-- ══════════════════════════════════════════════════════════ -->
             <section class="config-tab-content" id="tab-corporate">
                 <div class="content-card">
@@ -325,45 +222,32 @@
                         <input type="file" id="icon_file" name="icon_file"
                             accept=".png,.ico,image/png,image/x-icon,image/vnd.microsoft.icon" style="display: none;">
 
-                        <!-- Columna 1: Campos Institucionales -->
+                        <!-- Columna 1: Campos Institucionales (Solo lectura) -->
                         <div class="form-inputs-col">
+                            <div class="corporate-protected-notice">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                </svg>
+                                <span>Datos de Registro Fiscal protegidos por configuración maestra de la institución</span>
+                            </div>
+
                             <div class="form-group">
-                                <label for="corp-name" class="form-label">Nombre de la Organización <span
-                                        class="required-indicator">*</span></label>
+                                <label for="corp-name" class="form-label">Nombre de la Organización</label>
                                 <input type="text" id="corp-name" name="company_name" class="form-control"
                                     value="{{ (corporate_form.company_name.data if corporate_form else '') or 'Corporación Eléctrica Nacional (CORPOELEC)' }}"
-                                    required maxlength="200"
-                                    placeholder="Ej. Corporación Eléctrica Nacional (CORPOELEC)">
+                                    readonly>
                                 <small class="form-hint">Razón social oficial que figurará en membretes y
                                     oficios.</small>
                             </div>
 
                             <div class="form-group">
-                                <label for="corp-rif" class="form-label">RIF Institucional <span
-                                        class="required-indicator">*</span></label>
+                                <label for="corp-rif" class="form-label">RIF Institucional</label>
                                 <input type="text" id="corp-rif" name="rif" class="form-control"
                                     value="{{ (corporate_form.rif.data if corporate_form else '') or 'G-20007870-9' }}"
-                                    required maxlength="12" placeholder="Ej. G-20007870-9"
-                                    style="text-transform: uppercase;">
+                                    readonly style="text-transform: uppercase;">
                                 <small class="form-hint">Formato fiscal venezolano: [J, G, V, E, P]-XXXXXXXX-X</small>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="corp-phone" class="form-label">Teléfono Central <span
-                                        class="required-indicator">*</span></label>
-                                <input type="text" id="corp-phone" name="central_phone" class="form-control"
-                                    value="{{ (corporate_form.central_phone.data if corporate_form else '') or '0212-5021111' }}"
-                                    required maxlength="25" placeholder="Ej. (0212)-5021111 o 0212-5021111">
-                                <small class="form-hint">Línea telefónica directa de la sede central.</small>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="corp-address" class="form-label">Dirección Fiscal Central <span
-                                        class="required-indicator">*</span></label>
-                                <textarea id="corp-address" name="fiscal_address" class="form-control textarea-address"
-                                    rows="3" required maxlength="500"
-                                    placeholder="Dirección física completa de la sede principal">{{ (corporate_form.fiscal_address.data if corporate_form else '') or 'Av. Vollmer, Edif. CORPOELEC, San Bernardino, Caracas' }}</textarea>
-                                <small class="form-hint">Ubicación física legal de la sede principal.</small>
                             </div>
                         </div>
 

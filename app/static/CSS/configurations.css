@@ -367,6 +367,26 @@
     gap: 2rem;
 }
 
+.corporate-protected-notice {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.85rem 1rem;
+    background-color: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-left: 4px solid var(--cfg-accent);
+    border-radius: 8px;
+    color: #166534;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.corporate-protected-notice svg {
+    flex-shrink: 0;
+    color: var(--cfg-accent);
+}
+
 .form-inputs-col,
 .form-uploads-col {
     display: flex;

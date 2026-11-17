@@ -471,21 +471,17 @@ document.addEventListener('DOMContentLoaded', () => {
         btnSaveCorporate.addEventListener('click', async () => {
             const corpName = document.getElementById('corp-name');
             const corpRif = document.getElementById('corp-rif');
-            const corpPhone = document.getElementById('corp-phone');
-            const corpAddress = document.getElementById('corp-address');
 
             const nameVal = corpName ? corpName.value.trim() : '';
             const rifVal = corpRif ? corpRif.value.trim().toUpperCase() : '';
-            const phoneVal = corpPhone ? corpPhone.value.trim() : '';
-            const addressVal = corpAddress ? corpAddress.value.trim() : '';
 
-            // Validación en cliente: Campos obligatorios
-            if (!nameVal || !rifVal || !phoneVal || !addressVal) {
+            // Validación en cliente: Campos institucionales requeridos
+            if (!nameVal || !rifVal) {
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
                         icon: 'warning',
                         title: 'Campos requeridos',
-                        text: 'Todos los campos institucionales de texto son obligatorios.',
+                        text: 'Los datos de registro fiscal son requeridos.',
                         confirmButtonColor: '#019577'
                     });
                 }
@@ -516,8 +512,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const formData = new FormData();
             formData.append('company_name', nameVal);
             formData.append('rif', rifVal);
-            formData.append('central_phone', phoneVal);
-            formData.append('fiscal_address', addressVal);
             if (csrfToken) {
                 formData.append('csrf_token', csrfToken);
             }

@@ -562,23 +562,6 @@ def update_role_permissions(role_id: int, submitted_permission_ids: list, curren
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# MONITOREO DE RESPALDOS AUTOMATIZADOS (US-60)
-# ─────────────────────────────────────────────────────────────────────────────
-
-def get_last_backup_log():
-    """
-    Recupera el registro más reciente de volcado o respaldo exitoso desde la bitácora.
-    """
-    try:
-        return Binnacle.query.filter_by(
-            action_type=AuditAction.RESPALDO_AUTOMATICO_EXITOSO.value
-        ).order_by(Binnacle.created_at.desc()).first()
-    except Exception as e:
-        logger.error(f"[Respaldos] Error al consultar el último respaldo en bitácora: {str(e)}")
-        return None
-
-
-# ─────────────────────────────────────────────────────────────────────────────
 # GESTIÓN DE DATOS CORPORATIVOS E IDENTIDAD VISUAL (US-58)
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -597,10 +580,9 @@ class FileValidationError(ValueError):
 def get_corporate_branding_data() -> dict:
     """
     Recupera los datos vigentes de la entidad corporativa CORPOELEC (COMP-001)
-    y su sede principal asociada (PLC-001) para la precarga del formulario.
+    para la precarga del formulario.
     """
     company = Company.query.filter_by(company_code='COMP-001').first()
-    main_place = Place.query.filter_by(place_code='PLC-001').first()
 
     rif_full = ''
     if company:
@@ -614,10 +596,7 @@ def get_corporate_branding_data() -> dict:
         'rif': rif_full,
         'identification_type': company.identification_type if company else '',
         'rif_number': company.rif if company else '',
-        'central_phone': main_place.phone if main_place else '',
-        'fiscal_address': main_place.address if main_place else '',
-        'company': company,
-        'main_place': main_place
+        'company': company
     }
 
 
@@ -662,7 +641,7 @@ def update_corporate_branding(form_data: dict, files: dict, current_user_id: int
     y procesa de manera segura el reemplazo atómico de logotipo y favicon.
 
     Args:
-        form_data (dict): Diccionario con datos de texto validados (company_name, rif, fiscal_address, central_phone).
+        form_data (dict): Diccionario con datos de texto (company_name, rif).
         files (dict): Diccionario con FileStorage opcionales ('logo_file', 'icon_file').
         current_user_id (int): ID del super administrador que ejecuta el cambio.
 
@@ -694,27 +673,18 @@ def update_corporate_branding(form_data: dict, files: dict, current_user_id: int
 
         # Parsear RIF: formato ^[JGVEP]-\d{8}-\d{1}$
         rif_raw = form_data.get('rif', '').strip().upper()
-        if '-' in rif_raw:
-            parts = rif_raw.split('-', 1)
-            company.identification_type = parts[0]
-            company.rif = parts[1]
-        else:
-            company.rif = rif_raw
+        if rif_raw:
+            if '-' in rif_raw:
+                parts = rif_raw.split('-', 1)
+                company.identification_type = parts[0]
+                company.rif = parts[1]
+            else:
+                company.rif = rif_raw
 
-        company.company_name = form_data.get('company_name', '').strip()
+        if form_data.get('company_name'):
+            company.company_name = form_data.get('company_name', '').strip()
 
         company._skip_auto_audit = True
-
-        # Sincronización en la sede principal (PLC-001)
-        main_place = Place.query.filter_by(place_code='PLC-001').first()
-        old_address = main_place.address if main_place else None
-        old_phone = main_place.phone if main_place else None
-        if main_place:
-            main_place._skip_auto_audit = True
-            if form_data.get('fiscal_address'):
-                main_place.address = form_data.get('fiscal_address', '').strip()
-            if form_data.get('central_phone'):
-                main_place.phone = form_data.get('central_phone', '').strip()
 
         # 3. Procesamiento y reemplazo atómico de archivos estáticos
         static_img_dir = os.path.join(current_app.root_path, 'static', 'img')
@@ -765,15 +735,11 @@ def update_corporate_branding(form_data: dict, files: dict, current_user_id: int
                 record_id=company.id,
                 old_values={
                     'company_name': old_company_name,
-                    'rif': old_rif,
-                    'fiscal_address': old_address,
-                    'central_phone': old_phone
+                    'rif': old_rif
                 },
                 new_values={
                     'company_name': company.company_name,
                     'rif': f"{company.identification_type}-{company.rif}",
-                    'fiscal_address': main_place.address if main_place else None,
-                    'central_phone': main_place.phone if main_place else None,
                     'logo_reemplazado': 'SÍ' if logo_updated else 'NO',
                     'favicon_reemplazado': 'SÍ' if icon_updated else 'NO'
                 }
