@@ -336,6 +336,84 @@ def send_applicant_activation_email(to_email: str, token: str, full_name: str = 
     return True
 
 
+def send_applicant_rejection_email(to_email: str, full_name: str = "", institution_name: str = "") -> bool:
+    """Envía notificación institucional por correo al solicitante cuando su registro ha sido rechazado."""
+    import html
+    subject = "Estado de su Solicitud de Registro — SAGES CORPOELEC"
+    
+    clean_to_email = to_email.strip().lower() if to_email else ""
+    safe_name = html.escape(full_name).strip() if full_name else ""
+    safe_institution = html.escape(institution_name).strip() if institution_name else ""
+
+    # Saludo y destinatario personalizado
+    if safe_name:
+        greeting_text = f"Estimado/a {safe_name},"
+        greeting_html = f"Estimado/a <strong>{safe_name}</strong>,"
+    else:
+        greeting_text = "Estimado/a solicitante,"
+        greeting_html = "Estimado/a solicitante,"
+
+    inst_text = f" para la institución educativa {safe_institution}" if safe_institution else " para la institución educativa"
+    inst_html = f" para la institución educativa <strong>{safe_institution}</strong>" if safe_institution else " para la institución educativa"
+
+    text_content = (
+        f"{greeting_text}\n\n"
+        f"Le informamos que, tras la revisión correspondiente por parte de la Coordinación de UREE / CORPOELEC, "
+        f"su solicitud de registro y vinculación{inst_text} no ha sido aprobada.\n\n"
+        f"Si considera que se trata de un error o requiere mayor información sobre los recaudos solicitados, "
+        f"puede comunicarse con la coordinación o realizar un nuevo proceso de registro a través de la plataforma.\n\n"
+        f"Atentamente,\n"
+        f"Coordinación de Uso Racional y Eficiente de la Energía (UREE)\n"
+        f"CORPOELEC — SAGES\n"
+    )
+
+    logo_html = get_logo_html()
+    html_content = f"""<!DOCTYPE html>
+    <html lang="es">
+    <head><meta charset="UTF-8"><title>{subject}</title></head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9fafb; color: #1f2937;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb; overflow: hidden;">
+            <tr><td style="height: 6px; background: linear-gradient(90deg, #dc2626 0%, #f97316 100%);"></td></tr>
+            <tr>
+                <td align="center" style="padding: 40px 20px 20px 20px;">
+                    {logo_html}
+                    <h1 style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.5;">Sistema de Gestión de Solicitudes de Formación</h1>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 0 40px;">
+                    <h2 style="font-size: 22px; font-weight: 700; color: #dc2626; margin: 10px 0 20px 0; text-transform: uppercase; letter-spacing: 0.5px;">SOLICITUD DE REGISTRO NO APROBADA</h2>
+                    <p style="font-size: 15px; color: #4b5563; margin: 0 0 15px 0; line-height: 1.6; text-align: left;">
+                        {greeting_html} le informamos que, tras la revisión correspondiente por parte de la Coordinación de UREE / CORPOELEC, su solicitud de registro y vinculación{inst_html} <strong>no ha sido aprobada</strong>.
+                    </p>
+                    <p style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.6; text-align: left;">
+                        Si considera que se trata de un error o requiere mayor información sobre los recaudos solicitados, puede comunicarse con la coordinación o iniciar un nuevo proceso de registro a través de la plataforma.
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 30px 40px 40px 40px;">
+                    <hr style="border: 0; border-top: 1px solid #e5e7eb; margin-bottom: 25px;">
+                    <p style="font-size: 12px; color: #9ca3af; line-height: 1.6; margin: 0; text-align: justify;">
+                        Por favor, no responda a este correo automatizado. Para consultas institucionales diríjase a los canales oficiales de CORPOELEC UREE.
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
+                    &copy; 2026 SAGES. Todos los derechos reservados.
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+    # Despacho en hilo independiente para no bloquear el request de rechazo
+    thread = threading.Thread(target=send_email, args=(clean_to_email, subject, html_content, text_content))
+    thread.start()
+    return True
+
+
 def send_administrative_activation_email(to_email: str, token: str, role_display: str, place_name: str, full_name: str) -> bool:
     """Envía el enlace de activación a personal administrativo tras su registro (US-13)."""
     import html

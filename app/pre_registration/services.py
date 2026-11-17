@@ -95,29 +95,72 @@ def generate_person_code() -> str:
     return _generate_short_code('PERS', Person, 'person_code')
 
 
+def can_person_reapply(person) -> bool:
+    """
+    Determina si una persona existente puede volver a postularse por pre-registro.
+    Aplica si la persona no tiene usuario activo/pendiente ni vinculación con Corpoelec,
+    y todas sus vinculaciones institucionales están en estado Rechazado (STAT-008) o Eliminado (STAT-010).
+    """
+    if not person:
+        return False
+    # Si pertenece al personal interno de Corpoelec, no aplica para pre-registro público
+    if getattr(person, 'company_staff', None):
+        return False
+    # Si tiene usuario y no está en Rechazado (STAT-008, id=8)
+    user = getattr(person, 'user', None)
+    if user:
+        status_code = getattr(user.status, 'status_code', None)
+        if status_code != 'STAT-008' and getattr(user, 'status_id', None) != 8:
+            return False
+    # Si tiene solicitudes institucionales previas
+    staffs = getattr(person, 'institutional_staff', [])
+    if staffs:
+        for staff in staffs:
+            status_code = getattr(staff.status, 'status_code', None)
+            if status_code not in ('STAT-008', 'STAT-010') and getattr(staff, 'status_id', None) not in (8, 10):
+                return False
+    return True
+
+
 def is_plantel_code_available(plantel_code: str) -> bool:
     """
     Verifica si el código de plantel está disponible para registro.
+    Si la institución existe pero fue rechazada (STAT-008) y no tiene miembros activos,
+    se considera disponible para re-postulación.
 
     Args:
         plantel_code (str): Código de plantel a consultar.
 
     Returns:
-        bool: True si el código NO existe en la base de datos, False si ya está registrado.
+        bool: True si el código NO existe o está rechazado sin miembros activos, False en caso contrario.
     """
     from app.models.institution_model import Institution
-    return not Institution.query.filter_by(plantel_code=plantel_code).first()
+    from app.models.institutional_staff_model import InstitutionalStaff
+    inst = Institution.query.filter_by(plantel_code=plantel_code).first()
+    if not inst:
+        return True
+    status_code = getattr(inst.status, 'status_code', None)
+    if status_code == 'STAT-008' or getattr(inst, 'status_id', None) == 8:
+        active_staff = InstitutionalStaff.query.filter(
+            InstitutionalStaff.institution_id == inst.id,
+            InstitutionalStaff.status_id.in_([1, 4, 6])
+        ).first()
+        if not active_staff:
+            return True
+    return False
 
 
 def is_identification_available(identification_number: str) -> bool:
     """
     Verifica si el número de cédula/identificación está disponible para registro.
+    Permite el registro si la cédula no existe o si corresponde a un postulante
+    cuyas solicitudes previas fueron rechazadas.
 
     Args:
         identification_number (str): Número de identificación a consultar.
 
     Returns:
-        bool: True si no existe en BD, False en caso contrario.
+        bool: True si no existe en BD o si es elegible para re-postulación, False en caso contrario.
     """
     from app.models.person_model import Person
     try:
@@ -125,18 +168,24 @@ def is_identification_available(identification_number: str) -> bool:
         purge_expired_pending_users()
     except Exception:
         pass
-    return not Person.query.filter_by(identification_number=identification_number).first()
+    person = Person.query.filter_by(identification_number=identification_number).first()
+    if not person:
+        return True
+    return can_person_reapply(person)
 
 
-def is_email_available(email: str) -> bool:
+def is_email_available(email: str, identification_number: str = None) -> bool:
     """
     Verifica si la dirección de correo electrónico está disponible.
+    Permite el registro si el correo no existe, o si pertenece al mismo postulante
+    cuyas solicitudes previas fueron rechazadas.
 
     Args:
         email (str): Correo electrónico a consultar.
+        identification_number (str, opcional): Cédula del solicitante para validar pertenencia.
 
     Returns:
-        bool: True si no existe en BD, False en caso contrario.
+        bool: True si no existe en BD o si pertenece al postulante elegible para re-postularse.
     """
     from app.models.person_model import Person
     try:
@@ -144,7 +193,14 @@ def is_email_available(email: str) -> bool:
         purge_expired_pending_users()
     except Exception:
         pass
-    return not Person.query.filter_by(email=email.lower()).first()
+    person = Person.query.filter_by(email=email.lower()).first()
+    if not person:
+        return True
+    if identification_number:
+        if person.identification_number == identification_number and can_person_reapply(person):
+            return True
+        return False
+    return can_person_reapply(person)
 
 
 def get_institution_by_plantel_code(plantel_code: str):
@@ -331,9 +387,9 @@ def format_institution_name(
 
 def _create_person_and_staff(person_data: dict, institution_id: int, pending_status_id: int):
     """
-    Genera los registros del representante (Person) y su vinculación (InstitutionalStaff).
-
-    Realiza un flush para obtener los IDs generados por BD y armar las relaciones.
+    Genera o actualiza los registros del representante (Person) y su vinculación (InstitutionalStaff).
+    Si el postulante fue rechazado previamente, reutiliza y actualiza sus registros para permitir
+    la re-postulación sin colisionar con las restricciones UNIQUE.
 
     Args:
         person_data (dict): Datos personales del representante.
@@ -345,29 +401,50 @@ def _create_person_and_staff(person_data: dict, institution_id: int, pending_sta
     """
     from app.models.person_model import Person
     from app.models.institutional_staff_model import InstitutionalStaff
+    from datetime import datetime, timezone
 
-    person = Person(
-        person_code           = generate_person_code(),
-        identification_type   = person_data['identification_type'],
-        identification_number = person_data['identification_number'],
-        first_name            = person_data['first_name'],
-        second_name           = person_data.get('second_name') or None,
-        last_name             = person_data['last_name'],
-        middle_name           = person_data.get('middle_name') or None,
-        email                 = person_data['email'],
-        mobile                = person_data['mobile'],
-        phone                 = person_data.get('phone') or None,
-    )
-    db.session.add(person)
+    person = Person.query.filter_by(identification_number=person_data['identification_number']).first()
+    if person and can_person_reapply(person):
+        person.identification_type   = person_data['identification_type']
+        person.first_name            = person_data['first_name']
+        person.second_name           = person_data.get('second_name') or None
+        person.last_name             = person_data['last_name']
+        person.middle_name           = person_data.get('middle_name') or None
+        person.email                 = person_data['email']
+        person.mobile                = person_data['mobile']
+        person.phone                 = person_data.get('phone') or None
+    else:
+        person = Person(
+            person_code           = generate_person_code(),
+            identification_type   = person_data['identification_type'],
+            identification_number = person_data['identification_number'],
+            first_name            = person_data['first_name'],
+            second_name           = person_data.get('second_name') or None,
+            last_name             = person_data['last_name'],
+            middle_name           = person_data.get('middle_name') or None,
+            email                 = person_data['email'],
+            mobile                = person_data['mobile'],
+            phone                 = person_data.get('phone') or None,
+        )
+        db.session.add(person)
     db.session.flush()  # Obtiene el PK person.id generado
 
-    staff = InstitutionalStaff(
-        person_id      = person.id,
-        institution_id = institution_id,
-        position_id    = person_data['position_id'],
-        status_id      = pending_status_id,
-    )
-    db.session.add(staff)
+    staff = InstitutionalStaff.query.filter_by(person_id=person.id).order_by(InstitutionalStaff.id.desc()).first()
+    if staff and (getattr(staff.status, 'status_code', None) in ('STAT-008', 'STAT-010') or getattr(staff, 'status_id', None) in (8, 10)):
+        staff.institution_id = institution_id
+        staff.position_id    = person_data['position_id']
+        staff.status_id      = pending_status_id
+        staff.updated_at     = datetime.now(timezone.utc)
+        if staff.user and (getattr(staff.user.status, 'status_code', None) == 'STAT-008' or getattr(staff.user, 'status_id', None) == 8):
+            staff.user.status_id = pending_status_id
+    else:
+        staff = InstitutionalStaff(
+            person_id      = person.id,
+            institution_id = institution_id,
+            position_id    = person_data['position_id'],
+            status_id      = pending_status_id,
+        )
+        db.session.add(staff)
     db.session.flush()  # Obtiene el PK staff.id generado
 
     return staff
@@ -474,23 +551,36 @@ def create_pre_registration(
         if not is_identification_available(person_data['identification_number']):
             return False, 'Este número de identificación no está disponible para registro. Si cree que esto es un error o ya tiene cuenta, contacte a soporte.', 409
 
-        if not is_email_available(person_data['email']):
+        if not is_email_available(person_data['email'], person_data['identification_number']):
             return False, 'Este correo no está disponible para un nuevo registro. Si ya posee una cuenta, por favor inicie sesión o utilice la opción de recuperar contraseña.', 409
 
-        # Inserción Institucional
-        institution = Institution(
-            institution_code          = generate_institution_code(),
-            institution_type_id       = inst_data['institution_type_id'],
-            institution_name          = inst_data['institution_name'],
-            plantel_code              = inst_data['plantel_code'],
-            institution_scope_id      = inst_data['institution_scope_id'],
-            institution_dependency_id = inst_data['institution_dependency_id'],
-            parish_id                 = inst_data['parish_id'],
-            address                   = inst_data['address'],
-            phone                     = inst_data.get('phone') or None,
-            status_id                 = pending_status.id,
-        )
-        db.session.add(institution)
+        # Inserción o reactivación Institucional
+        existing_inst = Institution.query.filter_by(plantel_code=inst_data['plantel_code']).first()
+        if existing_inst and (getattr(existing_inst.status, 'status_code', None) == 'STAT-008' or getattr(existing_inst, 'status_id', None) == 8):
+            institution = existing_inst
+            institution.institution_type_id       = inst_data['institution_type_id']
+            institution.institution_name          = inst_data['institution_name']
+            institution.institution_scope_id      = inst_data['institution_scope_id']
+            institution.institution_dependency_id = inst_data['institution_dependency_id']
+            institution.parish_id                 = inst_data['parish_id']
+            institution.address                   = inst_data['address']
+            institution.phone                     = inst_data.get('phone') or None
+            institution.status_id                 = pending_status.id
+            InstitutionLevel.query.filter_by(institution_id=institution.id).delete()
+        else:
+            institution = Institution(
+                institution_code          = generate_institution_code(),
+                institution_type_id       = inst_data['institution_type_id'],
+                institution_name          = inst_data['institution_name'],
+                plantel_code              = inst_data['plantel_code'],
+                institution_scope_id      = inst_data['institution_scope_id'],
+                institution_dependency_id = inst_data['institution_dependency_id'],
+                parish_id                 = inst_data['parish_id'],
+                address                   = inst_data['address'],
+                phone                     = inst_data.get('phone') or None,
+                status_id                 = pending_status.id,
+            )
+            db.session.add(institution)
         db.session.flush()
 
         staff = _create_person_and_staff(
@@ -637,7 +727,7 @@ def join_existing_institution(
         if not is_identification_available(person_data['identification_number']):
             return False, 'Este número de identificación no está disponible para registro. Si cree que esto es un error o ya tiene cuenta, contacte a soporte.', 409
 
-        if not is_email_available(person_data['email']):
+        if not is_email_available(person_data['email'], person_data['identification_number']):
             return False, 'Este correo no está disponible para un nuevo registro. Si ya posee una cuenta, por favor inicie sesión o utilice la opción de recuperar contraseña.', 409
 
         staff = _create_person_and_staff(
@@ -764,7 +854,7 @@ def join_delegated_institution(
         if not is_identification_available(person_data['identification_number']):
             return False, 'Este número de identificación ya está registrado.', 409
 
-        if not is_email_available(person_data['email']):
+        if not is_email_available(person_data['email'], person_data['identification_number']):
             return False, 'Este correo ya está registrado.', 409
 
         staff = _create_person_and_staff(

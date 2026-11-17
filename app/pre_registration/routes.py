@@ -175,6 +175,16 @@ def validate_plantel():
         # Validar el estatus de la institución (solo se permiten asociaciones a instituciones Activas)
         status_code = inst.status.status_code if inst.status else None
         
+        if status_code == 'STAT-008' or getattr(inst, 'status_id', None) == 8:
+            # Si fue rechazada previamente y no tiene personal activo, está disponible para nuevo registro
+            from app.models.institutional_staff_model import InstitutionalStaff
+            has_active = InstitutionalStaff.query.filter(
+                InstitutionalStaff.institution_id == inst.id,
+                InstitutionalStaff.status_id.in_([1, 4, 6])
+            ).first()
+            if not has_active:
+                return jsonify({'available': True, 'plantel_code': clean_code}), 200
+
         if status_code == 'STAT-004': # Pendiente
             return jsonify({
                 'error': 'El código de plantel ingresado no está disponible para nuevos registros en este momento. Verifique con su coordinación.'

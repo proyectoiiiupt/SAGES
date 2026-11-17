@@ -24,7 +24,7 @@ from app.models.role_user_model import RoleUser
 from app.pre_registration.services import _generate_short_code
 from app.users.forms import UserUpdateForm, AdminUserRegisterForm
 from app.utils.activation_utils import generate_activation_token
-from app.utils.email_utils import send_applicant_activation_email, send_administrative_activation_email
+from app.utils.email_utils import send_applicant_activation_email, send_administrative_activation_email, send_applicant_rejection_email
 from app.users.services import (
     get_corpoelec_places_by_state,
     get_administrative_positions,
@@ -1003,6 +1003,7 @@ def reject_request(staff_id):
         db.session.commit()
 
         full_name = f"{person.first_name} {person.last_name}".strip()
+        inst_name = staff.institution.institution_name if hasattr(staff, 'institution') and staff.institution else "Plantel Asignado"
 
         BinnacleService.create_log_entry(
             module=AuditModule.USERS.value,
@@ -1012,6 +1013,17 @@ def reject_request(staff_id):
             record_id=staff.id,
             status=AuditStatus.RECHAZADO.value
         )
+
+        # Despacho asíncrono de correo al postulante notificando el rechazo
+        try:
+            if person.email:
+                send_applicant_rejection_email(
+                    to_email=person.email,
+                    full_name=full_name,
+                    institution_name=inst_name
+                )
+        except Exception as e:
+            print(f"[ERROR ENVIANDO CORREO RECHAZO]: {e}")
 
         return jsonify({
             'status': 'success',
