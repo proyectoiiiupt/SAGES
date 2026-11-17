@@ -24,7 +24,12 @@ from app.models.role_user_model import RoleUser
 from app.pre_registration.services import _generate_short_code
 from app.users.forms import UserUpdateForm, AdminUserRegisterForm
 from app.utils.activation_utils import generate_activation_token
-from app.utils.email_utils import send_applicant_activation_email, send_administrative_activation_email, send_applicant_rejection_email
+from app.utils.email_utils import (
+    send_applicant_activation_email,
+    send_administrative_activation_email,
+    send_applicant_rejection_email,
+    send_user_deactivation_email
+)
 from app.users.services import (
     get_corpoelec_places_by_state,
     get_administrative_positions,
@@ -601,6 +606,18 @@ def toggle_status(user_id):
         )
         
         flash(f'El perfil del usuario ha sido {estado_str} exitosamente.', 'success')
+        
+        # Despacho asíncrono de correo si la cuenta fue desactivada (STAT-002)
+        if new_status == 2 and user.person and user.person.email:
+            try:
+                full_name = f"{user.person.first_name} {user.person.last_name}".strip()
+                send_user_deactivation_email(
+                    to_email=user.person.email,
+                    full_name=full_name,
+                    username=user.user_name
+                )
+            except Exception as e:
+                print(f"\n[ERROR ENVIANDO CORREO DESACTIVACION]: {e}\n")
         
     except Exception as e:
         db.session.rollback()

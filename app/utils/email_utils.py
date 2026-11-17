@@ -1320,3 +1320,102 @@ def send_institution_inactivated_email(
     return True
 
 
+def send_user_deactivation_email(to_email: str, full_name: str = "", username: str = "") -> bool:
+    """
+    Envía notificación institucional por correo al usuario cuando su cuenta individual
+    es inactivada manualmente por un administrador (STAT-002).
+    Se despacha de forma asíncrona mediante un hilo secundario (threading.Thread).
+    """
+    import html
+    clean_to_email = to_email.strip().lower() if to_email else ""
+    safe_name = html.escape(full_name).strip() if full_name else ""
+    safe_username = html.escape(username).strip() if username else ""
+    support_email = os.getenv('SUPPORT_EMAIL') or os.getenv('SMTP_USER') or os.getenv('EMAIL_USER') or 'soporte.sages@corpoelec.gob.ve'
+
+    subject = "Desactivación de Cuenta de Usuario — SAGES CORPOELEC"
+
+    greeting_text = f"Estimado/a {safe_name}," if safe_name else "Estimado/a usuario,"
+    greeting_html = f"Estimado/a <strong>{safe_name}</strong>," if safe_name else "Estimado/a usuario,"
+
+    user_info_text = f" (Identificador / Cédula: {safe_username})" if safe_username else ""
+    user_info_html = f"""
+    <div style="background-color: #f3f4f6; border-radius: 8px; padding: 15px; margin: 20px 0; text-align: left;">
+        <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>Identificador / Cédula:</strong> <span style="color: #1c3d73;">{safe_username}</span></p>
+        <p style="margin: 0; font-size: 14px;"><strong>Estatus de la Cuenta:</strong> <span style="color: #dc2626; font-weight: 700;">Inactivo (Desactivado)</span></p>
+    </div>
+    """ if safe_username else """
+    <div style="background-color: #f3f4f6; border-radius: 8px; padding: 15px; margin: 20px 0; text-align: left;">
+        <p style="margin: 0; font-size: 14px;"><strong>Estatus de la Cuenta:</strong> <span style="color: #dc2626; font-weight: 700;">Inactivo (Desactivado)</span></p>
+    </div>
+    """
+
+    text_content = (
+        f"{greeting_text}\n\n"
+        f"Le informamos que su cuenta de usuario{user_info_text} en el Sistema Automatizado de Gestión para la Eficiencia Social (SAGES) de CORPOELEC ha sido desactivada por la administración.\n\n"
+        f"A partir de este momento, sus credenciales no permitirán el inicio de sesión en la plataforma mientras la cuenta permanezca en este estatus.\n\n"
+        f"Si considera que esto se debe a un error administrativo o requiere la reactivación de su perfil, por favor comuníquese con el canal de soporte técnico a través del correo: {support_email} o acuda a la Coordinación de Uso Racional y Eficiente de la Energía (UREE) de CORPOELEC.\n\n"
+        f"Atentamente,\n"
+        f"Coordinación de Uso Racional y Eficiente de la Energía (UREE)\n"
+        f"CORPOELEC — SAGES\n"
+    )
+
+    logo_html = get_logo_html()
+    html_content = f"""<!DOCTYPE html>
+    <html lang="es">
+    <head><meta charset="UTF-8"><title>{subject}</title></head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9fafb; color: #1f2937;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb; overflow: hidden;">
+            <tr><td style="height: 6px; background: linear-gradient(90deg, #dc2626 0%, #f97316 100%);"></td></tr>
+            <tr>
+                <td align="center" style="padding: 40px 20px 20px 20px;">
+                    {logo_html}
+                    <h1 style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.5;">Sistema de Gestión de Solicitudes de Formación</h1>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 0 40px;">
+                    <h2 style="font-size: 22px; font-weight: 700; color: #dc2626; margin: 10px 0 20px 0; text-transform: uppercase; letter-spacing: 0.5px;">CUENTA DE USUARIO DESACTIVADA</h2>
+                    <p style="font-size: 15px; color: #4b5563; margin: 0 0 15px 0; line-height: 1.6; text-align: left;">
+                        {greeting_html} le informamos que su cuenta de acceso individual en el <strong>Sistema SAGES</strong> de CORPOELEC ha sido desactivada por la administración central.
+                    </p>
+                    {user_info_html}
+                    <p style="font-size: 15px; color: #4b5563; margin: 0 0 15px 0; line-height: 1.6; text-align: left;">
+                        A partir de este momento, sus credenciales no permitirán el inicio de sesión en la plataforma mientras la cuenta permanezca en este estatus.
+                    </p>
+                    <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px 20px; margin: 20px 0; text-align: left;">
+                        <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 700; color: #991b1b;">
+                            ¿Necesita ayuda o reactivar su acceso?
+                        </p>
+                        <p style="margin: 0; font-size: 13px; color: #7f1d1d; line-height: 1.5;">
+                            Si considera que esto corresponde a un error o necesita reactivar su perfil, puede comunicarse con el canal oficial de soporte técnico escribiendo a:
+                            <br>
+                            <a href="mailto:{support_email}" style="color: #b91c1c; font-weight: 700; text-decoration: underline;">{support_email}</a>
+                            <br><br>
+                            O acudir directamente a la <strong>Coordinación de Uso Racional y Eficiente de la Energía (UREE)</strong> de CORPOELEC en su jurisdicción.
+                        </p>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 30px 40px 40px 40px;">
+                    <hr style="border: 0; border-top: 1px solid #e5e7eb; margin-bottom: 25px;">
+                    <p style="font-size: 12px; color: #9ca3af; line-height: 1.6; margin: 0; text-align: justify;">
+                        * Por favor, no responda a este correo automatizado. Para consultas institucionales diríjase a los canales oficiales autorizados de CORPOELEC UREE.
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
+                    &copy; 2026 SAGES &mdash; CORPOELEC. Todos los derechos reservados.
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+
+    thread = threading.Thread(target=send_email, args=(clean_to_email, subject, html_content, text_content))
+    thread.start()
+    return True
+
+
