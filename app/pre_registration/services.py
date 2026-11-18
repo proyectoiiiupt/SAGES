@@ -24,6 +24,13 @@ from app.binnacle.types import AuditAction, AuditModule, AuditStatus
 
 logger = logging.getLogger(__name__)
 
+
+def _get_institution_state_id(institution):
+    """Retorna el state_id asociado a la parroquia/municipio de una institución."""
+    if institution and institution.parish and institution.parish.municipality:
+        return institution.parish.municipality.state_id
+    return None
+
 PENDING_STATUS_CODE = 'STAT-004'
 ACTIVE_STATUS_CODE  = 'STAT-001'
 
@@ -635,6 +642,7 @@ def create_pre_registration(
                 role_name='state_admin',
                 event=NotificationEvent.REGISTRATION_NEW_INSTITUTION,
                 context=context,
+                state_id=_get_institution_state_id(institution),
                 redirect_url="/users/requests",
                 action_text="Revisar Solicitud"
             )
@@ -763,6 +771,7 @@ def join_existing_institution(
                 role_name='state_admin',
                 event=NotificationEvent.REGISTRATION_JOIN_INSTITUTION,
                 context=context,
+                state_id=_get_institution_state_id(institution),
                 redirect_url="/users/requests",
                 action_text="Ver Solicitud"
             )
@@ -890,6 +899,7 @@ def join_delegated_institution(
                 role_name='state_admin',
                 event=NotificationEvent.REGISTRATION_INVITED_STAFF,
                 context=context,
+                state_id=_get_institution_state_id(institution),
                 redirect_url="/users/requests",
                 action_text="Revisar Solicitud"
             )
