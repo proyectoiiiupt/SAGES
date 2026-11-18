@@ -1,11 +1,86 @@
 import csv
 from io import StringIO
 from flask import Blueprint, jsonify, render_template, request, Response
+from sqlalchemy import and_, or_
 from app.models.binnacle_model import Binnacle 
+from app.models.person_model import Person
 from app.models.user_model import User
 from app.utils.timezone import to_caracas_time, caracas_date_range_to_utc
 
 binnacle_bp = Blueprint('binnacle', __name__, url_prefix='/binnacle')
+
+_STATUS_DISPLAY_MAP = {
+    'EXITOSO': 'Completado',
+    'COMPLETADO': 'Completado',
+    'MODIFICADO': 'Modificado',
+    'RECIBIDO': 'Recibido',
+    'EN_PROCESO': 'En Proceso',
+    'EN PROCESO': 'En Proceso',
+    'RECHAZADO': 'Rechazado',
+    'FALLIDO': 'Fallido',
+}
+
+
+def _format_audit_status(raw_status: str, action_type: str) -> str:
+    """Normaliza el estatus almacenado en bitácora a etiqueta legible para los badges."""
+    if "FALLIDO" in (action_type or "").upper():
+        return "Fallido"
+    if not raw_status:
+        return "Completado"
+    return _STATUS_DISPLAY_MAP.get(raw_status.strip().upper(), raw_status)
+
+
+def _apply_audit_filters(query, fecha_desde, fecha_hasta, modulo, accion, usuario, estatus):
+    """Aplica filtros compartidos para consulta paginada y exportación CSV."""
+    start_utc, end_utc = caracas_date_range_to_utc(fecha_desde, fecha_hasta)
+    if start_utc:
+        query = query.filter(Binnacle.created_at >= start_utc)
+    if end_utc:
+        query = query.filter(Binnacle.created_at <= end_utc)
+    if modulo:
+        query = query.filter(Binnacle.module == modulo)
+    if accion:
+        query = query.filter(Binnacle.action_type == accion)
+    if usuario and usuario.strip():
+        term = f"%{usuario.strip()}%"
+        query = (
+            query.outerjoin(Binnacle.user)
+            .outerjoin(User.person)
+            .filter(
+                or_(
+                    Person.first_name.ilike(term),
+                    Person.last_name.ilike(term),
+                    (Person.first_name + ' ' + Person.last_name).ilike(term),
+                    Person.identification_number.ilike(term),
+                    User.user_name.ilike(term),
+                    Binnacle.user_identifier.ilike(term),
+                )
+            )
+        )
+    if estatus:
+        est_norm = estatus.strip().upper()
+        if est_norm == "FALLIDO":
+            query = query.filter(
+                or_(Binnacle.status.ilike("FALLIDO"), Binnacle.action_type.ilike("%FALLIDO%"))
+            )
+        elif est_norm == "COMPLETADO":
+            query = query.filter(
+                and_(
+                    ~Binnacle.action_type.ilike("%FALLIDO%"),
+                    or_(
+                        Binnacle.status.ilike("COMPLETADO"),
+                        Binnacle.status.ilike("EXITOSO"),
+                        Binnacle.status.is_(None),
+                    ),
+                )
+            )
+        elif est_norm in ("EN PROCESO", "EN_PROCESO"):
+            query = query.filter(
+                or_(Binnacle.status.ilike("EN_PROCESO"), Binnacle.status.ilike("En Proceso"))
+            )
+        else:
+            query = query.filter(Binnacle.status.ilike(estatus.strip()))
+    return query
 
 # --- RUTA PARA MOSTRAR LA PANTALLA ---
 @binnacle_bp.route('/', methods=['GET'])
@@ -91,27 +166,9 @@ def get_logs_filtered():
     usuario = request.args.get('usuario')  
     estatus = request.args.get('estatus')  
     
-    query = Binnacle.query
-
-    start_utc, end_utc = caracas_date_range_to_utc(fecha_desde, fecha_hasta)
-    if start_utc:
-        query = query.filter(Binnacle.created_at >= start_utc)
-    if end_utc:
-        query = query.filter(Binnacle.created_at <= end_utc)
-    if modulo:
-        query = query.filter(Binnacle.module == modulo)
-    if accion:
-        query = query.filter(Binnacle.action_type == accion)
-        
-    if usuario:
-        query = query.join(Binnacle.user).filter(User.full_name.ilike(f"%{usuario}%"))
-        
-    if estatus:
-        if estatus == "Fallido":
-            query = query.filter(Binnacle.action_type.ilike("%FALLIDO%"))
-        elif estatus == "Completado":
-            query = query.filter(~Binnacle.action_type.ilike("%FALLIDO%"))
-
+    query = _apply_audit_filters(
+        Binnacle.query, fecha_desde, fecha_hasta, modulo, accion, usuario, estatus
+    )
     query = query.order_by(Binnacle.created_at.desc())
     pagination = query.paginate(page=page, per_page=15, error_out=False)
     
@@ -125,7 +182,7 @@ def get_logs_filtered():
             "module": r.module,
             "action": r.action_type,
             "desc": (r.description[:45] + "...") if r.description and len(r.description) > 45 else (r.description or ""),
-            "status": "Fallido" if "FALLIDO" in (r.action_type or "").upper() else "Completado"
+            "status": _format_audit_status(r.status, r.action_type),
         })
         
     return jsonify({
@@ -148,21 +205,9 @@ def export_logs():
     usuario = request.args.get('usuario')
     estatus = request.args.get('estatus')
     
-    query = Binnacle.query
-
-    start_utc, end_utc = caracas_date_range_to_utc(fecha_desde, fecha_hasta)
-    if start_utc: query = query.filter(Binnacle.created_at >= start_utc)
-    if end_utc: query = query.filter(Binnacle.created_at <= end_utc)
-    if modulo: query = query.filter(Binnacle.module == modulo)
-    if accion: query = query.filter(Binnacle.action_type == accion)
-    
-    if usuario:
-        query = query.join(Binnacle.user).filter(User.full_name.ilike(f"%{usuario}%"))
-        
-    if estatus:
-        if estatus == "Fallido": query = query.filter(Binnacle.action_type.ilike("%FALLIDO%"))
-        elif estatus == "Completado": query = query.filter(~Binnacle.action_type.ilike("%FALLIDO%"))
-    
+    query = _apply_audit_filters(
+        Binnacle.query, fecha_desde, fecha_hasta, modulo, accion, usuario, estatus
+    )
     registros = query.order_by(Binnacle.created_at.desc()).all()
 
     def generate():
@@ -177,7 +222,7 @@ def export_logs():
             dt_vzla = to_caracas_time(r.created_at)
             fecha = dt_vzla.strftime("%d/%m/%Y %I:%M %p") if dt_vzla else "N/A"
             user_name = getattr(r.user, 'full_name', 'No registrado') if r.user else "No registrado"
-            status = "Fallido" if "FALLIDO" in (r.action_type or "").upper() else "Completado"
+            status = _format_audit_status(r.status, r.action_type)
             
             writer.writerow([fecha, user_name, r.module, r.action_type, r.description, status])
             yield data.getvalue()

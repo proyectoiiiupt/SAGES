@@ -55,8 +55,17 @@ def audit_view():
     """
     Vista ampliada de la tabla de bitácora/auditoría (US-25-binnacle-table).
     """
+    from app.binnacle.types import AuditModule, AuditAction, MODULE_ACTIONS_MAP
     logs = get_audit_logs()
-    return render_template('dashboard/audit_log.html', logs=logs)
+    audit_modules = [m.value for m in AuditModule if m != AuditModule.SERVICES]
+    audit_actions = [a.value for a in AuditAction]
+    return render_template(
+        'dashboard/audit_log.html',
+        logs=logs,
+        audit_modules=audit_modules,
+        audit_actions=audit_actions,
+        module_actions_map=MODULE_ACTIONS_MAP,
+    )
 
 # ─────────────────────────────────────────────────────────────
 # BLOQUE MAPA GEOGRÁFICO NACIONAL (Exclusivo super_admin)

@@ -126,11 +126,9 @@
                 <label for="filtro-modulo" class="filter-label">Módulo:</label>
                 <select id="filtro-modulo" class="filter-select">
                     <option value="">Todos</option>
-                    <option value="Auth">Autenticación</option>
-                    <option value="Usuarios">Usuarios</option>
-                    <option value="Instituciones">Instituciones</option>
-                    <option value="Servicios">Servicios</option>
-                    <option value="Solicitudes">Solicitudes</option>
+                    {% for mod in audit_modules %}
+                    <option value="{{ mod }}">{{ mod }}</option>
+                    {% endfor %}
                 </select>
             </div>
 
@@ -138,11 +136,9 @@
                 <label for="filtro-accion" class="filter-label">Acción:</label>
                 <select id="filtro-accion" class="filter-select">
                     <option value="">Todas</option>
-                    <option value="LOGIN_EXITOSO">LOGIN_EXITOSO</option>
-                    <option value="LOGIN_FALLIDO">LOGIN_FALLIDO</option>
-                    <option value="ACTUALIZAR">ACTUALIZAR</option>
-                    <option value="CREAR">CREAR</option>
-                    <option value="CAMBIO_ESTATUS">CAMBIO_ESTATUS</option>
+                    {% for act in audit_actions %}
+                    <option value="{{ act }}">{{ act }}</option>
+                    {% endfor %}
                 </select>
             </div>
 
@@ -153,17 +149,9 @@
                     <option value="Completado">Completado</option>
                     <option value="Modificado">Modificado</option>
                     <option value="Recibido">Recibido</option>
+                    <option value="En Proceso">En Proceso</option>
+                    <option value="Rechazado">Rechazado</option>
                     <option value="Fallido">Fallido</option>
-                </select>
-            </div>
-
-            <div class="filter-group">
-                <label for="filtro-estado" class="filter-label">Estado:</label>
-                <select id="filtro-estado" class="filter-select">
-                    <option value="">Todos</option>
-                    <option value="Dtto. Capital">Dtto. Capital</option>
-                    <option value="Miranda">Miranda</option>
-                    <option value="Guárico">Guárico</option>
                 </select>
             </div>
         </div>
@@ -496,6 +484,64 @@
         }
     });
 
+    // ─── FILTROS DEPENDIENTES (MÓDULO -> ACCIÓN -> ESTATUS) ───
+    const MODULE_ACTIONS_MAP = {{ module_actions_map | default({}) | tojson }};
+    const ALL_ACTIONS = {{ audit_actions | default([]) | tojson }};
+    const ALL_STATUSES = ['Completado', 'Modificado', 'Recibido', 'En Proceso', 'Rechazado', 'Fallido'];
+
+    function actualizarAccionesPorModulo() {
+        const selectModulo = document.getElementById('filtro-modulo');
+        const selectAccion = document.getElementById('filtro-accion');
+        if (!selectModulo || !selectAccion) return;
+
+        const modVal = selectModulo.value;
+        const prevAccion = selectAccion.value;
+        const acciones = (modVal && MODULE_ACTIONS_MAP[modVal]) ? MODULE_ACTIONS_MAP[modVal] : ALL_ACTIONS;
+
+        selectAccion.innerHTML = '<option value="">Todas</option>';
+        acciones.forEach(act => {
+            const opt = document.createElement('option');
+            opt.value = act;
+            opt.textContent = act;
+            selectAccion.appendChild(opt);
+        });
+        selectAccion.value = acciones.includes(prevAccion) ? prevAccion : '';
+    }
+
+    function actualizarEstatusPorAccion() {
+        const selectAccion = document.getElementById('filtro-accion');
+        const selectEstatus = document.getElementById('filtro-estatus');
+        if (!selectAccion || !selectEstatus) return;
+
+        const actVal = (selectAccion.value || '').toUpperCase();
+        const prevEst = selectEstatus.value;
+        let estatusPermitidos = ALL_STATUSES;
+
+        if (actVal.includes('FALLIDO') || actVal === 'ACTIVACION_TOKEN_INVALIDO') {
+            estatusPermitidos = ['Fallido'];
+        } else if (actVal === 'LOGIN_EXITOSO' || actVal === 'LOGOUT') {
+            estatusPermitidos = ['Completado'];
+        }
+
+        selectEstatus.innerHTML = '<option value="">Todos</option>';
+        estatusPermitidos.forEach(est => {
+            const opt = document.createElement('option');
+            opt.value = est;
+            opt.textContent = est;
+            selectEstatus.appendChild(opt);
+        });
+        selectEstatus.value = estatusPermitidos.includes(prevEst) ? prevEst : '';
+    }
+
+    document.getElementById('filtro-modulo').addEventListener('change', () => {
+        actualizarAccionesPorModulo();
+        actualizarEstatusPorAccion();
+    });
+
+    document.getElementById('filtro-accion').addEventListener('change', () => {
+        actualizarEstatusPorAccion();
+    });
+
     // Recargar automáticamente al cambiar un filtro (siempre vuelve a la página 1)
     document.querySelectorAll('.filter-select').forEach(input => {
         input.addEventListener('change', () => recargarTablaMaestra(1));
@@ -504,6 +550,8 @@
     // Escuchador para el botón "Limpiar" (siempre vuelve a la página 1)
     document.querySelector('.btn-clear').addEventListener('click', () => {
         document.querySelectorAll('.filter-select').forEach(input => input.value = '');
+        actualizarAccionesPorModulo();
+        actualizarEstatusPorAccion();
         recargarTablaMaestra(1);
     });
 
