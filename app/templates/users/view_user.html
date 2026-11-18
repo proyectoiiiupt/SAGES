@@ -1,21 +1,8 @@
 {% extends "layouts/base.html" %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='CSS/users_view.css') }}">
-
-<style>
-    .switch-container { display: flex; align-items: center; gap: 10px; }
-    .switch { position: relative; display: inline-block; width: 46px; height: 24px; margin-bottom: 0;}
-    .switch input { opacity: 0; width: 0; height: 0; }
-    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #d33; transition: .4s; border-radius: 24px; }
-    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
-    input:checked + .slider { background-color: #019577; }
-    input:checked + .slider:before { transform: translateX(22px); }
-    .status-label { font-weight: bold; font-size: 15px; }
-    .text-active { color: #019577; }
-    .text-inactive { color: #d33; }
-</style>
-
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/users_view.css') }}?v={{ range(1000, 9999) | random }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/sweetalert2.min.css') }}">
 {% endblock %}
 
@@ -25,36 +12,84 @@
 
 <div class="view-container">
     
-    <!-- Encabezado -->
-    <div class="view-header">
-        <div class="header-actions">
-            <a href="{{ url_for('users.list_users') }}" class="btn-back">⬅ Volver</a>
-            <h2 class="view-title">Información de Usuario</h2>
+    <!-- 1. Banner Principal Estándar -->
+    <div class="header-card" style="padding: 1.25rem 2rem; margin-bottom: 1.25rem; background: #ffffff; border-radius: 30px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03); display: flex; justify-content: space-between; align-items: center; width: 100%; box-sizing: border-box; border: 1px solid #e2e8f0;">
+        <div class="welcome-text" style="font-size: 1.3rem; font-weight: bold; color: #1e293b; font-style: italic; display: flex; align-items: center; gap: 8px;">
+            Consulta de Información de Usuario 👤
+        </div>
+
+        <div class="date-text date-with-icon" style="color: #64748b; font-size: 0.9rem; font-weight: 500; display: inline-flex; align-items: center; gap: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #007865; flex-shrink: 0;">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span id="current-date"></span>
         </div>
     </div>
 
-    <!-- Pestañas (Tabs) -->
+    <!-- 2. Botón Volver Estandarizado -->
+    <div style="margin-top: 15px; margin-bottom: 20px;">
+        <a href="{{ url_for('users.list_users') }}" class="btn-clear" style="padding: 0.55rem 1.1rem; background-color: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; border-radius: 8px; text-decoration: none; font-size: 0.88rem; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);">
+            &larr; Volver a Gestión de Usuarios
+        </a>
+    </div>
+
+    <!-- 3. Navegación de Pestañas (Tabs) -->
     <div class="tabs-container">
-        <button onclick="showTab('personal')" id="tab-btn-personal" class="tab-btn tab-active">Información Personal</button>
-        <button onclick="showTab('corp')" id="tab-btn-corp" class="tab-btn tab-inactive">
+        <button onclick="showTab('personal')" id="tab-btn-personal" class="tab-btn tab-active" type="button">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            Información Personal
+        </button>
+        <button onclick="showTab('corp')" id="tab-btn-corp" class="tab-btn tab-inactive" type="button">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+            </svg>
             {% if is_corp_role %}Información de Corporación{% else %}Información de Institución{% endif %}
         </button>
     </div>
 
-    <!-- Contenido: Información Personal -->
+    <!-- ========================================================= -->
+    <!-- PESTAÑA 1: INFORMACIÓN PERSONAL                          -->
+    <!-- ========================================================= -->
     <div id="personal" class="tab-content active-content">
         <div class="section-header">
-            <h3>Identificación del Usuario</h3>
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                Identificación y Datos del Usuario
+            </h3>
         </div>
         
         <div class="data-grid-container">
-            <!-- Columna Izquierda: Identificación, Nombres y Apellidos -->
+            <!-- Columna Izquierda: Identificación, Rol y Nombres -->
             <div class="data-column">
-                <h4 class="figma-title-green">Datos del usuario</h4>
+                <h4 class="figma-title-green">Datos del Usuario</h4>
                 <div class="info-grid">
                     <div>
                         <label class="figma-label">Cédula de Identidad</label>
                         <div class="figma-box">{{ user.formatted_id }}</div>
+                    </div>
+                    <div>
+                        <label class="figma-label">Rol en el Sistema</label>
+                        <div class="figma-box">
+                            {% if user.roles_assoc %}
+                                {% set r = user.roles_assoc[0].role.name %}
+                                {% if r == 'super_admin' %}Super Administrador
+                                {% elif r == 'state_admin' %}Administrador Estadal
+                                {% elif r == 'director' or r == 'directora' or r == 'applicant' %}Solicitante
+                                {% else %}{{ r | title }}{% endif %}
+                            {% else %}
+                                Usuario General
+                            {% endif %}
+                        </div>
                     </div>
                     <div>
                         <label class="figma-label">Nombres</label>
@@ -71,9 +106,9 @@
             
             <!-- Columna Derecha: Sección de Contacto -->
             <div class="data-column">
-                <h4 class="figma-title-green">Contacto</h4>
+                <h4 class="figma-title-green">Información de Contacto</h4>
                 <div class="info-grid">
-                    <div>
+                    <div class="full-width">
                         <label class="figma-label">Correo Electrónico</label>
                         <div class="figma-box">{{ user.person.email if user.person and user.person.email else 'N/A' }}</div>
                     </div>
@@ -81,31 +116,26 @@
                         <label class="figma-label">Teléfono Principal</label>
                         <div class="figma-box">{{ user.formatted_phone }}</div>
                     </div>
-                    
-                    <!-- Teléfono secundario dinámico: solo aparece si existe -->
-                    {% if user.formatted_phone_sec and user.formatted_phone_sec != 'N/A' %}
                     <div>
                         <label class="figma-label">Teléfono Secundario</label>
-                        <div class="figma-box">{{ user.formatted_phone_sec }}</div>
+                        <div class="figma-box">{{ user.formatted_phone_sec if user.formatted_phone_sec and user.formatted_phone_sec != 'N/A' else 'No registrado' }}</div>
                     </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
 
         <!-- Controles de Acción (US-15 y US-16) -->
         {% if user.status_id == 6 %}
-        <div style="margin-top: 2rem; display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background-color: #fefce8; border: 1px solid #fef08a; border-radius: 8px;">
+        <div class="pending-activation-banner">
             <div style="display: flex; align-items: center; gap: 12px;">
-                <span style="display: inline-block; width: 12px; height: 12px; background-color: #f59e0b; border-radius: 50%;"></span>
+                <span class="status-pulse-dot"></span>
                 <div>
                     <div style="font-weight: 700; color: #854d0e; font-size: 15px;">Cuenta Pendiente de Activación</div>
                     <div style="font-size: 13px; color: #a16207; margin-top: 2px;">El usuario no ha definido su contraseña mediante el enlace de activación.</div>
                 </div>
             </div>
             <button type="button" class="btn-resend-activation"
-                    onclick="reenviarEnlaceDetalle('{{ user.id }}', '{{ user.person.email if user.person else '' }}', '{{ user.person.first_name if user.person else '' }} {{ user.person.last_name if user.person else '' }}')"
-                    style="display: inline-flex; align-items: center; gap: 8px; background-color: #f59e0b; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; transition: background 0.2s;">
+                    onclick="reenviarEnlaceDetalle('{{ user.id }}', '{{ user.person.email if user.person else '' }}', '{{ user.person.first_name if user.person else '' }} {{ user.person.last_name if user.person else '' }}')">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="23 4 23 10 17 10"></polyline>
                     <polyline points="1 20 1 14 7 14"></polyline>
@@ -115,15 +145,14 @@
             </button>
         </div>
         {% elif current_role == 'super_admin' %}
-        <div style="margin-top: 2rem; display: flex; justify-content: space-between; align-items: center; padding: 0 20px 20px 20px;">
-            
-            <!-- Switch de Estatus (Aparecerá en el extremo izquierdo) -->
-            <div class="switch-container">
+        <div class="user-action-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-top: 1px solid #e2e8f0; background-color: #fafafa; min-height: 64px; box-sizing: border-box;">
+            <!-- Switch de Estatus -->
+            <div class="switch-container" style="display: inline-flex; align-items: center; gap: 12px; margin: 0;">
                 <form id="statusForm" action="{{ url_for('users.toggle_status', user_id=user.id) }}" method="POST" style="display: none;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 </form>
                 
-                <label class="switch">
+                <label class="switch" style="position: relative; display: inline-block; width: 46px; height: 24px; margin-bottom: 0; flex-shrink: 0;">
                     <input type="checkbox" id="status-switch" {% if user.status_id == 1 %}checked{% endif %} data-status="{{ user.status_id }}">
                     <span class="slider"></span>
                 </label>
@@ -133,31 +162,40 @@
                 </span>
             </div>
 
-            <!-- Botón de Edición (Aparecerá en el extremo derecho solo si no es otro Super Admin) -->
+            <!-- Botón de Edición -->
             {% if viewed_role != 'super_admin' or user.id == current_user.id %}
-            <a href="{{ url_for('users.edit_user', user_id=user.id) }}" class="btn-edit" 
-               style="padding: 10px 20px; color: white; background-color: #f0ad4e; text-decoration: none; border-radius: 5px; font-weight: bold; cursor: pointer;">
+            <a href="{{ url_for('users.edit_user', user_id=user.id) }}" class="btn-edit-user">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
                 Editar Información
             </a>
             {% endif %}
         </div>
         {% endif %}
-
     </div>
 
-    <!-- Contenido: Información Corporativa / Institucional -->
+    <!-- ========================================================= -->
+    <!-- PESTAÑA 2: INFORMACIÓN CORPORATIVA / INSTITUCIONAL        -->
+    <!-- ========================================================= -->
     <div id="corp" class="tab-content">
         <div class="section-header">
             <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                </svg>
                 {% if is_corp_role %}
-                    Información de la corporación a la que pertenece el usuario
+                    Información Corporativa (CORPOELEC)
                 {% else %}
-                    Información de la institución a la que pertenece el usuario
+                    Información Institucional (Plantel / Entidad)
                 {% endif %}
             </h3>
         </div>
         
         <div class="data-grid-container">
+            <!-- Columna Izquierda: Datos Institucionales / Corporativos -->
             <div class="data-column">
                 <h4 class="figma-title-green">
                     {% if is_corp_role %}Datos Corporativos{% else %}Datos Institucionales{% endif %}
@@ -165,19 +203,29 @@
                 <div class="info-grid">
                     <div>
                         <label class="figma-label">
-                            {% if is_corp_role %}Rif{% else %}Código de Plantel{% endif %}
+                            {% if is_corp_role %}RIF Corporativo{% else %}Código de Plantel{% endif %}
                         </label>
                         <div class="figma-box">{{ corp_data.id_card if corp_data else 'N/A' }}</div>
                     </div>
                     <div>
+                        <label class="figma-label">
+                            {% if is_corp_role %}Cargo en la Corporación{% else %}Cargo del Usuario{% endif %}
+                        </label>
+                        <div class="figma-box">{{ corp_data.position if corp_data else 'N/A' }}</div>
+                    </div>
+                    <div class="full-width">
                         <label class="figma-label">
                             {% if is_corp_role %}Nombre de Corporación{% else %}Nombre o Razón Social{% endif %}
                         </label>
                         <div class="figma-box">{{ corp_data.name if corp_data else 'N/A' }}</div>
                     </div>
 
-                    <!-- Si es Admin Estadal o Super Admin NO lleva tipo, alcance ni dependencia -->
-                    {% if not is_corp_role %}
+                    {% if is_corp_role %}
+                        <div class="full-width">
+                            <label class="figma-label">Sede Asignada</label>
+                            <div class="figma-box">{{ corp_data.sede if corp_data and corp_data.sede else 'N/A' }}</div>
+                        </div>
+                    {% else %}
                         <div>
                             <label class="figma-label">Tipo de Institución</label>
                             <div class="figma-box">{{ corp_data.type if corp_data else 'N/A' }}</div>
@@ -186,23 +234,9 @@
                             <label class="figma-label">Alcance</label>
                             <div class="figma-box">{{ corp_data.sector if corp_data else 'N/A' }}</div>
                         </div>
-                        <div>
+                        <div class="full-width">
                             <label class="figma-label">Dependencia</label>
                             <div class="figma-box">{{ corp_data.dependency if corp_data else 'N/A' }}</div>
-                        </div>
-                    {% endif %}
-
-                    <div>
-                        <label class="figma-label">
-                            {% if is_corp_role %}Cargo en la Corporación{% else %}Cargo del Usuario{% endif %}
-                        </label>
-                        <div class="figma-box">{{ corp_data.position if corp_data else 'N/A' }}</div>
-                    </div>
-
-                    {% if is_corp_role %}
-                        <div>
-                            <label class="figma-label">Sede</label>
-                            <div class="figma-box">{{ corp_data.sede if corp_data and corp_data.sede else 'N/A' }}</div>
                         </div>
                     {% endif %}
                 </div>
@@ -210,11 +244,12 @@
             
             <div class="vertical-divider"></div>
             
+            <!-- Columna Derecha: Contacto y Ubicación Territorial -->
             <div class="data-column">
-                <h4 class="figma-title-green">Contacto y Ubicación</h4>
+                <h4 class="figma-title-green">Contacto y Ubicación Territorial</h4>
                 <div class="info-grid">
                     <div>
-                        <label class="figma-label">Teléfono Principal</label>
+                        <label class="figma-label">Teléfono Institucional</label>
                         <div class="figma-box">{{ corp_data.phone_main if corp_data else 'N/A' }}</div>
                     </div>
                     <div>
@@ -229,25 +264,68 @@
                         <label class="figma-label">Parroquia</label>
                         <div class="figma-box">{{ corp_data.parish if corp_data else 'N/A' }}</div>
                     </div>
-                    <div>
-                        <label class="figma-label">Ciudad</label>
+                    <div class="full-width">
+                        <label class="figma-label">Ciudad / Localidad</label>
                         <div class="figma-box">{{ corp_data.city if corp_data else 'N/A' }}</div>
                     </div>
                     <div class="full-width">
                         <label class="figma-label">
-                            {% if is_corp_role %}Dirección de Sede{% else %}Dirección{% endif %}
+                            {% if is_corp_role %}Dirección de Sede{% else %}Dirección Institucional{% endif %}
                         </label>
                         <div class="figma-box">{{ corp_data.address if corp_data else 'N/A' }}</div>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- Controles de Acción (US-15 y US-16) -->
+        {% if user.status_id == 6 %}
+        <div class="pending-activation-banner">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span class="status-pulse-dot"></span>
+                <div>
+                    <div style="font-weight: 700; color: #854d0e; font-size: 15px;">Cuenta Pendiente de Activación</div>
+                    <div style="font-size: 13px; color: #a16207; margin-top: 2px;">El usuario no ha definido su contraseña mediante el enlace de activación.</div>
+                </div>
+            </div>
+            <button type="button" class="btn-resend-activation"
+                    onclick="reenviarEnlaceDetalle('{{ user.id }}', '{{ user.person.email if user.person else '' }}', '{{ user.person.first_name if user.person else '' }} {{ user.person.last_name if user.person else '' }}')">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <polyline points="1 20 1 14 7 14"></polyline>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+                Reenviar Enlace de Activación
+            </button>
+        </div>
+        {% elif current_role == 'super_admin' %}
+        <div class="user-action-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-top: 1px solid #e2e8f0; background-color: #fafafa; min-height: 64px; box-sizing: border-box;">
+            <div class="switch-container" style="display: inline-flex; align-items: center; gap: 12px; margin: 0;">
+                <label class="switch" style="position: relative; display: inline-block; width: 46px; height: 24px; margin-bottom: 0; flex-shrink: 0;">
+                    <input type="checkbox" id="status-switch-corp" {% if user.status_id == 1 %}checked{% endif %} data-status="{{ user.status_id }}">
+                    <span class="slider"></span>
+                </label>
+                <span class="status-label {{ 'text-active' if user.status_id == 1 else 'text-inactive' }}">
+                    {{ 'Perfil Activo' if user.status_id == 1 else 'Perfil Inactivo' }}
+                </span>
+            </div>
+
+            {% if viewed_role != 'super_admin' or user.id == current_user.id %}
+            <a href="{{ url_for('users.edit_user', user_id=user.id) }}" class="btn-edit-user">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                Editar Información
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-
 <script src="{{ url_for('static', filename='JS/sweetalert2.all.min.js') }}"></script>
 
 <script>
@@ -258,23 +336,48 @@ function showTab(tabId) {
     });
     
     const activeTab = document.getElementById(tabId);
-    activeTab.style.display = 'block';
-    activeTab.classList.add('active-content');
+    if (activeTab) {
+        activeTab.style.display = 'block';
+        activeTab.classList.add('active-content');
+    }
     
-    let btnPersonal = document.getElementById('tab-btn-personal');
-    let btnCorp = document.getElementById('tab-btn-corp');
+    const btnPersonal = document.getElementById('tab-btn-personal');
+    const btnCorp = document.getElementById('tab-btn-corp');
     
-    if(tabId === 'personal') {
-        btnPersonal.className = 'tab-btn tab-active';
-        btnCorp.className = 'tab-btn tab-inactive';
+    if (tabId === 'personal') {
+        if (btnPersonal) {
+            btnPersonal.classList.add('tab-active');
+            btnPersonal.classList.remove('tab-inactive');
+        }
+        if (btnCorp) {
+            btnCorp.classList.add('tab-inactive');
+            btnCorp.classList.remove('tab-active');
+        }
     } else {
-        btnCorp.className = 'tab-btn tab-active';
-        btnPersonal.className = 'tab-btn tab-inactive';
+        if (btnCorp) {
+            btnCorp.classList.add('tab-active');
+            btnCorp.classList.remove('tab-inactive');
+        }
+        if (btnPersonal) {
+            btnPersonal.classList.add('tab-inactive');
+            btnPersonal.classList.remove('tab-active');
+        }
     }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // 1. Mostrar mensajes Flash con SweetAlert2
+    // 1. Fecha dinámica en el Banner Principal
+    const dateSpan = document.getElementById('current-date');
+    if (dateSpan) {
+        if (typeof formatCurrentDate === 'function') {
+            formatCurrentDate(dateSpan, 'full-date');
+        } else {
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            dateSpan.textContent = new Date().toLocaleDateString('es-VE', options);
+        }
+    }
+
+    // 2. Mostrar mensajes Flash con SweetAlert2
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
@@ -296,50 +399,51 @@ document.addEventListener('DOMContentLoaded', function() {
                     title: titleText,
                     text: '{{ message }}',
                     icon: iconType,
-                    confirmButtonColor: '#019577',
+                    confirmButtonColor: '#007865',
                     confirmButtonText: 'Aceptar'
                 });
             {% endfor %}
         {% endif %}
     {% endwith %}
 
-    // 2. Lógica del Switch US-16
-    const statusSwitch = document.getElementById('status-switch');
-    if (statusSwitch) {
-        statusSwitch.addEventListener('change', function(e) {
-            e.preventDefault(); 
-            
-            // Revertimos visualmente el switch hasta que el usuario confirme
-            const wasChecked = !this.checked; 
-            this.checked = wasChecked; 
-            
-            const currentStatus = this.getAttribute('data-status');
-            const isActivating = currentStatus != 1; // 1 = Activo
+    // 3. Lógica del Switch US-16 (para ambos switches si existen)
+    const switches = [document.getElementById('status-switch'), document.getElementById('status-switch-corp')];
+    switches.forEach(statusSwitch => {
+        if (statusSwitch) {
+            statusSwitch.addEventListener('change', function(e) {
+                e.preventDefault(); 
+                
+                // Revertimos visualmente el switch hasta que el usuario confirme
+                const wasChecked = !this.checked; 
+                this.checked = wasChecked; 
+                
+                const currentStatus = this.getAttribute('data-status');
+                const isActivating = currentStatus != 1; // 1 = Activo
 
-            const actionText = isActivating ? 'activar' : 'desactivar';
-            const warningText = isActivating 
-                ? 'El usuario recuperará su acceso al sistema y sus funciones.' 
-                : 'El usuario perderá el acceso al sistema de forma inmediata.';
-            const confirmColor = isActivating ? '#019577' : '#d33';
+                const actionText = isActivating ? 'activar' : 'desactivar';
+                const warningText = isActivating 
+                    ? 'El usuario recuperará su acceso al sistema y sus funciones.' 
+                    : 'El usuario perderá el acceso al sistema de forma inmediata.';
+                const confirmColor = isActivating ? '#007865' : '#dc2626';
 
-            Swal.fire({
-                title: `¿Seguro que deseas ${actionText} este perfil?`,
-                text: warningText,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: confirmColor,
-                cancelButtonColor: '#6c757d',
-                confirmButtonText: `Sí, ${actionText}`,
-                cancelButtonText: 'Cancelar'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Si acepta, ejecutamos el cambio visual y enviamos el formulario
-                    this.checked = !wasChecked; 
-                    document.getElementById('statusForm').submit();
-                }
+                Swal.fire({
+                    title: `¿Seguro que deseas ${actionText} este perfil?`,
+                    text: warningText,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: confirmColor,
+                    cancelButtonColor: '#64748b',
+                    confirmButtonText: `Sí, ${actionText}`,
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        this.checked = !wasChecked; 
+                        document.getElementById('statusForm').submit();
+                    }
+                });
             });
-        });
-    }
+        }
+    });
 });
 
 function reenviarEnlaceDetalle(userId, email, fullName) {
@@ -353,8 +457,8 @@ function reenviarEnlaceDetalle(userId, email, fullName) {
         html: `Se regenerará un nuevo enlace válido por 48 horas y se enviará al correo:<br><strong>${email || 'registrado'}</strong> (${fullName.trim()})`,
         icon: 'question',
         showCancelButton: true,
-        confirmButtonColor: '#1c3d73',
-        cancelButtonColor: '#6c757d',
+        confirmButtonColor: '#007865',
+        cancelButtonColor: '#64748b',
         confirmButtonText: 'Sí, reenviar',
         cancelButtonText: 'Cancelar',
         showLoaderOnConfirm: true,
@@ -388,7 +492,7 @@ function reenviarEnlaceDetalle(userId, email, fullName) {
                 icon: 'success',
                 title: '¡Enlace enviado!',
                 text: result.value.message || 'El nuevo enlace ha sido enviado con éxito.',
-                confirmButtonColor: '#1c3d73'
+                confirmButtonColor: '#007865'
             });
         }
     });

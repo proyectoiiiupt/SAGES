@@ -1,181 +1,202 @@
+/* ==========================================================================
+   SAGES - Consulta y Edición de Usuarios (users_view.css)
+   Estandarizado según el sistema visual institucional CORPOELEC / UREE
+   ========================================================================== */
 
+/* Contenedor Principal */
 .view-container {
-    padding: 2rem;
-    background-color: #e2e8f0;
-    
-    display: block !important; 
-    height: auto !important;
-    min-height: auto !important; 
-    max-height: none !important;
-    margin: 0 !important;
+    padding: 1.5rem;
+    background-color: #f8fafc;
+    min-height: 100vh;
+    width: 100%;
     box-sizing: border-box;
-    
 }
 
-
-.view-header {
-    background: #e2e8f0;
-    margin-bottom: 0.5rem !important; 
-    width: 100% !important;
-    margin-top: 0 !important;
-    padding: 0 !important;
-}
-
-
-.view-header-flex {
+/* ── Tarjeta de Cabecera Estándar (.header-card) ── */
+.header-card {
+    padding: 1.25rem 2rem !important;
+    margin-bottom: 1.25rem !important;
+    background: #ffffff !important;
+    border-radius: 30px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
     display: flex !important;
-    justify-content: space-between !important; 
+    justify-content: space-between !important;
     align-items: center !important;
     width: 100% !important;
-    gap: 15px !important;
+    box-sizing: border-box !important;
+    border: 1px solid #e2e8f0 !important;
 }
 
-.header-title-area {
+.welcome-text {
+    font-size: 1.3rem !important;
+    font-weight: bold !important;
+    color: #1e293b !important;
+    font-style: italic !important;
     display: flex !important;
     align-items: center !important;
-    gap: 15px !important; 
+    gap: 8px !important;
 }
 
+.date-text {
+    color: #94a3b8 !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+}
 
+.date-with-icon {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+.date-with-icon svg {
+    color: #007865 !important;
+    flex-shrink: 0 !important;
+}
+
+/* ── Botones de Navegación Estándar ── */
+.btn-clear,
 .btn-back {
-    text-decoration: none;
-    color: #1e293b;
-    background: #cbd5e1;
-    padding: 5px 15px;
-    border-radius: 20px;
-    font-weight: bold;
-    font-size: 0.9rem;
-    transition: background 0.2s;
+    padding: 0.55rem 1.1rem !important;
+    background-color: #f1f5f9 !important;
+    color: #475569 !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    text-decoration: none !important;
+    font-size: 0.88rem !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+.btn-clear:hover,
+.btn-back:hover {
+    background-color: #e2e8f0 !important;
+    color: #1e293b !important;
+    transform: translateY(-1px) !important;
+}
+
+/* Header para compatibilidad con edit_user */
+.view-header {
+    margin-bottom: 1rem;
+    width: 100%;
+}
+
+.header-actions {
     display: flex;
     align-items: center;
-    gap: 5px;
-}
-
-.btn-back:hover {
-    background: #94a3b8;
+    gap: 15px;
 }
 
 .view-title {
     margin: 0;
     color: #1e293b;
     font-style: italic;
-    font-size: 1.5rem; 
+    font-size: 1.4rem;
+    font-weight: 700;
 }
 
-
-.header-edit-area {
-    
-    display: inline-block !important; 
-    width: auto !important; 
-    height: auto !important; 
-    background-color: transparent !important; 
-    border: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    box-shadow: none !important;
-    order: 1; 
-}
-
-
-.btn-edit {
-    background-color: #f59e0b !important; 
-    color: white !important;
-    padding: 10px 20px !important;
-    border-radius: 8px !important;
-    text-decoration: none !important;
-    font-weight: 600 !important;
-    font-size: 14px !important;
-    transition: background-color 0.3s ease, transform 0.2s ease;
-    border: none !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 8px !important;
-    width: auto !important;
-}
-
-.btn-edit:hover {
-    background-color: #d97706 !important; 
-    color: white !important;
-    transform: translateY(-2px) !important; 
-}
-
-.btn-edit:active {
-    transform: translateY(0px) !important; 
-}
-
-
-
+/* ── Navegación de Pestañas (Tabs) ── */
 .tabs-container {
-    display: flex !important;
-    gap: 2rem;
-    margin-bottom: 0.5rem !important; 
-    border-bottom: 2px solid #cbd5e1;
-    padding-bottom: 5px;
-    
-    margin-top: 0 !important;
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1.25rem;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 0;
 }
 
 .tab-btn {
     border: none;
     background: transparent;
-    font-weight: bold;
+    font-weight: 700;
     font-size: 1rem;
     cursor: pointer;
-    padding-bottom: 5px;
-    transition: color 0.2s, border-bottom 0.2s;
-}
-
-.tab-active {
-    color: #0284c7;
-    border-bottom: 3px solid #0284c7;
-}
-
-.tab-inactive {
+    padding: 10px 14px 12px 14px;
     color: #64748b;
-    border-bottom: none;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
 }
 
-/* Contenido de las Pestañas */
+.tab-btn:hover {
+    color: #0f766e;
+}
+
+.tab-btn.tab-active {
+    color: #007865;
+    border-bottom-color: #007865;
+}
+
+.tab-btn.tab-inactive {
+    color: #64748b;
+    border-bottom-color: transparent;
+}
+
+/* ── Contenido de las Pestañas (Tarjeta Principal) ── */
 .tab-content {
     display: none;
-    background: #fff;
-    border-radius: 10px;
-    border: 2px solid #cbd5e1;
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
     overflow: hidden;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    
-    margin-top: 0 !important; 
-    padding-top: 0 !important;
-    height: auto !important;
-    min-height: auto !important; 
-    max-height: none !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+    animation: fadeIn 0.2s ease-in-out;
 }
 
-.active-content {
+.tab-content.active-content {
     display: block;
 }
 
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Cabecera de la Sección (.section-header) ── */
 .section-header {
-    background: #0f766e;
-    padding: 10px 20px;
-    border-left: 5px solid #00e676;
+    background: linear-gradient(135deg, #0f766e 0%, #019577 100%);
+    padding: 14px 24px;
+    border-left: 6px solid #00e676;
+    display: flex;
+    align-items: center;
 }
 
 .section-header h3 {
-    color: white;
+    color: #ffffff;
     margin: 0;
-    font-size: 1.1rem;
+    font-size: 1.15rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
-/* Grilla de Datos */
+.section-header h3 svg {
+    flex-shrink: 0;
+}
+
+/* ── Grilla y Distribución de Datos ── */
 .data-grid-container {
-    padding: 20px;
+    padding: 24px;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 40px;
+    gap: 36px;
     position: relative;
-    
-    margin-top: 0 !important;
+    box-sizing: border-box;
+}
+
+.vertical-divider {
+    position: absolute;
+    left: 50%;
+    top: 24px;
+    bottom: 24px;
+    width: 1px;
+    background-color: #e2e8f0;
 }
 
 .data-column {
@@ -183,70 +204,134 @@
     flex-direction: column;
 }
 
+.figma-title-green {
+    color: #007865;
+    font-weight: 700;
+    font-size: 0.98rem;
+    margin-bottom: 1.1rem;
+    margin-top: 0;
+    padding-bottom: 6px;
+    border-bottom: 1.5px solid #e2e8f0;
+}
+
 .info-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 15px;
+    gap: 16px;
 }
 
 .full-width {
     grid-column: 1 / -1;
 }
 
-.vertical-divider {
-    position: absolute;
-    left: 50%;
-    top: 20px;
-    bottom: 20px;
-    width: 1px;
-    background-color: #1e293b;
-}
-
-/* Estilos de Cajas de Figma */
+/* ── Etiquetas y Cajas de Información ── */
 .figma-label {
-    font-size: 0.8rem;
-    font-weight: bold;
-    color: #1e293b;
-    margin-bottom: 0.3rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #475569;
+    margin-bottom: 0.35rem;
     display: block;
 }
 
 .figma-box {
-    border: 1px solid #94a3b8;
-    border-radius: 4px;
-    padding: 0.4rem 0.6rem;
-    font-size: 0.85rem;
-    color: #333;
-    
-    background: transparent !important;
-    min-height: 1.2rem;
+    border: 1px solid #cbd5e1;
+    background-color: #f8fafc;
+    border-radius: 6px;
+    padding: 0.55rem 0.85rem;
+    font-size: 0.92rem;
+    font-weight: 500;
+    color: #0f172a;
+    min-height: 2.5rem;
     display: flex;
     align-items: center;
+    box-sizing: border-box;
+    word-break: break-word;
 }
 
-.figma-title-green {
-    color: #16a34a;
-    font-weight: bold;
-    font-size: 0.95rem;
-    margin-bottom: 1rem;
-    margin-top: 0;
+/* ── Barra de Acciones del Usuario (Footer de Tarjeta) ── */
+.user-action-footer {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 20px 24px !important;
+    border-top: 1px solid #e2e8f0 !important;
+    background-color: #fafafa !important;
+    min-height: 64px !important;
+    box-sizing: border-box !important;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
 }
 
-/* Sección de Estado y Switch Toggle */
-.profile-status-section {
-    padding: 10px 40px 30px 40px;
+.btn-edit-user,
+.btn-edit {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.65rem 1.4rem;
+    background-color: #f59e0b;
+    color: #ffffff !important;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-edit-user:hover,
+.btn-edit:hover {
+    background-color: #d97706;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+    transform: translateY(-1px);
+}
+
+/* ── Banner de Activación Pendiente ── */
+.pending-activation-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    background-color: #fffbeb;
+    border-top: 1px solid #fef08a;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.status-pulse-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    background-color: #f59e0b;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.btn-resend-activation {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #f59e0b;
+    color: #ffffff;
+    border: none;
+    padding: 9px 18px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-resend-activation:hover {
+    background-color: #d97706;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+}
+
+/* ── Switch de Activación/Desactivación (US-16) ── */
+.switch-container {
     display: flex;
     align-items: center;
-}
-
-.status-title {
-    font-weight: 800;
-    font-size: 1.1rem;
-    color: #000;
-}
-
-.inline-form {
-    display: inline;
+    gap: 10px;
 }
 
 .switch {
@@ -254,8 +339,7 @@
     display: inline-block;
     width: 46px;
     height: 24px;
-    vertical-align: middle;
-    margin-left: 10px;
+    margin-bottom: 0;
 }
 
 .switch input {
@@ -271,9 +355,9 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #ccc;
+    background-color: #cbd5e1;
     transition: .4s;
-    border-radius: 34px;
+    border-radius: 24px;
 }
 
 .slider:before {
@@ -289,60 +373,89 @@
 }
 
 input:checked + .slider {
-    background-color: #00cc99;
+    background-color: #019577;
 }
 
 input:checked + .slider:before {
     transform: translateX(22px);
 }
 
-input:disabled + .slider {
-    cursor: not-allowed;
-    opacity: 0.6;
+.status-label {
+    font-weight: bold;
+    font-size: 14px;
 }
 
-/* Modal de Confirmación */
-.modal-overlay {
-    display: none; 
-    position: fixed; 
-    top: 0; 
-    left: 0; 
-    width: 100%; 
-    height: 100%; 
-    background: rgba(15, 23, 42, 0.6); 
-    z-index: 1000; 
-    justify-content: center; 
-    align-items: center;
-    backdrop-filter: blur(3px);
+.text-active {
+    color: #019577;
 }
 
-.modal-content {
-    background: white; 
-    padding: 2rem; 
-    border-radius: 16px; 
-    max-width: 420px; 
-    width: 90%; 
-    text-align: center; 
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+.text-inactive {
+    color: #d33;
 }
 
-#modal-title {
-    margin-top: 0;
+/* ── Compatibilidad con Formulario de Edición (edit_user.html) ── */
+.figma-input {
+    border: 1px solid #94a3b8;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
     color: #1e293b;
-    font-size: 1.3rem;
+    background: #ffffff;
+    width: 100%;
+    box-sizing: border-box;
+    font-family: inherit;
+    transition: border-color 0.2s ease;
 }
 
-#modal-text {
+.figma-input:focus {
+    border-color: #007865;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 120, 101, 0.15);
+}
+
+.locked-box {
+    background-color: #f1f5f9 !important;
+    color: #64748b !important;
+    border-color: #cbd5e1 !important;
+    cursor: not-allowed !important;
+    outline: none !important;
+}
+
+.disabled-input {
+    background-color: transparent !important;
     color: #64748b;
-    margin-bottom: 1.5rem;
-    font-size: 0.95rem;
-    line-height: 1.5;
+    border-color: #cbd5e1;
+    cursor: not-allowed;
 }
 
-.modal-actions {
+.form-actions-container {
     display: flex;
-    justify-content: center;
-    gap: 1rem;
+    align-items: center;
+    gap: 20px;
+    margin-top: 1.5rem;
+    padding: 16px 20px;
+}
+
+.btn-actualizar {
+    background-color: #007865;
+    color: white;
+    padding: 10px 22px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.btn-actualizar:hover {
+    background-color: #005a4c;
+    box-shadow: 0 4px 12px rgba(0, 120, 101, 0.25);
+    transform: translateY(-1px);
 }
 
 .btn-cancel {
@@ -354,8 +467,7 @@ input:disabled + .slider {
     cursor: pointer;
     font-weight: bold;
     transition: 0.2s;
-    /* Corrección para que el enlace se vea como botón */
-    display: flex;
+    display: inline-flex;
     align-items: center;
     text-decoration: none;
 }
@@ -364,96 +476,32 @@ input:disabled + .slider {
     background: #f1f5f9;
 }
 
-.btn-confirm {
-    padding: 0.6rem 1.2rem;
-    border: none;
-    color: white;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: bold;
-    transition: 0.2s;
-}
+/* ── Adaptabilidad Móvil (Responsive) ── */
+@media (max-width: 868px) {
+    .data-grid-container {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
 
+    .vertical-divider {
+        display: none;
+    }
 
-.figma-input {
-    border: 1px solid #94a3b8;
-    border-radius: 4px;
-    padding: 0.4rem 0.6rem;
-    font-size: 0.85rem;
-    color: #333;
-    background: #fff;
-    width: 100%;
-    box-sizing: border-box; /* Asegura que el padding no estire el campo */
-    font-family: inherit; /* Usa la fuente del sistema */
-}
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
 
-/* Estilo para campos deshabilitados (No Editables) */
-.disabled-input {
-   
-    background-color: transparent !important;
-    color: #64748b; 
-    border-color: #cbd5e1; 
-    cursor: not-allowed;
-}
+    .header-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        border-radius: 18px;
+        padding: 1rem 1.25rem;
+    }
 
-
-.form-actions-container {
-    display: flex !important;
-    align-items: center !important;
-    gap: 20px !important; 
-}
-
-
-.btn-actualizar {
-    background-color: #f59e0b !important; 
-    color: white !important;
-    padding: 10px 20px !important;
-    border-radius: 8px !important;
-    text-decoration: none !important;
-    font-weight: 600 !important;
-    font-size: 14px !important;
-    transition: background-color 0.3s ease, transform 0.2s ease;
-    border: none !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 8px !important;
-    cursor: pointer;
-}
-
-
-.btn-actualizar::before {
-    content: "✎"; 
-    font-size: 1.2rem;
-    margin-right: 8px;
-}
-
-.btn-actualizar:hover {
-    background-color: #d97706 !important; 
-    color: white !important;
-    transform: translateY(-2px) !important; 
-}
-
-.btn-actualizar:active {
-    transform: translateY(0px) !important; 
-}
-
-
-.locked-box {
-   
-    background-color: #f1f5f9 !important; 
-    
-    
-    color: #64748b !important; 
-    border-color: #cbd5e1 !important; 
-
-   
-    cursor: not-allowed !important; 
-    
-
-    outline: none !important;
-}
-
-
-.locked-box[readonly] {
-    opacity: 1; 
+    .user-action-footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 14px;
+    }
 }
