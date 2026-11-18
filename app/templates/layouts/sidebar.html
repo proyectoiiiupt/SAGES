@@ -44,8 +44,8 @@
         </li>
         {% endif %}
 
-        {# ── PANEL ADMINISTRATIVO ─────────────────────────────────── #}
-        {% if 'view_admin_panel' in user_permissions %}
+        {# ── PANEL ADMINISTRATIVO (exclusivo Super Administrador) ─────── #}
+        {% if user_role == 'super_admin' and 'view_admin_panel' in user_permissions %}
         <li>
             <a href="{{ url_for('dashboard.index') }}" class="{{ active_if(['dashboard.index', 'dashboard.audit_view', 'dashboard.map_fullscreen_view']) }}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"

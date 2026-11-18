@@ -56,8 +56,8 @@
 
 <div class="dashboard-grid">
 
-    {# Panel Administrativo #}
-    {% if 'view_admin_panel' in user_permissions %}
+    {# Panel Administrativo (exclusivo Super Administrador) #}
+    {% if user_role == 'super_admin' and 'view_admin_panel' in user_permissions %}
     <a href="{{ url_for('dashboard.index') }}" class="card card-blue">
         <div class="card-header">
             <div class="card-title">Panel Administrativo</div>

@@ -17,7 +17,7 @@ from app.models import Request, Training
 @dashboard_bp.route('/', methods=['GET'], strict_slashes=False)
 @dashboard_bp.route('', methods=['GET'], strict_slashes=False)
 @login_required
-@role_required('super_admin', 'state_admin')
+@role_required('super_admin')
 @check_permissions('view_admin_panel')
 def index():
     """
@@ -49,7 +49,7 @@ def index():
 
 @dashboard_bp.route('/registro-auditoria', methods=['GET'])
 @login_required
-@role_required('super_admin', 'state_admin')
+@role_required('super_admin')
 @check_permissions('view_admin_panel')
 def audit_view():
     """

@@ -229,13 +229,42 @@ def get_dashboard_indicators(user):
 
 def get_audit_logs(limit=None):
     """
-    Estructura de datos simulada para maquetar la vista de bitácora (US-25).
-    Pendiente conectar con la BD en la historia de backend.
+    Consulta los registros recientes de bitácora (sages.binnacle) usando la misma
+    mecánica y formato horario de /binnacle/api/logs.
     """
-    # Dejamos la lista vacía para limpiar la tabla en el frontend
-    mock_logs = []
-    
-    return mock_logs[:limit] if limit else mock_logs
+    try:
+        from app.models.binnacle_model import Binnacle
+
+        query = (
+            Binnacle.query
+            .options(joinedload(Binnacle.user).joinedload(User.person))
+            .order_by(Binnacle.created_at.desc())
+        )
+        if limit:
+            query = query.limit(limit)
+
+        rows = query.all()
+        formatted_logs = []
+        for r in rows:
+            dt_vzla = to_caracas_time(r.created_at)
+            status_label = (
+                "Fallido"
+                if "FALLIDO" in (r.action_type or "").upper()
+                else (r.status or "Completado")
+            )
+            formatted_logs.append({
+                "id": r.id,
+                "date": dt_vzla.strftime("%d/%m/%Y %I:%M %p") if dt_vzla else "",
+                "user": getattr(r.user, 'full_name', 'No registrado') if r.user else "No registrado",
+                "module": r.module,
+                "action": r.action_type,
+                "desc": (r.description[:45] + "...") if r.description and len(r.description) > 45 else (r.description or ""),
+                "status": status_label,
+            })
+        return formatted_logs
+    except Exception as e:
+        print(f"Error al consultar registros de auditoría para el dashboard: {e}")
+        return []
 
 # ─────────────────────────────────────────────────────────────
 # BLOQUE MAPA GEOGRÁFICO NACIONAL (Exclusivo super_admin)
