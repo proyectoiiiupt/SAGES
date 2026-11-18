@@ -42,6 +42,20 @@ def _get_actor_name(user) -> str:
     return getattr(user, 'user_name', 'Administrador')
 
 
+_ROLE_LABELS = {
+    'super_admin': 'Super Administrador',
+    'state_admin': 'Administrador Estadal',
+    'applicant': 'Solicitante',
+}
+
+
+def _get_role_label(role_name: str) -> str:
+    """Convierte la clave interna de rol en BD a una etiqueta legible."""
+    if not role_name:
+        return 'Rol'
+    return _ROLE_LABELS.get(role_name.lower(), role_name)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # VISTA PRINCIPAL — Panel de Configuraciones
 # ─────────────────────────────────────────────────────────────────────────────
@@ -124,7 +138,12 @@ def update_corporate():
             ctx = {
                 "admin_name": admin_name,
                 "company_name": company_name,
-                "updated_fields": "Identidad visual y parámetros institucionales"
+                "updated_fields": "Identidad visual y parámetros institucionales",
+                "_display": [
+                    ("Institución / Empresa", company_name),
+                    ("Cambios Aplicados", "Identidad visual y parámetros institucionales"),
+                    ("Actualizado por", admin_name),
+                ],
             }
             NotificationService.notify_role(
                 role_name="state_admin",
@@ -194,7 +213,12 @@ def new_place():
             ctx = {
                 "admin_name": admin_name,
                 "place_name": new.name,
-                "state_name": state_name
+                "state_name": state_name,
+                "_display": [
+                    ("Sede Operativa", new.name),
+                    ("Estado", state_name),
+                    ("Registrado por", admin_name),
+                ],
             }
             if state_id:
                 NotificationService.notify_role(
@@ -260,7 +284,11 @@ def edit_place(place_id):
                 event=NotificationEvent.CONFIG_PLACE_UPDATED,
                 context={
                     "place_name": updated.name,
-                    "admin_name": admin_name
+                    "admin_name": admin_name,
+                    "_display": [
+                        ("Sede Operativa", updated.name),
+                        ("Actualizado por", admin_name),
+                    ],
                 },
                 exclude_user_id=current_user.id
             )
@@ -322,7 +350,13 @@ def toggle_status(place_id):
                     "place_name": place.name,
                     "state_name": state_name,
                     "action_label": action_lbl,
-                    "admin_name": admin_name
+                    "admin_name": admin_name,
+                    "_display": [
+                        ("Sede Operativa", place.name),
+                        ("Estado", state_name),
+                        ("Estatus / Acción", action_lbl.capitalize()),
+                        ("Actualizado por", admin_name),
+                    ],
                 }
                 if state_id:
                     NotificationService.notify_role(
@@ -473,10 +507,16 @@ def update_role_permissions_endpoint(role_id):
                     summary_parts.append(f"-{removed_count} revocados")
                 changes_summary = ", ".join(summary_parts)
 
+                role_label = _get_role_label(result["role_name"])
                 ctx = {
                     "admin_name": admin_name,
-                    "role_name": result["role_name"],
-                    "changes_summary": changes_summary
+                    "role_name": role_label,
+                    "changes_summary": changes_summary,
+                    "_display": [
+                        ("Rol Afectado", role_label),
+                        ("Resumen de Cambios", changes_summary),
+                        ("Actualizado por", admin_name),
+                    ],
                 }
                 # 1. Notificar a los usuarios activos que poseen el rol modificado
                 NotificationService.notify_role(

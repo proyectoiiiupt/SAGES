@@ -491,7 +491,11 @@ def new_module():
                 admin_name = _get_actor_name(current_user)
                 ctx = {
                     "module_name": new_mod.name,
-                    "admin_name": admin_name
+                    "admin_name": admin_name,
+                    "_display": [
+                        ("Módulo Formativo", new_mod.name),
+                        ("Registrado por", admin_name),
+                    ],
                 }
                 for target_role in ("state_admin", "applicant", "super_admin"):
                     NotificationService.notify_role(
@@ -621,7 +625,12 @@ def new_training():
                     context={
                         "topic_name": new_training_obj.name,
                         "module_name": mod_name,
-                        "admin_name": admin_name
+                        "admin_name": admin_name,
+                        "_display": [
+                            ("Taller Formativo", new_training_obj.name),
+                            ("Módulo Formativo", mod_name),
+                            ("Registrado por", admin_name),
+                        ],
                     },
                     exclude_user_id=current_user.id,
                     redirect_url="/trainings/",
@@ -1043,7 +1052,13 @@ def bulk_upload_process():
                     "admin_name": admin_name,
                     "new_modules": 0,
                     "new_topics": inserted_count,
-                    "updated_topics": 0
+                    "updated_topics": 0,
+                    "_display": [
+                        ("Importado por", admin_name),
+                        ("Módulos Nuevos", 0),
+                        ("Talleres Nuevos", inserted_count),
+                        ("Talleres Actualizados", 0),
+                    ],
                 }
                 for target_role in ("state_admin", "super_admin"):
                     NotificationService.notify_role(
@@ -1199,7 +1214,13 @@ def toggle_training_status(training_id: int):
                     "module_name": mod_name,
                     "action_label": action_lbl,
                     "admin_name": admin_name,
-                    "impact_note": ""
+                    "impact_note": "",
+                    "_display": [
+                        ("Taller Formativo", training.name),
+                        ("Módulo Formativo", mod_name),
+                        ("Estado / Acción", action_lbl.capitalize()),
+                        ("Actualizado por", admin_name),
+                    ],
                 },
                 exclude_user_id=current_user.id,
                 severity_override=sev,
@@ -1235,7 +1256,14 @@ def toggle_training_status(training_id: int):
                                 "module_name": mod_name,
                                 "action_label": "suspendido temporalmente del catálogo",
                                 "admin_name": admin_name,
-                                "impact_note": f" Esto puede requerir reprogramación o ajuste en su solicitud activa ({r.request_code})."
+                                "impact_note": f" Esto puede requerir reprogramación o ajuste en su solicitud activa ({r.request_code}).",
+                                "_display": [
+                                    ("Taller Formativo", training.name),
+                                    ("Módulo Formativo", mod_name),
+                                    ("Estado / Acción", "Suspendido temporalmente del catálogo"),
+                                    ("Solicitud Afectada", r.request_code),
+                                    ("Actualizado por", admin_name),
+                                ],
                             },
                             severity_override=NotificationType.DANGER,
                             redirect_url=f"/requests/{r.id}/detail",
@@ -1341,7 +1369,12 @@ def delete_training(training_id: int):
                 context={
                     "topic_name": training.name,
                     "admin_name": admin_name,
-                    "reason": reason
+                    "reason": reason,
+                    "_display": [
+                        ("Taller Formativo", training.name),
+                        ("Motivo", reason),
+                        ("Retirado por", admin_name),
+                    ],
                 },
                 exclude_user_id=current_user.id,
                 severity_override=NotificationType.DANGER,
@@ -1374,7 +1407,13 @@ def delete_training(training_id: int):
                         context={
                             "topic_name": training.name,
                             "admin_name": admin_name,
-                            "reason": f"{reason} (Afecta solicitud {r.request_code})"
+                            "reason": f"{reason} (Afecta solicitud {r.request_code})",
+                            "_display": [
+                                ("Taller Formativo", training.name),
+                                ("Solicitud Afectada", r.request_code),
+                                ("Motivo", reason),
+                                ("Retirado por", admin_name),
+                            ],
                         },
                         severity_override=NotificationType.DANGER,
                         redirect_url=f"/requests/{r.id}/detail",

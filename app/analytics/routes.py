@@ -23,6 +23,20 @@ from app.notifications.enums import NotificationEvent, NotificationType
 # Helpers Privados de Auditoría y Seguridad
 # ---------------------------------------------------------------------------
 
+def _resolve_state_label(state_id, fallback: str) -> str:
+    """Resuelve el nombre legible del estado a partir de su ID."""
+    if not state_id:
+        return fallback
+    try:
+        from app.models.state_model import State
+        st = db.session.get(State, int(state_id))
+        if st and st.name:
+            return st.name
+    except (TypeError, ValueError):
+        pass
+    return str(state_id)
+
+
 def _notify_idor_attempt(actor_user, actor_state_id, target_state_id, endpoint_name: str):
     """Emite una alerta de seguridad (DANGER) al Super Admin ante intentos de IDOR territorial."""
     try:
@@ -33,15 +47,30 @@ def _notify_idor_attempt(actor_user, actor_state_id, target_state_id, endpoint_n
         elif actor_user:
             actor_name = getattr(actor_user, 'user_name', 'Usuario')
 
+        actor_code = (
+            getattr(actor_user, 'user_code', None)
+            or getattr(actor_user, 'user_name', None)
+            or "N/D"
+        ) if actor_user else "N/D"
+        actor_state_label = _resolve_state_label(actor_state_id, "Sin Sede")
+        target_state_label = _resolve_state_label(target_state_id, "Nacional/Otro")
+
         NotificationService.notify_role(
             role_name="super_admin",
             event=NotificationEvent.ANALYTICS_SECURITY_IDOR_ATTEMPT,
             context={
                 "actor_name": actor_name,
-                "actor_id": actor_user.id if actor_user else 0,
-                "actor_state": str(actor_state_id or "Sin Sede"),
-                "target_state": str(target_state_id or "Nacional/Otro"),
-                "endpoint_name": endpoint_name
+                "actor_id": actor_code,
+                "actor_state": actor_state_label,
+                "target_state": target_state_label,
+                "endpoint_name": endpoint_name,
+                "_display": [
+                    ("Usuario", actor_name),
+                    ("Identificador", actor_code),
+                    ("Estado Asignado", actor_state_label),
+                    ("Estado Solicitado", target_state_label),
+                    ("Recurso", endpoint_name),
+                ],
             },
             severity_override=NotificationType.DANGER,
             redirect_url="/analytics/",

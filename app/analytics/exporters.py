@@ -417,7 +417,12 @@ def send_report_email_async(app, to_email, user_name, report_title, file_bytes, 
                             user_id=user_id,
                             event=NotificationEvent.ANALYTICS_REPORT_EMAIL_STATUS,
                             context={
-                                "status_message": f"Su reporte '{filename}' fue enviado exitosamente al correo {to_email}."
+                                "status_message": f"Su reporte '{filename}' fue enviado exitosamente al correo {to_email}.",
+                                "_display": [
+                                    ("Archivo", filename),
+                                    ("Correo Destino", to_email),
+                                    ("Estado de Envío", "Enviado exitosamente"),
+                                ],
                             },
                             severity_override=NotificationType.SUCCESS,
                             redirect_url="/analytics/",
@@ -433,7 +438,12 @@ def send_report_email_async(app, to_email, user_name, report_title, file_bytes, 
                             user_id=user_id,
                             event=NotificationEvent.ANALYTICS_REPORT_EMAIL_STATUS,
                             context={
-                                "status_message": f"No se pudo entregar el reporte '{filename}' al correo {to_email} por un error en el servidor de correo. Puede descargarlo directamente desde el panel."
+                                "status_message": f"No se pudo entregar el reporte '{filename}' al correo {to_email} por un error en el servidor de correo. Puede descargarlo directamente desde el panel.",
+                                "_display": [
+                                    ("Archivo", filename),
+                                    ("Correo Destino", to_email),
+                                    ("Estado de Envío", "Error de envío SMTP"),
+                                ],
                             },
                             severity_override=NotificationType.DANGER,
                             redirect_url="/analytics/",

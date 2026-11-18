@@ -70,7 +70,12 @@ def _notify_module_status_changed(module: TrainingModule, user_id: int) -> None:
         ctx = {
             "module_name": module.name,
             "action_label": action_lbl,
-            "admin_name": admin_name
+            "admin_name": admin_name,
+            "_display": [
+                ("Módulo Formativo", module.name),
+                ("Estado / Acción", action_lbl.capitalize()),
+                ("Actualizado por", admin_name),
+            ],
         }
         NotificationService.notify_role(
             role_name="state_admin",

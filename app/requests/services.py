@@ -209,7 +209,11 @@ def create_training_request(user_id: int, training_id: int, description: str) ->
                     "request_code": new_request.request_code,
                     "institution_name": user.person.institutional_staff[0].institution.institution_name,
                     "training_name": training_label,
-                    "participants": "Por definir"
+                    "_display": [
+                        ("Código de Solicitud", new_request.request_code),
+                        ("Institución", user.person.institutional_staff[0].institution.institution_name),
+                        ("Taller Solicitado", training_label),
+                    ],
                 },
                 state_id=inst_state_id,
                 redirect_url=f"/requests/{new_request.id}/detail",
@@ -494,7 +498,14 @@ def cancel_training_request(request_id: int, user: User, reason_id: int, justifi
                 "institution_name": inst_name,
                 "training_name": training_name,
                 "reason_name": reason.name,
-                "justification": clean_justification
+                "justification": clean_justification,
+                "_display": [
+                    ("Código de Solicitud", req.request_code),
+                    ("Institución", inst_name),
+                    ("Taller Formativo", training_name),
+                    ("Motivo", reason.name),
+                    ("Justificación", clean_justification),
+                ],
             }
 
             if justification_type == 'CANCELACION_SOLICITANTE':
@@ -560,7 +571,15 @@ def cancel_training_request(request_id: int, user: User, reason_id: int, justifi
                             "institution_name": inst_name,
                             "training_name": training_name,
                             "reason_name": reason.name,
-                            "justification": f"{clean_justification} (Cancelado por {actor_admin_name})"
+                            "justification": f"{clean_justification} (Cancelado por {actor_admin_name})",
+                            "_display": [
+                                ("Código de Solicitud", req.request_code),
+                                ("Institución", inst_name),
+                                ("Taller Formativo", training_name),
+                                ("Motivo", reason.name),
+                                ("Justificación", clean_justification),
+                                ("Cancelado por", actor_admin_name),
+                            ],
                         },
                         redirect_url=f"/requests/{req.id}/detail",
                         action_text="Ver Detalle"
@@ -681,7 +700,13 @@ def _emit_sla_alerts_for_requests(requests_list):
                                 "request_code": req.request_code,
                                 "institution_name": inst_name,
                                 "hours_elapsed": hours,
-                                "status_name": status_label
+                                "status_name": status_label,
+                                "_display": [
+                                    ("Código de Solicitud", req.request_code),
+                                    ("Institución", inst_name),
+                                    ("Tiempo Transcurrido", f"{hours} horas"),
+                                    ("Estado Actual", status_label),
+                                ],
                             },
                             action_text="Planificar Ahora",
                             only_if_unread=True
@@ -696,7 +721,13 @@ def _emit_sla_alerts_for_requests(requests_list):
                                 "request_code": req.request_code,
                                 "institution_name": inst_name,
                                 "delay_detail": f"{hours} horas sin planificación (>72h)",
-                                "status_name": status_label
+                                "status_name": status_label,
+                                "_display": [
+                                    ("Código de Solicitud", req.request_code),
+                                    ("Institución", inst_name),
+                                    ("Detalle del Retraso", f"{hours} horas sin planificación (>72h)"),
+                                    ("Estado Actual", status_label),
+                                ],
                             },
                             action_text="Justificar y Planificar",
                             only_if_unread=True
@@ -718,7 +749,13 @@ def _emit_sla_alerts_for_requests(requests_list):
                                 "request_code": req.request_code,
                                 "institution_name": inst_name,
                                 "delay_detail": f"{days_over} días sin acta de cierre (>10 días)",
-                                "status_name": status_label
+                                "status_name": status_label,
+                                "_display": [
+                                    ("Código de Solicitud", req.request_code),
+                                    ("Institución", inst_name),
+                                    ("Detalle del Retraso", f"{days_over} días sin acta de cierre (>10 días)"),
+                                    ("Estado Actual", status_label),
+                                ],
                             },
                             action_text="Cerrar y Justificar",
                             only_if_unread=True
@@ -1035,7 +1072,12 @@ def claim_and_attend_request(request_id: int, admin_user) -> tuple[bool, str, di
                     context={
                         "request_code": req.request_code,
                         "training_name": training_label,
-                        "admin_name": admin_name
+                        "admin_name": admin_name,
+                        "_display": [
+                            ("Código de Solicitud", req.request_code),
+                            ("Taller Solicitado", training_label),
+                            ("Coordinador Asignado", admin_name),
+                        ],
                     },
                     redirect_url=f"/requests/my-requests/{req.id}",
                     action_text="Ver Estado"
@@ -1212,8 +1254,13 @@ def plan_training_session(request_id: int, planned_date, notes: str, admin_user,
                         "request_code": req.request_code,
                         "training_name": training_label,
                         "planned_date": formatted_date,
-                        "modality": "Presencial",
-                        "location_detail": inst_name
+                        "admin_name": admin_name,
+                        "_display": [
+                            ("Código de Solicitud", req.request_code),
+                            ("Taller Formativo", training_label),
+                            ("Fecha Planificada", formatted_date),
+                            ("Planificado por", admin_name),
+                        ],
                     },
                     redirect_url=f"/requests/my-requests/{req.id}",
                     action_text="Ver Detalles de Jornada"
@@ -1229,7 +1276,14 @@ def plan_training_session(request_id: int, planned_date, notes: str, admin_user,
                         "admin_name": admin_name,
                         "delay_stage": "Fase de Planificación (>10 días ANS)",
                         "institution_name": inst_name,
-                        "justification": delay_justification.strip()[:140]
+                        "justification": delay_justification.strip()[:140],
+                        "_display": [
+                            ("Código de Solicitud", req.request_code),
+                            ("Institución", inst_name),
+                            ("Etapa", "Fase de Planificación (>10 días ANS)"),
+                            ("Registrado por", admin_name),
+                            ("Justificación", delay_justification.strip()[:140]),
+                        ],
                     },
                     exclude_user_id=admin_user.id,
                     redirect_url=f"/requests/{req.id}/detail",
@@ -1430,7 +1484,15 @@ def reschedule_training_session(
                 "training_name": training_name,
                 "new_date": formatted_date,
                 "reason_name": reason.name,
-                "justification": clean_justification
+                "justification": clean_justification,
+                "_display": [
+                    ("Código de Solicitud", req.request_code),
+                    ("Institución", inst_name),
+                    ("Taller Formativo", training_name),
+                    ("Nueva Fecha", formatted_date),
+                    ("Motivo", reason.name),
+                    ("Justificación", clean_justification),
+                ],
             }
 
             # Notificar en sistema a los afiliados del plantel
@@ -2135,7 +2197,13 @@ def demand_delay_response(request_id: int, super_admin_user) -> tuple[bool, str,
             "institution_name": inst_name,
             "request_code": req.request_code,
             "delay_stage": "Vencimiento de plazos normativos",
-            "demand_message": "La Gerencia General exige consignar justificación operativa inmediata."
+            "demand_message": "La Gerencia General exige consignar justificación operativa inmediata.",
+            "_display": [
+                ("Código de Solicitud", req.request_code),
+                ("Institución", inst_name),
+                ("Etapa", "Vencimiento de plazos normativos"),
+                ("Observación", "La Gerencia General exige consignar justificación operativa inmediata."),
+            ],
         }
         if req.attended_by_id:
             NotificationService.notify_user(
@@ -2329,7 +2397,14 @@ def submit_delay_justification(
                     "admin_name": admin_name,
                     "delay_stage": f"Bloqueo ANS ({justification_type})",
                     "institution_name": inst_name,
-                    "justification": justification_text[:140]
+                    "justification": justification_text[:140],
+                    "_display": [
+                        ("Código de Solicitud", req.request_code),
+                        ("Institución", inst_name),
+                        ("Etapa", f"Bloqueo ANS ({justification_type})"),
+                        ("Registrado por", admin_name),
+                        ("Justificación", justification_text[:140]),
+                    ],
                 },
                 exclude_user_id=admin_user.id if admin_user else None,
                 redirect_url=f"/requests/audit-detail/{req.id}",
@@ -2594,7 +2669,12 @@ def get_blocking_closure_request_for_user(user_id: int):
             context={
                 "request_code": blocking_req.request_code,
                 "institution_name": inst_name,
-                "planned_date": planned_dt_str
+                "planned_date": planned_dt_str,
+                "_display": [
+                    ("Código de Solicitud", blocking_req.request_code),
+                    ("Institución", inst_name),
+                    ("Fecha Pautada", planned_dt_str),
+                ],
             },
             action_text="Cargar Acta y Cierre",
             only_if_unread=True
@@ -2734,7 +2814,12 @@ def submit_closure_evidences(request_id: int, files, user_id: int) -> tuple:
                     context={
                         "request_code": req.request_code,
                         "training_name": training_label,
-                        "admin_name": admin_name
+                        "admin_name": admin_name,
+                        "_display": [
+                            ("Código de Solicitud", req.request_code),
+                            ("Taller Formativo", training_label),
+                            ("Cerrada por", admin_name),
+                        ],
                     },
                     redirect_url=f"/requests/my-requests/{req.id}",
                     action_text="Ver Cierre de Jornada"
@@ -3897,7 +3982,13 @@ def add_tracking_note(request_id: int, note_text: str, user: User) -> tuple:
                     "author_name": author_name,
                     "author_role": inst_name,
                     "request_code": req.request_code,
-                    "note_preview": preview
+                    "note_preview": preview,
+                    "_display": [
+                        ("Código de Solicitud", req.request_code),
+                        ("Autor", author_name),
+                        ("Origen / Rol", inst_name),
+                        ("Extracto de Nota", preview),
+                    ],
                 }
                 if req.attended_by_id:
                     NotificationService.notify_user(
@@ -3926,7 +4017,13 @@ def add_tracking_note(request_id: int, note_text: str, user: User) -> tuple:
                             "author_name": author_name,
                             "author_role": "Coordinación CORPOELEC",
                             "request_code": req.request_code,
-                            "note_preview": preview
+                            "note_preview": preview,
+                            "_display": [
+                                ("Código de Solicitud", req.request_code),
+                                ("Autor", author_name),
+                                ("Origen", "Coordinación CORPOELEC"),
+                                ("Extracto de Nota", preview),
+                            ],
                         },
                         redirect_url=f"/requests/my-requests/{req.id}",
                         action_text="Ver Observación"
@@ -4160,7 +4257,12 @@ def complete_training_request(request_id: int, admin_user) -> tuple:
                     context={
                         "request_code": req_code,
                         "training_name": training_name,
-                        "admin_name": admin_name
+                        "admin_name": admin_name,
+                        "_display": [
+                            ("Código de Solicitud", req_code),
+                            ("Taller Formativo", training_name),
+                            ("Cerrada por", admin_name),
+                        ],
                     },
                     redirect_url=f"/requests/my-requests/{req_id}",
                     action_text="Ver Cierre de Jornada"

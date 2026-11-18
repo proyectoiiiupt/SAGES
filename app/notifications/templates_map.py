@@ -86,9 +86,9 @@ NOTIFICATION_TEMPLATES = {
     },
     NotificationEvent.REQUEST_CREATED: {
         "title": "Nueva Solicitud de Formación ({request_code})",
-        "message_template": "La institución '{institution_name}' ha registrado la solicitud {request_code} para el taller '{training_name}' ({participants} participantes). Requiere reclamo y atención en un plazo máximo de 48 horas.",
+        "message_template": "La institución '{institution_name}' ha registrado la solicitud {request_code} para el taller '{training_name}'. Requiere reclamo y atención en un plazo máximo de 48 horas.",
         "default_type": NotificationType.WARNING,
-        "required_context": ["request_code", "institution_name", "training_name", "participants"]
+        "required_context": ["request_code", "institution_name", "training_name"]
     },
     NotificationEvent.REQUEST_CLAIMED: {
         "title": "Solicitud en Revisión ({request_code})",
@@ -98,9 +98,9 @@ NOTIFICATION_TEMPLATES = {
     },
     NotificationEvent.REQUEST_PLANNED: {
         "title": "Jornada de Formación Planificada ({request_code})",
-        "message_template": "¡Excelentes noticias! Su solicitud {request_code} ('{training_name}') ha sido agendada para el {planned_date} bajo modalidad '{modality}'. Ubicación/Enlace: {location_detail}.",
+        "message_template": "¡Excelentes noticias! Su solicitud {request_code} ('{training_name}') ha sido agendada para el {planned_date} por {admin_name}.",
         "default_type": NotificationType.SUCCESS,
-        "required_context": ["request_code", "training_name", "planned_date", "modality", "location_detail"]
+        "required_context": ["request_code", "training_name", "planned_date", "admin_name"]
     },
     NotificationEvent.REQUEST_COMPLETED: {
         "title": "Jornada Culminada Exitosamente ({request_code})",
@@ -149,7 +149,7 @@ NOTIFICATION_TEMPLATES = {
     # FORMACIÓN Y CATÁLOGO (app/trainings/)
     # =========================================================================
     NotificationEvent.TRAINING_MODULE_CREATED: {
-        "title": "Nuevo Eje de Formación Disponible",
+        "title": "Nuevo Módulo de Formación Disponible",
         "message_template": "Se ha incorporado el módulo formativo '{module_name}' al catálogo nacional por {admin_name}.",
         "default_type": NotificationType.SUCCESS,
         "required_context": ["module_name", "admin_name"]
@@ -162,7 +162,7 @@ NOTIFICATION_TEMPLATES = {
     },
     NotificationEvent.TRAINING_TOPIC_CREATED: {
         "title": "Nuevo Taller Incorporado al Catálogo",
-        "message_template": "Se ha habilitado el taller '{topic_name}' dentro del eje '{module_name}' por {admin_name}. Ya se encuentra disponible para planificación.",
+        "message_template": "Se ha habilitado el taller '{topic_name}' dentro del módulo '{module_name}' por {admin_name}. Ya se encuentra disponible para planificación.",
         "default_type": NotificationType.INFO,
         "required_context": ["topic_name", "module_name", "admin_name"]
     },
@@ -271,6 +271,7 @@ def resolve_notification_payload(event: NotificationEvent, context: dict = None)
         "participants": "1",
         "admin_name": "Administración",
         "planned_date": "Por definir",
+        "new_date": "Por definir",
         "modality": "Presencial",
         "location_detail": "Instalaciones correspondientes",
         "author_name": "Usuario",
