@@ -35,7 +35,13 @@ from app.users.services import (
     get_administrative_positions,
     create_administrative_user,
     get_user_state_id,
-    purge_expired_pending_users
+    purge_expired_pending_users,
+    get_status_by_code,
+    STATUS_ACTIVE_CODE,
+    STATUS_INACTIVE_CODE,
+    STATUS_PENDING_CODE,
+    STATUS_IN_PROGRESS_CODE,
+    STATUS_REJECTED_CODE
 )
 from app.decorators.auth_decorators import role_required, check_permissions
 from app.binnacle.decorators import audit_activity
@@ -194,7 +200,29 @@ def list_users():
             query = query.filter(User.roles_assoc.any(role_id=int(filter_role)))
 
         if filter_status:
-            query = query.filter(User.status_id == int(filter_status))
+            target_status = None
+            if filter_status.startswith('STAT-'):
+                target_status = get_status_by_code(filter_status)
+                if target_status:
+                    query = query.filter(User.status_id == target_status.id)
+                else:
+                    query = query.filter(User.id == 0)
+            elif filter_status.isdigit():
+                legacy_code_map = {
+                    1: STATUS_ACTIVE_CODE,
+                    2: STATUS_INACTIVE_CODE,
+                    4: STATUS_PENDING_CODE,
+                    6: STATUS_IN_PROGRESS_CODE
+                }
+                mapped_code = legacy_code_map.get(int(filter_status))
+                if mapped_code:
+                    target_status = get_status_by_code(mapped_code)
+                    if target_status:
+                        query = query.filter(User.status_id == target_status.id)
+                    else:
+                        query = query.filter(User.status_id == int(filter_status))
+                else:
+                    query = query.filter(User.status_id == int(filter_status))
 
         pagination = query.order_by(User.id.desc()).paginate(page=page, per_page=10, error_out=False)
         users_list = pagination.items
@@ -265,7 +293,10 @@ def view_user(user_id):
     user = User.query.get_or_404(user_id)
 
     # Si es un usuario pendiente (STAT-006) y superó los 7 días, purgar y redirigir
-    if user.status_id == 6 and user.created_at:
+    status_in_progress = get_status_by_code(STATUS_IN_PROGRESS_CODE)
+    in_progress_id = status_in_progress.id if status_in_progress else 6
+    is_pending_activation = (user.status and user.status.status_code == STATUS_IN_PROGRESS_CODE) or (user.status_id == in_progress_id)
+    if is_pending_activation and user.created_at:
         now_utc = datetime.datetime.now(datetime.timezone.utc)
         if (now_utc - user.created_at).total_seconds() > 7 * 86400:
             purge_expired_pending_users()
@@ -410,7 +441,10 @@ def edit_user(user_id):
         return redirect(url_for('users.view_user', user_id=user.id))
 
     # Si es un usuario pendiente (STAT-006) y superó los 7 días, purgar y redirigir
-    if user.status_id == 6 and user.created_at:
+    status_in_progress = get_status_by_code(STATUS_IN_PROGRESS_CODE)
+    in_progress_id = status_in_progress.id if status_in_progress else 6
+    is_pending_activation = (user.status and user.status.status_code == STATUS_IN_PROGRESS_CODE) or (user.status_id == in_progress_id)
+    if is_pending_activation and user.created_at:
         now_utc = datetime.datetime.now(datetime.timezone.utc)
         if (now_utc - user.created_at).total_seconds() > 7 * 86400:
             purge_expired_pending_users()
@@ -430,9 +464,11 @@ def edit_user(user_id):
     form.position.choices = [(p.id, p.name) for p in Position.query.order_by(Position.name).all()]
 
     if comp_staff:
+        active_status = get_status_by_code(STATUS_ACTIVE_CODE)
+        active_status_id = active_status.id if active_status else 1
         corpoelec_places = Place.query.join(Company).filter(
             Company.company_code == 'COMP-001',
-            Place.status_id == 1
+            Place.status_id == active_status_id
         ).order_by(Place.name).all()
 
         place_choices = []
@@ -581,20 +617,37 @@ def toggle_status(user_id):
 
     user = User.query.get_or_404(user_id)
     
-    if user.status_id == 6:
+    status_active = get_status_by_code(STATUS_ACTIVE_CODE)
+    status_inactive = get_status_by_code(STATUS_INACTIVE_CODE)
+    status_in_progress = get_status_by_code(STATUS_IN_PROGRESS_CODE)
+
+    active_id = status_active.id if status_active else 1
+    inactive_id = status_inactive.id if status_inactive else 2
+    in_progress_id = status_in_progress.id if status_in_progress else 6
+
+    if (user.status and user.status.status_code == STATUS_IN_PROGRESS_CODE) or (user.status_id == in_progress_id):
         flash('No se puede cambiar el estatus de un usuario pendiente de activación.', 'warning')
         return redirect(url_for('users.view_user', user_id=user.id))
     
-    # 1 = Activo, 2 = Inactivo
-    old_status = user.status_id
-    new_status = 2 if old_status == 1 else 1 
-    
-    user.status_id = new_status
+    is_currently_active = (user.status and user.status.status_code == STATUS_ACTIVE_CODE) or (user.status_id == active_id)
+
+    if is_currently_active:
+        if status_inactive:
+            user.status = status_inactive
+        else:
+            user.status_id = inactive_id
+        new_is_active = False
+    else:
+        if status_active:
+            user.status = status_active
+        else:
+            user.status_id = active_id
+        new_is_active = True
     
     try:
         db.session.commit()
         
-        estado_str = "activado" if new_status == 1 else "desactivado"
+        estado_str = "activado" if new_is_active else "desactivado"
         
         BinnacleService.create_log_entry(
             module=AuditModule.USERS.value,
@@ -608,7 +661,7 @@ def toggle_status(user_id):
         flash(f'El perfil del usuario ha sido {estado_str} exitosamente.', 'success')
         
         # Despacho asíncrono de correo si la cuenta fue desactivada (STAT-002)
-        if new_status == 2 and user.person and user.person.email:
+        if not new_is_active and user.person and user.person.email:
             try:
                 full_name = f"{user.person.first_name} {user.person.last_name}".strip()
                 send_user_deactivation_email(
@@ -727,7 +780,7 @@ def list_requests():
     if user_role not in ['state_admin', 'super_admin']:
         abort(403)
 
-    status_pending = Status.query.filter_by(status_code='STAT-004').first()
+    status_pending = get_status_by_code(STATUS_PENDING_CODE)
 
     if not status_pending:
         pending_requests = []
@@ -948,16 +1001,19 @@ def approve_request(staff_id):
         return jsonify({'status': 'error', 'message': 'El registro no posee información de persona asociada.'}), 400
 
     # Comprobar que no posea ya una cuenta de usuario activa
-    if person.user and person.user.status_id == 1:
+    status_active = get_status_by_code(STATUS_ACTIVE_CODE)
+    active_status_id = status_active.id if status_active else 1
+    user_is_active = (person.user.status and person.user.status.status_code == STATUS_ACTIVE_CODE) or (person.user.status_id == active_status_id) if person.user else False
+    if user_is_active:
         return jsonify({'status': 'error', 'message': 'Esta persona ya posee un usuario activo registrado en el sistema.'}), 400
 
     try:
         # 1. Actualizar el estatus del InstitutionalStaff a STAT-006 (En Proceso)
-        status_in_progress = Status.query.filter_by(status_code='STAT-006').first()
+        status_in_progress = get_status_by_code(STATUS_IN_PROGRESS_CODE)
         status_in_progress_id = status_in_progress.id if status_in_progress else 6
         staff.status_id = status_in_progress_id
 
-        # 2. Pre-crear o actualizar User con status_id = 6 y clave temporal aleatoria (igual que create_administrative_user)
+        # 2. Pre-crear o actualizar User con status_id (STAT-006) y clave temporal aleatoria (igual que create_administrative_user)
         user = person.user
         if not user:
             temp_password = secrets.token_urlsafe(10)
@@ -1083,27 +1139,35 @@ def reject_request(staff_id):
         return jsonify({'status': 'error', 'message': 'El registro no posee información de persona asociada.'}), 400
 
     try:
-        status_rejected = Status.query.filter_by(status_code='STAT-008').first()
+        status_rejected = get_status_by_code(STATUS_REJECTED_CODE)
         status_rejected_id = status_rejected.id if status_rejected else 8
 
-        status_pending = Status.query.filter_by(status_code='STAT-004').first()
+        status_pending = get_status_by_code(STATUS_PENDING_CODE)
         status_pending_id = status_pending.id if status_pending else 4
+
+        status_active = get_status_by_code(STATUS_ACTIVE_CODE)
+        status_active_id = status_active.id if status_active else 1
+
+        status_in_progress = get_status_by_code(STATUS_IN_PROGRESS_CODE)
+        status_in_progress_id = status_in_progress.id if status_in_progress else 6
 
         # 1. Cambiar estatus de InstitutionalStaff a STAT-008
         staff.status_id = status_rejected_id
 
         # 2. Si la institución asociada está pendiente y no tiene otros miembros activos/aprobados, rechazarla también
-        if staff.institution and staff.institution.status_id == status_pending_id:
+        institution_is_pending = (staff.institution.status and staff.institution.status.status_code == STATUS_PENDING_CODE) or (staff.institution.status_id == status_pending_id) if staff.institution else False
+        if staff.institution and institution_is_pending:
             other_active = InstitutionalStaff.query.filter(
                 InstitutionalStaff.institution_id == staff.institution_id,
                 InstitutionalStaff.id != staff.id,
-                InstitutionalStaff.status_id.in_([1, 6])
+                InstitutionalStaff.status_id.in_([status_active_id, status_in_progress_id])
             ).first()
             if not other_active:
                 staff.institution.status_id = status_rejected_id
 
         # 3. Si existía un usuario asociado pendiente, marcarlo como rechazado
-        if person.user and person.user.status_id in [status_pending_id, 6]:
+        user_is_pending = (person.user.status and person.user.status.status_code in [STATUS_PENDING_CODE, STATUS_IN_PROGRESS_CODE]) or (person.user.status_id in [status_pending_id, status_in_progress_id]) if person.user else False
+        if person.user and user_is_pending:
             person.user.status_id = status_rejected_id
 
         db.session.commit()
@@ -1154,7 +1218,10 @@ def resend_activation_admin(user_id):
         return jsonify({'status': 'error', 'message': 'No tiene permisos para realizar esta acción.'}), 403
 
     target_user = User.query.get_or_404(user_id)
-    if target_user.status_id != 6:
+    status_in_progress = get_status_by_code(STATUS_IN_PROGRESS_CODE)
+    in_progress_id = status_in_progress.id if status_in_progress else 6
+    is_target_pending = (target_user.status and target_user.status.status_code == STATUS_IN_PROGRESS_CODE) or (target_user.status_id == in_progress_id)
+    if not is_target_pending:
         return jsonify({'status': 'error', 'message': 'Solo se puede reenviar el enlace a usuarios en estado Pendiente.'}), 400
 
     if target_user.created_at:

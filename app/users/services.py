@@ -26,6 +26,17 @@ import secrets
 import json
 from sqlalchemy.exc import IntegrityError
 
+# Códigos oficiales del catálogo Status (sages.status)
+STATUS_ACTIVE_CODE = 'STAT-001'       # Activo
+STATUS_INACTIVE_CODE = 'STAT-002'     # Inactivo
+STATUS_PENDING_CODE = 'STAT-004'      # Pendiente
+STATUS_IN_PROGRESS_CODE = 'STAT-006'  # En proceso
+STATUS_REJECTED_CODE = 'STAT-008'     # Rechazado
+
+def get_status_by_code(code: str) -> Optional[Status]:
+    """Retorna el registro del catálogo Status según su código estandarizado (STAT-xxx)."""
+    return Status.query.filter_by(status_code=code).first()
+
 PASSWORD_REGEX = re.compile(r'^(?=.*[A-Z])(?=.*[0-9])(?=.*[$@.!%*?&]).{8,128}$')
 
 
@@ -320,10 +331,12 @@ def get_corpoelec_places_by_state(state_id: int):
     """
     Retorna las sedes de CORPOELEC (COMP-001) para un estado dado.
     """
+    active_status = get_status_by_code(STATUS_ACTIVE_CODE)
+    active_status_id = active_status.id if active_status else 1
     places = Place.query.join(Company).join(Parish).join(Municipality).filter(
         Company.company_code == 'COMP-001',
         Municipality.state_id == state_id,
-        Place.status_id == 1 # Asumiendo 1 = Activo
+        Place.status_id == active_status_id
     ).all()
     
     return [{'id': p.id, 'name': p.name} for p in places]
@@ -389,7 +402,8 @@ def create_administrative_user(data: dict, creator_user: User) -> Tuple[bool, st
             
         # STAT-006: el User no puede iniciar sesión hasta que active mediante el enlace.
         # auth/services.py L26 rechaza logins de usuarios que no sean STAT-001.
-        status_in_progress = Status.query.filter_by(status_code='STAT-006').first()
+        status_in_progress = get_status_by_code(STATUS_IN_PROGRESS_CODE)
+        status_in_progress_id = status_in_progress.id if status_in_progress else 6
 
         # 1. Crear Person
         person = Person(
@@ -414,7 +428,7 @@ def create_administrative_user(data: dict, creator_user: User) -> Tuple[bool, st
             person_id=person.id,
             user_name=id_number_clean,
             password=bcrypt.generate_password_hash(temp_password).decode('utf-8'),
-            status_id=status_in_progress.id if status_in_progress else 6
+            status_id=status_in_progress_id
         )
         db.session.add(user)
         db.session.flush()
@@ -424,7 +438,7 @@ def create_administrative_user(data: dict, creator_user: User) -> Tuple[bool, st
             person_id=person.id,
             place_id=place.id,
             position_id=data.get('position_id'),
-            status_id=status_in_progress.id if status_in_progress else 6
+            status_id=status_in_progress_id
         )
         db.session.add(company_staff)
         db.session.flush()
@@ -516,8 +530,11 @@ def purge_expired_pending_users(days_limit: int = 7) -> int:
     cutoff = datetime.now(timezone.utc) - timedelta(days=days_limit)
 
     try:
-        # 1. Usuarios en BD con status_id == 6 y created_at > 7 días
-        users_to_purge = User.query.filter(User.status_id == 6, User.created_at < cutoff).all()
+        status_in_progress = get_status_by_code(STATUS_IN_PROGRESS_CODE)
+        in_progress_id = status_in_progress.id if status_in_progress else 6
+
+        # 1. Usuarios en BD con status STAT-006 y created_at > 7 días
+        users_to_purge = User.query.filter(User.status_id == in_progress_id, User.created_at < cutoff).all()
 
         for user in users_to_purge:
             try:
@@ -602,9 +619,9 @@ def purge_expired_pending_users(days_limit: int = 7) -> int:
                 db.session.rollback()
                 logger.error(f"Error al purgar usuario {user.id}: {single_err}")
 
-        # 2. Registros huérfanos históricos en InstitutionalStaff con status_id == 6 y sin cuenta User
+        # 2. Registros huérfanos históricos en InstitutionalStaff con status STAT-006 y sin cuenta User
         orphaned_staffs = InstitutionalStaff.query.filter(
-            InstitutionalStaff.status_id == 6,
+            InstitutionalStaff.status_id == in_progress_id,
             InstitutionalStaff.created_at < cutoff
         ).all()
 

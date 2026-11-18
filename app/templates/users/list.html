@@ -72,9 +72,9 @@
 
             <select name="status" class="filter-select">
                 <option value="">Estatus</option>
-                <option value="1" {% if filters.status == '1' %}selected{% endif %}>Activo</option>
-                <option value="2" {% if filters.status == '2' %}selected{% endif %}>Inactivo</option>
-                <option value="6" {% if filters.status == '6' %}selected{% endif %}>Pendiente</option>
+                <option value="STAT-001" {% if filters.status == 'STAT-001' or filters.status == '1' %}selected{% endif %}>Activo</option>
+                <option value="STAT-002" {% if filters.status == 'STAT-002' or filters.status == '2' %}selected{% endif %}>Inactivo</option>
+                <option value="STAT-006" {% if filters.status == 'STAT-006' or filters.status == '6' %}selected{% endif %}>Pendiente</option>
             </select>
 
             <a href="{{ url_for('users.list_users') }}" class="btn-clear">Limpiar</a>
@@ -163,9 +163,9 @@
                             {% endif %}
                             
                             <td>
-                                {% if user.status_id == 1 %}
+                                {% if (user.status and user.status.status_code == 'STAT-001') or user.status_id == 1 %}
                                     <span class="status-badge status-active">Activo</span>
-                                {% elif user.status_id == 6 %}
+                                {% elif (user.status and user.status.status_code == 'STAT-006') or user.status_id == 6 %}
                                     <span class="status-badge status-pending">Pendiente</span>
                                 {% else %}
                                     <span class="status-badge status-inactive">Inactivo</span>

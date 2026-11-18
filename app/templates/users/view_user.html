@@ -125,7 +125,7 @@
         </div>
 
         <!-- Controles de Acción (US-15 y US-16) -->
-        {% if user.status_id == 6 %}
+        {% if (user.status and user.status.status_code == 'STAT-006') or user.status_id == 6 %}
         <div class="pending-activation-banner">
             <div style="display: flex; align-items: center; gap: 12px;">
                 <span class="status-pulse-dot"></span>
@@ -153,12 +153,12 @@
                 </form>
                 
                 <label class="switch" style="position: relative; display: inline-block; width: 46px; height: 24px; margin-bottom: 0; flex-shrink: 0;">
-                    <input type="checkbox" id="status-switch" {% if user.status_id == 1 %}checked{% endif %} data-status="{{ user.status_id }}">
+                    <input type="checkbox" id="status-switch" {% if (user.status and user.status.status_code == 'STAT-001') or user.status_id == 1 %}checked{% endif %} data-status="{{ user.status.status_code if user.status else ('STAT-001' if user.status_id == 1 else 'STAT-002') }}">
                     <span class="slider"></span>
                 </label>
 
-                <span id="status-text" class="status-label {{ 'text-active' if user.status_id == 1 else 'text-inactive' }}">
-                    {{ 'Perfil Activo' if user.status_id == 1 else 'Perfil Inactivo' }}
+                <span id="status-text" class="status-label {{ 'text-active' if ((user.status and user.status.status_code == 'STAT-001') or user.status_id == 1) else 'text-inactive' }}">
+                    {{ 'Perfil Activo' if ((user.status and user.status.status_code == 'STAT-001') or user.status_id == 1) else 'Perfil Inactivo' }}
                 </span>
             </div>
 
@@ -279,7 +279,7 @@
         </div>
 
         <!-- Controles de Acción (US-15 y US-16) -->
-        {% if user.status_id == 6 %}
+        {% if (user.status and user.status.status_code == 'STAT-006') or user.status_id == 6 %}
         <div class="pending-activation-banner">
             <div style="display: flex; align-items: center; gap: 12px;">
                 <span class="status-pulse-dot"></span>
@@ -302,11 +302,11 @@
         <div class="user-action-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-top: 1px solid #e2e8f0; background-color: #fafafa; min-height: 64px; box-sizing: border-box;">
             <div class="switch-container" style="display: inline-flex; align-items: center; gap: 12px; margin: 0;">
                 <label class="switch" style="position: relative; display: inline-block; width: 46px; height: 24px; margin-bottom: 0; flex-shrink: 0;">
-                    <input type="checkbox" id="status-switch-corp" {% if user.status_id == 1 %}checked{% endif %} data-status="{{ user.status_id }}">
+                    <input type="checkbox" id="status-switch-corp" {% if (user.status and user.status.status_code == 'STAT-001') or user.status_id == 1 %}checked{% endif %} data-status="{{ user.status.status_code if user.status else ('STAT-001' if user.status_id == 1 else 'STAT-002') }}">
                     <span class="slider"></span>
                 </label>
-                <span class="status-label {{ 'text-active' if user.status_id == 1 else 'text-inactive' }}">
-                    {{ 'Perfil Activo' if user.status_id == 1 else 'Perfil Inactivo' }}
+                <span class="status-label {{ 'text-active' if ((user.status and user.status.status_code == 'STAT-001') or user.status_id == 1) else 'text-inactive' }}">
+                    {{ 'Perfil Activo' if ((user.status and user.status.status_code == 'STAT-001') or user.status_id == 1) else 'Perfil Inactivo' }}
                 </span>
             </div>
 
@@ -418,7 +418,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.checked = wasChecked; 
                 
                 const currentStatus = this.getAttribute('data-status');
-                const isActivating = currentStatus != 1; // 1 = Activo
+                const isActivating = currentStatus !== 'STAT-001' && currentStatus != 1; // STAT-001 = Activo
 
                 const actionText = isActivating ? 'activar' : 'desactivar';
                 const warningText = isActivating 
