@@ -6,6 +6,19 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // =========================================================
+    // 0. FECHA DINÁMICA DEL BANNER PRINCIPAL
+    // =========================================================
+    const dateSpan = document.getElementById('current-date');
+    if (dateSpan) {
+        if (typeof formatCurrentDate === 'function') {
+            formatCurrentDate(dateSpan, 'full-date');
+        } else {
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            dateSpan.textContent = new Date().toLocaleDateString('es-VE', options);
+        }
+    }
+
+    // =========================================================
     // 1. CONTROL DE PESTAÑAS (TABS)
     // =========================================================
     const tabButtons = document.querySelectorAll('.profile-tab-btn');
