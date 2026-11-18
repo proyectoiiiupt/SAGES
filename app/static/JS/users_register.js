@@ -137,44 +137,63 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function validateStep0() {
+        let isValid = true;
+        let firstInvalidField = null;
+
         const first_name = document.getElementById('first_name');
         const last_name = document.getElementById('last_name');
 
+        // Validar Cédula de Identidad
         if (!idNumber.value.trim()) {
-            Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'La cédula es requerida', confirmButtonColor: '#0ea5e9' });
-            idNumber.focus();
+            showError(idNumber, 'La cédula de identidad es obligatoria.');
+            if (!firstInvalidField) firstInvalidField = idNumber;
+            isValid = false;
+        } else {
+            const rawId = idNumber.value.replace(/\./g, '');
+            if (rawId.length < 6) {
+                showError(idNumber, 'La cédula debe contener al menos 6 dígitos.');
+                if (!firstInvalidField) firstInvalidField = idNumber;
+                isValid = false;
+            }
+        }
+
+        // Validar Primer Nombre
+        if (!first_name.value.trim()) {
+            showError(first_name, 'El primer nombre es obligatorio.');
+            if (!firstInvalidField) firstInvalidField = first_name;
+            isValid = false;
+        }
+
+        // Validar Primer Apellido
+        if (!last_name.value.trim()) {
+            showError(last_name, 'El primer apellido es obligatorio.');
+            if (!firstInvalidField) firstInvalidField = last_name;
+            isValid = false;
+        }
+
+        if (!isValid) {
+            if (firstInvalidField) firstInvalidField.focus();
             return false;
         }
 
+        // Validación asíncrona de duplicidad en base de datos
         const rawId = idNumber.value.replace(/\./g, '');
-        if (rawId.length < 6) {
-            Swal.fire({ icon: 'warning', title: 'Datos inválidos', text: 'Cédula muy corta', confirmButtonColor: '#0ea5e9' });
-            idNumber.focus();
-            return false;
-        }
-
         try {
             const response = await fetch(`/users/api/validate-identification?id=${rawId}`);
             const data = await response.json();
             if (!data.valid) {
-                Swal.fire({ icon: 'error', title: 'Cédula Existente', text: data.message, confirmButtonColor: '#0ea5e9' });
+                showError(idNumber, data.message || 'Esta cédula ya se encuentra registrada.');
+                Swal.fire({ 
+                    icon: 'error', 
+                    title: 'Cédula Existente', 
+                    text: data.message, 
+                    confirmButtonColor: '#007865' 
+                });
                 idNumber.focus();
                 return false;
             }
         } catch (e) {
-            console.error(e);
-            return false;
-        }
-
-        if (!first_name.value.trim()) {
-            Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'Primer nombre requerido', confirmButtonColor: '#0ea5e9' });
-            first_name.focus();
-            return false;
-        }
-
-        if (!last_name.value.trim()) {
-            Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'Primer apellido requerido', confirmButtonColor: '#0ea5e9' });
-            last_name.focus();
+            console.error('Error validando cédula:', e);
             return false;
         }
 
@@ -182,60 +201,89 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function validateStep1() {
+        let isValid = true;
+        let firstInvalidField = null;
+
+        const mobile = document.getElementById('mobile');
+        const phone = document.getElementById('phone');
+        const role = document.getElementById('role');
+        const position = document.getElementById('position');
+
+        // Validar Correo Electrónico
         if (!email.value.trim()) {
-            Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'El correo es requerido', confirmButtonColor: '#0ea5e9' });
-            email.focus();
+            showError(email, 'El correo institucional es obligatorio.');
+            if (!firstInvalidField) firstInvalidField = email;
+            isValid = false;
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim())) {
+            showError(email, 'Formato de correo electrónico no válido.');
+            if (!firstInvalidField) firstInvalidField = email;
+            isValid = false;
+        }
+
+        // Validar Teléfono Móvil
+        if (!mobile.value.trim()) {
+            showError(mobile, 'El teléfono móvil es obligatorio.');
+            if (!firstInvalidField) firstInvalidField = mobile;
+            isValid = false;
+        } else if (mobile.value.length < 14) {
+            showError(mobile, 'Teléfono móvil incompleto. Formato requerido: (04XX)-XXXXXXX');
+            if (!firstInvalidField) firstInvalidField = mobile;
+            isValid = false;
+        }
+
+        // Validar Teléfono Local (opcional, pero si tiene caracteres debe ser completo)
+        if (phone && phone.value.trim() && phone.value.length < 14) {
+            showError(phone, 'Teléfono local incompleto. Formato requerido: (02XX)-XXXXXXX');
+            if (!firstInvalidField) firstInvalidField = phone;
+            isValid = false;
+        }
+
+        // Validar Asignación Corporativa
+        if (!role.value) {
+            showError(role, 'Seleccione un rol en el sistema.');
+            if (!firstInvalidField) firstInvalidField = role;
+            isValid = false;
+        }
+        if (!position.value) {
+            showError(position, 'Seleccione un cargo administrativo.');
+            if (!firstInvalidField) firstInvalidField = position;
+            isValid = false;
+        }
+        if (!stateSelect.value) {
+            showError(stateSelect, 'Seleccione el estado de adscripción.');
+            if (!firstInvalidField) firstInvalidField = stateSelect;
+            isValid = false;
+        }
+        if (!placeSelect.value) {
+            showError(placeSelect, 'Seleccione la sede asignada.');
+            if (!firstInvalidField) firstInvalidField = placeSelect;
+            isValid = false;
+        }
+
+        if (!isValid) {
+            if (firstInvalidField) firstInvalidField.focus();
             return false;
         }
 
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) {
-            Swal.fire({ icon: 'warning', title: 'Datos inválidos', text: 'Formato de correo inválido', confirmButtonColor: '#0ea5e9' });
-            email.focus();
-            return false;
-        }
-
+        // Validación asíncrona de correo en base de datos
         try {
-            const response = await fetch(`/users/api/validate-email?email=${email.value}`);
+            const response = await fetch(`/users/api/validate-email?email=${encodeURIComponent(email.value.trim())}`);
             const data = await response.json();
             if (!data.valid) {
-                Swal.fire({ icon: 'error', title: 'Correo Existente', text: data.message, confirmButtonColor: '#0ea5e9' });
+                showError(email, data.message || 'Este correo ya se encuentra registrado.');
+                Swal.fire({ 
+                    icon: 'error', 
+                    title: 'Correo Existente', 
+                    text: data.message, 
+                    confirmButtonColor: '#007865' 
+                });
                 email.focus();
                 return false;
             }
         } catch (e) {
-            console.error(e);
+            console.error('Error validando correo:', e);
             return false;
         }
-
-        // 2. Validar Teléfono Móvil (inmediatamente después del correo electrónico)
-        const mobile = document.getElementById('mobile');
-        if (!mobile.value.trim()) {
-            Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'El teléfono móvil es requerido', confirmButtonColor: '#0ea5e9' });
-            mobile.focus();
-            return false;
-        }
-        if (mobile.value.length < 14) {
-            Swal.fire({ icon: 'warning', title: 'Datos inválidos', text: 'Teléfono móvil válido requerido', confirmButtonColor: '#0ea5e9' });
-            mobile.focus();
-            return false;
-        }
-
-        // Teléfono Local (opcional, validar si se ingresaron datos parciales)
-        const phone = document.getElementById('phone');
-        if (phone && phone.value.trim() && phone.value.length < 14) {
-            Swal.fire({ icon: 'warning', title: 'Datos inválidos', text: 'Teléfono local debe ser un número válido o dejarse vacío', confirmButtonColor: '#0ea5e9' });
-            phone.focus();
-            return false;
-        }
-
-        // 3. Asignación Corporativa (Rol, Cargo, Estado, Sede)
-        const role = document.getElementById('role');
-        const position = document.getElementById('position');
-
-        if (!role.value) { Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'Seleccione un rol', confirmButtonColor: '#0ea5e9' }); role.focus(); return false; }
-        if (!position.value) { Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'Seleccione un cargo', confirmButtonColor: '#0ea5e9' }); position.focus(); return false; }
-        if (!stateSelect.value) { Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'Seleccione un estado', confirmButtonColor: '#0ea5e9' }); stateSelect.focus(); return false; }
-        if (!placeSelect.value) { Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'Seleccione una sede', confirmButtonColor: '#0ea5e9' }); placeSelect.focus(); return false; }
 
         return true;
     }
@@ -297,21 +345,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Utils
     function showError(element, message) {
+        if (!element) return;
         element.classList.add('is-invalid');
-        let feedback = element.nextElementSibling;
-        if (!feedback || !feedback.classList.contains('invalid-feedback')) {
+        const container = element.closest('.form-group') || element.parentNode;
+        let feedback = container.querySelector('.invalid-feedback');
+        if (!feedback) {
             feedback = document.createElement('div');
             feedback.className = 'invalid-feedback';
-            element.parentNode.insertBefore(feedback, element.nextSibling);
+            container.appendChild(feedback);
         }
         feedback.textContent = message;
         feedback.style.display = 'block';
     }
 
     function clearError(element) {
+        if (!element) return;
         element.classList.remove('is-invalid');
-        const feedback = element.nextElementSibling;
-        if (feedback && feedback.classList.contains('invalid-feedback')) {
+        const container = element.closest('.form-group') || element.parentNode;
+        const feedback = container.querySelector('.invalid-feedback');
+        if (feedback) {
             feedback.style.display = 'none';
         }
     }

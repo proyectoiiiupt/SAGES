@@ -6,12 +6,14 @@
 
 {% block content %}
 <div class="view-container">
-    <div class="page-header">
-        <div class="page-title">
-            Registro Interno Administrativo
+    <!-- Encabezado Estándar -->
+    <div class="header-card">
+        <div class="welcome-text">
+            Registro Interno Administrativo 👤
         </div>
-        <div class="page-date">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+
+        <div class="date-text date-with-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                 <line x1="16" y1="2" x2="16" y2="6"></line>
                 <line x1="8" y1="2" x2="8" y2="6"></line>
@@ -21,13 +23,9 @@
         </div>
     </div>
     
-    <div class="page-actions" style="margin-bottom: 2rem;">
-        <a href="#" class="back-btn" id="btnCancelRegistro">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="19" y1="12" x2="5" y2="12"></line>
-                <polyline points="12 19 5 12 12 5"></polyline>
-            </svg>
-            Cancelar
+    <div style="margin-top: 15px; margin-bottom: 20px;">
+        <a href="{{ url_for('users.list_users') }}" class="btn-clear" id="btnCancelRegistro" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+            &larr; Volver a Gestión de Usuarios
         </a>
     </div>
 
@@ -114,12 +112,12 @@
                 
                 <div style="display: flex; gap: 1rem;">
                     <div class="form-group" style="flex: 1;">
-                        <label class="form-label">Teléfono Móvil <span class="required-mark">*</span></label>
-                        {{ form.mobile(class="form-control", id="mobile", placeholder="Ej: 04141234567") }}
+                        <label class="form-label" for="mobile">Teléfono Móvil <span class="required-mark">*</span></label>
+                        {{ form.mobile(class="form-control", id="mobile", placeholder="(0414)-1234567", maxlength="15") }}
                     </div>
                     <div class="form-group" style="flex: 1;">
-                        <label class="form-label">Teléfono Local (Opcional)</label>
-                        {{ form.phone(class="form-control", id="phone", placeholder="Ej: 02121234567") }}
+                        <label class="form-label" for="phone">Teléfono Local <span style="color: #64748b; font-weight: 400;">(Opcional)</span></label>
+                        {{ form.phone(class="form-control", id="phone", placeholder="(0212)-1234567", maxlength="15") }}
                     </div>
                 </div>
 

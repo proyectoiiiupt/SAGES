@@ -46,21 +46,38 @@
         </nav>
     </header>
 
-    <!-- Notificaciones Flashed -->
+    <!-- Notificaciones Flashed vía Modal SweetAlert2 -->
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        <div class="profile-alerts-container" style="margin-bottom: 1.5rem;">
-          {% for category, message in messages %}
-            <div class="alert-box alert-{{ 'success' if category == 'success' else 'danger' }}" style="padding: 14px 20px; border-radius: 8px; font-weight: 600; font-size: 1.05rem; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; background-color: {{ '#dcfce7' if category == 'success' else '#fee2e2' }}; color: {{ '#15803d' if category == 'success' else '#b91c1c' }}; border: 1px solid {{ '#bbf7d0' if category == 'success' else '#fecaca' }};">
-              {% if category == 'success' %}
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-              {% else %}
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-              {% endif %}
-              <span>{{ message }}</span>
-            </div>
-          {% endfor %}
-        </div>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                {% for category, message in messages %}
+                    let iconType = '{{ category }}';
+                    let titleText = 'Notificación';
+
+                    if (iconType === 'success') {
+                        titleText = '¡Éxito!';
+                    } else if (iconType === 'error' || iconType === 'danger') {
+                        iconType = 'error';
+                        titleText = '¡Atención!';
+                    } else if (iconType === 'warning') {
+                        titleText = 'Advertencia';
+                    } else {
+                        iconType = 'info';
+                    }
+
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            title: titleText,
+                            text: {{ message | tojson }},
+                            icon: iconType,
+                            confirmButtonColor: '#007865',
+                            confirmButtonText: 'Aceptar'
+                        });
+                    }
+                {% endfor %}
+            });
+        </script>
       {% endif %}
     {% endwith %}
 

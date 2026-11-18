@@ -14,6 +14,16 @@
         <div class="welcome-text">
             Bandeja de Solicitudes Pendientes 📥
         </div>
+
+        <div class="date-text date-with-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span id="current-date"></span>
+        </div>
     </div>
     
     <!-- Botón Volver -->
@@ -37,8 +47,8 @@
                         <th>N°</th>
                         <th>Nombre</th>
                         <th>Cargo Institucional</th>
-                        <th>Municipio</th>
-                        <th>Parroquia</th>
+                        <th>Institución</th>
+                        <th>Ubicación</th>
                         <th class="text-center">Acciones</th>
                     </tr>
                 </thead>
@@ -57,15 +67,21 @@
                             <td class="text-dark truncate">
                                 {{ req.position.name if req.position else 'N/A' }}
                             </td>
-                            
-                            <!-- Municipio -->
-                            <td>
-                                {{ req.institution.parish.municipality.name if req.institution and req.institution.parish else 'N/A' }}
-                            </td>
 
-                            <!-- Parroquia -->
+                            <!-- Institución -->
+                            <td class="text-dark truncate">
+                                {{ req.institution.name if req.institution else 'N/A' }}
+                            </td>
+                            
+                            <!-- Ubicación (Estado / Municipio - Parroquia) -->
                             <td>
-                                {{ req.institution.parish.name if req.institution and req.institution.parish else 'N/A' }}
+                                {% set st_name = req.institution.parish.municipality.state.name if req.institution and req.institution.parish and req.institution.parish.municipality and req.institution.parish.municipality.state else 'N/A' %}
+                                {% set mun_name = req.institution.parish.municipality.name if req.institution and req.institution.parish and req.institution.parish.municipality else 'N/A' %}
+                                {% set par_name = req.institution.parish.name if req.institution and req.institution.parish else 'N/A' %}
+                                <div class="font-medium text-dark">{{ st_name }}</div>
+                                <small class="text-muted" style="display: block; font-size: 11px;">
+                                    {{ mun_name }} - {{ par_name }}
+                                </small>
                             </td>
                             <td class="text-center">
                                 <div style="display: flex; justify-content: center; align-items: center; gap: 8px;">
@@ -109,8 +125,18 @@
 
 {% block extra_js %}
 <script>
-    // Al cargar la página, revisamos el localStorage para desbloquear los botones de las evidencias ya vistas
+    // Al cargar la página, revisamos el localStorage para desbloquear los botones de las evidencias ya vistas y formateamos la fecha
     document.addEventListener("DOMContentLoaded", function() {
+        const dateSpan = document.getElementById('current-date');
+        if (dateSpan) {
+            if (typeof formatCurrentDate === 'function') {
+                formatCurrentDate(dateSpan, 'full-date');
+            } else {
+                const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                dateSpan.textContent = new Date().toLocaleDateString('es-VE', options);
+            }
+        }
+
         const botonesAprobar = document.querySelectorAll('[id^="btn-aprobar-"]');
         botonesAprobar.forEach(btn => {
             const requestId = btn.id.split('-')[2];
