@@ -1,11 +1,10 @@
-import csv
-from io import StringIO
-from flask import Blueprint, jsonify, render_template, request, Response
+from datetime import datetime
+from flask import Blueprint, jsonify, render_template, request
 from sqlalchemy import and_, or_
 from app.models.binnacle_model import Binnacle 
 from app.models.person_model import Person
 from app.models.user_model import User
-from app.utils.timezone import to_caracas_time, caracas_date_range_to_utc
+from app.utils.timezone import to_caracas_time, caracas_date_range_to_utc, get_caracas_today
 
 binnacle_bp = Blueprint('binnacle', __name__, url_prefix='/binnacle')
 
@@ -165,7 +164,24 @@ def get_logs_filtered():
     accion = request.args.get('accion')
     usuario = request.args.get('usuario')  
     estatus = request.args.get('estatus')  
-    
+
+    today_ve = get_caracas_today()
+    parsed_desde = None
+    parsed_hasta = None
+    try:
+        if fecha_desde and fecha_desde.strip():
+            parsed_desde = datetime.strptime(fecha_desde.strip(), "%Y-%m-%d").date()
+            if parsed_desde > today_ve:
+                return jsonify({"success": False, "message": "La fecha 'Desde' no puede ser futura."}), 400
+        if fecha_hasta and fecha_hasta.strip():
+            parsed_hasta = datetime.strptime(fecha_hasta.strip(), "%Y-%m-%d").date()
+            if parsed_hasta > today_ve:
+                return jsonify({"success": False, "message": "La fecha 'Hasta' no puede ser futura."}), 400
+        if parsed_desde and parsed_hasta and parsed_desde > parsed_hasta:
+            return jsonify({"success": False, "message": "La fecha 'Desde' no puede ser mayor que la fecha 'Hasta'."}), 400
+    except ValueError:
+        return jsonify({"success": False, "message": "Formato de fecha inválido. Use YYYY-MM-DD."}), 400
+
     query = _apply_audit_filters(
         Binnacle.query, fecha_desde, fecha_hasta, modulo, accion, usuario, estatus
     )
@@ -194,43 +210,3 @@ def get_logs_filtered():
             "current_page": pagination.page
         }
     }), 200
-
-# --- RUTA PARA EXPORTAR A CSV (CORREGIDA PARA EL FRONTEND) ---
-@binnacle_bp.route('/api/logs/export', methods=['GET'])
-def export_logs():
-    fecha_desde = request.args.get('fecha_desde')
-    fecha_hasta = request.args.get('fecha_hasta')
-    modulo = request.args.get('modulo')
-    accion = request.args.get('accion')
-    usuario = request.args.get('usuario')
-    estatus = request.args.get('estatus')
-    
-    query = _apply_audit_filters(
-        Binnacle.query, fecha_desde, fecha_hasta, modulo, accion, usuario, estatus
-    )
-    registros = query.order_by(Binnacle.created_at.desc()).all()
-
-    def generate():
-        data = StringIO()
-        writer = csv.writer(data)
-        writer.writerow(['Fecha', 'Usuario', 'Modulo', 'Accion', 'Descripcion', 'Estatus'])
-        yield data.getvalue()
-        data.seek(0)
-        data.truncate(0)
-
-        for r in registros:
-            dt_vzla = to_caracas_time(r.created_at)
-            fecha = dt_vzla.strftime("%d/%m/%Y %I:%M %p") if dt_vzla else "N/A"
-            user_name = getattr(r.user, 'full_name', 'No registrado') if r.user else "No registrado"
-            status = _format_audit_status(r.status, r.action_type)
-            
-            writer.writerow([fecha, user_name, r.module, r.action_type, r.description, status])
-            yield data.getvalue()
-            data.seek(0)
-            data.truncate(0)
-
-    headers = {
-        "Content-Disposition": "attachment; filename=reporte_auditoria_sages.csv",
-        "Content-Type": "text/csv; charset=utf-8"
-    }
-    return Response(generate(), headers=headers)

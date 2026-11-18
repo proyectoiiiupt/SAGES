@@ -56,6 +56,7 @@ def audit_view():
     Vista ampliada de la tabla de bitácora/auditoría (US-25-binnacle-table).
     """
     from app.binnacle.types import AuditModule, AuditAction, MODULE_ACTIONS_MAP
+    from app.utils.timezone import get_caracas_today
     logs = get_audit_logs()
     audit_modules = [m.value for m in AuditModule if m != AuditModule.SERVICES]
     audit_actions = [a.value for a in AuditAction]
@@ -65,6 +66,7 @@ def audit_view():
         audit_modules=audit_modules,
         audit_actions=audit_actions,
         module_actions_map=MODULE_ACTIONS_MAP,
+        max_date=get_caracas_today().isoformat(),
     )
 
 # ─────────────────────────────────────────────────────────────
