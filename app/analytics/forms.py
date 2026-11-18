@@ -22,8 +22,8 @@ class ReportWizardForm(FlaskForm):
         'Tipo de Reporte',
         choices=[
             ('gestion_general', 'Rendimiento y Actividad de Gestión'),
-            ('impacto_educativo', 'Impacto Social y Cobertura Educativa (SR-F-023)'),
-            ('retrasos_ans', 'Analítico de Justificaciones y Retrasos ANS (SR-F-026)'),
+            ('impacto_educativo', 'Impacto Social y Cobertura Educativa'),
+            ('retrasos_ans', 'Analítico de Justificaciones y Retrasos ANS'),
             ('auditoria_usuarios', 'Actividad de Usuario y Auditoría')
         ],
         validators=[DataRequired(message="Debe seleccionar el tipo de reporte.")]

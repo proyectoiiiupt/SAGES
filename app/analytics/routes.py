@@ -121,11 +121,13 @@ def indicators_view():
     Vista 2: Consola Analítica "Indicadores de Gestión".
     """
     try:
+        from app.utils.timezone import get_caracas_today
         context = AnalyticsService.get_indicators_initial_context(current_user)
         return render_template(
             'analytics/indicators.html',
             ctx=context,
-            initial_data_json=json.dumps(context['initial_data'])
+            initial_data_json=json.dumps(context['initial_data']),
+            current_month=get_caracas_today().month,
         )
     except Exception as e:
         print(f"[ERROR analytics.indicators_view]: {e}")
@@ -189,12 +191,14 @@ def reports_wizard():
     Vista 3: Asistente Wizard "Generar Reportes" (Paso 1 y Paso 2).
     """
     try:
+        from app.utils.timezone import get_caracas_today
         form = ReportWizardForm()
         context = AnalyticsService.get_wizard_initial_context(current_user, request.args)
         return render_template(
             'analytics/reports_wizard.html',
             form=form,
-            ctx=context
+            ctx=context,
+            current_month=get_caracas_today().month,
         )
     except Exception as e:
         print(f"[ERROR analytics.reports_wizard]: {e}")

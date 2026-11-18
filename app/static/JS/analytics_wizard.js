@@ -239,6 +239,8 @@ document.addEventListener('DOMContentLoaded', function () {
                             text: data.message,
                             icon: 'success',
                             confirmButtonColor: '#019577'
+                        }).then(() => {
+                            window.location.reload();
                         });
                     } else {
                         Swal.fire({
@@ -259,45 +261,66 @@ document.addEventListener('DOMContentLoaded', function () {
                     });
                 });
 
-            // ── CASO B: DESCARGA BINARIA LOCAL (FORM SUBMIT) ──
+            // ── CASO B: DESCARGA BINARIA LOCAL (FETCH BLOB + ÉXITO + RECARGA) ──
             } else {
-                Swal.fire({
-                    toast: true,
-                    position: 'top-end',
-                    icon: 'info',
-                    title: 'Iniciando descarga del reporte...',
-                    showConfirmButton: false,
-                    timer: 3000
-                });
-
-                // Construcción de formulario temporal para submit nativo de descarga binaria
-                const hiddenForm = document.createElement('form');
-                hiddenForm.method = 'POST';
-                hiddenForm.action = '/analytics/export';
-                hiddenForm.style.display = 'none';
-
-                for (let [key, val] of formData.entries()) {
-                    const input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = key;
-                    input.value = val;
-                    hiddenForm.appendChild(input);
-                }
-
-                // Inyectar CSRF token
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
                     || document.querySelector('input[name="csrf_token"]')?.value;
-                if (csrfToken && !hiddenForm.querySelector('input[name="csrf_token"]')) {
-                    const csrfInput = document.createElement('input');
-                    csrfInput.type = 'hidden';
-                    csrfInput.name = 'csrf_token';
-                    csrfInput.value = csrfToken;
-                    hiddenForm.appendChild(csrfInput);
-                }
 
-                document.body.appendChild(hiddenForm);
-                hiddenForm.submit();
-                setTimeout(() => hiddenForm.remove(), 1000);
+                Swal.fire({
+                    title: 'Generando reporte...',
+                    text: 'Preparando el archivo para descarga.',
+                    allowOutsideClick: false,
+                    didOpen: () => { Swal.showLoading(); }
+                });
+
+                fetch('/analytics/export', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken || '' },
+                    body: formData
+                })
+                .then(async response => {
+                    if (!response.ok) {
+                        let errMsg = 'No se pudo generar el reporte.';
+                        try {
+                            const errJson = await response.json();
+                            if (errJson && errJson.message) errMsg = errJson.message;
+                        } catch (_) {}
+                        throw new Error(errMsg);
+                    }
+                    const disposition = response.headers.get('Content-Disposition') || '';
+                    const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+                    const filename = match ? decodeURIComponent(match[1]) : 'reporte_sages';
+                    const blob = await response.blob();
+                    return { blob, filename };
+                })
+                .then(({ blob, filename }) => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+
+                    Swal.fire({
+                        title: '¡Reporte Exportado!',
+                        text: 'El archivo se ha generado y descargado correctamente.',
+                        icon: 'success',
+                        confirmButtonColor: '#019577'
+                    }).then(() => {
+                        window.location.reload();
+                    });
+                })
+                .catch(err => {
+                    console.error("Error al exportar reporte:", err);
+                    Swal.fire({
+                        title: 'Error de exportación',
+                        text: err.message || 'Ocurrió un error al generar el reporte.',
+                        icon: 'error',
+                        confirmButtonColor: '#0f3669'
+                    });
+                });
             }
         });
     }

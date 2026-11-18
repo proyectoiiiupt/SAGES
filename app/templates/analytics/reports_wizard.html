@@ -267,19 +267,13 @@
                     </div>
 
                     <div id="w-wrapper-month" class="temporal-input-box" style="{% if ctx.preselected.date_from %}display: none;{% endif %}">
+                        {% set _months = [(1,'Enero'),(2,'Febrero'),(3,'Marzo'),(4,'Abril'),(5,'Mayo'),(6,'Junio'),(7,'Julio'),(8,'Agosto'),(9,'Septiembre'),(10,'Octubre'),(11,'Noviembre'),(12,'Diciembre')] %}
+                        {% set _selected_month = (ctx.preselected.month | int) if ctx.preselected.month else current_month %}
                         <select id="w-filter-month" class="filter-control">
-                            <option value="1">Enero</option>
-                            <option value="2">Febrero</option>
-                            <option value="3">Marzo</option>
-                            <option value="4">Abril</option>
-                            <option value="5">Mayo</option>
-                            <option value="6">Junio</option>
-                            <option value="7">Julio</option>
-                            <option value="8">Agosto</option>
-                            <option value="9" {% if ctx.preselected.month == 9 or not ctx.preselected.month %}selected{% endif %}>Septiembre</option>
-                            <option value="10" {% if ctx.preselected.month == 10 %}selected{% endif %}>Octubre</option>
-                            <option value="11" {% if ctx.preselected.month == 11 %}selected{% endif %}>Noviembre</option>
-                            <option value="12" {% if ctx.preselected.month == 12 %}selected{% endif %}>Diciembre</option>
+                            <option value="">Seleccione...</option>
+                            {% for m_num, m_name in _months %}
+                            <option value="{{ m_num }}" {% if _selected_month == m_num %}selected{% endif %}>{{ m_name }}</option>
+                            {% endfor %}
                         </select>
                     </div>
 
