@@ -137,6 +137,10 @@
                         <span>
                             {% if req.historical or req.status.status_code in ['STAT-007', 'STAT-008', 'STAT-009'] %}
                                 Expediente concluido o archivado. La custodia de evidencias probatorias es inmutable.
+                            {% elif is_owner and req.status.status_code == 'STAT-005' %}
+                                Jornada planificada: La carga de evidencias se habilitará cuando llegue la fecha pautada y la jornada pase a 'En Proceso'.
+                            {% elif is_owner %}
+                                La carga de evidencias se habilitará cuando llegue la fecha pautada y la jornada pase a 'En Proceso'.
                             {% else %}
                                 Modo supervisión: Solo el facilitador titular asignado puede cargar o retirar evidencias.
                             {% endif %}

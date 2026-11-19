@@ -3221,12 +3221,12 @@ def get_active_workspace_context(request_id: int, current_user=None) -> dict:
 
         if status_code == 'STAT-003':
             if req.created_at:
-                hours_diff = (now_local - req.created_at.astimezone(vzla_tz)).total_seconds() / 3600
+                hours_diff = (now_local - to_caracas_time(req.created_at)).total_seconds() / 3600
                 if hours_diff > 72:
                     has_delay_block = True
         elif status_code in ['STAT-004', 'STAT-005', 'STAT-006']:
             if req.updated_at:
-                hours_diff = (now_local - req.updated_at.astimezone(vzla_tz)).total_seconds() / 3600
+                hours_diff = (now_local - to_caracas_time(req.updated_at)).total_seconds() / 3600
                 if hours_diff > 240:
                     has_delay_block = True
 
