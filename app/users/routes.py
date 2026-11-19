@@ -37,6 +37,7 @@ from app.users.services import (
     get_user_state_id,
     purge_expired_pending_users,
     get_status_by_code,
+    log_action,
     STATUS_ACTIVE_CODE,
     STATUS_INACTIVE_CODE,
     STATUS_PENDING_CODE,
@@ -1433,15 +1434,6 @@ def register_admin():
                 role_display=result_data['role_display'],
                 place_name=result_data['place_name'],
                 full_name=result_data['full_name']
-            )
-            
-            BinnacleService.create_log_entry(
-                module=AuditModule.USERS.value,
-                action_type=AuditAction.REGISTRO_ADMIN_INTERNO.value,
-                description=f'Alta corporativa de {result_data["role_display"]}: {result_data["full_name"]} asignado a sede {result_data["place_name"]}',
-                target_table='sages.users',
-                record_id=result_data['user_id'],
-                status=AuditStatus.COMPLETADO.value
             )
             
             flash(message, 'success')

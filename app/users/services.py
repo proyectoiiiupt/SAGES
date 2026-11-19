@@ -37,6 +37,39 @@ def get_status_by_code(code: str) -> Optional[Status]:
     """Retorna el registro del catálogo Status según su código estandarizado (STAT-xxx)."""
     return Status.query.filter_by(status_code=code).first()
 
+
+def log_action(
+    module: str = AuditModule.USERS.value,
+    action_type: str = AuditAction.REGISTRO_ADMIN_INTERNO.value,
+    description: str = '',
+    status: str = AuditStatus.COMPLETADO.value,
+    target_table: Optional[str] = None,
+    record_id: Optional[int] = None,
+    old_values: Optional[dict] = None,
+    new_values: Optional[dict] = None,
+    user_identifier: Optional[str] = None,
+    session_instance: Optional[Any] = None,
+    user_id: Optional[int] = -1,
+    **kwargs
+) -> Optional[Any]:
+    """
+    Registra una acción en la Bitácora del sistema (sages.binnacle).
+    Invoca BinnacleService.create_log_entry para mantener la trazabilidad de auditoría.
+    """
+    return BinnacleService.create_log_entry(
+        module=module,
+        action_type=action_type,
+        description=description,
+        status=status,
+        target_table=target_table,
+        record_id=record_id,
+        old_values=old_values,
+        new_values=new_values,
+        user_identifier=user_identifier,
+        session_instance=session_instance,
+        user_id=user_id
+    )
+
 PASSWORD_REGEX = re.compile(r'^(?=.*[A-Z])(?=.*[0-9])(?=.*[$@.!%*?&]).{8,128}$')
 
 
@@ -450,12 +483,33 @@ def create_administrative_user(data: dict, creator_user: User) -> Tuple[bool, st
         )
         db.session.add(role_user)
 
-        # Commit final
-        db.session.commit()
-        
         role_display = "Super Administrador"
         if role.name == 'state_admin':
             role_display = f"Administrador {state_name}"
+
+        # 5. Registrar acción en Bitácora antes del commit (inserción atómica)
+        log_action(
+            module=AuditModule.USERS.value,
+            action_type=AuditAction.REGISTRO_ADMIN_INTERNO.value,
+            description=f'Alta corporativa de {role_display}: {person.first_name} {person.last_name} asignado a sede {place.name}',
+            target_table='sages.users',
+            record_id=user.id,
+            user_id=creator_user.id if (creator_user and hasattr(creator_user, 'id')) else None,
+            status=AuditStatus.COMPLETADO.value,
+            new_values={
+                'user_code': user.user_code,
+                'user_name': user.user_name,
+                'person_id': person.id,
+                'role': role.name,
+                'place_id': place.id,
+                'position_id': data.get('position_id'),
+                'status': STATUS_IN_PROGRESS_CODE
+            },
+            session_instance=db.session
+        )
+
+        # Commit final
+        db.session.commit()
 
         return True, "Registro exitoso.", {
             'person_id': person.id,
