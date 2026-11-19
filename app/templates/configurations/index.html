@@ -115,7 +115,7 @@
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="text-center"><span class="badge-count">2</span></td>
+                                    <td class="text-center"><span class="badge-count">{{ (roles_matrix | selectattr('role_code', 'equalto', 'super_admin') | map(attribute='users_count') | first) | default((roles_matrix | selectattr('id', 'equalto', 1) | map(attribute='users_count') | first) | default(0)) }}</span></td>
                                     <td class="text-center"><span class="badge-status badge-success">Acceso Total</span>
                                     </td>
                                     <td class="text-center">
@@ -146,7 +146,7 @@
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="text-center"><span class="badge-count">8</span></td>
+                                    <td class="text-center"><span class="badge-count">{{ (roles_matrix | selectattr('role_code', 'equalto', 'state_admin') | map(attribute='users_count') | first) | default((roles_matrix | selectattr('id', 'equalto', 2) | map(attribute='users_count') | first) | default(0)) }}</span></td>
                                     <td class="text-center"><span class="badge-status badge-info">Aprobación
                                             Regional</span></td>
                                     <td class="text-center">
@@ -177,7 +177,7 @@
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="text-center"><span class="badge-count">45</span></td>
+                                    <td class="text-center"><span class="badge-count">{{ (roles_matrix | selectattr('role_code', 'equalto', 'applicant') | map(attribute='users_count') | first) | default((roles_matrix | selectattr('id', 'equalto', 3) | map(attribute='users_count') | first) | default(0)) }}</span></td>
                                     <td class="text-center"><span class="badge-status badge-neutral">Lectura y
                                             Carga</span></td>
                                     <td class="text-center">
