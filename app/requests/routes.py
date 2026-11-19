@@ -433,7 +433,7 @@ def state_request_detail(id):
         
     from app.models.reason_model import Reason
     from app.requests.forms import CancelRequestForm
-    from app.requests.services import check_closure_spam_alert
+    from app.requests.services import check_closure_spam_alert, get_request_timeline
     reschedule_reasons = Reason.query.order_by(Reason.id.asc()).all()
 
     cancel_form = CancelRequestForm(min_length=20)
@@ -445,12 +445,15 @@ def state_request_detail(id):
     else:
         req.closure_alert = {'should_trigger': False}
 
+    tracking_steps = get_request_timeline(id)
+
     return render_template(
         'requests/state_request_detail.html',
         req=req,
         reschedule_reasons=reschedule_reasons,
         reasons=reschedule_reasons,
-        cancel_form=cancel_form
+        cancel_form=cancel_form,
+        tracking_steps=tracking_steps
     )
 
 

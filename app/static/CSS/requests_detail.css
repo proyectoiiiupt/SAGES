@@ -744,4 +744,265 @@
         max-width: calc(100vw - 32px);
         text-align: center;
     }
+}
+
+/* ==========================================================================
+   Banner Central: Responsable Asignado y Fecha Planificada (US-39)
+   ========================================================================== */
+.central-assignment-banner {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 18px 24px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    gap: 20px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04);
+}
+
+.assignment-block {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex: 1;
+}
+
+.assignment-icon-wrap {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: #ecfdf5;
+    color: #019577;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.assignment-icon-wrap.date-icon-wrap {
+    background: #f0f9ff;
+    color: #0284c7;
+}
+
+.assignment-content {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.assignment-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #64748b;
+}
+
+.assignment-value {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.facilitator-name {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.planned-date-text {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #0284c7;
+}
+
+.badge-role-tag {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: #ecfdf5;
+    color: #017a61;
+    border: 1px solid #a7f3d0;
+}
+
+.badge-reprogrammed-tag {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fde68a;
+}
+
+.unassigned-tag, .unplanned-tag {
+    font-size: 0.95rem;
+    color: #94a3b8;
+    font-style: italic;
+}
+
+.assignment-divider {
+    width: 1px;
+    height: 45px;
+    background: #e2e8f0;
+}
+
+@media (max-width: 768px) {
+    .central-assignment-banner {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .assignment-divider {
+        width: 100%;
+        height: 1px;
+    }
+}
+
+/* Botones secundarios en Action Toolbar */
+.btn-action-outline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    background: #ffffff;
+    color: #334155;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.btn-action-outline:hover {
+    background: #f8fafc;
+    border-color: #019577;
+    color: #019577;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(1, 149, 119, 0.12);
+}
+
+/* Modales Personalizados de Detalle (Bitácora / Justificaciones) */
+.detail-custom-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1050;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.detail-custom-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(2px);
+}
+
+.detail-custom-modal-dialog {
+    position: relative;
+    z-index: 1051;
+    width: 90%;
+    max-width: 720px;
+    animation: modalScaleIn 0.22s ease-out;
+}
+
+/* Integración refinada de Bitácora en Modal (US-45 / US-39) */
+#timelineModal .tracking-timeline-card {
+    border: none;
+    box-shadow: none;
+    margin-bottom: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+#timelineModal .timeline-card-header {
+    display: none; /* Se oculta para no duplicar el encabezado del modal */
+}
+
+#timelineModal .timeline-card-body {
+    padding: 0;
+}
+
+#timelineModal .timeline-scroll-container {
+    max-height: 48vh;
+    padding: 14px 18px;
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+}
+
+#timelineModal .timeline-input-section {
+    padding: 16px 4px 4px 4px;
+}
+
+#timelineModal .timeline-input-footer {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    margin-top: 10px !important;
+}
+
+#timelineModal .btn-save-tracking-note {
+    margin-left: auto !important;
+}
+
+.detail-custom-modal-content {
+    background: #ffffff;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+}
+
+.detail-custom-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #f1f5f9;
+    background: #fafbfc;
+}
+
+.modal-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.btn-modal-close-icon {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #94a3b8;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.btn-modal-close-icon:hover {
+    color: #0f172a;
+}
+
+.detail-custom-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 14px 20px;
+    background: #f8fafc;
+    border-top: 1px solid #f1f5f9;
+}
+
+@keyframes modalScaleIn {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
 }

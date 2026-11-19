@@ -310,6 +310,9 @@
                                 {% endif %}
                             </td>
                             <td>
+                                <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
+                                    <span style="font-family: monospace; font-size: 0.8rem; font-weight: 700; color: #019577; background: #ecfdf5; padding: 1px 6px; border-radius: 4px; border: 1px solid #a7f3d0;">{{ req.request_code }}</span>
+                                </div>
                                 <div class="training-name">
                                     {{ req.institutional_staff.institution.institution_name }}
                                 </div>

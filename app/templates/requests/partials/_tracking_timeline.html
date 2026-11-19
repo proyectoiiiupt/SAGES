@@ -11,7 +11,8 @@
 {% set current_request_id = current_req.id if current_req else (req_id if req_id is defined else 0) %}
 {% set is_archived = current_req.historical or (current_req.status and current_req.status.status_code == 'STAT-009') if current_req else False %}
 
-<div class="card tracking-timeline-card">
+<div class="card tracking-timeline-card" {% if hide_header %}style="border: none; box-shadow: none; margin-bottom: 0; background: transparent;"{% endif %}>
+    {% if not hide_header %}
     <div class="card-header timeline-card-header">
         <div class="card-header-left">
             <div class="card-icon timeline-card-icon">
@@ -29,6 +30,7 @@
             {{ steps|length }} eventos
         </span>
     </div>
+    {% endif %}
 
     <div class="card-body timeline-card-body">
         <!-- Contenedor con Scroll de Eventos -->
@@ -114,9 +116,9 @@
                     placeholder="Escriba aquí observaciones de campo, cantidad preliminar de asistentes o incidencias..." 
                     maxlength="500"></textarea>
             </div>
-            <div class="d-flex justify-content-between align-items-center mt-2">
+            <div class="timeline-input-footer" style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; width: 100%;">
                 <span class="text-muted tracking-char-counter" id="tracking-char-count">0 / 500 caracteres</span>
-                <button type="button" id="btn-save-tracking-note" class="btn-save-tracking-note" data-request-id="{{ current_request_id }}">
+                <button type="button" id="btn-save-tracking-note" class="btn-save-tracking-note" data-request-id="{{ current_request_id }}" style="margin-left: auto;">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="22" y1="2" x2="11" y2="13"></line>
                         <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>

@@ -25,9 +25,9 @@
         </div>
     </div>
 
-    <!-- ===== PESTAÑAS DE NAVEGACIÓN (TABS) ===== -->
-    <nav class="monitoring-nav-tabs" aria-label="Navegación de monitoreo">
-        <a href="{{ url_for('requests.national_monitoring') }}" class="monitoring-tab-link active">
+    <!-- ===== BARRA DE NAVEGACIÓN POR BOTONES (US-38) ===== -->
+    <nav class="monitoring-nav-buttons" aria-label="Navegación de monitoreo">
+        <a href="{{ url_for('requests.national_monitoring') }}" class="btn-nav-view active">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                 <line x1="3" y1="9" x2="21" y2="9"></line>
@@ -35,14 +35,14 @@
             </svg>
             Monitoreo Global de Solicitudes
         </a>
-        <a href="{{ url_for('requests.delays_audit') }}" class="monitoring-tab-link">
+        <a href="{{ url_for('requests.delays_audit') }}" class="btn-nav-view">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"></circle>
                 <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
             Auditoría de Retrasos SLA
         </a>
-        <button type="button" class="monitoring-tab-link btn-open-calendar-agenda" id="btn-open-agenda" style="border: none; background: transparent; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+        <button type="button" class="btn-nav-view btn-open-calendar-agenda" id="btn-open-agenda">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                 <line x1="16" y1="2" x2="16" y2="6"></line>
@@ -51,7 +51,7 @@
             </svg>
             Agenda Mensual
         </button>
-        <a href="{{ url_for('requests.state_admin_history') }}" class="monitoring-tab-link">
+        <a href="{{ url_for('requests.state_admin_history') }}" class="btn-nav-view">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="21 8 21 21 3 21 3 8"></polyline>
                 <rect x="1" y="3" width="22" height="5"></rect>

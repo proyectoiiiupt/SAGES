@@ -125,45 +125,69 @@
 }
 
 /* ==========================================================================
-   Pestañas de Navegación (Tabs)
+   Botonera de Navegación entre Vistas (Sustitución de Tabs) (US-38)
    ========================================================================== */
+.monitoring-nav-buttons,
 .monitoring-nav-tabs {
     display: flex;
-    gap: 12px;
-    border-bottom: 2px solid var(--monitoring-border);
-    padding-bottom: 2px;
+    gap: 10px;
+    padding: 6px 0 16px 0;
+    flex-wrap: wrap;
+    align-items: center;
 }
 
+.btn-nav-view,
 .monitoring-tab-link {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 20px;
-    border-radius: 8px 8px 0 0;
-    font-size: 0.95rem;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 0.92rem;
     font-weight: 600;
-    color: var(--monitoring-text-muted);
-    text-decoration: none;
-    transition: all 0.2s ease;
-    border-bottom: 3px solid transparent;
-    margin-bottom: -3px;
-}
-
-.monitoring-tab-link svg {
-    width: 18px;
-    height: 18px;
-}
-
-.monitoring-tab-link:hover {
-    color: var(--monitoring-primary);
-    background: rgba(0, 86, 179, 0.04);
-}
-
-.monitoring-tab-link.active {
-    color: var(--monitoring-primary);
-    border-bottom-color: var(--monitoring-primary);
+    color: #475569;
     background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    text-decoration: none;
+    transition: all 0.22s ease;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.btn-nav-view svg,
+.monitoring-tab-link svg {
+    width: 17px;
+    height: 17px;
+    color: #64748b;
+    transition: color 0.2s ease;
+}
+
+.btn-nav-view:hover,
+.monitoring-tab-link:hover {
+    color: #019577;
+    border-color: #019577;
+    background: #f0fdf4;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(1, 149, 119, 0.12);
+}
+
+.btn-nav-view:hover svg,
+.monitoring-tab-link:hover svg {
+    color: #019577;
+}
+
+.btn-nav-view.active,
+.monitoring-tab-link.active {
+    color: #ffffff;
+    background: linear-gradient(135deg, #019577 0%, #017a61 100%);
+    border-color: #017a61;
     font-weight: 700;
+    box-shadow: 0 4px 12px rgba(1, 149, 119, 0.28);
+}
+
+.btn-nav-view.active svg,
+.monitoring-tab-link.active svg {
+    color: #ffffff;
 }
 
 /* ==========================================================================
@@ -1254,6 +1278,25 @@
     border: 1px solid transparent;
     outline: none;
     white-space: nowrap;
+}
+
+.btn-action-audit.icon-only-action {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.btn-action-audit.icon-only-action svg {
+    width: 16px;
+    height: 16px;
+}
+
+.btn-action-audit.icon-only-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
 
 .btn-action-audit svg {

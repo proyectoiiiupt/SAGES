@@ -6,6 +6,7 @@
 <!-- Hoja de estilos específica de la Ficha Técnica -->
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_detail.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/applicant_request_detail.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/tracking_timeline.css') }}">
 {% if req.closure_alert and req.closure_alert.should_trigger %}
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_closure_alert.css') }}">
 {% endif %}
@@ -47,6 +48,24 @@
             </a>
         </div>
         <div class="action-buttons">
+            <!-- Botones de Bitácora y Justificaciones -->
+            <button type="button" class="btn-action-outline" id="btn-open-timeline-modal" title="Ver Bitácora de Campo y Seguimiento">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                </svg>
+                Bitácora ({{ tracking_steps|length if tracking_steps else 0 }})
+            </button>
+            <button type="button" class="btn-action-outline" id="btn-open-justifications-modal" title="Ver Descargos y Justificaciones del Expediente">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                </svg>
+                Justificaciones ({{ req.justifications|length if req.justifications else 0 }})
+            </button>
+
             {% if req.closure_alert and req.closure_alert.should_trigger %}
             <button type="button" class="btn-action-danger" disabled title="Acción bloqueada: Debe resolver la alerta en el modal obligatorio">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
@@ -130,6 +149,55 @@
                 Cancelar Solicitud
             </button>
             {% endif %}
+        </div>
+    </div>
+
+    <!-- 2.5 Banner Central: Responsable Asignado y Fecha Planificada (US-39) -->
+    <div class="central-assignment-banner">
+        <div class="assignment-block">
+            <div class="assignment-icon-wrap">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+            </div>
+            <div class="assignment-content">
+                <span class="assignment-label">Responsable Asignado</span>
+                <div class="assignment-value">
+                    {% if req.attended_by and req.attended_by.person %}
+                        <span class="facilitator-name">{{ req.attended_by.person.first_name }} {{ req.attended_by.person.last_name }}</span>
+                        <span class="badge-role-tag">Facilitador / UREE</span>
+                    {% else %}
+                        <span class="unassigned-tag">Sin Asignar (Pendiente de Atención)</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="assignment-divider"></div>
+
+        <div class="assignment-block">
+            <div class="assignment-icon-wrap date-icon-wrap">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+            </div>
+            <div class="assignment-content">
+                <span class="assignment-label">Fecha Planificada de Jornada</span>
+                <div class="assignment-value">
+                    {% if req.plannings and req.plannings[0].planned_for %}
+                        <strong class="planned-date-text">{{ req.plannings[0].planned_for.strftime('%d/%m/%Y') }}</strong>
+                        {% if req.plannings[0].rescheduled_count and req.plannings[0].rescheduled_count > 0 %}
+                            <span class="badge-reprogrammed-tag">Reprogramada ({{ req.plannings[0].rescheduled_count }}x)</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="unplanned-tag">Jornada aún no agendada</span>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
 
@@ -464,6 +532,103 @@
 {% if req.status.status_code in ['STAT-003', 'STAT-004', 'STAT-005', 'STAT-006'] and not req.historical %}
     {% include 'requests/partials/_cancellation_modal.html' %}
 {% endif %}
+
+<!-- ============================================================
+     Modal de Bitácora de Campo y Seguimiento
+     ============================================================ -->
+<div id="timelineModal" class="detail-custom-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="timelineModalTitle">
+    <div class="detail-custom-modal-backdrop" id="timelineModalBackdrop"></div>
+    <div class="detail-custom-modal-dialog">
+        <div class="detail-custom-modal-content">
+            <div class="detail-custom-modal-header">
+                <div class="modal-title-wrap">
+                    <div class="timeline-card-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 id="timelineModalTitle" style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #0f172a;">Bitácora de Campo y Seguimiento</h2>
+                        <span style="font-size: 0.82rem; color: #64748b;">Cronología completa de hitos y novedades registradas</span>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span class="badge timeline-counter-badge" id="modal-tracking-counter-badge">
+                        {{ tracking_steps|length if tracking_steps else 0 }} eventos
+                    </span>
+                    <button type="button" class="btn-modal-close-icon" id="btnCloseTimelineModal" aria-label="Cerrar bitácora">&times;</button>
+                </div>
+            </div>
+            <div class="detail-custom-modal-body" style="padding: 16px; max-height: 65vh; overflow-y: auto;">
+                {% with hide_header=True %}
+                    {% include 'requests/partials/_tracking_timeline.html' %}
+                {% endwith %}
+            </div>
+            <div class="detail-custom-modal-footer">
+                <button type="button" class="btn-cancel" id="btnCancelTimelineModal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     Modal de Justificaciones y Descargos Registrados
+     ============================================================ -->
+<div id="justificationsModal" class="detail-custom-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="justificationsModalTitle">
+    <div class="detail-custom-modal-backdrop" id="justificationsModalBackdrop"></div>
+    <div class="detail-custom-modal-dialog">
+        <div class="detail-custom-modal-content">
+            <div class="detail-custom-modal-header">
+                <div class="modal-title-wrap">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#dc2626" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                    <div>
+                        <h2 id="justificationsModalTitle" style="margin: 0; font-size: 1.15rem; color: #0f172a;">Descargos y Justificaciones Registradas</h2>
+                        <span style="font-size: 0.82rem; color: #64748b;">Historial de justificaciones formales asociadas a este trámite</span>
+                    </div>
+                </div>
+                <button type="button" class="btn-modal-close-icon" id="btnCloseJustificationsModal" aria-label="Cerrar modal">&times;</button>
+            </div>
+            <div class="detail-custom-modal-body" style="padding: 20px; max-height: 65vh; overflow-y: auto;">
+                {% if req.justifications and req.justifications|length > 0 %}
+                    <div class="justifications-container-list" style="display: flex; flex-direction: column; gap: 14px;">
+                        {% for just in req.justifications %}
+                        <div class="justification-item-card" style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; background: #fafbfc;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <span class="badge-role-tag" style="background: #fee2e2; color: #b91c1c;">{{ just.justification_type }}</span>
+                                <span class="local-datetime" data-utc="{{ just.created_at.isoformat() }}" data-format="standard" style="font-size: 0.82rem; color: #64748b;"></span>
+                            </div>
+                            <div style="font-size: 0.92rem; font-weight: 600; color: #1e293b; margin-bottom: 6px;">
+                                Motivo: <span style="color: #0369a1;">{{ just.reason.name if just.reason else 'No tipificado' }}</span>
+                            </div>
+                            <div style="background: #fff; padding: 10px 14px; border-radius: 6px; border-left: 3px solid #dc2626; color: #334155; font-size: 0.9rem; line-height: 1.5;">
+                                {{ just.justification }}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div style="text-align: center; padding: 36px 16px; color: #64748b;">
+                        <svg viewBox="0 0 24 24" width="42" height="42" fill="none" stroke="#cbd5e1" stroke-width="1.5" style="margin: 0 auto 10px; display: block;">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <p style="margin: 0; font-size: 0.95rem; font-style: italic;">No se han registrado descargos ni justificaciones formales en este expediente.</p>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="detail-custom-modal-footer">
+                <button type="button" class="btn-cancel" id="btnCancelJustificationsModal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -472,4 +637,38 @@
 <script src="{{ url_for('static', filename='JS/requests_closure_alert.js') }}"></script>
 {% endif %}
     <script src="{{ url_for('static', filename='js/state_request_detail.js') }}"></script>
+    <script src="{{ url_for('static', filename='JS/tracking_timeline.js') }}"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Modal de Bitácora
+        const btnOpenTimeline = document.getElementById('btn-open-timeline-modal');
+        const timelineModal = document.getElementById('timelineModal');
+        const btnCloseTimeline = document.getElementById('btnCloseTimelineModal');
+        const btnCancelTimeline = document.getElementById('btnCancelTimelineModal');
+        const timelineBackdrop = document.getElementById('timelineModalBackdrop');
+
+        function openTimeline() { if (timelineModal) timelineModal.style.display = 'flex'; }
+        function closeTimeline() { if (timelineModal) timelineModal.style.display = 'none'; }
+
+        if (btnOpenTimeline) btnOpenTimeline.addEventListener('click', openTimeline);
+        if (btnCloseTimeline) btnCloseTimeline.addEventListener('click', closeTimeline);
+        if (btnCancelTimeline) btnCancelTimeline.addEventListener('click', closeTimeline);
+        if (timelineBackdrop) timelineBackdrop.addEventListener('click', closeTimeline);
+
+        // Modal de Justificaciones
+        const btnOpenJust = document.getElementById('btn-open-justifications-modal');
+        const justModal = document.getElementById('justificationsModal');
+        const btnCloseJust = document.getElementById('btnCloseJustificationsModal');
+        const btnCancelJust = document.getElementById('btnCancelJustificationsModal');
+        const justBackdrop = document.getElementById('justificationsModalBackdrop');
+
+        function openJust() { if (justModal) justModal.style.display = 'flex'; }
+        function closeJust() { if (justModal) justModal.style.display = 'none'; }
+
+        if (btnOpenJust) btnOpenJust.addEventListener('click', openJust);
+        if (btnCloseJust) btnCloseJust.addEventListener('click', closeJust);
+        if (btnCancelJust) btnCancelJust.addEventListener('click', closeJust);
+        if (justBackdrop) justBackdrop.addEventListener('click', closeJust);
+    });
+    </script>
 {% endblock %}

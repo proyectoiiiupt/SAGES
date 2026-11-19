@@ -146,8 +146,11 @@
   {# EXPEDIENTE FORMATIVO / ESTADO #}
   <div class="hist-code-card {% if req.status.status_code == 'STAT-007' %}border-completed{% else %}border-cancelled{% endif %}">
     <div>
-      <div class="hist-code-label">Expediente Formativo Institucional</div>
-      <div class="hist-code-value" style="font-size:1.45rem; line-height:1.25; color:#0f172a; font-weight:800;">{{ detail.institution_data.name }}</div>
+      <div class="hist-code-label" style="display: flex; align-items: center; gap: 8px;">
+        <span>Expediente Digital Inmutable</span>
+        <span style="background: #e2e8f0; color: #1e293b; padding: 2px 8px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; font-weight: 800;">{{ req.request_code }}</span>
+      </div>
+      <div class="hist-code-value" style="font-size:1.45rem; line-height:1.25; color:#0f172a; font-weight:800; margin-top: 4px;">{{ detail.institution_data.name }}</div>
       <div style="font-size:0.95rem; color:#475569; margin-top:6px; font-weight:600; display:flex; align-items:center; gap:6px;">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
         {{ detail.pedagogical_data.training_name }}
