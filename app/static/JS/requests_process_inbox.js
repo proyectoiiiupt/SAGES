@@ -79,15 +79,15 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch('/requests/api/requests/me/busy-dates', {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                if (data.busy_dates) busyDates = data.busy_dates;
-                if (data.holidays) holidays = data.holidays;
-            }
-            renderCalendar();
-        })
-        .catch(() => renderCalendar());
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.busy_dates) busyDates = data.busy_dates;
+                    if (data.holidays) holidays = data.holidays;
+                }
+                renderCalendar();
+            })
+            .catch(() => renderCalendar());
 
         // Cargar motivos oficiales si el select estuviese vacío
         if (reasonSelect && reasonSelect.options.length <= 1) {
@@ -95,20 +95,20 @@ document.addEventListener('DOMContentLoaded', function () {
             fetch(`/requests/api/requests/${reqId}/delay-reasons`, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             })
-            .then(r => r.json())
-            .then(data => {
-                reasonSelect.innerHTML = '<option value="">-- Seleccione una razón --</option>';
-                if (data.reasons) {
-                    data.reasons.forEach(r => {
-                        const opt = document.createElement('option');
-                        opt.value = r.id;
-                        opt.textContent = r.name;
-                        reasonSelect.appendChild(opt);
-                    });
-                }
-                validateSubmit();
-            })
-            .catch(err => console.error('Error al cargar motivos:', err));
+                .then(r => r.json())
+                .then(data => {
+                    reasonSelect.innerHTML = '<option value="">-- Seleccione una razón --</option>';
+                    if (data.reasons) {
+                        data.reasons.forEach(r => {
+                            const opt = document.createElement('option');
+                            opt.value = r.id;
+                            opt.textContent = r.name;
+                            reasonSelect.appendChild(opt);
+                        });
+                    }
+                    validateSubmit();
+                })
+                .catch(err => console.error('Error al cargar motivos:', err));
         }
     }
 
@@ -239,8 +239,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 dayEl.addEventListener('click', () => {
                     const msg = isHoliday
                         ? `Este día es feriado nacional (${holidays[dateStr]}) y no puede ser seleccionado.`
-                        : (isWeekend 
-                            ? 'Las jornadas formativas solo pueden programarse en días hábiles (de lunes a viernes).' 
+                        : (isWeekend
+                            ? 'Las jornadas formativas solo pueden programarse en días hábiles (de lunes a viernes).'
                             : 'Fecha no permitida. Seleccione un día hábil futuro.');
                     showModalError(msg);
                 });
@@ -288,10 +288,10 @@ document.addEventListener('DOMContentLoaded', function () {
     function setSubmitButtonMode(isSla) {
         if (!submitBtnText || !submitBtn) return;
         if (isSla) {
-            submitBtnText.textContent = 'Justificar y Confirmar Planificación';
+            submitBtnText.textContent = 'Justificar y Confirmar Reprogramación';
             submitBtn.classList.add('btn-sla-mode');
         } else {
-            submitBtnText.textContent = 'Confirmar Planificación';
+            submitBtnText.textContent = 'Confirmar Reprogramación';
             submitBtn.classList.remove('btn-sla-mode');
         }
     }
@@ -376,76 +376,76 @@ document.addEventListener('DOMContentLoaded', function () {
             },
             body: JSON.stringify(payload)
         })
-        .then(response => response.json().then(data => ({ status: response.status, body: data })))
-        .then(({ status, body }) => {
-            isSubmitting = false;
+            .then(response => response.json().then(data => ({ status: response.status, body: data })))
+            .then(({ status, body }) => {
+                isSubmitting = false;
 
-            if (status === 200 && body.success) {
-                closeModal();
+                if (status === 200 && body.success) {
+                    closeModal();
 
-                const formattedDate = body.data && body.data.new_planned_for ? body.data.new_planned_for : dateVal;
-                const rescheduledCount = body.data && typeof body.data.rescheduled_count !== 'undefined' ? body.data.rescheduled_count : 1;
+                    const formattedDate = body.data && body.data.new_planned_for ? body.data.new_planned_for : dateVal;
+                    const rescheduledCount = body.data && typeof body.data.rescheduled_count !== 'undefined' ? body.data.rescheduled_count : 1;
 
-                // Actualizar reactivamente los elementos en pantalla
-                const wsDateEl = document.getElementById('ws-planned-date-display');
-                if (wsDateEl) wsDateEl.textContent = formattedDate;
+                    // Actualizar reactivamente los elementos en pantalla
+                    const wsDateEl = document.getElementById('ws-planned-date-display');
+                    if (wsDateEl) wsDateEl.textContent = formattedDate;
 
-                const wsBadgeEl = document.getElementById('ws-rescheduled-count-badge');
-                const wsCountNumEl = document.getElementById('ws-rescheduled-count-num');
-                if (wsBadgeEl) wsBadgeEl.style.display = 'inline-block';
-                if (wsCountNumEl) wsCountNumEl.textContent = rescheduledCount;
+                    const wsBadgeEl = document.getElementById('ws-rescheduled-count-badge');
+                    const wsCountNumEl = document.getElementById('ws-rescheduled-count-num');
+                    if (wsBadgeEl) wsBadgeEl.style.display = 'inline-block';
+                    if (wsCountNumEl) wsCountNumEl.textContent = rescheduledCount;
 
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({
-                        icon: 'success',
-                        title: '¡Fecha Reprogramada con Éxito!',
-                        html: `La jornada formativa ha sido fijada para el día <strong>${formattedDate}</strong>.<br><small class="text-muted">Se ha notificado al solicitante y registrado el descargo en la bitácora.</small>`,
-                        confirmButtonColor: '#019577',
-                        confirmButtonText: 'Aceptar'
-                    }).then(() => {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: '¡Fecha Reprogramada con Éxito!',
+                            html: `La jornada formativa ha sido fijada para el día <strong>${formattedDate}</strong>.<br><small class="text-muted">Se ha notificado al solicitante y registrado el descargo en la bitácora.</small>`,
+                            confirmButtonColor: '#019577',
+                            confirmButtonText: 'Aceptar'
+                        }).then(() => {
+                            window.location.reload();
+                        });
+                    } else {
+                        alert(`Fecha reprogramada exitosamente para el ${formattedDate}.`);
                         window.location.reload();
-                    });
+                    }
                 } else {
-                    alert(`Fecha reprogramada exitosamente para el ${formattedDate}.`);
-                    window.location.reload();
-                }
-            } else {
-                let errorMsg = body.message || 'Error al procesar la reprogramación.';
-                if (body.errors) {
-                    const errorList = Object.values(body.errors).flat().join('<br>');
-                    errorMsg += `<br><small style="color: #ef4444;">${errorList}</small>`;
-                }
+                    let errorMsg = body.message || 'Error al procesar la reprogramación.';
+                    if (body.errors) {
+                        const errorList = Object.values(body.errors).flat().join('<br>');
+                        errorMsg += `<br><small style="color: #ef4444;">${errorList}</small>`;
+                    }
 
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'No se pudo reprogramar la jornada',
+                            html: errorMsg,
+                            confirmButtonColor: '#ef4444'
+                        });
+                    } else {
+                        alert(errorMsg.replace(/<[^>]+>/g, ' '));
+                    }
+
+                    submitBtn.disabled = false;
+                    setSubmitButtonMode(true);
+                }
+            })
+            .catch(err => {
+                isSubmitting = false;
+                console.error('Error en fetch reprogramación:', err);
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
                         icon: 'error',
-                        title: 'No se pudo reprogramar la jornada',
-                        html: errorMsg,
+                        title: 'Error de Conexión',
+                        text: 'Ocurrió un fallo en la comunicación con el servidor. Verifique su red e intente nuevamente.',
                         confirmButtonColor: '#ef4444'
                     });
                 } else {
-                    alert(errorMsg.replace(/<[^>]+>/g, ' '));
+                    alert('Error de conexión al reprogramar la jornada.');
                 }
-
                 submitBtn.disabled = false;
                 setSubmitButtonMode(true);
-            }
-        })
-        .catch(err => {
-            isSubmitting = false;
-            console.error('Error en fetch reprogramación:', err);
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error de Conexión',
-                    text: 'Ocurrió un fallo en la comunicación con el servidor. Verifique su red e intente nuevamente.',
-                    confirmButtonColor: '#ef4444'
-                });
-            } else {
-                alert('Error de conexión al reprogramar la jornada.');
-            }
-            submitBtn.disabled = false;
-            setSubmitButtonMode(true);
-        });
+            });
     });
 });

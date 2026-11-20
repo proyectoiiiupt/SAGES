@@ -13,7 +13,7 @@
                 <line x1="8" y1="2" x2="8" y2="6"></line>
                 <line x1="3" y1="10" x2="21" y2="10"></line>
             </svg>
-            <h2>Agenda de Cita Formativa</h2>
+            <h2>Reprogramación de Jornada Formativa</h2>
         </div>
 
         <form id="reschedule-gate-form" class="corp-agenda-form" novalidate 
@@ -85,12 +85,12 @@
                     <div class="corp-agenda-col3" id="reschedule-sla-column">
                         <!-- Alerta Normativa -->
                         <div id="reschedule-sla-warning" class="corp-sla-warning">
-                            <strong>Alerta de ANS (Normativa)</strong>
-                            <span>La fecha supera los 10 días reglamentarios. Se requiere justificación formal.</span>
+                            <strong>Reprogramación por Contingencia</strong>
+                            <span>Toda reprogramación requiere motivo oficial y justificación técnica formal.</span>
                         </div>
 
                         <div class="sla-field-group" id="reschedule-reason-group">
-                            <label class="sla-label">Motivo de Retraso *</label>
+                            <label class="sla-label">Motivo de Reprogramación *</label>
                             <select id="reschedule-reason-select" name="reason_id" class="sla-select">
                                 <option value="">-- Seleccione una razón --</option>
                                 {% set reason_list = reschedule_reasons if reschedule_reasons is defined and reschedule_reasons else reasons %}
@@ -128,7 +128,7 @@
                         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                         <polyline points="22 4 12 14.01 9 11.01" />
                     </svg>
-                    <span id="reschedule-submit-btn-text">Confirmar Planificación</span>
+                    <span id="reschedule-submit-btn-text">Confirmar Reprogramación</span>
                 </button>
             </div>
         </form>
