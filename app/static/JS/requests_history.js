@@ -52,10 +52,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /**
-     * Ejecuta la descarga con protección contra sobrecarga en servidor.
-     * Deshabilita el botón temporalmente y muestra spinner.
+     * Ejecuta la descarga con protección contra sobrecarga en servidor y descarga limpia vía Blob.
+     * Deshabilita el botón temporalmente, muestra spinner y previene advertencias de descargas
+     * inseguras de Chrome en entornos HTTP al transferir mediante objeto Blob en memoria.
      */
-    function ejecutarDescargaSegura(btn, url, filename) {
+    async function ejecutarDescargaSegura(btn, url, filename) {
         const originalHtml = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = `
@@ -72,18 +73,49 @@ document.addEventListener('DOMContentLoaded', function () {
             document.head.appendChild(style);
         }
 
-        // Crear enlace temporal invisible para disparar la descarga directa
-        const tempLink = document.createElement('a');
-        tempLink.href = url;
-        if (filename && filename.trim() !== '') {
-            tempLink.setAttribute('download', filename.trim());
-        }
-        document.body.appendChild(tempLink);
-        tempLink.click();
-        document.body.removeChild(tempLink);
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/pdf'
+                }
+            });
 
-        // Notificación de éxito flotante SweetAlert2
-        setTimeout(() => {
+            if (!response.ok) {
+                let errorMsg = 'Error del servidor al compilar el informe técnico.';
+                try {
+                    const errData = await response.json();
+                    errorMsg = errData.message || errData.error || errorMsg;
+                } catch (_) {}
+                throw new Error(errorMsg);
+            }
+
+            // Obtener nombre del archivo desde cabecera Content-Disposition si está disponible
+            let finalFilename = filename || 'Informe_Tecnico_Oficial.pdf';
+            const disposition = response.headers.get('Content-Disposition');
+            if (disposition && disposition.indexOf('filename=') !== -1) {
+                const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+                if (matches && matches[1]) {
+                    finalFilename = matches[1].replace(/['"]/g, '').trim();
+                }
+            }
+
+            // Convertir respuesta a Blob para descarga directa en memoria (evita bloqueo HTTP de Chrome)
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const tempLink = document.createElement('a');
+            tempLink.style.display = 'none';
+            tempLink.href = blobUrl;
+            tempLink.download = finalFilename;
+            document.body.appendChild(tempLink);
+            tempLink.click();
+
+            setTimeout(() => {
+                window.URL.revokeObjectURL(blobUrl);
+                tempLink.remove();
+            }, 1500);
+
+            // Notificación de éxito solo cuando la descarga efectivamente se procesó
             if (typeof Swal !== 'undefined') {
                 const Toast = Swal.mixin({
                     toast: true,
@@ -98,10 +130,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
 
-            // Restaurar botón después de 3.5 segundos
+        } catch (err) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: 'Error de Descarga',
+                    text: err.message || 'No fue posible compilar o descargar el documento del expediente.',
+                    icon: 'error',
+                    confirmButtonColor: '#dc2626'
+                });
+            } else {
+                alert(err.message || 'Error al descargar el documento.');
+            }
+        } finally {
             btn.disabled = false;
             btn.innerHTML = originalHtml;
-        }, 3000);
+        }
     }
 
     // =========================================================================
