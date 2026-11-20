@@ -937,6 +937,10 @@ def get_request_full_detail(request_id: int):
                 has_delay_block = True
 
     # Si posee justificaciones previas registradas para este retraso, se levanta el bloqueo visual temporal
+    if not has_delay_block and status_code in ('STAT-003', 'STAT-004', 'STAT-005', 'STAT-006'):
+        if _has_formal_justification_demand(req):
+            has_delay_block = True
+
     if has_delay_block and req.justifications:
         for just in req.justifications:
             if just.justification_type in ['RETRASO', 'REPROGRAMACION', 'RETRASO_ATENCION', 'RETRASO_EJECUCION']:
@@ -2107,6 +2111,12 @@ def get_request_justification_detail(request_id: int) -> dict | None:
     }
 
 
+def _has_formal_justification_demand(req) -> bool:
+    """Verifica si el Super Administrador ya emitió una exigencia formal de justificación."""
+    steps = getattr(req, 'tracking_steps', None) or getattr(req, 'trackings', None) or []
+    return any('exigencia formal' in (t.messages or '').lower() for t in steps)
+
+
 def demand_delay_response(request_id: int, super_admin_user) -> tuple[bool, str, int]:
     """
     Registra la exigencia formal al operador responsable por vulneración del ANS.
@@ -2122,7 +2132,7 @@ def demand_delay_response(request_id: int, super_admin_user) -> tuple[bool, str,
             .joinedload(Institution.parish).joinedload(Parish.municipality).joinedload(Municipality.state),
         joinedload(Request.plannings),
         joinedload(Request.justifications),
-        joinedload(Request.trackings)
+        joinedload(Request.tracking_steps)
     ).get(request_id)
 
     if not req:
@@ -2139,6 +2149,9 @@ def demand_delay_response(request_id: int, super_admin_user) -> tuple[bool, str,
         created_at = now_dt
 
     status_code = req.status.status_code if req.status else ''
+    if status_code not in ('STAT-003', 'STAT-004', 'STAT-005', 'STAT-006'):
+        return False, "El expediente no se encuentra en un estado operativo activo que admita requerimiento.", 422
+
     is_delayed = False
 
     if status_code in ('STAT-003', 'STAT-004'):
@@ -2159,9 +2172,6 @@ def demand_delay_response(request_id: int, super_admin_user) -> tuple[bool, str,
         if days_proc > 10:
             is_delayed = True
 
-    if not is_delayed:
-        return False, "El expediente se encuentra dentro de los plazos reglamentarios o no aplica intimación.", 422
-
     has_just = any(
         j.justification_type in ('RETRASO_ATENCION', 'RETRASO_EJECUCION', 'RETRASO', 'REPROGRAMACION')
         for j in req.justifications
@@ -2170,20 +2180,22 @@ def demand_delay_response(request_id: int, super_admin_user) -> tuple[bool, str,
         return False, "El expediente ya cuenta con un descargo formal consignado.", 422
 
     # Bloqueo estricto: Una sola exigencia por solicitud para evitar spam
-    existing_demand = any(
-        'exigencia formal' in (t.messages or '').lower()
-        for t in req.trackings
-    )
-    if existing_demand:
+    if _has_formal_justification_demand(req):
         return False, "Ya se ha emitido una exigencia formal previa para este expediente. Debe esperar la respuesta.", 422
+
+    demand_reason_label = (
+        "vencimiento de plazos normativos"
+        if is_delayed
+        else "requerimiento directo de supervisión nacional"
+    )
 
     # Trazabilidad en sages.request_trackings
     tracking = RequestTracking(
         request_id=req.id,
         user_id=super_admin_user.id,
-        messages="La Gerencia General (Super Administrador) ha emitido una exigencia formal de justificación operativa por vencimiento de plazos normativos."
+        messages=f"La Gerencia General (Super Administrador) ha emitido una exigencia formal de justificación operativa por {demand_reason_label}."
     )
-    db.session.add(tracking)
+    req.tracking_steps.append(tracking)
     tracking._skip_auto_audit = True
     req._skip_auto_audit = True
     db.session.commit()
@@ -2301,6 +2313,7 @@ def submit_delay_justification(
         joinedload(Request.status),
         joinedload(Request.justifications),
         joinedload(Request.plannings),
+        joinedload(Request.tracking_steps),
         joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.institution)
     ).get(request_id)
 
@@ -2332,6 +2345,11 @@ def submit_delay_justification(
                 has_delay_block = True
                 justification_type = 'RETRASO_EJECUCION'
 
+    if not has_delay_block and status_code in ('STAT-003', 'STAT-004', 'STAT-005', 'STAT-006'):
+        if _has_formal_justification_demand(req):
+            has_delay_block = True
+            justification_type = 'RETRASO_ATENCION' if status_code == 'STAT-003' else 'RETRASO_EJECUCION'
+
     # Verificar si ya existe justificación de retraso previa (Anti-spam estricto)
     already_justified = any(
         j.justification_type in ('RETRASO_ATENCION', 'RETRASO_EJECUCION', 'RETRASO', 'REPROGRAMACION')
@@ -2358,7 +2376,7 @@ def submit_delay_justification(
             justification_type=justification_type,
             justification=justification_text
         )
-        db.session.add(new_just)
+        req.justifications.append(new_just)
 
         # 5b. Tracking de Trazabilidad en el Expediente
         admin_name = "Administrador"
@@ -2373,7 +2391,7 @@ def submit_delay_justification(
                 f"Razón: {reason.name}. Tipo: {justification_type}."
             )
         )
-        db.session.add(tracking)
+        req.tracking_steps.append(tracking)
 
         new_just._skip_auto_audit = True
         req._skip_auto_audit = True
@@ -3183,7 +3201,8 @@ def get_active_workspace_context(request_id: int, current_user=None) -> dict:
             joinedload(Request.attended_by).joinedload(User.person),
             joinedload(Request.plannings),
             joinedload(Request.justifications),
-            joinedload(Request.evidences)
+            joinedload(Request.evidences),
+            joinedload(Request.tracking_steps)
         ).get(request_id)
 
         if not req:
@@ -3253,6 +3272,10 @@ def get_active_workspace_context(request_id: int, current_user=None) -> dict:
                 hours_diff = (now_local - to_caracas_time(req.updated_at)).total_seconds() / 3600
                 if hours_diff > 240:
                     has_delay_block = True
+
+        if not has_delay_block and status_code in ['STAT-004', 'STAT-005', 'STAT-006']:
+            if _has_formal_justification_demand(req):
+                has_delay_block = True
 
         if has_delay_block and req.justifications:
             for just in req.justifications:
@@ -3523,7 +3546,13 @@ def get_forensic_audit_detail(request_id: int) -> dict:
         sla_badge_class = 'badge-sla-archived'
         sla_text = status_name
 
-    can_demand_justification = (is_exceeded and not has_justification and status_code not in ['STAT-007', 'STAT-008', 'STAT-009'])
+    has_pending_demand = _has_formal_justification_demand(req)
+    can_demand_justification = (
+        not req.historical
+        and not has_justification
+        and not has_pending_demand
+        and status_code in ('STAT-003', 'STAT-004', 'STAT-005', 'STAT-006')
+    )
 
     # 2. Sello Criptográfico SHA-256
     token = generate_verification_token(req.request_code, req.id)
@@ -3742,6 +3771,7 @@ def get_forensic_audit_detail(request_id: int) -> dict:
             'text': sla_text,
             'is_exceeded': is_exceeded,
             'has_justification': has_justification,
+            'has_pending_demand': has_pending_demand,
             'can_demand_justification': can_demand_justification,
             'latest_justification': latest_justification
         },

@@ -60,12 +60,20 @@
                     class="btn-coercive-demand" 
                     data-request-id="{{ req.id }}"
                     data-institution="{{ audit.institution.name }}"
-                    title="Exigir justificación formal inmediata a la coordinación estadal">
+                    title="Solicitar o exigir justificación formal inmediata a la coordinación estadal">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
                 </svg>
-                <span>Exigir Justificación Inmediata</span>
+                <span>Solicitar Justificación</span>
             </button>
+            {% elif audit.sla.has_pending_demand and not audit.sla.has_justification %}
+            <span class="btn-toolbar-nav" style="cursor: default; opacity: 0.85;" title="Ya se emitió una exigencia formal. En espera de respuesta de la coordinación estadal.">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color: #d97706;">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span>Justificación Solicitada (En Espera)</span>
+            </span>
             {% endif %}
         </div>
     </div>
