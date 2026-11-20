@@ -1467,11 +1467,8 @@ def reschedule_training_session(
     if not req:
         return False, "Solicitud no encontrada.", {}
 
-    # 2. Validación de Titularidad Operativa y Permisos
-    user_roles = [assoc.role.name for assoc in admin_user.roles_assoc] if admin_user and admin_user.roles_assoc else []
-    is_super_admin = 'super_admin' in user_roles
-
-    if not is_super_admin and req.attended_by_id != admin_user.id:
+    # 2. Validación de Titularidad Operativa estricta (solo el facilitador titular asignado)
+    if req.attended_by_id != admin_user.id:
         db.session.rollback()
         return False, "Operación denegada. Solo el operador responsable puede reprogramar esta solicitud.", {}
 

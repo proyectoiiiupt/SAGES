@@ -159,6 +159,7 @@
                             <span id="ws-rescheduled-count-badge" class="badge-reprogrammed" style="{% if not ctx.facilitator_data.rescheduled_count or ctx.facilitator_data.rescheduled_count == 0 %}display:none;{% endif %} margin-left: 4px; background: #fef3c7; color: #b45309; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">(Reprog: <span id="ws-rescheduled-count-num">{{ ctx.facilitator_data.rescheduled_count }}</span>)</span>
                         </span>
                     </div>
+                    {% if is_owner %}
                     <!-- Botón Reprogramar -->
                     <div class="ws-reschedule-action">
                         <button type="button" class="ws-btn-reprogramar" id="btn-open-reschedule-modal" data-request-id="{{ req.id }}" style="cursor: pointer;">
@@ -169,6 +170,7 @@
                             <span>Reprogramar</span>
                         </button>
                     </div>
+                    {% endif %}
                 </div>
             </div>
 
@@ -417,11 +419,9 @@
     </div>
     {% endif %}
 
-    {% if req.status.status_code in ['STAT-005', 'STAT-006'] and not req.historical %}
+    {% if is_owner and req.status.status_code in ['STAT-005', 'STAT-006'] and not req.historical %}
         {% include 'requests/partials/_reschedule_modal.html' %}
-        {% if is_owner %}
-            {% include 'requests/partials/_cancellation_modal.html' %}
-        {% endif %}
+        {% include 'requests/partials/_cancellation_modal.html' %}
     {% endif %}
 
     <!-- Modales de Carga Drag & Drop y Galería de Evidencias (US-46) -->
