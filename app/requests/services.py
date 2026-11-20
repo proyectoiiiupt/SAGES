@@ -1,6 +1,7 @@
 from datetime import datetime, timezone, timedelta
 from app.utils.timezone import CARACAS_TZ, get_caracas_now, get_caracas_today, to_caracas_time, caracas_date_range_to_utc
 from sqlalchemy import func, case, or_, and_, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from app.extensions import db
 from app.models.request_model import Request
@@ -122,10 +123,15 @@ def create_training_request(user_id: int, training_id: int, description: str) ->
     institutional_staff_id = user.person.institutional_staff[0].id
     institution_id = user.person.institutional_staff[0].institution_id
     
-    # 1. Validación anti-duplicidad (Institucional)
+    # 1. Bloqueo pesimista sobre la institución para serializar radicaciones concurrentes
+    # (Cierra la brecha entre check_request_duplicity por institution_id y el índice uq_request_anti_duplicidad)
+    db.session.query(Institution.id).filter(Institution.id == institution_id).with_for_update().first()
+
+    # 1b. Validación anti-duplicidad (Institucional) bajo bloqueo
     duplicity_check = check_request_duplicity(institution_id, training_id)
     
     if duplicity_check.get("is_duplicate"):
+        db.session.rollback()
         return False, f"Su institución educativa ya posee una solicitud activa para este mismo tema formativo (Trámite: {duplicity_check.get('code')}). Por favor, elija un tema distinto.", 0
         
     # 2. Buscar Estatus inicial 'Nuevo' (STAT-003)
@@ -224,6 +230,9 @@ def create_training_request(user_id: int, training_id: int, description: str) ->
             logging.getLogger(__name__).warning(f"No se pudo emitir notificación REQUEST_CREATED: {notif_err}")
 
         return True, "Solicitud radicada de forma exitosa.", new_request.id
+    except IntegrityError:
+        db.session.rollback()
+        return False, "Su institución educativa ya posee una solicitud activa para este mismo tema formativo. Por favor, elija un tema distinto.", 0
     except Exception as e:
         db.session.rollback()
         return False, "Ocurrió un error en la base de datos al registrar la solicitud.", 0
