@@ -2743,16 +2743,15 @@ def get_blocking_closure_request_for_user(user_id: int):
 
 def submit_closure_evidences(request_id: int, files, user_id: int) -> tuple:
     """
-    Opción de cierre por evidencias: guarda los archivos de soporte digital y
-    marca la solicitud como Completada (STAT-007).
+    Opción de cierre por evidencias: valida Magic Bytes y resguarda los archivos
+    en UPLOAD_FOLDER mediante file_handler.py (fuera de static/), y marca la
+    solicitud como Completada (STAT-007).
     Solo puede ejecutarlo el administrador estadal asignado (attended_by_id).
     """
-    import os
     import uuid
-    from werkzeug.utils import secure_filename
     from app.models.request_evidence_model import RequestEvidence
+    from app.utils.file_handler import save_evidence_file, FileValidationError, _detect_mime
 
-    ALLOWED_EXTENSIONS = {'pdf', 'jpg', 'jpeg', 'png'}
     MAX_FILE_SIZE = 5 * 1024 * 1024
     MAX_FILES = 3
 
@@ -2777,45 +2776,47 @@ def submit_closure_evidences(request_id: int, files, user_id: int) -> tuple:
     if req.status and req.status.status_code in CLOSED_STATUSES:
         return False, "Esta solicitud ya se encuentra cerrada."
 
-    validated = []
+    # Pre-validación de tamaño y Magic Bytes antes de escribir en disco
     for f in files:
-        filename = secure_filename(f.filename or '')
-        ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
-        if ext not in ALLOWED_EXTENSIONS:
-            return False, f"Formato no permitido: '{filename}'. Use PDF, JPG o PNG."
+        if not f or not f.filename:
+            return False, "No se recibió un archivo válido."
         f.seek(0, 2)
         size = f.tell()
         f.seek(0)
         if size > MAX_FILE_SIZE:
-            return False, f"El archivo '{filename}' supera el limite de 5 MB."
-        validated.append((f, filename, ext, size))
+            return False, f"El archivo '{f.filename}' supera el limite de 5 MB."
+        try:
+            _detect_mime(f)
+        except FileValidationError as fve:
+            return False, str(fve)
 
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    upload_dir = os.path.join(base_dir, 'static', 'uploads', 'evidences', str(request_id))
-    os.makedirs(upload_dir, exist_ok=True)
+    sub_folder = f"requests/{request_id}"
+    now_utc = datetime.now(timezone.utc)
+    ts_str = now_utc.strftime('%Y%m%d_%H%M%S')
 
-    saved_paths = []
+    saved_evidences = []
     try:
-        for f, filename, ext, size in validated:
-            unique_name = f"{uuid.uuid4().hex}_{filename}"
-            full_path = os.path.join(upload_dir, unique_name)
-            f.save(full_path)
-            relative_path = f"uploads/evidences/{request_id}/{unique_name}"
-            saved_paths.append((unique_name, relative_path, ext, size))
+        for f in files:
+            unique_token = uuid.uuid4().hex[:12]
+            custom_name = f"evidencia_{unique_token}_{ts_str}"
+            evidence_data = save_evidence_file(
+                file_obj=f,
+                sub_folder=sub_folder,
+                custom_name=custom_name
+            )
+            saved_evidences.append(evidence_data)
 
         status_completed = Status.query.filter_by(status_code='STAT-007').first()
         if not status_completed:
             raise ValueError("Codigo de estado STAT-007 no encontrado en la base de datos.")
 
-        now_utc = datetime.now(timezone.utc)
-
-        for unique_name, relative_path, ext, size in saved_paths:
+        for ev_data in saved_evidences:
             evidence = RequestEvidence(
                 request_id=request_id,
-                file_name=unique_name,
-                file_path=relative_path,
-                format=ext.upper(),
-                file_weight=size
+                file_name=ev_data['file_name'],
+                file_path=ev_data['file_path'].replace('\\', '/'),
+                format=ev_data['format'].upper(),
+                file_weight=ev_data['file_weight']
             )
             db.session.add(evidence)
 
@@ -2842,11 +2843,11 @@ def submit_closure_evidences(request_id: int, files, user_id: int) -> tuple:
             BinnacleService.create_log_entry(
                 module=AuditModule.REQUESTS.value,
                 action_type=AuditAction.CIERRE_SOLICITUD_EVIDENCIAS.value,
-                description=f"Culminación y cierre con {len(saved_paths)} evidencia(s) de la solicitud {req.request_code} (STAT-007)",
+                description=f"Culminación y cierre con {len(saved_evidences)} evidencia(s) de la solicitud {req.request_code} (STAT-007)",
                 target_table='sages.requests',
                 record_id=req.id,
                 old_values={'status_code': old_status_code, 'historical': False},
-                new_values={'status_code': 'STAT-007', 'historical': True, 'evidences_count': len(saved_paths)},
+                new_values={'status_code': 'STAT-007', 'historical': True, 'evidences_count': len(saved_evidences)},
                 status=AuditStatus.COMPLETADO.value
             )
         except Exception as audit_err:
@@ -3872,24 +3873,20 @@ def get_safe_evidence_path(evidence_id: int, user) -> tuple:
         current_app.logger.error(f"[SECURITY] Detección de Path Traversal en evidencia {evidence_id}: {raw_path}")
         return None, "Secuencia de ruta inválida detectada.", 403
 
-    # Directorios base autorizados
+    # Directorios base autorizados (exclusivamente fuera de app/static/)
     base_upload_folder = current_app.config.get('UPLOAD_FOLDER')
     local_upload_folder = os.path.abspath(os.path.join(current_app.root_path, '..', 'uploads'))
-    static_upload_folder = os.path.join(current_app.root_path, 'static')
-    static_uploads_folder = os.path.join(current_app.root_path, 'static', 'uploads')
 
     try:
         os.makedirs(local_upload_folder, exist_ok=True)
-        os.makedirs(static_uploads_folder, exist_ok=True)
     except Exception:
         pass
 
     allowed_roots = []
-    for r in [local_upload_folder, static_upload_folder, static_uploads_folder]:
-        try:
-            allowed_roots.append(os.path.realpath(os.path.abspath(r)))
-        except (OSError, PermissionError):
-            pass
+    try:
+        allowed_roots.append(os.path.realpath(os.path.abspath(local_upload_folder)))
+    except (OSError, PermissionError):
+        pass
 
     # Incluir base_upload_folder solo si es accesible y no arroja error de SO/red
     if base_upload_folder:
@@ -3899,27 +3896,23 @@ def get_safe_evidence_path(evidence_id: int, user) -> tuple:
         except (OSError, PermissionError):
             current_app.logger.warning(f"Ruta remota de almacenamiento no disponible: {base_upload_folder}")
 
-    # Resolver candidatos en disco
-    candidate_paths = [
-        os.path.join(static_uploads_folder, raw_path),
-        os.path.join(static_upload_folder, raw_path),
-        os.path.join(local_upload_folder, raw_path),
-        os.path.join(static_uploads_folder, 'evidences', str(evidence.request_id), file_name),
-        os.path.join(static_uploads_folder, file_name),
-        os.path.join(local_upload_folder, 'evidences', str(evidence.request_id), file_name),
-        os.path.join(local_upload_folder, file_name),
-    ]
-
-    if raw_path.startswith('uploads/'):
-        sub_raw = raw_path[len('uploads/'):]
-        candidate_paths.append(os.path.join(static_uploads_folder, sub_raw))
-        candidate_paths.append(os.path.join(local_upload_folder, sub_raw))
-
+    # Resolver candidatos en disco (priorizando UPLOAD_FOLDER)
+    candidate_paths = []
+    search_bases = []
     if base_upload_folder:
+        search_bases.append(base_upload_folder)
+    search_bases.append(local_upload_folder)
+
+    sub_raw = raw_path[len('uploads/'):] if raw_path.startswith('uploads/') else None
+
+    for base_dir in search_bases:
         try:
-            candidate_paths.append(os.path.join(base_upload_folder, raw_path))
-            candidate_paths.append(os.path.join(base_upload_folder, 'evidences', str(evidence.request_id), file_name))
-            candidate_paths.append(os.path.join(base_upload_folder, file_name))
+            candidate_paths.append(os.path.join(base_dir, raw_path))
+            if sub_raw:
+                candidate_paths.append(os.path.join(base_dir, sub_raw))
+            candidate_paths.append(os.path.join(base_dir, 'requests', str(evidence.request_id), file_name))
+            candidate_paths.append(os.path.join(base_dir, 'evidences', str(evidence.request_id), file_name))
+            candidate_paths.append(os.path.join(base_dir, file_name))
         except Exception:
             pass
 
