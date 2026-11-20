@@ -2967,13 +2967,23 @@ def submit_closure_evidences(request_id: int, files, user_id: int) -> tuple:
 
     except Exception as e:
         db.session.rollback()
-        for _, relative_path, _, _ in saved_paths:
-            disk_path = os.path.join(base_dir, 'static', relative_path)
-            if os.path.exists(disk_path):
-                try:
-                    os.remove(disk_path)
-                except OSError:
-                    pass
+        import os
+        from flask import current_app
+        base_upload_folder = current_app.config.get('UPLOAD_FOLDER')
+        local_base = os.path.abspath(os.path.join(current_app.root_path, '..', 'uploads'))
+        for ev_data in saved_evidences:
+            rel_path = ev_data.get('file_path', '')
+            if not rel_path:
+                continue
+            for root_dir in (base_upload_folder, local_base):
+                if not root_dir:
+                    continue
+                disk_path = os.path.join(root_dir, rel_path)
+                if os.path.isfile(disk_path):
+                    try:
+                        os.remove(disk_path)
+                    except OSError:
+                        pass
         import logging
         logging.getLogger(__name__).error(f"Error al cerrar solicitud {request_id} con evidencias: {e}")
         return False, "Error interno al procesar las evidencias. Intente nuevamente."
