@@ -28,6 +28,7 @@
         selectedStateId: '',
         userRole: 'state_admin',
         events: [],
+        holidays: {},
         isLoading: false,
         activeTooltipTarget: null,
         tooltipTimeout: null
@@ -133,11 +134,13 @@
 
             if (data.success) {
                 state.events = data.events || [];
+                state.holidays = data.holidays || {};
                 if (data.user_role) {
                     state.userRole = data.user_role;
                 }
             } else {
                 state.events = [];
+                state.holidays = {};
                 console.warn("SAGES Calendar warning:", data.error);
             }
 
@@ -235,6 +238,13 @@
 
             cell.setAttribute('data-date', cellDateString);
 
+            // Verificar si la fecha es Feriado Nacional en Venezuela
+            const holidayName = state.holidays[cellDateString] || null;
+            if (holidayName) {
+                cell.classList.add('is-holiday');
+                cell.setAttribute('data-holiday', holidayName);
+            }
+
             // Cabecera del día
             const dayHeader = document.createElement('div');
             dayHeader.className = 'calendar-day-header';
@@ -243,6 +253,14 @@
             dayNumberEl.className = 'calendar-day-number';
             dayNumberEl.textContent = cellDayNumber;
             dayHeader.appendChild(dayNumberEl);
+
+            if (holidayName) {
+                const holidayBadge = document.createElement('span');
+                holidayBadge.className = 'calendar-holiday-badge';
+                holidayBadge.textContent = 'Feriado';
+                holidayBadge.title = `Feriado Nacional: ${holidayName}`;
+                dayHeader.appendChild(holidayBadge);
+            }
 
             const dayEvents = eventsByDate[cellDateString] || [];
             if (dayEvents.length > 0) {
@@ -258,7 +276,19 @@
             const eventsContainer = document.createElement('div');
             eventsContainer.className = 'calendar-day-events';
 
-            const maxVisible = 2;
+            // Píldora representativa de Feriado Nacional si aplica
+            if (holidayName) {
+                const holidayPill = document.createElement('div');
+                holidayPill.className = 'calendar-holiday-pill';
+                holidayPill.title = `Feriado Nacional: ${holidayName}`;
+                holidayPill.innerHTML = `
+                    <span class="holiday-pill-dot"></span>
+                    <span class="holiday-pill-text">${escapeHtml(holidayName)}</span>
+                `;
+                eventsContainer.appendChild(holidayPill);
+            }
+
+            const maxVisible = holidayName ? 1 : 2;
             const visibleEvents = dayEvents.slice(0, maxVisible);
 
             visibleEvents.forEach(evt => {
@@ -274,18 +304,18 @@
                 morePill.textContent = `+${remaining} más`;
                 morePill.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    openDayDrawer(cellDateString, dayEvents);
+                    openDayDrawer(cellDateString, dayEvents, holidayName);
                 });
                 eventsContainer.appendChild(morePill);
             }
 
             cell.appendChild(eventsContainer);
 
-            // Click en la celda completa (si tiene eventos, abre el drawer)
-            if (dayEvents.length > 0) {
+            // Click en la celda completa (si tiene eventos o es feriado, abre el drawer)
+            if (dayEvents.length > 0 || holidayName) {
                 cell.style.cursor = 'pointer';
                 cell.addEventListener('click', () => {
-                    openDayDrawer(cellDateString, dayEvents);
+                    openDayDrawer(cellDateString, dayEvents, holidayName);
                 });
             }
 
@@ -499,7 +529,7 @@
     /**
      * Abre el Drawer lateral de actividades del día
      */
-    function openDayDrawer(dateStr, dayEvents) {
+    function openDayDrawer(dateStr, dayEvents, holidayName = null) {
         if (!elements.drawer) return;
         hideTooltip();
 
@@ -518,6 +548,29 @@
 
         if (elements.drawerList) {
             elements.drawerList.innerHTML = '';
+
+            // Si es un día feriado, mostrar banner oficial en el drawer
+            if (holidayName) {
+                const holidayBanner = document.createElement('div');
+                holidayBanner.className = 'cal-drawer-holiday-card';
+                holidayBanner.innerHTML = `
+                    <div class="cal-drawer-holiday-badge">FERIADO NACIONAL (VENEZUELA)</div>
+                    <div class="cal-drawer-holiday-title">🇻🇪 ${escapeHtml(holidayName)}</div>
+                    <div class="cal-drawer-holiday-note">Día no laborable de conformidad con la LOTTT y Ley de Fiestas Nacionales.</div>
+                `;
+                elements.drawerList.appendChild(holidayBanner);
+            }
+
+            if ((!dayEvents || dayEvents.length === 0) && holidayName) {
+                const emptyNotice = document.createElement('div');
+                emptyNotice.className = 'cal-drawer-holiday-empty';
+                emptyNotice.innerHTML = `
+                    <p style="margin: 0; font-size: 0.88rem; color: #64748b; text-align: center; padding: 18px 8px;">
+                        No hay formaciones programadas para esta fecha feriada.
+                    </p>
+                `;
+                elements.drawerList.appendChild(emptyNotice);
+            }
 
             const isSuperAdmin = (state.userRole === 'super_admin');
 

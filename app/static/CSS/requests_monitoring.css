@@ -196,7 +196,7 @@
 .kpi-grid,
 .kpi-metrics-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 1.25rem;
     width: 100%;
 }
@@ -316,6 +316,17 @@
 .kpi-card.kpi-pending .kpi-icon-container {
     background: var(--dash-red-icon-bg);
     color: var(--dash-red-icon);
+}
+
+.kpi-purple,
+.kpi-card.kpi-planned {
+    background: linear-gradient(135deg, #ffffff 60%, #f5f3ff 100%);
+    border-color: #c4b5fd;
+}
+.kpi-purple .kpi-icon-container,
+.kpi-card.kpi-planned .kpi-icon-container {
+    background: #ede9fe;
+    color: #6366f1;
 }
 
 /* ==========================================================================

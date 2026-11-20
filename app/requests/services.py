@@ -1753,10 +1753,10 @@ def get_national_monitoring_data(
         "total": sum(status_counts.values()),
         "completed": status_counts.get('STAT-007', 0),
         "in_process": status_counts.get('STAT-006', 0),
+        "planned": status_counts.get('STAT-005', 0),
         "pending": (
             status_counts.get('STAT-003', 0) +
-            status_counts.get('STAT-004', 0) +
-            status_counts.get('STAT-005', 0)
+            status_counts.get('STAT-004', 0)
         )
     }
 
@@ -2458,6 +2458,7 @@ def get_monthly_calendar_events(user: User, year: int, month: int, state_id: int
     """
     import calendar
     from datetime import date
+    from app.utils.holidays import get_venezuela_holidays_for_month
 
     # 1. Determinar roles del usuario
     user_roles = [assoc.role.name for assoc in user.roles_assoc] if user and user.roles_assoc else []
@@ -2552,6 +2553,9 @@ def get_monthly_calendar_events(user: User, year: int, month: int, state_id: int
             'rescheduled_count': plan.rescheduled_count
         })
 
+    # 6. Feriados oficiales del mes (Calendario Venezolano)
+    month_holidays = get_venezuela_holidays_for_month(year, month)
+
     return {
         'success': True,
         'year': year,
@@ -2559,7 +2563,8 @@ def get_monthly_calendar_events(user: User, year: int, month: int, state_id: int
         'user_role': 'super_admin' if is_super_admin else 'state_admin',
         'effective_state_id': effective_state_id,
         'events': events,
-        'total_events': len(events)
+        'total_events': len(events),
+        'holidays': month_holidays
     }
 
 # ---------------------------------------------------------------------------

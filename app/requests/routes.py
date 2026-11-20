@@ -752,8 +752,21 @@ def api_busy_dates():
     
     # Extraemos fechas en formato YYYY-MM-DD
     busy_dates = [p.planned_for.strftime('%Y-%m-%d') for p in plannings if p.planned_for]
+
+    # Feriados del calendario venezolano (año actual y siguiente)
+    from app.utils.holidays import get_venezuela_holidays
+    from app.utils.timezone import get_caracas_today
+    today_vzla = get_caracas_today()
+    holidays_map = {}
+    for y in (today_vzla.year, today_vzla.year + 1):
+        for d, name in get_venezuela_holidays(y).items():
+            holidays_map[d.strftime('%Y-%m-%d')] = name
     
-    return jsonify({'success': True, 'busy_dates': busy_dates}), 200
+    return jsonify({
+        'success': True,
+        'busy_dates': busy_dates,
+        'holidays': holidays_map
+    }), 200
 
 # ---------------------------------------------------------------------------  
 # Ruta Super Administrador: Tablero de Monitoreo Nacional (US-38)

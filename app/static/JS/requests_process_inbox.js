@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnNext = document.getElementById('reschedule-cal-next');
 
     let busyDates = [];
+    let holidays = {};
     let currentCalendarDate = new Date();
     let selectedDateStr = null;
     let isSubmitting = false;
@@ -80,8 +81,9 @@ document.addEventListener('DOMContentLoaded', function () {
         })
         .then(r => r.json())
         .then(data => {
-            if (data.success && data.busy_dates) {
-                busyDates = data.busy_dates;
+            if (data.success) {
+                if (data.busy_dates) busyDates = data.busy_dates;
+                if (data.holidays) holidays = data.holidays;
             }
             renderCalendar();
         })
@@ -228,15 +230,18 @@ document.addEventListener('DOMContentLoaded', function () {
             const isPast = dateObj <= today;
             const isTooFar = dateObj > maxDate;
             const isBusy = busyDates.includes(dateStr);
+            const isHoliday = Boolean(holidays[dateStr]);
             const isSelected = selectedDateStr === dateStr;
 
-            if (isPast || isTooFar || isWeekend) {
+            if (isPast || isTooFar || isWeekend || isHoliday) {
                 dayEl.classList.add('corp-day-disabled');
-                dayEl.title = isWeekend ? 'Fines de semana no permitidos' : 'Fecha no permitida';
+                dayEl.title = isHoliday ? `Feriado Nacional: ${holidays[dateStr]}` : (isWeekend ? 'Fines de semana no permitidos' : 'Fecha no permitida');
                 dayEl.addEventListener('click', () => {
-                    const msg = isWeekend 
-                        ? 'Las jornadas formativas solo pueden programarse en días hábiles (de lunes a viernes).' 
-                        : 'Fecha no permitida. Seleccione un día hábil futuro.';
+                    const msg = isHoliday
+                        ? `Este día es feriado nacional (${holidays[dateStr]}) y no puede ser seleccionado.`
+                        : (isWeekend 
+                            ? 'Las jornadas formativas solo pueden programarse en días hábiles (de lunes a viernes).' 
+                            : 'Fecha no permitida. Seleccione un día hábil futuro.');
                     showModalError(msg);
                 });
             } else if (isBusy) {

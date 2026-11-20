@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 from app.utils.timezone import get_caracas_today
+from app.utils.holidays import is_venezuela_holiday, get_holiday_name
 from flask_wtf import FlaskForm
 from wtforms import DateField, TextAreaField, SelectField, IntegerField, BooleanField
 from wtforms.validators import DataRequired, Length, NumberRange, Optional, ValidationError
@@ -135,6 +136,9 @@ class PlanTrainingForm(FlaskForm):
             
         if field.data.weekday() >= 5:  # 5 es Sábado, 6 es Domingo
             raise ValidationError("La fecha debe ser un día hábil (lunes a viernes).")
+        if is_venezuela_holiday(field.data):
+            h_name = get_holiday_name(field.data)
+            raise ValidationError(f"La fecha seleccionada ({field.data.strftime('%d/%m/%Y')}) es un día feriado nacional ({h_name}). Solo se permite planificar en días hábiles.")
             
         max_allowed_date = today_vzla + timedelta(days=30)
         if field.data > max_allowed_date:
@@ -179,6 +183,9 @@ class RescheduleRequestForm(FlaskForm):
             raise ValidationError("La nueva fecha debe ser estrictamente posterior al día de hoy.")
         if field.data.weekday() >= 5:  # 5 es Sábado, 6 es Domingo
             raise ValidationError("La fecha debe ser un día hábil (lunes a viernes).")
+        if is_venezuela_holiday(field.data):
+            h_name = get_holiday_name(field.data)
+            raise ValidationError(f"La fecha seleccionada ({field.data.strftime('%d/%m/%Y')}) es un día feriado nacional ({h_name}). Solo se permite reprogramar en días hábiles.")
 
     def validate_justification(self, field):
         text_val = (field.data or '').strip()

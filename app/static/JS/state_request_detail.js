@@ -361,6 +361,7 @@
 
         if (planOpenBtn && planOverlay) {
             let busyDates = [];
+            let holidays = {};
             let currentCalendarDate = new Date();
             let selectedDateStr = null;
 
@@ -374,8 +375,9 @@
                 })
                 .then(r => r.json())
                 .then(data => {
-                    if (data.success && data.busy_dates) {
-                        busyDates = data.busy_dates;
+                    if (data.success) {
+                        if (data.busy_dates) busyDates = data.busy_dates;
+                        if (data.holidays) holidays = data.holidays;
                     }
                     renderCalendar();
                 })
@@ -462,12 +464,18 @@
                     const isPast = dateObj <= today;
                     const isTooFar = dateObj > maxDate;
                     const isBusy = busyDates.includes(dateStr);
+                    const isHoliday = Boolean(holidays[dateStr]);
                     const isSelected = selectedDateStr === dateStr;
                     
-                    if (isPast || isTooFar || isWeekend) {
+                    if (isPast || isTooFar || isWeekend || isHoliday) {
                         dayEl.classList.add('corp-day-disabled');
-                        dayEl.title = 'No permitido';
-                        dayEl.addEventListener('click', () => showModalError('Fecha no permitida. Seleccione un día hábil futuro dentro de los próximos 30 días.', 'plan-gate-modal', 'plan-gate-form'));
+                        dayEl.title = isHoliday ? `Feriado Nacional: ${holidays[dateStr]}` : 'No permitido';
+                        dayEl.addEventListener('click', () => {
+                            const msg = isHoliday
+                                ? `Este día es feriado nacional (${holidays[dateStr]}) y no puede ser seleccionado.`
+                                : 'Fecha no permitida. Seleccione un día hábil futuro dentro de los próximos 30 días.';
+                            showModalError(msg, 'plan-gate-modal', 'plan-gate-form');
+                        });
                     } else if (isBusy) {
                         dayEl.classList.add('corp-day-busy');
                         dayEl.title = 'Usted ya tiene agendamientos este día';
