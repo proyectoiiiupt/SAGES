@@ -775,6 +775,66 @@ def _emit_sla_alerts_for_requests(requests_list):
         logging.getLogger(__name__).warning(f"Error en _emit_sla_alerts_for_requests: {notif_err}")
 
 
+def run_proactive_sla_check() -> dict:
+    """
+    Ejecución proactiva (CLI / Cron / Systemd) de transiciones cronológicas
+    (STAT-004/STAT-005 -> STAT-006 al llegar planned_for) y emisión idempotente
+    de alertas SLA sobre todas las solicitudes operativas activas.
+    """
+    from app.models.request_tracking_model import RequestTracking
+
+    active_statuses = ('STAT-003', 'STAT-004', 'STAT-005', 'STAT-006')
+    active_requests = (
+        Request.query.join(Status, Request.status_id == Status.id)
+        .options(
+            joinedload(Request.status),
+            joinedload(Request.plannings),
+            joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.institution),
+        )
+        .filter(
+            Request.historical == False,
+            Status.status_code.in_(active_statuses),
+        )
+        .all()
+    )
+
+    today_vzla = get_caracas_today()
+    status_in_process = Status.query.filter_by(status_code='STAT-006').first()
+    transitioned = 0
+
+    if status_in_process:
+        for req in active_requests:
+            s_code = req.status.status_code if req.status else ''
+            if s_code in ('STAT-004', 'STAT-005') and req.plannings:
+                plans_with_date = [p for p in req.plannings if p.planned_for]
+                if plans_with_date:
+                    active_plan = max(plans_with_date, key=lambda p: p.planned_for)
+                    plan_date = active_plan.planned_for.date() if hasattr(active_plan.planned_for, 'date') else active_plan.planned_for
+                    if plan_date <= today_vzla and req.status_id != status_in_process.id:
+                        req.status_id = status_in_process.id
+                        req.status = status_in_process
+                        req.updated_at = datetime.now(timezone.utc)
+                        req._skip_auto_audit = True
+                        tracking = RequestTracking(
+                            request_id=req.id,
+                            user_id=req.attended_by_id or 1,
+                            messages="Llegada la fecha programada, la solicitud pasa formalmente a estado 'En Proceso' para ejecución presencial y carga de evidencias."
+                        )
+                        tracking._skip_auto_audit = True
+                        db.session.add(tracking)
+                        transitioned += 1
+
+    if transitioned > 0:
+        db.session.commit()
+
+    _emit_sla_alerts_for_requests(active_requests)
+
+    return {
+        'checked': len(active_requests),
+        'transitioned': transitioned,
+    }
+
+
 def get_state_requests_paginated(
     state_id: int, 
     page: int = 1, 

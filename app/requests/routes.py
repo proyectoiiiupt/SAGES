@@ -1955,3 +1955,24 @@ def download_request_report(id):
         logging.getLogger(__name__).error(f"Error generando informe PDF para solicitud {req.id}: {e}", exc_info=True)
         abort(500, description="Error interno al compilar el informe técnico oficial. Intente nuevamente.")
 
+
+# ---------------------------------------------------------------------------
+# Comando CLI para Cron / Systemd Timer: Evaluación Proactiva de SLA
+# ---------------------------------------------------------------------------
+
+@requests_bp.cli.command('check-sla')
+def check_sla_cli():
+    """
+    Evalúa proactivamente transiciones cronológicas y alertas SLA sobre
+    solicitudes activas sin requerir peticiones HTTP.
+    Uso: flask requests check-sla
+    """
+    import click
+    from app.requests.services import run_proactive_sla_check
+
+    summary = run_proactive_sla_check()
+    click.echo(
+        f"[SAGES SLA] Revisadas: {summary['checked']} | "
+        f"Transicionadas a En Proceso (STAT-006): {summary['transitioned']}"
+    )
+
