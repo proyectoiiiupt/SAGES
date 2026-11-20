@@ -123,7 +123,11 @@
             {% else %}
             <span class="badge-role-tag" style="background: #f1f5f9; color: #475569; padding: 8px 14px; font-size: 0.88rem; display: inline-flex; align-items: center; gap: 6px;">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"></circle><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path></svg>
-                Modo Consulta: Asignada a {{ req.attended_by.person.first_name }} {{ req.attended_by.person.last_name }}
+                {% if req.attended_by and req.attended_by.person %}
+                    Modo Consulta: Asignada a {{ req.attended_by.person.first_name }} {{ req.attended_by.person.last_name }}
+                {% else %}
+                    Modo Consulta: Sin facilitador asignado
+                {% endif %}
             </span>
             {% endif %}
 
@@ -155,7 +159,11 @@
             {% else %}
             <span class="badge-role-tag" style="background: #f1f5f9; color: #475569; padding: 8px 14px; font-size: 0.88rem; display: inline-flex; align-items: center; gap: 6px;">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"></circle><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path></svg>
-                Modo Consulta: Asignada a {{ req.attended_by.person.first_name }} {{ req.attended_by.person.last_name }}
+                {% if req.attended_by and req.attended_by.person %}
+                    Modo Consulta: Asignada a {{ req.attended_by.person.first_name }} {{ req.attended_by.person.last_name }}
+                {% else %}
+                    Modo Consulta: Sin facilitador asignado
+                {% endif %}
             </span>
             {% endif %}
             {% endif %}
@@ -622,7 +630,10 @@
                         <div class="justification-item-card" style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; background: #fafbfc;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                                 <span class="badge-role-tag" style="background: #fee2e2; color: #b91c1c;">{{ just.justification_type }}</span>
-                                <span class="local-datetime" data-utc="{{ just.created_at.isoformat() }}" data-format="standard" style="font-size: 0.82rem; color: #64748b;"></span>
+                                {% set just_dt = just.created_at if (just.created_at is defined and just.created_at) else (req.updated_at or req.created_at) %}
+                                {% if just_dt %}
+                                <span class="local-datetime" data-utc="{{ just_dt.isoformat() }}" data-format="standard" style="font-size: 0.82rem; color: #64748b;"></span>
+                                {% endif %}
                             </div>
                             <div style="font-size: 0.92rem; font-weight: 600; color: #1e293b; margin-bottom: 6px;">
                                 Motivo: <span style="color: #0369a1;">{{ just.reason.name if just.reason else 'No tipificado' }}</span>
