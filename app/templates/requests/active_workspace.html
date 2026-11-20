@@ -429,11 +429,11 @@
 
 {% block extra_js %}
 <!-- Reutilizamos el script de state_request_detail.js para que el modal SLA Gate funcione idéntico -->
-<script src="{{ url_for('static', filename='js/state_request_detail.js') }}"></script>
+<script src="{{ url_for('static', filename='JS/state_request_detail.js') }}"></script>
 <!-- Script de interactividad del Espacio de Trabajo Activo -->
 <script src="{{ url_for('static', filename='JS/requests_active_workspace.js') }}?v=3.1"></script>
 <!-- Script de control del modal de reprogramación -->
-<script src="{{ url_for('static', filename='js/requests_process_inbox.js') }}"></script>
+<script src="{{ url_for('static', filename='JS/requests_process_inbox.js') }}"></script>
 <!-- Script transversal de interactividad de la Bitácora de Seguimiento (US-45) -->
 <script src="{{ url_for('static', filename='JS/tracking_timeline.js') }}"></script>
 <!-- Controlador reactivo de Drag & Drop y Evidencias Digitales (US-46) -->

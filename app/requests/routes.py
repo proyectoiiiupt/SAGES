@@ -1311,8 +1311,9 @@ def api_reschedule_training(id):
 
     # 3. Procesamiento y carga de formulario (JSON o FormData)
     if request.is_json:
-        formdata = MultiDict(request.get_json())
-        form = RescheduleRequestForm(formdata=formdata)
+        # CSRFProtect ya valida el encabezado X-CSRFToken en peticiones JSON
+        formdata = MultiDict(request.get_json(silent=True) or {})
+        form = RescheduleRequestForm(formdata=formdata, meta={'csrf': False})
     else:
         form = RescheduleRequestForm()
 
