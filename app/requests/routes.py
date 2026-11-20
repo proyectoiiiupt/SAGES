@@ -7,6 +7,90 @@ from app.requests.services import get_applicant_active_requests, get_pending_sur
 from app.models.user_model import User
 from app.extensions import limiter
 
+
+def verify_request_access(f):
+    """
+    Decorador de acceso compartido para consulta/descarga de expedientes.
+    Valida que el usuario autenticado tenga permiso sobre el expediente cuyo 'id'
+    o 'request_id' viene como parámetro de URL:
+      - applicant:   solo su mismo plantel institucional.
+      - state_admin: solo su jurisdicción territorial (state_id).
+      - super_admin: acceso irrestricto a nivel nacional.
+    Responde 401 sin sesión, 404 si el expediente no existe, 403 si no tiene acceso.
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        from app.models.request_model import Request as Req
+        from app.models.user_model import User
+        from flask_login import current_user
+        from flask import abort, jsonify, request as flask_request
+
+        if not current_user.is_authenticated:
+            return abort(401)
+
+        request_id = kwargs.get('id') or kwargs.get('request_id')
+        if not request_id:
+            return abort(400)
+
+        req = Req.query.get(request_id)
+        if not req:
+            return abort(404)
+
+        user_roles = [
+            assoc.role.name for assoc in current_user.roles_assoc
+        ] if current_user.roles_assoc else []
+
+        is_super_admin = 'super_admin' in user_roles
+        is_state_admin = 'state_admin' in user_roles
+        is_applicant = 'applicant' in user_roles
+
+        if is_super_admin:
+            return f(*args, **kwargs)
+
+        if is_state_admin:
+            try:
+                req_state_id = req.institutional_staff.institution.parish.municipality.state_id
+            except AttributeError:
+                req_state_id = None
+            user = User.query.get(current_user.id)
+            try:
+                admin_state_id = user.person.company_staff[0].place.parish.municipality.state_id
+            except (AttributeError, IndexError):
+                admin_state_id = None
+            if not admin_state_id or req_state_id != admin_state_id:
+                if flask_request.is_json or (
+                    flask_request.accept_mimetypes.accept_json
+                    and not flask_request.accept_mimetypes.accept_html
+                ):
+                    return jsonify({"error": "Violación territorial: No tiene permiso sobre este expediente."}), 403
+                abort(403, description="Violación territorial: No tiene permiso sobre este expediente.")
+            return f(*args, **kwargs)
+
+        if is_applicant:
+            user = User.query.get(current_user.id)
+            try:
+                user_inst_id = user.person.institutional_staff[0].institution_id
+            except (AttributeError, IndexError):
+                user_inst_id = None
+            req_inst_id = req.institutional_staff.institution_id if req.institutional_staff else None
+            if not user_inst_id or user_inst_id != req_inst_id:
+                if flask_request.is_json or (
+                    flask_request.accept_mimetypes.accept_json
+                    and not flask_request.accept_mimetypes.accept_html
+                ):
+                    return jsonify({"error": "Acceso denegado: No tiene permisos sobre este expediente institucional."}), 403
+                abort(403, description="Acceso denegado: No tiene permisos sobre este expediente institucional.")
+            return f(*args, **kwargs)
+
+        if flask_request.is_json or (
+            flask_request.accept_mimetypes.accept_json
+            and not flask_request.accept_mimetypes.accept_html
+        ):
+            return jsonify({"error": "Acceso denegado: Rol no reconocido."}), 403
+        abort(403, description="Acceso denegado: Rol no reconocido.")
+
+    return decorated_function
+
 # ---------------------------------------------------------------------------
 # Ruta Solicitante: Mis Solicitudes
 # ---------------------------------------------------------------------------
@@ -171,33 +255,22 @@ def submit_new_request():
 
 @requests_bp.route('/download-ticket/<int:request_id>', methods=['GET'])
 @login_required
-@role_required('applicant')
-@check_permissions('create_request')
+@role_required('applicant', 'state_admin', 'super_admin')
+@verify_request_access
 def download_receipt_ticket(request_id):
     """
     Genera y descarga el comprobante en PDF al vuelo.
-    Cuenta con protección estricta IDOR: Un solicitante solo puede descargar tickets de su propio plantel.
+    Accesible para solicitante (su plantel), coordinador estadal (su estado)
+    y super administrador (nivel nacional) bajo protección IDOR de verify_request_access.
     """
     from flask import send_file, abort
     from app.models.request_model import Request
     from app.utils.pdf_generator import generate_receipt_ticket_pdf
-    
-    # Extraer el usuario en sesión y su plantel
-    user = User.query.get(current_user.id)
-    if not user or not user.person or not user.person.institutional_staff:
-        abort(403, description="No posee afiliación institucional válida.")
-        
-    session_institution_id = user.person.institutional_staff[0].institution_id
-    
+
     # 1. Buscar la solicitud
     req = Request.query.get_or_404(request_id)
-    
-    # 2. Protección IDOR: Validar que el plantel de la solicitud sea el mismo del usuario
-    request_institution_id = req.institutional_staff.institution_id
-    if session_institution_id != request_institution_id:
-        abort(403, description="Acceso denegado: No tiene permisos para descargar este documento institucional.")
-        
-    # 3. Compilación del PDF en memoria
+
+    # 2. Compilación del PDF en memoria
     try:
         pdf_buffer, _ = generate_receipt_ticket_pdf(req)
         
@@ -1697,89 +1770,6 @@ def api_delete_request_evidence(evidence_id):
 # ---------------------------------------------------------------------------
 # Rutas Historial de Solicitudes y Descarga de Informe Técnico con QR (US-50)
 # ---------------------------------------------------------------------------
-
-def verify_request_access(f):
-    """
-    Decorador de acceso compartido para las rutas históricas del expediente (US-50).
-    Valida que el usuario autenticado tenga permiso sobre el expediente cuyo 'id'
-    viene como parámetro de URL:
-      - applicant:   solo su mismo plantel institucional.
-      - state_admin: solo su jurisdicción territorial (state_id).
-      - super_admin: acceso irrestricto a nivel nacional.
-    Responde 401 sin sesión, 404 si el expediente no existe, 403 si no tiene acceso.
-    """
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        from app.models.request_model import Request as Req
-        from app.models.user_model import User
-        from flask_login import current_user
-        from flask import abort, jsonify, request as flask_request
-
-        if not current_user.is_authenticated:
-            return abort(401)
-
-        request_id = kwargs.get('id')
-        if not request_id:
-            return abort(400)
-
-        req = Req.query.get(request_id)
-        if not req:
-            return abort(404)
-
-        user_roles = [
-            assoc.role.name for assoc in current_user.roles_assoc
-        ] if current_user.roles_assoc else []
-
-        is_super_admin = 'super_admin' in user_roles
-        is_state_admin = 'state_admin' in user_roles
-        is_applicant = 'applicant' in user_roles
-
-        if is_super_admin:
-            return f(*args, **kwargs)
-
-        if is_state_admin:
-            try:
-                req_state_id = req.institutional_staff.institution.parish.municipality.state_id
-            except AttributeError:
-                req_state_id = None
-            user = User.query.get(current_user.id)
-            try:
-                admin_state_id = user.person.company_staff[0].place.parish.municipality.state_id
-            except (AttributeError, IndexError):
-                admin_state_id = None
-            if not admin_state_id or req_state_id != admin_state_id:
-                if flask_request.is_json or (
-                    flask_request.accept_mimetypes.accept_json
-                    and not flask_request.accept_mimetypes.accept_html
-                ):
-                    return jsonify({"error": "Violación territorial: No tiene permiso sobre este expediente."}), 403
-                abort(403, description="Violación territorial: No tiene permiso sobre este expediente.")
-            return f(*args, **kwargs)
-
-        if is_applicant:
-            user = User.query.get(current_user.id)
-            try:
-                user_inst_id = user.person.institutional_staff[0].institution_id
-            except (AttributeError, IndexError):
-                user_inst_id = None
-            req_inst_id = req.institutional_staff.institution_id if req.institutional_staff else None
-            if not user_inst_id or user_inst_id != req_inst_id:
-                if flask_request.is_json or (
-                    flask_request.accept_mimetypes.accept_json
-                    and not flask_request.accept_mimetypes.accept_html
-                ):
-                    return jsonify({"error": "Acceso denegado: No tiene permisos sobre este expediente institucional."}), 403
-                abort(403, description="Acceso denegado: No tiene permisos sobre este expediente institucional.")
-            return f(*args, **kwargs)
-
-        if flask_request.is_json or (
-            flask_request.accept_mimetypes.accept_json
-            and not flask_request.accept_mimetypes.accept_html
-        ):
-            return jsonify({"error": "Acceso denegado: Rol no reconocido."}), 403
-        abort(403, description="Acceso denegado: Rol no reconocido.")
-
-    return decorated_function
 
 
 @requests_bp.route('/history', methods=['GET'])

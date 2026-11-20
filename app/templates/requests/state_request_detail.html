@@ -65,6 +65,14 @@
                 </svg>
                 Justificaciones ({{ req.justifications|length if req.justifications else 0 }})
             </button>
+            <a href="{{ url_for('requests.download_receipt_ticket', request_id=req.id) }}" id="btn-download-receipt-pdf" data-request-code="{{ req.request_code }}" class="btn-action-outline" style="text-decoration: none;" title="Descargar Comprobante de Radicación (PDF)">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Comprobante PDF
+            </a>
 
             {% if req.closure_alert and req.closure_alert.should_trigger %}
             <button type="button" class="btn-action-danger" disabled title="Acción bloqueada: Debe resolver la alerta en el modal obligatorio">

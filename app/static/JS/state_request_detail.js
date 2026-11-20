@@ -11,6 +11,65 @@
             }
         }
 
+        // ── Descarga de Comprobante PDF con SweetAlert2 ───────────────────────
+        const downloadPdfBtn = document.getElementById('btn-download-receipt-pdf');
+        if (downloadPdfBtn) {
+            downloadPdfBtn.addEventListener('click', async function (e) {
+                e.preventDefault();
+                const pdfUrl = this.getAttribute('href');
+                const reqCode = this.getAttribute('data-request-code') || 'Solicitud';
+
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: 'Generando Comprobante...',
+                        text: 'Preparando el archivo PDF oficial.',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+                }
+
+                try {
+                    const response = await fetch(pdfUrl, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    if (!response.ok) {
+                        throw new Error('No se pudo descargar el comprobante.');
+                    }
+
+                    const blob = await response.blob();
+                    const downloadUrl = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = downloadUrl;
+                    a.download = `Comprobante_${reqCode}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(downloadUrl);
+
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: '¡Comprobante Descargado!',
+                            text: `El comprobante PDF de ${reqCode} se ha descargado correctamente.`,
+                            confirmButtonColor: '#019577',
+                            confirmButtonText: 'Aceptar'
+                        });
+                    }
+                } catch (err) {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error de Descarga',
+                            text: err.message || 'Ocurrió un error al descargar el comprobante PDF.',
+                            confirmButtonColor: '#e74c3c'
+                        });
+                    } else {
+                        alert(err.message || 'Ocurrió un error al descargar el comprobante PDF.');
+                    }
+                }
+            });
+        }
+
         // ── Asignación (Atender Solicitud - US-40) ────────────────────────────
         const claimBtn = document.getElementById('btn-claim-request');
         if (claimBtn) {
