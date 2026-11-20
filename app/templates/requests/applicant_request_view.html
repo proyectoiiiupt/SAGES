@@ -293,9 +293,14 @@
                 <div class="info-row">
                     <span class="info-label">Ubicación Territorial:</span>
                     <span class="info-value">
-                        {{ req.institutional_staff.institution.parish.municipality.state.state_name }} — 
-                        {{ req.institutional_staff.institution.parish.municipality.municipality_name }},
-                        Pqa. {{ req.institutional_staff.institution.parish.parish_name }}
+                        {% if req.institutional_staff and req.institutional_staff.institution and req.institutional_staff.institution.parish %}
+                            {% set p = req.institutional_staff.institution.parish %}
+                            {{ p.municipality.state.name if p.municipality and p.municipality.state else 'N/A' }} — 
+                            {{ p.municipality.name if p.municipality else 'N/A' }},
+                            Pqa. {{ p.name }}
+                        {% else %}
+                            No especificada
+                        {% endif %}
                     </span>
                 </div>
             </div>
