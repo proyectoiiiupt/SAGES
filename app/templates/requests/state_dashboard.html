@@ -118,7 +118,14 @@
                 placeholder="Buscar por Institución, N° Solicitud, Formación o Ubicación..." value="{{ search_query }}">
         </div>
 
-        <div class="filters-group">
+        <div class="filters-group" style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <!-- Filtro de Asignación / Titularidad (US-39) -->
+            <select id="assignmentFilter" class="control-select" title="Filtrar por Asignación">
+                <option value="" {% if not current_assignment %}selected{% endif %}>Todas las Asignaciones</option>
+                <option value="mine" {% if current_assignment == 'mine' %}selected{% endif %}>Asignadas a mí</option>
+                <option value="new" {% if current_assignment == 'new' %}selected{% endif %}>Nuevas (Sin Asignar)</option>
+            </select>
+
             <!-- Filtro de Estatus -->
             <select id="statusFilter" class="control-select">
                 <option value="">Todos los Estatus</option>
@@ -134,6 +141,14 @@
                 {% for mun in municipalities %}
                 <option value="{{ mun.id }}" {% if current_municipality==mun.id %}selected{% endif %}>{{ mun.name }}
                 </option>
+                {% endfor %}
+            </select>
+
+            <!-- Filtro de Parroquia -->
+            <select id="parishFilter" class="control-select" {% if not parishes %}style="display: none;"{% endif %}>
+                <option value="">Todas las Parroquias</option>
+                {% for p in parishes %}
+                <option value="{{ p.id }}" {% if current_parish==p.id %}selected{% endif %}>{{ p.name }}</option>
                 {% endfor %}
             </select>
         </div>

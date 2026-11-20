@@ -332,6 +332,8 @@ def state_admin_dashboard():
     search_query = request.args.get('search', '', type=str)
     status_id = request.args.get('status', None, type=int)
     municipality_id = request.args.get('municipality', None, type=int)
+    parish_id = request.args.get('parish', None, type=int)
+    assignment_filter = request.args.get('assignment', '', type=str)
     
     # 3. Consulta Masiva de KPIs Regionales
     metrics = get_state_dashboard_metrics(state_id)
@@ -345,7 +347,10 @@ def state_admin_dashboard():
         per_page=per_page, 
         search_query=search_query,
         status_id=status_id,
-        municipality_id=municipality_id
+        municipality_id=municipality_id,
+        parish_id=parish_id,
+        assignment_filter=assignment_filter,
+        user_id=current_user.id
     )
     
     # 5. Respuesta Dual (Soporte para recarga asíncrona o primera carga completa)
@@ -356,6 +361,7 @@ def state_admin_dashboard():
     # Consultas auxiliares para llenar los `<select>` de filtros
     from app.models.status_model import Status
     from app.models.municipality_model import Municipality
+    from app.models.parish_model import Parish
     
     # Obtener estatus relevantes para solicitudes (STAT-003 al STAT-009)
     available_statuses = Status.query.filter(
@@ -364,6 +370,11 @@ def state_admin_dashboard():
     
     # Obtener municipios de la jurisdicción actual
     available_municipalities = Municipality.query.filter_by(state_id=state_id).order_by(Municipality.name.asc()).all()
+    
+    # Obtener parroquias si hay municipio seleccionado
+    available_parishes = []
+    if municipality_id:
+        available_parishes = Parish.query.filter_by(municipality_id=municipality_id).order_by(Parish.name.asc()).all()
 
     # 6. Intercepción por Alerta de Cumplimiento Post-Fecha Pautada (Spam de Cierre)
     # Si el administrador tiene solicitudes vencidas asignadas a él sin evidencias,
@@ -385,8 +396,11 @@ def state_admin_dashboard():
         search_query=search_query,
         current_status=status_id,
         current_municipality=municipality_id,
+        current_parish=parish_id,
+        current_assignment=assignment_filter,
         statuses=available_statuses,
         municipalities=available_municipalities,
+        parishes=available_parishes,
         user_state=current_user.person.company_staff[0].place.parish.municipality.state.name,
         blocking_closure_req=blocking_closure_req,
         reschedule_reasons=reschedule_reasons
@@ -447,13 +461,21 @@ def state_request_detail(id):
 
     tracking_steps = get_request_timeline(id)
 
+    # Titularidad de gestión operativa:
+    # Solo puede gestionar (planificar, ejecutar en espacio de trabajo o cancelar)
+    # el Administrador Estadal que tomó posesión de la solicitud (is_owner).
+    # Si la solicitud es STAT-003 (nueva / sin asignar), cualquier state_admin puede atenderla.
+    is_owner = (req.attended_by_id == current_user.id) if (current_user and current_user.is_authenticated) else False
+
     return render_template(
         'requests/state_request_detail.html',
         req=req,
         reschedule_reasons=reschedule_reasons,
         reasons=reschedule_reasons,
         cancel_form=cancel_form,
-        tracking_steps=tracking_steps
+        tracking_steps=tracking_steps,
+        is_owner=is_owner,
+        is_super_admin=is_super_admin
     )
 
 
@@ -561,10 +583,16 @@ def active_workspace_view(id):
             flash("Violación de Acceso: El expediente solicitado pertenece a otra jurisdicción territorial.", "danger")
             abort(403)
 
-    # 5. Determinación de titularidad de atención
+    # 5. Determinación de titularidad de atención y acceso restringido al Espacio de Trabajo
+    # El Espacio de Trabajo activo es exclusivo para el Admin Estadal que tomó posesión de la solicitud (is_owner).
+    # Si un Super Admin u otro Admin Estadal intenta ingresar, se le redirige a su vista de supervisión / ficha técnica.
     is_owner = (req.attended_by_id == current_user.id)
-    if not is_super_admin and not is_owner and req.attended_by_id is not None:
-        flash("Atención: Usted está visualizando este espacio de trabajo en modo de consulta, ya que se encuentra asignado a otro facilitador.", "warning")
+    if is_super_admin:
+        flash("Modo Supervisión: El Espacio de Trabajo de campo está reservado para el facilitador titular asignado. Como Administrador Nacional, puede supervisar el expediente desde la Ficha de Auditoría.", "info")
+        return redirect(url_for('requests.admin_request_detail', request_id=req.id))
+    elif not is_owner and req.attended_by_id is not None:
+        flash("Acceso Restringido: Esta jornada está siendo gestionada por otro facilitador titular. Su acceso se limita a la Ficha Técnica informativa.", "warning")
+        return redirect(url_for('requests.state_request_detail', id=req.id))
 
     from app.models.reason_model import Reason
     reschedule_reasons = Reason.query.order_by(Reason.name.asc()).all()

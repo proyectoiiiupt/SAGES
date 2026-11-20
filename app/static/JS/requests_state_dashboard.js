@@ -62,6 +62,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const statusFilter = document.getElementById('statusFilter');
     const municipalityFilter = document.getElementById('municipalityFilter');
+    const parishFilter = document.getElementById('parishFilter');
+    const assignmentFilter = document.getElementById('assignmentFilter');
 
     /**
      * Construye la cadena de parámetros cruzando la búsqueda de texto y los filtros.
@@ -71,11 +73,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentSearch = searchInput ? searchInput.value.trim() : '';
         const currentStatus = statusFilter ? statusFilter.value : '';
         const currentMunicipality = municipalityFilter ? municipalityFilter.value : '';
+        const currentParish = parishFilter ? parishFilter.value : '';
+        const currentAssignment = assignmentFilter ? assignmentFilter.value : '';
 
         if (pageNum) params.append('page', pageNum);
         if (currentSearch) params.append('search', currentSearch);
         if (currentStatus) params.append('status', currentStatus);
         if (currentMunicipality) params.append('municipality', currentMunicipality);
+        if (currentParish) params.append('parish', currentParish);
+        if (currentAssignment) params.append('assignment', currentAssignment);
 
         return params;
     };
@@ -139,8 +145,38 @@ document.addEventListener('DOMContentLoaded', () => {
     if (statusFilter) {
         statusFilter.addEventListener('change', applyFilters);
     }
+    if (assignmentFilter) {
+        assignmentFilter.addEventListener('change', applyFilters);
+    }
     if (municipalityFilter) {
-        municipalityFilter.addEventListener('change', applyFilters);
+        municipalityFilter.addEventListener('change', async () => {
+            const munId = municipalityFilter.value;
+            if (parishFilter) {
+                if (!munId) {
+                    parishFilter.innerHTML = '<option value="">Todas las Parroquias</option>';
+                    parishFilter.style.display = 'none';
+                } else {
+                    try {
+                        const res = await fetch(`/configurations/api/parishes/${munId}`);
+                        if (res.ok) {
+                            const parishes = await res.json();
+                            let opts = '<option value="">Todas las Parroquias</option>';
+                            parishes.forEach(p => {
+                                opts += `<option value="${p.id}">${p.name}</option>`;
+                            });
+                            parishFilter.innerHTML = opts;
+                            parishFilter.style.display = 'inline-block';
+                        }
+                    } catch (err) {
+                        console.error('Error fetching parishes:', err);
+                    }
+                }
+            }
+            applyFilters();
+        });
+    }
+    if (parishFilter) {
+        parishFilter.addEventListener('change', applyFilters);
     }
 
     // Inicializar el secuestro de botones al cargar la página por primera vez

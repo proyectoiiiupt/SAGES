@@ -765,10 +765,21 @@ def _emit_sla_alerts_for_requests(requests_list):
         logging.getLogger(__name__).warning(f"Error en _emit_sla_alerts_for_requests: {notif_err}")
 
 
-def get_state_requests_paginated(state_id: int, page: int = 1, per_page: int = 10, search_query: str = None, status_id: int = None, municipality_id: int = None):
+def get_state_requests_paginated(
+    state_id: int, 
+    page: int = 1, 
+    per_page: int = 10, 
+    search_query: str = None, 
+    status_id: int = None, 
+    municipality_id: int = None,
+    parish_id: int = None,
+    assignment_filter: str = None,
+    user_id: int = None
+):
     """
     Obtiene las solicitudes del estado con carga ansiosa (joinedload) y aplica filtros.
     Calcula dinámicamente el semáforo (Traffic Light) en base al tiempo transcurrido.
+    Soporta filtrado por parroquia y titularidad ('new' = sin asignar, 'mine' = asignadas a mí).
     """
     # 1. Join estructural para filtrado (Obligatorio para state_id)
     query = Request.query.join(InstitutionalStaff).join(Institution).join(Parish).join(Municipality).join(
@@ -791,6 +802,14 @@ def get_state_requests_paginated(state_id: int, page: int = 1, per_page: int = 1
         query = query.filter(Request.status_id == status_id)
     if municipality_id:
         query = query.filter(Municipality.id == municipality_id)
+    if parish_id:
+        query = query.filter(Parish.id == parish_id)
+    
+    # Filtro de Titularidad / Posesión de Solicitud
+    if assignment_filter == 'new':
+        query = query.filter(Request.attended_by_id == None)
+    elif assignment_filter == 'mine' and user_id:
+        query = query.filter(Request.attended_by_id == user_id)
 
     # 3. Filtro reactivo por término de búsqueda (Universal Search)
     if search_query:

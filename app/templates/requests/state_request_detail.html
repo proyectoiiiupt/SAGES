@@ -77,32 +77,40 @@
             </button>
             {% elif req.status.status_code == 'STAT-003' %}
 
-            {% if req.has_delay_block %}
-            <button type="button" id="btn-open-sla-gate" class="btn-action-danger" data-request-id="{{ req.id }}">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
-                    </path>
-                    <line x1="12" y1="9" x2="12" y2="13"></line>
-                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                </svg>
-                Justificar Retraso
-            </button>
-            <button type="button" id="btn-attend-blocked" class="btn-action-primary" disabled
-                title="Debe justificar el retraso primero">
-                Atender Solicitud
-            </button>
+            {% if not is_super_admin %}
+                {% if req.has_delay_block %}
+                <button type="button" id="btn-open-sla-gate" class="btn-action-danger" data-request-id="{{ req.id }}">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                        </path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    Justificar Retraso
+                </button>
+                <button type="button" id="btn-attend-blocked" class="btn-action-primary" disabled
+                    title="Debe justificar el retraso primero">
+                    Atender Solicitud
+                </button>
+                {% else %}
+                <button type="button" id="btn-claim-request" class="btn-action-primary" data-request-id="{{ req.id }}">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    Atender Solicitud
+                </button>
+                {% endif %}
             {% else %}
-            <button type="button" id="btn-claim-request" class="btn-action-primary" data-request-id="{{ req.id }}">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                </svg>
-                Atender Solicitud
-            </button>
+                <span class="badge-role-tag" style="background: #f1f5f9; color: #475569; padding: 8px 14px; font-size: 0.88rem; display: inline-flex; align-items: center; gap: 6px;">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                    Modo Supervisión: Pendiente de atención por la coordinación estadal
+                </span>
             {% endif %}
 
             {% elif req.status.status_code == 'STAT-004' %}
             
+            {% if is_owner %}
             <button type="button" id="btn-open-plan-modal" class="btn-action-primary" data-request-id="{{ req.id }}">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
@@ -112,34 +120,47 @@
                 </svg>
                 Planificar Jornada
             </button>
+            {% else %}
+            <span class="badge-role-tag" style="background: #f1f5f9; color: #475569; padding: 8px 14px; font-size: 0.88rem; display: inline-flex; align-items: center; gap: 6px;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"></circle><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path></svg>
+                Modo Consulta: Asignada a {{ req.attended_by.person.first_name }} {{ req.attended_by.person.last_name }}
+            </span>
+            {% endif %}
 
             {% elif req.status.status_code in ['STAT-005', 'STAT-006'] %}
 
-            {% if req.has_delay_block %}
-            <button type="button" id="btn-open-sla-gate" class="btn-action-danger" data-request-id="{{ req.id }}">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
-                    </path>
-                    <line x1="12" y1="9" x2="12" y2="13"></line>
-                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                </svg>
-                Justificar Retraso
-            </button>
-            <button type="button" id="btn-follow-blocked" class="btn-action-primary" disabled
-                title="Debe justificar el retraso primero">
-                Seguir Solicitud
-            </button>
+            {% if is_owner %}
+                {% if req.has_delay_block %}
+                <button type="button" id="btn-open-sla-gate" class="btn-action-danger" data-request-id="{{ req.id }}">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                        </path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    Justificar Retraso
+                </button>
+                <button type="button" id="btn-follow-blocked" class="btn-action-primary" disabled
+                    title="Debe justificar el retraso primero">
+                    Seguir Solicitud
+                </button>
+                {% else %}
+                <a href="{{ url_for('requests.active_workspace_view', id=req.id) }}" class="btn-action-primary" style="text-decoration: none;">
+                    Seguir Solicitud
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </a>
+                {% endif %}
             {% else %}
-            <a href="{{ url_for('requests.active_workspace_view', id=req.id) }}" class="btn-action-primary" style="text-decoration: none;">
-                Seguir Solicitud
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
-            </a>
+            <span class="badge-role-tag" style="background: #f1f5f9; color: #475569; padding: 8px 14px; font-size: 0.88rem; display: inline-flex; align-items: center; gap: 6px;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"></circle><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path></svg>
+                Modo Consulta: Asignada a {{ req.attended_by.person.first_name }} {{ req.attended_by.person.last_name }}
+            </span>
             {% endif %}
             {% endif %}
 
-            {% if req.status.status_code in ['STAT-003', 'STAT-004', 'STAT-005', 'STAT-006'] and not req.historical and not (req.closure_alert and req.closure_alert.should_trigger) %}
+            {% if (is_owner or (req.status.status_code == 'STAT-003' and not is_super_admin)) and req.status.status_code in ['STAT-003', 'STAT-004', 'STAT-005', 'STAT-006'] and not req.historical and not (req.closure_alert and req.closure_alert.should_trigger) %}
             <button type="button" id="openCancellationModalBtn" class="btn-action-danger" data-request-id="{{ req.id }}" style="display: inline-flex; align-items: center; gap: 8px;">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="10"></circle>
