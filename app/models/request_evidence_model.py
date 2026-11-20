@@ -7,8 +7,8 @@ class RequestEvidence(db.Model):
 
     id = db.Column(db.BigInteger, primary_key=True)
     request_id = db.Column(db.BigInteger, db.ForeignKey('sages.requests.id'), nullable=False)
-    file_name = db.Column(db.String(100), nullable=False)
-    file_path = db.Column(db.String(100), nullable=False)
+    file_name = db.Column(db.String(255), nullable=False)
+    file_path = db.Column(db.String(255), nullable=False)
     format = db.Column(db.String(50), nullable=False)
     file_weight = db.Column(db.Integer, nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
