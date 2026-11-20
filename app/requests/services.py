@@ -1016,33 +1016,43 @@ def claim_and_attend_request(request_id: int, admin_user) -> tuple[bool, str, di
     
     if not req:
         return False, "Solicitud no encontrada.", {}
-    # Comprobar que sea el estado correcto
-    if req.status.status_code != 'STAT-003':
-        return False, f"La solicitud no se encuentra en estado Nuevo (Actual: {req.status.status_code}).", {}
+    current_status_code = req.status.status_code if req.status else ''
     # Comprobar si ya fue asignada en un hilo concurrente
     if req.attended_by_id is not None:
         db.session.rollback()
         raise RequestAlreadyClaimedException("Esta solicitud ya ha sido asumida por otro operador de la sede.")
-    # Consultar el estado Pendiente
-    status_pending = Status.query.filter_by(status_code='STAT-004').first()
-    if not status_pending:
-        db.session.rollback()
-        return False, "Error interno: Estado STAT-004 no encontrado en catálogo.", {}
+    # Comprobar que sea un estado válido para toma de posesión (STAT-003 o huérfana sin asignar)
+    if current_status_code != 'STAT-003' and not (
+        current_status_code in ('STAT-004', 'STAT-005', 'STAT-006')
+        and not req.historical
+    ):
+        return False, f"La solicitud no se encuentra en estado Nuevo (Actual: {current_status_code}).", {}
+    # Consultar el estado Pendiente solo si transiciona desde STAT-003
+    status_pending = None
+    if current_status_code == 'STAT-003':
+        status_pending = Status.query.filter_by(status_code='STAT-004').first()
+        if not status_pending:
+            db.session.rollback()
+            return False, "Error interno: Estado STAT-004 no encontrado en catálogo.", {}
     try:
-        # 1. Asignar operador y actualizar estado
+        # 1. Asignar operador y actualizar estado (si venía de STAT-003)
         req.attended_by_id = admin_user.id
-        req.status_id = status_pending.id
+        if status_pending:
+            req.status_id = status_pending.id
+        new_status_code = 'STAT-004' if status_pending else current_status_code
         req.updated_at = datetime.now(timezone.utc)
         
-        # 2. Instanciación satélite diferida de RequestPlanning
-        accepted_at = datetime.now(timezone.utc)
-        planning = RequestPlanning(
-            requests_id=req.id,
-            accepted_at=accepted_at,
-            acceptance_deadline=req.created_at + timedelta(hours=72),
-            execution_deadline=accepted_at + timedelta(days=10)
-        )
-        db.session.add(planning)
+        # 2. Instanciación satélite diferida de RequestPlanning (solo si no existe)
+        planning = None
+        if not req.plannings:
+            accepted_at = datetime.now(timezone.utc)
+            planning = RequestPlanning(
+                requests_id=req.id,
+                accepted_at=accepted_at,
+                acceptance_deadline=req.created_at + timedelta(hours=72),
+                execution_deadline=accepted_at + timedelta(days=10)
+            )
+            db.session.add(planning)
         
         # 3. Traza automática institucional en Bitácora
         admin_name = f"{admin_user.person.first_name} {admin_user.person.last_name}"
@@ -1061,7 +1071,8 @@ def claim_and_attend_request(request_id: int, admin_user) -> tuple[bool, str, di
         
         # 4. Commit Atómico Completo
         req._skip_auto_audit = True
-        planning._skip_auto_audit = True
+        if planning:
+            planning._skip_auto_audit = True
         db.session.commit()
 
         # Auditoría transversal de atención y asignación
@@ -1071,11 +1082,11 @@ def claim_and_attend_request(request_id: int, admin_user) -> tuple[bool, str, di
             BinnacleService.create_log_entry(
                 module=AuditModule.REQUESTS.value,
                 action_type=AuditAction.ATENDER_SOLICITUD.value,
-                description=f"Solicitud {req.request_code} asumida y atendida por el facilitador {admin_name} (STAT-004)",
+                description=f"Solicitud {req.request_code} asumida y atendida por el facilitador {admin_name} ({new_status_code})",
                 target_table='sages.requests',
                 record_id=req.id,
-                old_values={'status_code': 'STAT-003', 'attended_by_id': None},
-                new_values={'status_code': 'STAT-004', 'attended_by_id': admin_user.id},
+                old_values={'status_code': current_status_code, 'attended_by_id': None},
+                new_values={'status_code': new_status_code, 'attended_by_id': admin_user.id},
                 status=AuditStatus.MODIFICADO.value
             )
         except Exception as audit_err:
@@ -1132,9 +1143,10 @@ def claim_and_attend_request(request_id: int, admin_user) -> tuple[bool, str, di
             import logging
             logging.error(f"No se pudo enviar el correo de asignación: {email_e}")
         
+        final_status = status_pending or req.status
         return True, "Solicitud asignada exitosamente.", {
-            "status_code": status_pending.status_code,
-            "status_name": status_pending.status_name,
+            "status_code": final_status.status_code if final_status else new_status_code,
+            "status_name": final_status.status_name if final_status else new_status_code,
             "operator_name": admin_name
         }
         
