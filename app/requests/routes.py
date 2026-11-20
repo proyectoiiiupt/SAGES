@@ -475,7 +475,8 @@ def state_request_detail(id):
         cancel_form=cancel_form,
         tracking_steps=tracking_steps,
         is_owner=is_owner,
-        is_super_admin=is_super_admin
+        is_super_admin=is_super_admin,
+        user_role=('super_admin' if is_super_admin else 'state_admin')
     )
 
 

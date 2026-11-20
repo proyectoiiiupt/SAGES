@@ -483,7 +483,7 @@ def cancel_training_request(request_id: int, user: User, reason_id: int, justifi
 
         # 10. Confirmación de transacción
         req._skip_auto_audit = True
-        justification_entry._skip_auto_audit = True
+        justification._skip_auto_audit = True
         db.session.commit()
 
         # 11. Notificación y correo asíncrono a la contraparte (Post-commit)

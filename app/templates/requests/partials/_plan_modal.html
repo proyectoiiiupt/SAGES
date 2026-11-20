@@ -1,11 +1,11 @@
 <!-- ============================================================
      MODAL DE PLANIFICACIÓN DE JORNADA - ESTILO AGENDA
      ============================================================ -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/request_planning.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/request_planning.css') }}">
 
 <div id="plan-gate-overlay" class="sla-gate-overlay" role="dialog" aria-modal="true">
     <div class="corp-agenda-modal" id="plan-gate-modal">
-        
+
         <div class="corp-agenda-header">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#0ea5e9" stroke-width="2">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
@@ -18,14 +18,15 @@
 
         <form id="plan-gate-form" class="corp-agenda-form" novalidate>
             <input type="hidden" id="plan-request-id" value="{{ req.id }}">
-            <input type="hidden" id="plan-execution-deadline" value="{{ req.plannings[0].execution_deadline.isoformat() if req.plannings and req.plannings[0].execution_deadline else '' }}">
-            
+            <input type="hidden" id="plan-execution-deadline"
+                value="{{ req.plannings[0].execution_deadline.isoformat() if req.plannings and req.plannings[0].execution_deadline else '' }}">
+
             <!-- Input fecha real oculto (usado para el form submit) -->
             <input type="date" id="plan-date" name="planned_for" required style="display: none;">
 
             <div class="corp-agenda-body">
                 <div class="corp-agenda-grid" id="plan-grid-container">
-                    
+
                     <!-- Columna 1: Calendario -->
                     <div class="corp-agenda-col1">
                         <div class="corp-calendar-wrap">
@@ -53,7 +54,8 @@
                             <span class="corp-card-title">Leyenda de la Agenda</span>
                             <div class="corp-legend-col">
                                 <div class="corp-legend-item">
-                                    <div class="corp-legend-dot" style="background: #fff; border: 1px solid #cbd5e1;"></div>
+                                    <div class="corp-legend-dot" style="background: #fff; border: 1px solid #cbd5e1;">
+                                    </div>
                                     <span>Disponible para agendar</span>
                                 </div>
                                 <div class="corp-legend-item">
@@ -61,11 +63,13 @@
                                     <span>Día seleccionado</span>
                                 </div>
                                 <div class="corp-legend-item">
-                                    <div class="corp-legend-dot" style="background: #ffedd5; border: 1px solid #ffbb6e;"></div>
+                                    <div class="corp-legend-dot"
+                                        style="background: #ffedd5; border: 1px solid #ffbb6e;"></div>
                                     <span>No disponible (Ya agendado)</span>
                                 </div>
                                 <div class="corp-legend-item">
-                                    <div class="corp-legend-dot" style="background: #edf6ff; border: 1px solid #8a97a6;"></div>
+                                    <div class="corp-legend-dot"
+                                        style="background: #edf6ff; border: 1px solid #8a97a6;"></div>
                                     <span>Inhábil / Fuera de rango</span>
                                 </div>
                             </div>
@@ -74,10 +78,11 @@
                         <!-- Observaciones de Coordinación -->
                         <div class="sla-field-group">
                             <label class="sla-label">Observaciones (Opcional)</label>
-                            <textarea id="plan-notes" name="notes" class="sla-textarea" rows="3" maxlength="500" placeholder="Anotaciones logísticas para el expediente o la jornada..."></textarea>
+                            <textarea id="plan-notes" name="notes" class="sla-textarea" rows="3" maxlength="500"
+                                placeholder="Anotaciones logísticas para el expediente o la jornada..."></textarea>
                         </div>
                     </div>
-                    
+
                     <!-- Columna 3: Dinámica (Justificación ANS) -->
                     <div class="corp-agenda-col3" id="plan-sla-column">
                         <!-- Advertencia de ANS Minimalista -->
@@ -95,10 +100,14 @@
 
                         <div class="sla-field-group" id="plan-justification-group">
                             <label class="sla-label">Descargo Formal *</label>
-                            <textarea id="plan-justification" name="delay_justification" class="sla-textarea" rows="4" maxlength="2000" placeholder="Explique detalladamente los motivos del retraso normativo (mínimo 20 caracteres)..."></textarea>
+                            <textarea id="plan-justification" name="delay_justification" class="sla-textarea" rows="4"
+                                maxlength="2000"
+                                placeholder="Explique detalladamente los motivos del retraso normativo (mínimo 20 caracteres)..."></textarea>
                             <div class="sla-textarea-footer">
-                                <span id="plan-char-error" class="sla-field-error">Mínimo 20 caracteres requeridos.</span>
-                                <span id="plan-char-counter" class="sla-char-counter"><span id="plan-char-count">0</span> / 2000</span>
+                                <span id="plan-char-error" class="sla-field-error">Mínimo 20 caracteres
+                                    requeridos.</span>
+                                <span id="plan-char-counter" class="sla-char-counter"><span
+                                        id="plan-char-count">0</span> / 2000</span>
                             </div>
                             <div class="sla-progress-wrap">
                                 <div id="plan-char-progress" class="sla-char-progress progress-danger"></div>
