@@ -5,6 +5,8 @@
 {% block extra_css %}
 <!-- Estilos base de Ficha Técnica (para el Banner Principal y el Modal SLA Gate) -->
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_detail.css') }}">
+<!-- Estilos del Modal de Cancelación Motivada -->
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/applicant_request_detail.css') }}">
 <!-- Estilos del Calendario Corporativo de Planificación/Reprogramación -->
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/request_planning.css') }}">
 <!-- Estilos específicos del Espacio de Trabajo Activo -->
@@ -303,9 +305,10 @@
 
     </div>
 
-    <!-- 4. BOTÓN INFERIOR: CANCELAR SOLICITUD (Sin funcionalidad por el momento) -->
+    <!-- 4. BOTÓN INFERIOR: CANCELAR SOLICITUD -->
+    {% if is_owner and req.status.status_code in ['STAT-005', 'STAT-006'] and not req.historical %}
     <div class="ws-bottom-cancel-row">
-        <button type="button" class="ws-btn-cancel-request" id="btn-cancel-request-placeholder">
+        <button type="button" class="ws-btn-cancel-request" id="openCancellationModalBtn" data-request-id="{{ req.id }}">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
                 <line x1="12" y1="9" x2="12" y2="13"></line>
@@ -314,6 +317,7 @@
             <span>Cancelar Solicitud</span>
         </button>
     </div>
+    {% endif %}
 
     <!-- 5. DRAWER LATERAL DESLIZABLE PARA LA BITÁCORA TRANSVERSAL (US-45) -->
     <div class="ws-drawer-backdrop" id="bitacora-backdrop" style="display: none;"></div>
@@ -415,6 +419,9 @@
 
     {% if req.status.status_code in ['STAT-005', 'STAT-006'] and not req.historical %}
         {% include 'requests/partials/_reschedule_modal.html' %}
+        {% if is_owner %}
+            {% include 'requests/partials/_cancellation_modal.html' %}
+        {% endif %}
     {% endif %}
 
     <!-- Modales de Carga Drag & Drop y Galería de Evidencias (US-46) -->

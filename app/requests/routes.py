@@ -596,7 +596,11 @@ def active_workspace_view(id):
         return redirect(url_for('requests.state_request_detail', id=req.id))
 
     from app.models.reason_model import Reason
+    from app.requests.forms import CancelRequestForm
     reschedule_reasons = Reason.query.order_by(Reason.name.asc()).all()
+
+    cancel_form = CancelRequestForm(min_length=20)
+    cancel_form.reason_id.choices = [(r.id, r.name) for r in reschedule_reasons]
 
     return render_template(
         'requests/active_workspace.html',
@@ -604,6 +608,8 @@ def active_workspace_view(id):
         req=req,
         is_owner=is_owner,
         is_super_admin=is_super_admin,
+        user_role=('super_admin' if is_super_admin else 'state_admin'),
+        cancel_form=cancel_form,
         reschedule_reasons=reschedule_reasons,
         reasons=reschedule_reasons
     )
