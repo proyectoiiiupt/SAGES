@@ -441,10 +441,11 @@ def cancel_training_request(request_id: int, user: User, reason_id: int, justifi
     try:
         now_utc = datetime.now(timezone.utc)
 
-        # 6. Registrar en sages.request_justifications (sin user_id por esquema)
+        # 6. Registrar en sages.request_justifications
         justification = RequestJustification(
             request_id=req.id,
             reason_id=reason.id,
+            user_id=user.id if user else None,
             justification_type=justification_type,
             justification=clean_justification
         )
@@ -923,6 +924,7 @@ def get_request_full_detail(request_id: int):
         joinedload(Request.attended_by),
         joinedload(Request.plannings),
         joinedload(Request.justifications).joinedload(RequestJustification.reason),
+        joinedload(Request.justifications).joinedload(RequestJustification.user).joinedload(User.person),
         joinedload(Request.evidences),
         joinedload(Request.tracking_steps).joinedload(RequestTracking.user).joinedload(User.person)
     ).get_or_404(request_id)
@@ -1215,6 +1217,7 @@ def plan_training_session(request_id: int, planned_date, notes: str, admin_user,
             justification_record = RequestJustification(
                 request_id=req.id,
                 reason_id=delay_reason_id,
+                user_id=admin_user.id if admin_user else None,
                 justification_type='RETRASO_EJECUCION',
                 justification=delay_justification.strip()
             )
@@ -1463,6 +1466,7 @@ def reschedule_training_session(
         justification_record = RequestJustification(
             request_id=req.id,
             reason_id=reason.id,
+            user_id=admin_user.id if admin_user else None,
             justification_type='REPROGRAMACION',
             justification=clean_justification
         )
@@ -2077,6 +2081,7 @@ def get_request_justification_detail(request_id: int) -> dict | None:
         joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.institution)
             .joinedload(Institution.parish).joinedload(Parish.municipality).joinedload(Municipality.state),
         joinedload(Request.justifications).joinedload(RequestJustification.reason),
+        joinedload(Request.justifications).joinedload(RequestJustification.user).joinedload(User.person),
         joinedload(Request.tracking_steps)
     ).get(request_id)
 
@@ -2101,22 +2106,27 @@ def get_request_justification_detail(request_id: int) -> dict | None:
     except (AttributeError, IndexError):
         pass
 
-    if req.attended_by and req.attended_by.person:
+    if delay_just.user and delay_just.user.person:
+        jp = delay_just.user.person
+        submitted_by = f"{jp.first_name} {jp.last_name} ({state_name})"
+    elif req.attended_by and req.attended_by.person:
         p = req.attended_by.person
         submitted_by = f"{p.first_name} {p.last_name} (Admin Estadal {state_name})"
     else:
         submitted_by = f"Administración Estadal ({state_name})"
 
-    # Obtener marca temporal del descargo desde tracking o fechas del expediente
-    just_dt = None
-    if req.tracking_steps:
+    # Priorizar created_at propio de RequestJustification; respaldo en tracking o fechas del expediente
+    just_dt = getattr(delay_just, 'created_at', None)
+    if not just_dt and req.tracking_steps:
         for t in reversed(req.tracking_steps):
             msg = (t.messages or "").lower()
             if "justificaci" in msg or "descargo" in msg:
                 just_dt = t.created_at
                 break
     if not just_dt:
-        just_dt = req.updated_at or req.created_at or datetime.now()
+        just_dt = req.updated_at or req.created_at or datetime.now(timezone.utc)
+    if just_dt.tzinfo is not None:
+        just_dt = to_caracas_time(just_dt)
     created_at_str = just_dt.strftime("%d/%m/%Y %I:%M %p")
 
     reason_name = delay_just.reason.name if delay_just.reason else "Causa Operativa Justificada"
@@ -2394,6 +2404,7 @@ def submit_delay_justification(
         new_just = RequestJustification(
             request_id=req.id,
             reason_id=reason.id,
+            user_id=admin_user.id if admin_user else None,
             justification_type=justification_type,
             justification=justification_text
         )
@@ -2977,6 +2988,7 @@ def submit_closure_reschedule(
         justification = RequestJustification(
             request_id=request_id,
             reason_id=reason_id,
+            user_id=user_id,
             justification_type='REPROGRAMACION_CIERRE',
             justification=justification_text.strip()
         )
@@ -3502,6 +3514,7 @@ def get_forensic_audit_detail(request_id: int) -> dict:
         joinedload(Request.attended_by).joinedload(User.person),
         joinedload(Request.plannings),
         joinedload(Request.justifications).joinedload(RequestJustification.reason),
+        joinedload(Request.justifications).joinedload(RequestJustification.user).joinedload(User.person),
         joinedload(Request.evidences),
         joinedload(Request.tracking_steps).joinedload(RequestTracking.user).joinedload(User.person),
         joinedload(Request.tracking_steps).joinedload(RequestTracking.user).joinedload(User.roles_assoc)
@@ -5018,6 +5031,7 @@ def get_historical_request_detail(request_id: int, user: User) -> dict:
         joinedload(Request.attended_by).joinedload(User.person),
         joinedload(Request.plannings),
         joinedload(Request.justifications).joinedload(RequestJustification.reason),
+        joinedload(Request.justifications).joinedload(RequestJustification.user).joinedload(User.person),
         joinedload(Request.evidences),
         joinedload(Request.tracking_steps).joinedload(RequestTracking.user).joinedload(User.person),
         joinedload(Request.ratings)

@@ -1,4 +1,5 @@
 from app.extensions import db
+from datetime import datetime, timezone
 from app.binnacle.mixins import AuditableMixin
 from app.binnacle.types import AuditModule
 
@@ -12,12 +13,15 @@ class RequestJustification(db.Model, AuditableMixin):
     id = db.Column(db.BigInteger, primary_key=True)
     request_id = db.Column(db.BigInteger, db.ForeignKey('sages.requests.id'), nullable=False)
     reason_id = db.Column(db.BigInteger, db.ForeignKey('sages.reasons.id'), nullable=False)
+    user_id = db.Column(db.BigInteger, db.ForeignKey('sages.users.id'), nullable=True)
     justification_type = db.Column(db.String(50), nullable=False)
     justification = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), server_default=db.func.now(), nullable=False)
 
     # Relaciones
     request = db.relationship('Request', back_populates='justifications')
     reason = db.relationship('Reason', back_populates='justifications')
+    user = db.relationship('User', foreign_keys=[user_id])
 
     def __repr__(self):
         return f'<RequestJustification Request:{self.request_id} Reason:{self.reason_id}>'

@@ -7,6 +7,12 @@ body.closure-modal-open {
     overflow: hidden !important;
 }
 
+/* Asegurar que SweetAlert2 siempre aparezca por encima del modal de cierre (z-index 10500) */
+body.closure-modal-open .swal2-container,
+.swal2-container {
+    z-index: 20000 !important;
+}
+
 /* Backdrop Bloqueante de Alta Prioridad */
 .closure-modal-backdrop {
     position: fixed;

@@ -684,6 +684,18 @@
                             <div style="font-size: 0.92rem; font-weight: 600; color: #1e293b; margin-bottom: 6px;">
                                 Motivo: <span style="color: #0369a1;">{{ just.reason.name if just.reason else 'No tipificado' }}</span>
                             </div>
+                            <div style="font-size: 0.82rem; color: #475569; margin-bottom: 8px;">
+                                Registrado por:
+                                <strong>
+                                    {% if just.user and just.user.person %}
+                                        {{ just.user.person.first_name }} {{ just.user.person.last_name }}
+                                    {% elif just.user %}
+                                        {{ just.user.username }}
+                                    {% else %}
+                                        Registro histórico institucional
+                                    {% endif %}
+                                </strong>
+                            </div>
                             <div style="background: #fff; padding: 10px 14px; border-radius: 6px; border-left: 3px solid #dc2626; color: #334155; font-size: 0.9rem; line-height: 1.5;">
                                 {{ just.justification }}
                             </div>

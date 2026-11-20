@@ -8,7 +8,10 @@ class Rating(db.Model, AuditableMixin):
     __audit_exclude_fields__ = {'created_at'}
 
     __tablename__ = 'ratings'
-    __table_args__ = {'schema': 'sages'}
+    __table_args__ = (
+        db.UniqueConstraint('request_id', name='uq_ratings_request_id'),
+        {'schema': 'sages'}
+    )
 
     id = db.Column(db.BigInteger, primary_key=True)
     request_id = db.Column(db.BigInteger, db.ForeignKey('sages.requests.id'), nullable=False)
