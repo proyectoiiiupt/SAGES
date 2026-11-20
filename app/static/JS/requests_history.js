@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', function () {
             e.preventDefault();
 
             const downloadUrl = this.getAttribute('data-download-url');
+            const downloadFilename = this.getAttribute('data-filename') || '';
 
             if (!downloadUrl) return;
 
@@ -38,13 +39,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     focusConfirm: true
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        ejecutarDescargaSegura(btnDownload, downloadUrl);
+                        ejecutarDescargaSegura(btnDownload, downloadUrl, downloadFilename);
                     }
                 });
             } else {
                 // Fallback convencional si SweetAlert2 no estuviera en el DOM
                 if (confirm('¿Desea descargar el informe técnico oficial de esta jornada formativa?')) {
-                    ejecutarDescargaSegura(btnDownload, downloadUrl);
+                    ejecutarDescargaSegura(btnDownload, downloadUrl, downloadFilename);
                 }
             }
         });
@@ -54,7 +55,7 @@ document.addEventListener('DOMContentLoaded', function () {
      * Ejecuta la descarga con protección contra sobrecarga en servidor.
      * Deshabilita el botón temporalmente y muestra spinner.
      */
-    function ejecutarDescargaSegura(btn, url) {
+    function ejecutarDescargaSegura(btn, url, filename) {
         const originalHtml = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = `
@@ -74,7 +75,9 @@ document.addEventListener('DOMContentLoaded', function () {
         // Crear enlace temporal invisible para disparar la descarga directa
         const tempLink = document.createElement('a');
         tempLink.href = url;
-        tempLink.setAttribute('download', '');
+        if (filename && filename.trim() !== '') {
+            tempLink.setAttribute('download', filename.trim());
+        }
         document.body.appendChild(tempLink);
         tempLink.click();
         document.body.removeChild(tempLink);

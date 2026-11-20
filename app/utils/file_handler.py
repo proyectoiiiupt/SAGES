@@ -94,10 +94,22 @@ def save_evidence_file(file_obj, sub_folder: str = '', custom_name: str = None) 
         safe_name = f'evidencia_{unique_id}_{timestamp}.{extension}'
 
     # 4. Guardar en disco
-    base_upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
-    upload_folder = os.path.join(base_upload_folder, sub_folder) if sub_folder else base_upload_folder
-    
-    os.makedirs(upload_folder, exist_ok=True)
+    base_upload_folder = current_app.config.get('UPLOAD_FOLDER')
+    local_base = os.path.abspath(os.path.join(current_app.root_path, '..', 'uploads'))
+
+    upload_folder = None
+    if base_upload_folder:
+        try:
+            target = os.path.join(base_upload_folder, sub_folder) if sub_folder else base_upload_folder
+            os.makedirs(target, exist_ok=True)
+            upload_folder = target
+        except (OSError, PermissionError):
+            pass
+
+    if not upload_folder:
+        upload_folder = os.path.join(local_base, sub_folder) if sub_folder else local_base
+        os.makedirs(upload_folder, exist_ok=True)
+
     save_path = os.path.join(upload_folder, safe_name)
     file_obj.save(save_path)
 

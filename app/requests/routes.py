@@ -1,4 +1,4 @@
-from flask import render_template, request, jsonify, redirect, url_for, send_from_directory, abort, current_app
+from flask import render_template, request, jsonify, redirect, url_for, send_from_directory, send_file, abort, current_app
 from flask_login import login_required, current_user
 from app.decorators.auth_decorators import role_required, check_permissions, institution_active_required
 from functools import wraps
@@ -1913,16 +1913,21 @@ def download_request_report(id):
             logging.getLogger(__name__).warning(f"No se pudo registrar la descarga en binnacle para solicitud {req.id}: {e}")
 
         import re as _re
+        import unicodedata
         inst_name = req.institutional_staff.institution.institution_name if (req.institutional_staff and req.institutional_staff.institution) else "Institucional"
-        clean_name = _re.sub(r'[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]+', '_', inst_name).strip('_')[:35]
-        doc_filename = f"Informe_Tecnico_{clean_name}.pdf" if clean_name else "Informe_Tecnico_Oficial.pdf"
+        normalized = unicodedata.normalize('NFKD', inst_name).encode('ASCII', 'ignore').decode('ASCII')
+        clean_name = _re.sub(r'[^a-zA-Z0-9]+', '_', normalized).strip('_')[:35]
+        req_code = req.request_code or f"SOL-{req.id}"
+        doc_filename = f"Informe_Tecnico_{req_code}_{clean_name}.pdf" if clean_name else f"Informe_Tecnico_{req_code}.pdf"
 
-        return send_file(
+        response = send_file(
             pdf_buffer,
             mimetype='application/pdf',
             as_attachment=True,
             download_name=doc_filename
         )
+        response.headers['Content-Disposition'] = f'attachment; filename="{doc_filename}"'
+        return response
 
     except Exception as e:
         import logging

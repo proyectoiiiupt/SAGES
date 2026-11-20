@@ -811,7 +811,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         } else if (modalElement) {
-            // Fallback en caso de que Swal no esté cargado
+            // Fallback en caso de que Swal no esté cargado: poblar modal nativo
+            const modalFn = document.getElementById('evidence-modal-filename');
+            const modalFmt = document.getElementById('evidence-modal-badge-format');
+            const modalFs = document.getElementById('evidence-modal-filesize');
+            const modalDl = document.getElementById('evidence-download-btn');
+            const pdfCont = document.getElementById('evidence-pdf-container');
+            const imgCont = document.getElementById('evidence-image-container');
+            const pdfFr = document.getElementById('evidence-pdf-frame');
+            const imgPr = document.getElementById('evidence-image-preview');
+            const loadSt = document.getElementById('evidence-loading-state');
+
+            if (modalFn) modalFn.textContent = filename;
+            if (modalFmt) modalFmt.textContent = format;
+            if (modalFs) modalFs.textContent = filesize;
+            if (modalDl) {
+                modalDl.href = downloadUrl;
+                modalDl.setAttribute('download', filename);
+            }
+            if (loadSt) loadSt.style.display = 'none';
+
+            if (isPdf && pdfFr && pdfCont) {
+                if (imgCont) imgCont.style.display = 'none';
+                pdfCont.style.display = 'block';
+                pdfFr.src = fileUrl;
+            } else if (imgPr && imgCont) {
+                if (pdfCont) pdfCont.style.display = 'none';
+                imgCont.style.display = 'block';
+                imgPr.src = fileUrl;
+            }
             modalElement.style.display = 'flex';
         }
     }

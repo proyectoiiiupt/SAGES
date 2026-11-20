@@ -3784,8 +3784,17 @@ def get_safe_evidence_path(evidence_id: int, user) -> tuple:
     user_roles = [assoc.role.name for assoc in user.roles_assoc] if (user and user.roles_assoc) else []
     is_super = 'super_admin' in user_roles
     is_state = 'state_admin' in user_roles
+    is_applicant = 'applicant' in user_roles
 
-    if not (is_super or is_state):
+    if is_applicant:
+        try:
+            user_inst_id = user.person.institutional_staff[0].institution_id
+            req_inst_id = evidence.request.institutional_staff.institution_id
+            if user_inst_id != req_inst_id:
+                return None, "Violación de custodia institucional: La evidencia pertenece a otro plantel.", 403
+        except (AttributeError, IndexError):
+            return None, "No posee afiliación institucional válida para consultar este expediente.", 403
+    elif not (is_super or is_state):
         current_app.logger.warning(f"[SECURITY] Usuario {getattr(user, 'id', None)} sin rol auditor intentó acceder a evidencia {evidence_id}")
         return None, "No posee privilegios de fiscalización documental.", 403
 
@@ -3817,36 +3826,73 @@ def get_safe_evidence_path(evidence_id: int, user) -> tuple:
         return None, "Secuencia de ruta inválida detectada.", 403
 
     # Directorios base autorizados
-    base_upload_folder = current_app.config.get('UPLOAD_FOLDER', os.path.join(current_app.root_path, '..', 'uploads'))
+    base_upload_folder = current_app.config.get('UPLOAD_FOLDER')
+    local_upload_folder = os.path.abspath(os.path.join(current_app.root_path, '..', 'uploads'))
     static_upload_folder = os.path.join(current_app.root_path, 'static')
+    static_uploads_folder = os.path.join(current_app.root_path, 'static', 'uploads')
 
-    allowed_roots = [
-        os.path.realpath(os.path.abspath(base_upload_folder)),
-        os.path.realpath(os.path.abspath(static_upload_folder)),
-        os.path.realpath(os.path.abspath(os.path.join(current_app.root_path, 'static', 'uploads')))
-    ]
+    try:
+        os.makedirs(local_upload_folder, exist_ok=True)
+        os.makedirs(static_uploads_folder, exist_ok=True)
+    except Exception:
+        pass
+
+    allowed_roots = []
+    for r in [local_upload_folder, static_upload_folder, static_uploads_folder]:
+        try:
+            allowed_roots.append(os.path.realpath(os.path.abspath(r)))
+        except (OSError, PermissionError):
+            pass
+
+    # Incluir base_upload_folder solo si es accesible y no arroja error de SO/red
+    if base_upload_folder:
+        try:
+            if os.path.exists(base_upload_folder):
+                allowed_roots.append(os.path.realpath(os.path.abspath(base_upload_folder)))
+        except (OSError, PermissionError):
+            current_app.logger.warning(f"Ruta remota de almacenamiento no disponible: {base_upload_folder}")
 
     # Resolver candidatos en disco
     candidate_paths = [
-        os.path.abspath(os.path.join(static_upload_folder, raw_path)),
-        os.path.abspath(os.path.join(current_app.root_path, 'static', 'uploads', 'evidences', str(evidence.request_id), file_name)),
-        os.path.abspath(os.path.join(base_upload_folder, raw_path)),
-        os.path.abspath(os.path.join(base_upload_folder, 'evidences', str(evidence.request_id), file_name)),
-        os.path.abspath(os.path.join(current_app.root_path, 'static', 'uploads', file_name))
+        os.path.join(static_uploads_folder, raw_path),
+        os.path.join(static_upload_folder, raw_path),
+        os.path.join(local_upload_folder, raw_path),
+        os.path.join(static_uploads_folder, 'evidences', str(evidence.request_id), file_name),
+        os.path.join(static_uploads_folder, file_name),
+        os.path.join(local_upload_folder, 'evidences', str(evidence.request_id), file_name),
+        os.path.join(local_upload_folder, file_name),
     ]
+
+    if raw_path.startswith('uploads/'):
+        sub_raw = raw_path[len('uploads/'):]
+        candidate_paths.append(os.path.join(static_uploads_folder, sub_raw))
+        candidate_paths.append(os.path.join(local_upload_folder, sub_raw))
+
+    if base_upload_folder:
+        try:
+            candidate_paths.append(os.path.join(base_upload_folder, raw_path))
+            candidate_paths.append(os.path.join(base_upload_folder, 'evidences', str(evidence.request_id), file_name))
+            candidate_paths.append(os.path.join(base_upload_folder, file_name))
+        except Exception:
+            pass
 
     resolved_path = None
     for cand in candidate_paths:
-        real_cand = os.path.realpath(cand)
-        is_safe = False
-        for root in allowed_roots:
-            if real_cand.startswith(root) and len(real_cand) > len(root):
-                is_safe = True
-                break
+        try:
+            if not os.path.isfile(cand):
+                continue
+            real_cand = os.path.realpath(cand)
+            is_safe = False
+            for root in allowed_roots:
+                if real_cand.startswith(root) and len(real_cand) >= len(root):
+                    is_safe = True
+                    break
 
-        if is_safe and os.path.isfile(real_cand):
-            resolved_path = real_cand
-            break
+            if is_safe and os.path.isfile(real_cand):
+                resolved_path = real_cand
+                break
+        except (OSError, PermissionError):
+            continue
 
     if not resolved_path:
         current_app.logger.warning(f"Evidencia {evidence_id} física no encontrada en rutas candidatas para: {raw_path}")
@@ -3858,7 +3904,8 @@ def get_safe_evidence_path(evidence_id: int, user) -> tuple:
         'pdf': 'application/pdf',
         'jpg': 'image/jpeg',
         'jpeg': 'image/jpeg',
-        'png': 'image/png'
+        'png': 'image/png',
+        'webp': 'image/webp'
     }
     mimetype = MIME_TYPES.get(fmt, 'application/octet-stream')
 
