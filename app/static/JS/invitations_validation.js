@@ -170,7 +170,7 @@ document.addEventListener('DOMContentLoaded', function () {
             .then((data) => {
                 Swal.fire({
                     title: '¡Enviado!',
-                    text: (data && data.message) ? data.message : 'La invitación ha sido enviada correctamente.',
+                    text: (data && data.message) ? data.message : 'La invitación ha sido enviada correctamente. En caso de no ver el correo, por favor revise su carpeta de Spam o correo no deseado.',
                     icon: 'success',
                     confirmButtonColor: '#28a745',
                     confirmButtonText: 'OK'

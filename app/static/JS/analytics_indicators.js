@@ -584,7 +584,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             Swal.fire({
                                 icon: 'success',
                                 title: 'Reporte Despachado',
-                                text: data.message || 'El reporte ha sido enviado a su buzón de correo institucional.',
+                                text: data.message || 'El reporte ha sido enviado a su buzón de correo institucional. En caso de no ver el correo, por favor revise su carpeta de Spam o correo no deseado.',
                                 confirmButtonColor: '#019577'
                             });
                         }

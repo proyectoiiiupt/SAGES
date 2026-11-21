@@ -477,7 +477,7 @@ def invite_institution_collaborator(institution_id):
                 status=AuditStatus.COMPLETADO.value
             )
 
-            msg = 'La invitación fue enviada correctamente.'
+            msg = 'La invitación fue enviada correctamente. En caso de no ver el correo, por favor revise su carpeta de Spam o correo no deseado.'
             if is_ajax:
                 return jsonify({'success': True, 'message': msg}), 200
             flash(msg, 'success')

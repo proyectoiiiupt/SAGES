@@ -669,7 +669,7 @@ def create_pre_registration(
         except Exception as e:
             logger.error("Error al iniciar el hilo de correo: %s", e, exc_info=True)
 
-        return True, 'Su solicitud ha sido recibida. Verificaremos los datos de la institución y le notificaremos por correo electrónico.', 201
+        return True, 'Su solicitud ha sido recibida. Verificaremos los datos de la institución y le notificaremos por correo electrónico. En caso de no ver el correo, por favor revise su carpeta de Spam o correo no deseado.', 201
 
     except IntegrityError as e:
         db.session.rollback()
@@ -797,7 +797,7 @@ def join_existing_institution(
         except Exception as e:
             logger.error(f"Error al iniciar el hilo de correo: {e}", exc_info=True)
 
-        return True, 'Su solicitud ha sido recibida. Verificaremos los datos de la institución y le notificaremos por correo electrónico.', 201
+        return True, 'Su solicitud ha sido recibida. Verificaremos los datos de la institución y le notificaremos por correo electrónico. En caso de no ver el correo, por favor revise su carpeta de Spam o correo no deseado.', 201
 
     except IntegrityError as e:
         db.session.rollback()
@@ -925,7 +925,7 @@ def join_delegated_institution(
         except Exception as e:
             logger.error(f"Error al iniciar el hilo de correo: {e}", exc_info=True)
 
-        return True, 'Su solicitud ha sido recibida. Verificaremos los datos de la institución y le notificaremos por correo electrónico.', 201
+        return True, 'Su solicitud ha sido recibida. Verificaremos los datos de la institución y le notificaremos por correo electrónico. En caso de no ver el correo, por favor revise su carpeta de Spam o correo no deseado.', 201
 
     except IntegrityError as e:
         db.session.rollback()

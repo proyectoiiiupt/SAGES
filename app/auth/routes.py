@@ -311,7 +311,7 @@ def password():
             elapsed = time.monotonic() - start
             time.sleep(max(0, 0.5 - elapsed))
             
-            flash('Si los datos coinciden con nuestros registros, recibirás un correo en breve. Si no lo recibes en 5 minutos, verifica que la cédula y el correo ingresados sean los correctos y vuelve a intentarlo.', 'info')
+            flash('Si los datos coinciden con nuestros registros, recibirás un correo en breve. En caso de no ver el correo, por favor revisa tu carpeta de Spam o correo no deseado. Si no lo recibes en 5 minutos, verifica que la cédula y el correo ingresados sean los correctos y vuelve a intentarlo.', 'info')
             return redirect(url_for('verify_code'))
 
         flash('Ingrese su cédula.', 'danger')
@@ -339,7 +339,7 @@ def resend_code():
     if not person:
         session.pop('pw_reset_pending_email', None)
         session.pop('pw_reset_initiated_at', None)
-        flash('Si los datos coinciden con nuestros registros, recibirás un correo en breve.', 'info')
+        flash('Si los datos coinciden con nuestros registros, recibirás un correo en breve. En caso de no ver el correo, por favor revisa tu carpeta de Spam o correo no deseado.', 'info')
         return redirect(url_for('auth.password'))
     
     code = str(secrets.randbelow(900000) + 100000)
@@ -349,7 +349,7 @@ def resend_code():
     send_recovery_email(email, code)
 
     # Mensaje unificado para evitar enumeración de correos
-    flash('Si los datos coinciden con nuestros registros, recibirás un correo en breve.', 'info')
+    flash('Si los datos coinciden con nuestros registros, recibirás un correo en breve. En caso de no ver el correo, por favor revisa tu carpeta de Spam o correo no deseado.', 'info')
 
     return redirect(url_for('verify_code'))
 
@@ -582,6 +582,6 @@ def resend_activation_from_token(token):
         status=AuditStatus.COMPLETADO.value
     )
 
-    flash(f'Hemos enviado un nuevo enlace de activación a su correo registrado. Revise su bandeja de entrada o carpeta de spam.', 'success')
+    flash(f'Hemos enviado un nuevo enlace de activación a su correo registrado. En caso de no ver el correo, por favor revise su carpeta de Spam o correo no deseado.', 'success')
     return redirect(url_for('auth.login'))
 

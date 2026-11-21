@@ -925,7 +925,7 @@
                     icon: 'success',
                     title: '¡Pre-registro Exitoso!',
                     html:
-                        '<p>Su solicitud ha sido recibida. Verificaremos los datos de la institución y le notificaremos por correo electrónico.</p>',
+                        '<p>Su solicitud ha sido recibida. Verificaremos los datos de la institución y le notificaremos por correo electrónico.</p><p style="font-size: 0.9em; color: #64748b; margin-top: 8px;">En caso de no ver el correo, por favor revise su carpeta de Spam o correo no deseado.</p>',
                     confirmButtonText: 'Aceptar',
                     confirmButtonColor: '#1c3d73',
                     allowOutsideClick: false,

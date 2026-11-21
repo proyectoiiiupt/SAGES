@@ -558,20 +558,92 @@ body::after {
 /* =========================================
    ESTILOS PERSONALIZADOS PARA SWEETALERT2
    ========================================= */
+.swal2-container {
+    z-index: 100050 !important;
+}
+
+.swal2-popup,
 .swal2-popup.swal2-custom-popup {
     border-radius: 20px !important;
-    font-family: 'Inter', sans-serif !important;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+    padding: 1.75rem 1.5rem !important;
+    background: #ffffff !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
 }
+
+.swal2-title {
+    font-size: 1.35rem !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    padding: 0.5rem 1rem 0 !important;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+}
+
+.swal2-html-container {
+    font-size: 0.95rem !important;
+    color: #475569 !important;
+    line-height: 1.55 !important;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+    margin: 0.75rem 1rem 0 !important;
+}
+
+.swal2-actions {
+    gap: 0.75rem !important;
+    margin-top: 1.5rem !important;
+}
+
+.swal2-styled.swal2-confirm,
 .swal2-styled.swal2-confirm.swal2-custom-button {
-    background-color: var(--btn-gradient-start) !important; /* Azul corporativo */
+    background-color: var(--btn-gradient-start, #1c3d73) !important; /* Azul corporativo */
+    color: #ffffff !important;
     border-radius: 30px !important;
     padding: 0.75rem 2rem !important;
     font-weight: 600 !important;
-    transition: background-color 0.2s ease, transform 0.2s !important;
+    font-size: 0.95rem !important;
+    border: none !important;
+    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease !important;
+    box-shadow: 0 4px 12px rgba(28, 61, 115, 0.25) !important;
 }
+
+.swal2-styled.swal2-confirm:hover,
 .swal2-styled.swal2-confirm.swal2-custom-button:hover {
     background-color: #152f59 !important; /* Azul un poco más oscuro en hover */
-    transform: translateY(-1px);
+    transform: translateY(-1px) !important;
+    box-shadow: 0 6px 16px rgba(28, 61, 115, 0.35) !important;
+}
+
+.swal2-styled.swal2-cancel,
+.swal2-styled.swal2-cancel.swal2-custom-button {
+    background-color: #64748b !important;
+    color: #ffffff !important;
+    border-radius: 30px !important;
+    padding: 0.75rem 2rem !important;
+    font-weight: 600 !important;
+    font-size: 0.95rem !important;
+    border: none !important;
+    transition: background-color 0.2s ease, transform 0.2s ease !important;
+}
+
+.swal2-styled.swal2-cancel:hover,
+.swal2-styled.swal2-cancel.swal2-custom-button:hover {
+    background-color: #475569 !important;
+    transform: translateY(-1px) !important;
+}
+
+.swal2-styled.swal2-deny {
+    background-color: #dc2626 !important;
+    color: #ffffff !important;
+    border-radius: 30px !important;
+    padding: 0.75rem 2rem !important;
+    font-weight: 600 !important;
+    font-size: 0.95rem !important;
+    border: none !important;
+    transition: background-color 0.2s ease, transform 0.2s ease !important;
+}
+
+.swal2-styled.swal2-deny:hover {
+    background-color: #b91c1c !important;
+    transform: translateY(-1px) !important;
 }
 
 /* =========================================

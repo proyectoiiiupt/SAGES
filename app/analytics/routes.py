@@ -364,7 +364,7 @@ def export_report():
             )
             return jsonify({
                 'success': True,
-                'message': f'El reporte "{report_name}" ha sido generado y enviado a su correo ({user_email}).'
+                'message': f'El reporte "{report_name}" ha sido generado y enviado a su correo ({user_email}). En caso de no ver el correo, por favor revise su carpeta de Spam o correo no deseado.'
             }), 200
 
         else:
@@ -523,7 +523,7 @@ def export_indicators_api():
             )
             return jsonify({
                 'success': True,
-                'message': f'El reporte de indicadores ha sido generado y enviado satisfactoriamente a su correo institucional ({user_email}).'
+                'message': f'El reporte de indicadores ha sido generado y enviado satisfactoriamente a su correo institucional ({user_email}). En caso de no ver el correo, por favor revise su carpeta de Spam o correo no deseado.'
             }), 200
 
         # Descarga binaria directa

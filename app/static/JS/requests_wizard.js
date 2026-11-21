@@ -348,7 +348,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     html: `
                         <p style="margin-bottom: 15px;">${data.message || 'La solicitud ha sido cursada exitosamente.'}</p>
                         <p style="font-size: 0.9em; color: #6c757d; margin-bottom: 20px;">
-                            <i class="fas fa-envelope"></i> Se ha enviado una copia oficial a su correo electrónico.
+                            <i class="fas fa-envelope"></i> Se ha enviado una copia oficial a su correo electrónico. En caso de no ver el correo, por favor revise su carpeta de Spam o correo no deseado.
                         </p>
                         <button id="btn-download-pdf" class="swal2-confirm swal2-styled" style="background-color: #1c3d73; display: flex; align-items: center; justify-content: center; margin: 0 auto; gap: 8px;">
                             <i class="fas fa-file-pdf"></i> Descargar Comprobante PDF

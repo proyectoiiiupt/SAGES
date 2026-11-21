@@ -1102,7 +1102,7 @@ def approve_request(staff_id):
 
         return jsonify({
             'status': 'success',
-            'message': f'Solicitud aprobada exitosamente. Se ha generado el enlace de activación para {full_name}.'
+            'message': f'Solicitud aprobada exitosamente. Se ha generado y enviado el enlace de activación para {full_name}. En caso de no ver el correo, por favor revise la carpeta de Spam o correo no deseado.'
         })
 
     except Exception as e:
@@ -1310,7 +1310,7 @@ def resend_activation_admin(user_id):
 
     return jsonify({
         'status': 'success',
-        'message': f'Se ha reenviado el enlace de activación exitosamente a {target_person.email}.'
+        'message': f'Se ha reenviado el enlace de activación exitosamente a {target_person.email}. En caso de no ver el correo, por favor revise su carpeta de Spam o correo no deseado.'
     })
 
 
@@ -1436,7 +1436,7 @@ def register_admin():
                 full_name=result_data['full_name']
             )
             
-            flash(message, 'success')
+            flash(f"Usuario registrado exitosamente. Se ha enviado un enlace de activación a {result_data['email']}. En caso de no ver el correo, por favor revise su carpeta de Spam o correo no deseado.", 'success')
             return redirect(url_for('users.list_users'))
         else:
             flash(message, 'danger')

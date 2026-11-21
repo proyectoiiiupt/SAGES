@@ -29,7 +29,7 @@
                     <span>de Seguridad</span>
                 </h2>
                 <div class="info-text">
-                    <p>Hemos enviado un código de seguridad a tu correo electrónico para validar tu identidad.</p>
+                    <p>Hemos enviado un código de seguridad a tu correo electrónico para validar tu identidad. En caso de no ver el correo, por favor revisa tu carpeta de Spam o correo no deseado.</p>
                 </div>
                 
                 <div style="margin-top: 3rem; font-size: 0.85rem; text-align: center;">
@@ -46,7 +46,7 @@
                     <img src="{{ url_for('static', filename='img/logo_corpoelec.png') }}" alt="Logo">
                 </div>
                 <h1>Validar Código</h1>
-                <p>Ingresa el código enviado a:<br><strong>{{ email }}</strong></p>
+                <p>Ingresa el código enviado a:<br><strong>{{ email }}</strong><br><small style="color: #64748b; font-size: 0.85rem;">(Si no lo ves en tu bandeja de entrada, revisa tu carpeta de Spam)</small></p>
             </header>
 
             {% with messages = get_flashed_messages(with_categories=true) %}
