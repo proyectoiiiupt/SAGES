@@ -14,7 +14,7 @@
 
 {% block content %}
 {% if req.closure_alert and req.closure_alert.should_trigger %}
-    {% include 'requests/partials/_closure_alert_modal.html' %}
+{% include 'requests/partials/_closure_alert_modal.html' %}
 {% endif %}
 <div class="detail-container">
 
@@ -49,15 +49,19 @@
         </div>
         <div class="action-buttons">
             <!-- Botones de Bitácora y Justificaciones -->
-            <button type="button" class="btn-action-outline" id="btn-open-timeline-modal" title="Ver Bitácora de Campo y Seguimiento">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <button type="button" class="btn-action-outline" id="btn-open-timeline-modal"
+                title="Ver Bitácora de Campo y Seguimiento">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
                     <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
                     <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
                 </svg>
                 Bitácora ({{ tracking_steps|length if tracking_steps else 0 }})
             </button>
-            <button type="button" class="btn-action-outline" id="btn-open-justifications-modal" title="Ver Descargos y Justificaciones del Expediente">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <button type="button" class="btn-action-outline" id="btn-open-justifications-modal"
+                title="Ver Descargos y Justificaciones del Expediente">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                     <polyline points="14 2 14 8 20 8"></polyline>
                     <line x1="16" y1="13" x2="8" y2="13"></line>
@@ -65,8 +69,11 @@
                 </svg>
                 Justificaciones ({{ req.justifications|length if req.justifications else 0 }})
             </button>
-            <a href="{{ url_for('requests.download_receipt_ticket', request_id=req.id) }}" id="btn-download-receipt-pdf" data-request-code="{{ req.request_code }}" class="btn-action-outline" style="text-decoration: none;" title="Descargar Comprobante de Radicación (PDF)">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <a href="{{ url_for('requests.download_receipt_ticket', request_id=req.id) }}" id="btn-download-receipt-pdf"
+                data-request-code="{{ req.request_code }}" class="btn-action-outline" style="text-decoration: none;"
+                title="Descargar Comprobante de Radicación (PDF)">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                     <polyline points="7 10 12 15 17 10"></polyline>
                     <line x1="12" y1="15" x2="12" y2="3"></line>
@@ -75,9 +82,11 @@
             </a>
 
             {% if req.closure_alert and req.closure_alert.should_trigger %}
-            <button type="button" class="btn-action-danger" disabled title="Acción bloqueada: Debe resolver la alerta en el modal obligatorio">
+            <button type="button" class="btn-action-danger" disabled
+                title="Acción bloqueada: Debe resolver la alerta en el modal obligatorio">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                    </path>
                     <line x1="12" y1="9" x2="12" y2="13"></line>
                     <line x1="12" y1="17" x2="12.01" y2="17"></line>
                 </svg>
@@ -86,93 +95,104 @@
             {% elif req.status.status_code == 'STAT-003' %}
 
             {% if not is_super_admin %}
-                {% if req.has_delay_block %}
-                <button type="button" id="btn-open-sla-gate" class="btn-action-danger" data-request-id="{{ req.id }}">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
-                        </path>
-                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                    </svg>
-                    Justificar Retraso
-                </button>
-                <button type="button" id="btn-attend-blocked" class="btn-action-primary" disabled
-                    title="Debe justificar el retraso primero">
-                    Atender Solicitud
-                </button>
-                {% else %}
-                <button type="button" id="btn-claim-request" class="btn-action-primary" data-request-id="{{ req.id }}">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                    </svg>
-                    Atender Solicitud
-                </button>
-                {% endif %}
+            {% if req.has_delay_block %}
+            <button type="button" id="btn-open-sla-gate" class="btn-action-danger" data-request-id="{{ req.id }}">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                    </path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                Justificar Retraso
+            </button>
+            <button type="button" id="btn-attend-blocked" class="btn-action-primary" disabled
+                title="Debe justificar el retraso primero">
+                Atender Solicitud
+            </button>
             {% else %}
-                <span class="badge-role-tag" style="background: #f1f5f9; color: #475569; padding: 8px 14px; font-size: 0.88rem; display: inline-flex; align-items: center; gap: 6px;">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-                    Modo Supervisión: Pendiente de atención por la coordinación estadal
-                </span>
+            <button type="button" id="btn-claim-request" class="btn-action-primary" data-request-id="{{ req.id }}">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+                Atender Solicitud
+            </button>
+            {% endif %}
+            {% else %}
+            <span class="badge-role-tag"
+                style="background: #f1f5f9; color: #475569; padding: 8px 14px; font-size: 0.88rem; display: inline-flex; align-items: center; gap: 6px;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                Modo Supervisión: Pendiente de atención por la coordinación estadal
+            </span>
             {% endif %}
 
             {% elif req.status.status_code == 'STAT-004' %}
-            
+
             {% if is_owner %}
-                {% if req.has_delay_block %}
-                <button type="button" id="btn-open-sla-gate" class="btn-action-danger" data-request-id="{{ req.id }}">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                    </svg>
-                    Justificar Retraso
-                </button>
-                <button type="button" id="btn-plan-blocked" class="btn-action-primary" disabled
-                    title="Debe justificar el retraso primero">
-                    Planificar Jornada
-                </button>
-                {% else %}
-                <button type="button" id="btn-open-plan-modal" class="btn-action-primary" data-request-id="{{ req.id }}">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                        <line x1="16" y1="2" x2="16" y2="6"></line>
-                        <line x1="8" y1="2" x2="8" y2="6"></line>
-                        <line x1="3" y1="10" x2="21" y2="10"></line>
-                    </svg>
-                    Planificar Jornada
-                </button>
-                {% endif %}
-            {% elif not is_super_admin and req.attended_by_id is none and not req.historical %}
-                {% if req.has_delay_block %}
-                <button type="button" id="btn-open-sla-gate" class="btn-action-danger" data-request-id="{{ req.id }}">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                    </svg>
-                    Justificar Retraso
-                </button>
-                <button type="button" id="btn-attend-blocked" class="btn-action-primary" disabled
-                    title="Debe justificar el retraso primero">
-                    Atender Solicitud
-                </button>
-                {% else %}
-                <button type="button" id="btn-claim-request" class="btn-action-primary" data-request-id="{{ req.id }}">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                    </svg>
-                    Atender Solicitud
-                </button>
-                {% endif %}
+            {% if req.has_delay_block %}
+            <button type="button" id="btn-open-sla-gate" class="btn-action-danger" data-request-id="{{ req.id }}">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                    </path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                Justificar Retraso
+            </button>
+            <button type="button" id="btn-plan-blocked" class="btn-action-primary" disabled
+                title="Debe justificar el retraso primero">
+                Planificar Jornada
+            </button>
             {% else %}
-            <span class="badge-role-tag" style="background: #f1f5f9; color: #475569; padding: 8px 14px; font-size: 0.88rem; display: inline-flex; align-items: center; gap: 6px;">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"></circle><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path></svg>
+            <button type="button" id="btn-open-plan-modal" class="btn-action-primary" data-request-id="{{ req.id }}">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                Planificar Jornada
+            </button>
+            {% endif %}
+            {% elif not is_super_admin and req.attended_by_id is none and not req.historical %}
+            {% if req.has_delay_block %}
+            <button type="button" id="btn-open-sla-gate" class="btn-action-danger" data-request-id="{{ req.id }}">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                    </path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                Justificar Retraso
+            </button>
+            <button type="button" id="btn-attend-blocked" class="btn-action-primary" disabled
+                title="Debe justificar el retraso primero">
+                Atender Solicitud
+            </button>
+            {% else %}
+            <button type="button" id="btn-claim-request" class="btn-action-primary" data-request-id="{{ req.id }}">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+                Atender Solicitud
+            </button>
+            {% endif %}
+            {% else %}
+            <span class="badge-role-tag"
+                style="background: #f1f5f9; color: #475569; padding: 8px 14px; font-size: 0.88rem; display: inline-flex; align-items: center; gap: 6px;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="7" r="4"></circle>
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                </svg>
                 {% if req.attended_by and req.attended_by.person %}
-                    Modo Consulta: Asignada a {{ req.attended_by.person.first_name }} {{ req.attended_by.person.last_name }}
+                Modo Consulta: Asignada a {{ req.attended_by.person.first_name }} {{ req.attended_by.person.last_name }}
                 {% else %}
-                    Modo Consulta: Sin facilitador asignado
+                Modo Consulta: Sin facilitador asignado
                 {% endif %}
             </span>
             {% endif %}
@@ -180,65 +200,73 @@
             {% elif req.status.status_code in ['STAT-005', 'STAT-006'] %}
 
             {% if is_owner %}
-                {% if req.has_delay_block %}
-                <button type="button" id="btn-open-sla-gate" class="btn-action-danger" data-request-id="{{ req.id }}">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
-                        </path>
-                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                    </svg>
-                    Justificar Retraso
-                </button>
-                <button type="button" id="btn-follow-blocked" class="btn-action-primary" disabled
-                    title="Debe justificar el retraso primero">
-                    Seguir Solicitud
-                </button>
-                {% else %}
-                <a href="{{ url_for('requests.active_workspace_view', id=req.id) }}" class="btn-action-primary" style="text-decoration: none;">
-                    Seguir Solicitud
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="9 18 15 12 9 6"></polyline>
-                    </svg>
-                </a>
-                {% endif %}
-            {% elif not is_super_admin and req.attended_by_id is none and not req.historical %}
-                {% if req.has_delay_block %}
-                <button type="button" id="btn-open-sla-gate" class="btn-action-danger" data-request-id="{{ req.id }}">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                    </svg>
-                    Justificar Retraso
-                </button>
-                <button type="button" id="btn-attend-blocked" class="btn-action-primary" disabled
-                    title="Debe justificar el retraso primero">
-                    Atender Solicitud
-                </button>
-                {% else %}
-                <button type="button" id="btn-claim-request" class="btn-action-primary" data-request-id="{{ req.id }}">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                    </svg>
-                    Atender Solicitud
-                </button>
-                {% endif %}
+            {% if req.has_delay_block %}
+            <button type="button" id="btn-open-sla-gate" class="btn-action-danger" data-request-id="{{ req.id }}">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                    </path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                Justificar Retraso
+            </button>
+            <button type="button" id="btn-follow-blocked" class="btn-action-primary" disabled
+                title="Debe justificar el retraso primero">
+                Seguir Solicitud
+            </button>
             {% else %}
-            <span class="badge-role-tag" style="background: #f1f5f9; color: #475569; padding: 8px 14px; font-size: 0.88rem; display: inline-flex; align-items: center; gap: 6px;">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"></circle><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path></svg>
+            <a href="{{ url_for('requests.active_workspace_view', id=req.id) }}" class="btn-action-primary"
+                style="text-decoration: none;">
+                Seguir Solicitud
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+            </a>
+            {% endif %}
+            {% elif not is_super_admin and req.attended_by_id is none and not req.historical %}
+            {% if req.has_delay_block %}
+            <button type="button" id="btn-open-sla-gate" class="btn-action-danger" data-request-id="{{ req.id }}">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                    </path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                Justificar Retraso
+            </button>
+            <button type="button" id="btn-attend-blocked" class="btn-action-primary" disabled
+                title="Debe justificar el retraso primero">
+                Atender Solicitud
+            </button>
+            {% else %}
+            <button type="button" id="btn-claim-request" class="btn-action-primary" data-request-id="{{ req.id }}">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+                Atender Solicitud
+            </button>
+            {% endif %}
+            {% else %}
+            <span class="badge-role-tag"
+                style="background: #f1f5f9; color: #475569; padding: 8px 14px; font-size: 0.88rem; display: inline-flex; align-items: center; gap: 6px;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="7" r="4"></circle>
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                </svg>
                 {% if req.attended_by and req.attended_by.person %}
-                    Modo Consulta: Asignada a {{ req.attended_by.person.first_name }} {{ req.attended_by.person.last_name }}
+                Modo Consulta: Asignada a {{ req.attended_by.person.first_name }} {{ req.attended_by.person.last_name }}
                 {% else %}
-                    Modo Consulta: Sin facilitador asignado
+                Modo Consulta: Sin facilitador asignado
                 {% endif %}
             </span>
             {% endif %}
             {% endif %}
 
-            {% if ((is_owner and req.status.status_code == 'STAT-004') or (req.status.status_code == 'STAT-003' and not is_super_admin)) and not req.historical and not (req.closure_alert and req.closure_alert.should_trigger) %}
-            <button type="button" id="openCancellationModalBtn" class="btn-action-danger" data-request-id="{{ req.id }}" style="display: inline-flex; align-items: center; gap: 8px;">
+            {% if ((is_owner and req.status.status_code == 'STAT-004') or (req.status.status_code == 'STAT-003' and not
+            is_super_admin)) and not req.historical and not (req.closure_alert and req.closure_alert.should_trigger) %}
+            <button type="button" id="openCancellationModalBtn" class="btn-action-danger" data-request-id="{{ req.id }}"
+                style="display: inline-flex; align-items: center; gap: 8px;">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="10"></circle>
                     <line x1="15" y1="9" x2="9" y2="15"></line>
@@ -254,7 +282,8 @@
     <div class="central-assignment-banner">
         <div class="assignment-block">
             <div class="assignment-icon-wrap">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                     <circle cx="12" cy="7" r="4"></circle>
                 </svg>
@@ -263,10 +292,11 @@
                 <span class="assignment-label">Responsable Asignado</span>
                 <div class="assignment-value">
                     {% if req.attended_by and req.attended_by.person %}
-                        <span class="facilitator-name">{{ req.attended_by.person.first_name }} {{ req.attended_by.person.last_name }}</span>
-                        <span class="badge-role-tag">Facilitador / UREE</span>
+                    <span class="facilitator-name">{{ req.attended_by.person.first_name }} {{
+                        req.attended_by.person.last_name }}</span>
+                    <span class="badge-role-tag">Facilitador / UREE</span>
                     {% else %}
-                        <span class="unassigned-tag">Sin Asignar (Pendiente de Atención)</span>
+                    <span class="unassigned-tag">Sin Asignar (Pendiente de Atención)</span>
                     {% endif %}
                 </div>
             </div>
@@ -276,7 +306,8 @@
 
         <div class="assignment-block">
             <div class="assignment-icon-wrap date-icon-wrap">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
                     <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                     <line x1="16" y1="2" x2="16" y2="6"></line>
                     <line x1="8" y1="2" x2="8" y2="6"></line>
@@ -287,12 +318,12 @@
                 <span class="assignment-label">Fecha Planificada de Jornada</span>
                 <div class="assignment-value">
                     {% if req.plannings and req.plannings[0].planned_for %}
-                        <strong class="planned-date-text">{{ req.plannings[0].planned_for.strftime('%d/%m/%Y') }}</strong>
-                        {% if req.plannings[0].rescheduled_count and req.plannings[0].rescheduled_count > 0 %}
-                            <span class="badge-reprogrammed-tag">Reprogramada ({{ req.plannings[0].rescheduled_count }}x)</span>
-                        {% endif %}
+                    <strong class="planned-date-text">{{ req.plannings[0].planned_for.strftime('%d/%m/%Y') }}</strong>
+                    {% if req.plannings[0].rescheduled_count and req.plannings[0].rescheduled_count > 0 %}
+                    <span class="badge-reprogrammed-tag">Reprogramada ({{ req.plannings[0].rescheduled_count }}x)</span>
+                    {% endif %}
                     {% else %}
-                        <span class="unplanned-tag">Jornada aún no agendada</span>
+                    <span class="unplanned-tag">Jornada aún no agendada</span>
                     {% endif %}
                 </div>
             </div>
@@ -359,32 +390,41 @@
             </div>
             <div>
                 <h3 style="margin: 0; font-size: 1.1rem; color: #991b1b;">
-                    {% if req.cancellation_justification and req.cancellation_justification.justification_type == 'CANCELACION_ADMIN' %}
+                    {% if req.cancellation_justification and req.cancellation_justification.justification_type ==
+                    'CANCELACION_ADMIN' %}
                     Solicitud Cancelada por la Coordinación CORPOELEC
                     {% else %}
                     Registro de Desistimiento Voluntario del Plantel
                     {% endif %}
                 </h3>
-                <span class="text-muted-small" style="font-size: 0.85rem; color: #64748b;">Expediente archivado formalmente en el histórico del sistema</span>
+                <span class="text-muted-small" style="font-size: 0.85rem; color: #64748b;">Expediente archivado
+                    formalmente en el histórico del sistema</span>
             </div>
         </div>
-        <div class="cancellation-summary-body" style="padding: 16px; background: #fff; border: 1px solid #fee2e2; border-top: none; border-radius: 0 0 8px 8px;">
+        <div class="cancellation-summary-body"
+            style="padding: 16px; background: #fff; border: 1px solid #fee2e2; border-top: none; border-radius: 0 0 8px 8px;">
             <div class="summary-field" style="margin-bottom: 12px;">
                 <span class="field-label" style="font-weight: 600; color: #475569;">Motivo Oficial Registrado:</span>
                 <span class="field-value font-semibold" style="margin-left: 8px; color: #1e293b;">
-                    {{ req.cancellation_justification.reason.name if req.cancellation_justification and req.cancellation_justification.reason else 'Cancelación de trámite' }}
+                    {{ req.cancellation_justification.reason.name if req.cancellation_justification and
+                    req.cancellation_justification.reason else 'Cancelación de trámite' }}
                 </span>
             </div>
             <div class="summary-field" style="margin-bottom: 12px;">
-                <span class="field-label" style="font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Justificación Consignada:</span>
-                <p class="field-justification-box" style="margin: 0; padding: 12px; background: #f8fafc; border-left: 4px solid #ef4444; border-radius: 4px; color: #334155; font-size: 0.95rem;">
-                    {{ req.cancellation_justification.justification if req.cancellation_justification else 'Solicitud archivada formalmente.' }}
+                <span class="field-label"
+                    style="font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Justificación
+                    Consignada:</span>
+                <p class="field-justification-box"
+                    style="margin: 0; padding: 12px; background: #f8fafc; border-left: 4px solid #ef4444; border-radius: 4px; color: #334155; font-size: 0.95rem;">
+                    {{ req.cancellation_justification.justification if req.cancellation_justification else 'Solicitud
+                    archivada formalmente.' }}
                 </p>
             </div>
             {% if req.finished_at %}
             <div class="summary-field">
                 <span class="field-label" style="font-weight: 600; color: #475569;">Fecha y Hora de Cierre:</span>
-                <span class="field-value local-datetime" data-utc="{{ req.finished_at.isoformat() }}" data-format="standard" style="margin-left: 8px;"></span>
+                <span class="field-value local-datetime" data-utc="{{ req.finished_at.isoformat() }}"
+                    data-format="standard" style="margin-left: 8px;"></span>
             </div>
             {% endif %}
         </div>
@@ -507,13 +547,17 @@
                     </li>
                     {% if req.plannings and req.plannings[0].planned_for %}
                     <li class="info-item" style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed #e2e8f0;">
-                        <span class="info-label" style="display: flex; align-items: center; justify-content: space-between;">
+                        <span class="info-label"
+                            style="display: flex; align-items: center; justify-content: space-between;">
                             <span>Fecha de Jornada Agendada</span>
-                            <span id="detail-rescheduled-count-badge" class="badge-reprogrammed" style="{% if not req.plannings[0].rescheduled_count or req.plannings[0].rescheduled_count == 0 %}display:none;{% endif %} background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">
-                                Reprogramada (<span id="detail-rescheduled-count-num">{{ req.plannings[0].rescheduled_count }}</span> vez/veces)
+                            <span id="detail-rescheduled-count-badge" class="badge-reprogrammed"
+                                style="{% if not req.plannings[0].rescheduled_count or req.plannings[0].rescheduled_count == 0 %}display:none;{% endif %} background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">
+                                Reprogramada (<span id="detail-rescheduled-count-num">{{
+                                    req.plannings[0].rescheduled_count }}</span> vez/veces)
                             </span>
                         </span>
-                        <strong class="info-value" id="detail-planned-date-display" style="font-size: 1.05rem; color: #0284c7; display: block; margin-top: 4px;">
+                        <strong class="info-value" id="detail-planned-date-display"
+                            style="font-size: 1.05rem; color: #0284c7; display: block; margin-top: 4px;">
                             {{ req.plannings[0].planned_for.strftime('%d/%m/%Y') }}
                         </strong>
                     </li>
@@ -525,48 +569,54 @@
     </div>
 </div>
 
-{% if req.has_delay_block %}
-    {% include 'requests/partials/_sla_gate_modal.html' %}
+{% if req.has_delay_block and not is_super_admin and (is_owner or req.attended_by_id is none) %}
+{% include 'requests/partials/_sla_gate_modal.html' %}
 {% endif %}
 
 {% if req.status.status_code == 'STAT-004' %}
-    {% include 'requests/partials/_plan_modal.html' %}
+{% include 'requests/partials/_plan_modal.html' %}
 {% endif %}
 
 {% if req.status.status_code in ['STAT-003', 'STAT-004', 'STAT-005', 'STAT-006'] and not req.historical %}
-    {% include 'requests/partials/_cancellation_modal.html' %}
+{% include 'requests/partials/_cancellation_modal.html' %}
 {% endif %}
 
 <!-- ============================================================
      Modal de Bitácora de Campo y Seguimiento
      ============================================================ -->
-<div id="timelineModal" class="detail-custom-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="timelineModalTitle">
+<div id="timelineModal" class="detail-custom-modal" style="display: none;" role="dialog" aria-modal="true"
+    aria-labelledby="timelineModalTitle">
     <div class="detail-custom-modal-backdrop" id="timelineModalBackdrop"></div>
     <div class="detail-custom-modal-dialog">
         <div class="detail-custom-modal-content">
             <div class="detail-custom-modal-header">
                 <div class="modal-title-wrap">
                     <div class="timeline-card-icon">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
                             <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
                         </svg>
                     </div>
                     <div>
-                        <h2 id="timelineModalTitle" style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #0f172a;">Bitácora de Campo y Seguimiento</h2>
-                        <span style="font-size: 0.82rem; color: #64748b;">Cronología completa de hitos y novedades registradas</span>
+                        <h2 id="timelineModalTitle"
+                            style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #0f172a;">Bitácora de Campo y
+                            Seguimiento</h2>
+                        <span style="font-size: 0.82rem; color: #64748b;">Cronología completa de hitos y novedades
+                            registradas</span>
                     </div>
                 </div>
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <span class="badge timeline-counter-badge" id="modal-tracking-counter-badge">
                         {{ tracking_steps|length if tracking_steps else 0 }} eventos
                     </span>
-                    <button type="button" class="btn-modal-close-icon" id="btnCloseTimelineModal" aria-label="Cerrar bitácora">&times;</button>
+                    <button type="button" class="btn-modal-close-icon" id="btnCloseTimelineModal"
+                        aria-label="Cerrar bitácora">&times;</button>
                 </div>
             </div>
             <div class="detail-custom-modal-body" style="padding: 16px; max-height: 65vh; overflow-y: auto;">
                 {% with hide_header=True %}
-                    {% include 'requests/partials/_tracking_timeline.html' %}
+                {% include 'requests/partials/_tracking_timeline.html' %}
                 {% endwith %}
             </div>
             <div class="detail-custom-modal-footer">
@@ -579,7 +629,8 @@
 <!-- ============================================================
      Modal de Justificaciones y Descargos Registrados
      ============================================================ -->
-<div id="justificationsModal" class="detail-custom-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="justificationsModalTitle">
+<div id="justificationsModal" class="detail-custom-modal" style="display: none;" role="dialog" aria-modal="true"
+    aria-labelledby="justificationsModalTitle">
     <div class="detail-custom-modal-backdrop" id="justificationsModalBackdrop"></div>
     <div class="detail-custom-modal-dialog">
         <div class="detail-custom-modal-content">
@@ -592,54 +643,66 @@
                         <line x1="16" y1="17" x2="8" y2="17"></line>
                     </svg>
                     <div>
-                        <h2 id="justificationsModalTitle" style="margin: 0; font-size: 1.15rem; color: #0f172a;">Descargos y Justificaciones Registradas</h2>
-                        <span style="font-size: 0.82rem; color: #64748b;">Historial de justificaciones formales asociadas a este trámite</span>
+                        <h2 id="justificationsModalTitle" style="margin: 0; font-size: 1.15rem; color: #0f172a;">
+                            Descargos y Justificaciones Registradas</h2>
+                        <span style="font-size: 0.82rem; color: #64748b;">Historial de justificaciones formales
+                            asociadas a este trámite</span>
                     </div>
                 </div>
-                <button type="button" class="btn-modal-close-icon" id="btnCloseJustificationsModal" aria-label="Cerrar modal">&times;</button>
+                <button type="button" class="btn-modal-close-icon" id="btnCloseJustificationsModal"
+                    aria-label="Cerrar modal">&times;</button>
             </div>
             <div class="detail-custom-modal-body" style="padding: 20px; max-height: 65vh; overflow-y: auto;">
                 {% if req.justifications and req.justifications|length > 0 %}
-                    <div class="justifications-container-list" style="display: flex; flex-direction: column; gap: 14px;">
-                        {% for just in req.justifications %}
-                        <div class="justification-item-card" style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; background: #fafbfc;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                <span class="badge-role-tag" style="background: #fee2e2; color: #b91c1c;">{{ just.justification_type }}</span>
-                                {% set just_dt = just.created_at if (just.created_at is defined and just.created_at) else (req.updated_at or req.created_at) %}
-                                {% if just_dt %}
-                                <span class="local-datetime" data-utc="{{ just_dt.isoformat() }}" data-format="standard" style="font-size: 0.82rem; color: #64748b;"></span>
-                                {% endif %}
-                            </div>
-                            <div style="font-size: 0.92rem; font-weight: 600; color: #1e293b; margin-bottom: 6px;">
-                                Motivo: <span style="color: #0369a1;">{{ just.reason.name if just.reason else 'No tipificado' }}</span>
-                            </div>
-                            <div style="font-size: 0.82rem; color: #475569; margin-bottom: 8px;">
-                                Registrado por:
-                                <strong>
-                                    {% if just.user and just.user.person %}
-                                        {{ just.user.person.first_name }} {{ just.user.person.last_name }}
-                                    {% elif just.user %}
-                                        {{ just.user.username }}
-                                    {% else %}
-                                        Registro histórico institucional
-                                    {% endif %}
-                                </strong>
-                            </div>
-                            <div style="background: #fff; padding: 10px 14px; border-radius: 6px; border-left: 3px solid #dc2626; color: #334155; font-size: 0.9rem; line-height: 1.5;">
-                                {{ just.justification }}
-                            </div>
+                <div class="justifications-container-list" style="display: flex; flex-direction: column; gap: 14px;">
+                    {% for just in req.justifications %}
+                    <div class="justification-item-card"
+                        style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; background: #fafbfc;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span class="badge-role-tag" style="background: #fee2e2; color: #b91c1c;">{{
+                                just.justification_type }}</span>
+                            {% set just_dt = just.created_at if (just.created_at is defined and just.created_at) else
+                            (req.updated_at or req.created_at) %}
+                            {% if just_dt %}
+                            <span class="local-datetime" data-utc="{{ just_dt.isoformat() }}" data-format="standard"
+                                style="font-size: 0.82rem; color: #64748b;"></span>
+                            {% endif %}
                         </div>
-                        {% endfor %}
+                        <div style="font-size: 0.92rem; font-weight: 600; color: #1e293b; margin-bottom: 6px;">
+                            Motivo: <span style="color: #0369a1;">{{ just.reason.name if just.reason else 'No
+                                tipificado' }}</span>
+                        </div>
+                        <div style="font-size: 0.82rem; color: #475569; margin-bottom: 8px;">
+                            Registrado por:
+                            <strong>
+                                {% if just.user and just.user.person %}
+                                {{ just.user.person.first_name }} {{ just.user.person.last_name }}
+                                {% elif just.user %}
+                                {{ just.user.username }}
+                                {% else %}
+                                Registro histórico institucional
+                                {% endif %}
+                            </strong>
+                        </div>
+                        <div
+                            style="background: #fff; padding: 10px 14px; border-radius: 6px; border-left: 3px solid #dc2626; color: #334155; font-size: 0.9rem; line-height: 1.5;">
+                            {{ just.justification }}
+                        </div>
                     </div>
+                    {% endfor %}
+                </div>
                 {% else %}
-                    <div style="text-align: center; padding: 36px 16px; color: #64748b;">
-                        <svg viewBox="0 0 24 24" width="42" height="42" fill="none" stroke="#cbd5e1" stroke-width="1.5" style="margin: 0 auto 10px; display: block;">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="12" y1="8" x2="12" y2="12"></line>
-                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                        </svg>
-                        <p style="margin: 0; font-size: 0.95rem; font-style: italic;">No se han registrado descargos ni justificaciones formales en este expediente.</p>
-                    </div>
+                <div style="text-align: center; padding: 36px 16px; color: #64748b;">
+                    <svg viewBox="0 0 24 24" width="42" height="42" fill="none" stroke="#cbd5e1" stroke-width="1.5"
+                        style="margin: 0 auto 10px; display: block;">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <p style="margin: 0; font-size: 0.95rem; font-style: italic;">No se han registrado descargos ni
+                        justificaciones formales en este expediente.</p>
+                </div>
                 {% endif %}
             </div>
             <div class="detail-custom-modal-footer">
@@ -655,10 +718,10 @@
 {% if req.closure_alert and req.closure_alert.should_trigger %}
 <script src="{{ url_for('static', filename='JS/requests_closure_alert.js') }}"></script>
 {% endif %}
-    <script src="{{ url_for('static', filename='JS/state_request_detail.js') }}"></script>
-    <script src="{{ url_for('static', filename='JS/tracking_timeline.js') }}"></script>
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
+<script src="{{ url_for('static', filename='JS/state_request_detail.js') }}"></script>
+<script src="{{ url_for('static', filename='JS/tracking_timeline.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
         // Modal de Bitácora
         const btnOpenTimeline = document.getElementById('btn-open-timeline-modal');
         const timelineModal = document.getElementById('timelineModal');
@@ -689,5 +752,5 @@
         if (btnCancelJust) btnCancelJust.addEventListener('click', closeJust);
         if (justBackdrop) justBackdrop.addEventListener('click', closeJust);
     });
-    </script>
+</script>
 {% endblock %}

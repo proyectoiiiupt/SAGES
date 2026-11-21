@@ -50,6 +50,9 @@ function initClosureAlertModal(modal) {
 
     // 7. Configurar formulario de reprogramación
     setupRescheduleForm(requestId);
+
+    // 8. Configurar salida de cancelación cuando se agota el límite de reprogramaciones
+    setupClosureCancelAction(requestId);
 }
 
 /**
@@ -361,6 +364,116 @@ function setupEvidenceUpload(requestId) {
             } else {
                 alert('Error de conexión con el servidor.');
             }
+        }
+    });
+}
+
+/**
+ * Permite gestionar la cancelación motivada del expediente cuando se agotaron
+ * las reprogramaciones o se superó el límite de ciclo de 30 días.
+ */
+function setupClosureCancelAction(requestId) {
+    const cancelBtn = document.getElementById('btnClosureCancelRequest');
+    if (!cancelBtn || typeof Swal === 'undefined') return;
+
+    cancelBtn.addEventListener('click', async function () {
+        let reasons = [];
+        try {
+            const rawData = document.getElementById('closureCancelReasonsData')?.textContent || '[]';
+            reasons = JSON.parse(rawData);
+        } catch (e) {
+            reasons = [];
+        }
+
+        const optionsHtml = reasons
+            .map(r => `<option value="${r.id}">${String(r.name).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</option>`)
+            .join('');
+
+        const { value: formValues } = await Swal.fire({
+            title: 'Cancelar Expediente',
+            icon: 'warning',
+            html: `
+                <div style="text-align:left; font-size:0.9rem;">
+                    <p style="margin-bottom:10px; color:#b91c1c;">Esta acción cerrará definitivamente la solicitud (STAT-009) y la enviará al archivo histórico.</p>
+                    <label style="display:block; font-weight:600; margin-bottom:4px;">Motivo oficial *</label>
+                    <select id="swalClosureCancelReason" class="swal2-select" style="width:100%; margin:0 0 12px 0; display:block;">
+                        <option value="">-- Seleccione un motivo --</option>
+                        ${optionsHtml}
+                    </select>
+                    <label style="display:block; font-weight:600; margin-bottom:4px;">Justificación administrativa (mín. 20 caracteres) *</label>
+                    <textarea id="swalClosureCancelJust" class="swal2-textarea" rows="3" placeholder="Explique los motivos del cierre definitivo..." style="width:100%; margin:0 0 10px 0;"></textarea>
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.85rem;">
+                        <input type="checkbox" id="swalClosureCancelConfirm">
+                        <span>Confirmo que deseo cancelar definitivamente esta solicitud.</span>
+                    </label>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Confirmar Cancelación',
+            cancelButtonText: 'Volver',
+            confirmButtonColor: '#dc2626',
+            focusConfirm: false,
+            preConfirm: () => {
+                const reasonId = document.getElementById('swalClosureCancelReason')?.value;
+                const justification = (document.getElementById('swalClosureCancelJust')?.value || '').trim();
+                const confirmed = document.getElementById('swalClosureCancelConfirm')?.checked;
+                if (!reasonId) {
+                    Swal.showValidationMessage('Debe seleccionar un motivo oficial.');
+                    return false;
+                }
+                if (justification.length < 20) {
+                    Swal.showValidationMessage('La justificación debe contener al menos 20 caracteres.');
+                    return false;
+                }
+                if (!confirmed) {
+                    Swal.showValidationMessage('Debe confirmar la cancelación irreversible.');
+                    return false;
+                }
+                return { reason_id: parseInt(reasonId, 10), justification, confirm_check: true };
+            }
+        });
+
+        if (!formValues) return;
+
+        Swal.fire({
+            title: 'Procesando cancelación...',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        try {
+            const response = await fetch(`/requests/api/requests/${requestId}/cancel`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify(formValues)
+            });
+            const data = await response.json();
+            if (response.ok && data.success) {
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Solicitud Cancelada',
+                    text: data.message || 'El expediente fue cerrado administrativamente.',
+                    confirmButtonColor: '#019577'
+                });
+                window.location.reload();
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'No se pudo cancelar',
+                    text: data.message || 'Error al procesar la cancelación.',
+                    confirmButtonColor: '#019577'
+                });
+            }
+        } catch (err) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error de conexión',
+                text: 'No se pudo comunicar con el servidor.'
+            });
         }
     });
 }

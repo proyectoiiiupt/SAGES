@@ -1,3 +1,4 @@
+import threading
 from datetime import datetime, timezone, timedelta
 from app.utils.timezone import CARACAS_TZ, get_caracas_now, get_caracas_today, to_caracas_time, caracas_date_range_to_utc
 from sqlalchemy import func, case, or_, and_, text
@@ -17,6 +18,149 @@ from app.models.request_planning_model import RequestPlanning
 from app.models.request_justification_model import RequestJustification
 from app.notifications.services import NotificationService
 from app.notifications.enums import NotificationEvent
+
+# ---------------------------------------------------------------------------
+# Constantes Globales del Ciclo de Vida y SLA (ANS)
+# ---------------------------------------------------------------------------
+SLA_ATTENTION_HOURS = 72        # 3 días para atender STAT-003
+SLA_EXECUTION_DAYS = 10         # 10 días normativos desde accepted_at
+MAX_RESCHEDULES = 2             # Máximo 2 reprogramaciones (Workspace + Cierre)
+MAX_LIFECYCLE_DAYS = 30         # Techo duro: ninguna fecha puede pasar de created_at + 30d
+AUTO_EXPIRE_GRACE_DAYS = 3      # 72h de gracia tras el día 30 antes de caducar
+
+
+def _validate_lifecycle_date(req, target_date, planning=None, is_reschedule: bool = False) -> tuple[bool, str]:
+    """
+    Valida que una fecha planificada o reprogramada sea día hábil futuro,
+    no supere el techo duro de MAX_LIFECYCLE_DAYS desde created_at, y respete
+    el cupo global de MAX_RESCHEDULES.
+    """
+    from app.utils.holidays import is_venezuela_holiday
+
+    today = get_caracas_today()
+    created_ref = to_caracas_time(req.created_at).date() if req.created_at else today
+    lifecycle_limit = created_ref + timedelta(days=MAX_LIFECYCLE_DAYS)
+
+    if today > lifecycle_limit:
+        return False, f"El expediente superó el plazo máximo de {MAX_LIFECYCLE_DAYS} días. Debe cerrarlo con evidencias o cancelarlo."
+    if target_date <= today:
+        return False, "La fecha debe ser estrictamente posterior al día de hoy."
+    if target_date.weekday() >= 5:
+        return False, "La fecha debe ser un día hábil (lunes a viernes)."
+    if is_venezuela_holiday(target_date):
+        return False, "La fecha seleccionada corresponde a un día feriado nacional."
+    if target_date > lifecycle_limit:
+        return False, f"La fecha no puede exceder el tope máximo del ciclo ({lifecycle_limit.strftime('%d/%m/%Y')}, {MAX_LIFECYCLE_DAYS} días desde la solicitud)."
+    if is_reschedule and planning and (planning.rescheduled_count or 0) >= MAX_RESCHEDULES:
+        return False, f"Se alcanzó el límite de {MAX_RESCHEDULES} reprogramaciones. Debe cerrar con evidencias o cancelar."
+    return True, ""
+
+
+def evaluate_request_sla(req, now_local=None) -> dict:
+    """
+    Evalúa de forma centralizada el estado de mora ANS de una solicitud usando
+    anclas temporales inmutables (created_at, execution_deadline, planned_for)
+    y separación estricta de justificaciones por fase.
+    """
+    if now_local is None:
+        now_local = get_caracas_now()
+
+    today = now_local.date()
+    status_code = req.status.status_code if req.status else ''
+    if getattr(req, 'historical', False) or status_code not in ('STAT-003', 'STAT-004', 'STAT-005', 'STAT-006'):
+        return {
+            'is_delayed': False,
+            'has_delay_block': False,
+            'has_phase_justification': False,
+            'has_pending_demand': False,
+            'justification_type': None,
+            'lifecycle_exceeded': False,
+        }
+
+    created_local = to_caracas_time(req.created_at) if req.created_at else now_local
+    lifecycle_limit = created_local.date() + timedelta(days=MAX_LIFECYCLE_DAYS)
+    lifecycle_exceeded = today > lifecycle_limit
+
+    active_plan = None
+    if getattr(req, 'plannings', None):
+        plans_with_date = [p for p in req.plannings if p.planned_for]
+        active_plan = max(plans_with_date, key=lambda p: p.planned_for) if plans_with_date else req.plannings[0]
+
+    is_delayed = False
+    if status_code == 'STAT-003':
+        hours_diff = (now_local - created_local).total_seconds() / 3600.0
+        is_delayed = (hours_diff > SLA_ATTENTION_HOURS) or lifecycle_exceeded
+        expected_types = ('RETRASO_ATENCION', 'RETRASO')
+        just_type = 'RETRASO_ATENCION'
+    else:
+        deadline_exceeded = False
+        planned_exceeded = False
+        if active_plan and active_plan.execution_deadline:
+            deadline_dt = active_plan.execution_deadline
+            deadline_d = to_caracas_time(deadline_dt).date() if getattr(deadline_dt, 'tzinfo', None) else deadline_dt.date() if hasattr(deadline_dt, 'date') else deadline_dt
+            deadline_exceeded = today > deadline_d
+        if active_plan and active_plan.planned_for:
+            pf = active_plan.planned_for
+            pf_d = pf.date() if hasattr(pf, 'date') else pf
+            planned_exceeded = today > pf_d
+        if not active_plan and req.created_at:
+            hours_diff = (now_local - created_local).total_seconds() / 3600.0
+            deadline_exceeded = hours_diff > (SLA_EXECUTION_DAYS * 24)
+
+        is_delayed = lifecycle_exceeded or deadline_exceeded or planned_exceeded
+        expected_types = ('RETRASO_EJECUCION', 'RETRASO')
+        just_type = 'RETRASO_EJECUCION'
+
+    latest_just_dt = None
+    has_phase_just = False
+    for just in (getattr(req, 'justifications', None) or []):
+        if just.justification_type in expected_types:
+            has_phase_just = True
+            j_dt = getattr(just, 'created_at', None)
+            if j_dt is not None:
+                if j_dt.tzinfo is None:
+                    j_dt = j_dt.replace(tzinfo=timezone.utc)
+                if latest_just_dt is None or j_dt > latest_just_dt:
+                    latest_just_dt = j_dt
+
+    latest_demand_dt = None
+    has_any_demand = False
+    accepted_dt = None
+    if status_code in ['STAT-004', 'STAT-005', 'STAT-006'] and active_plan and getattr(active_plan, 'accepted_at', None):
+        accepted_dt = active_plan.accepted_at
+        if accepted_dt.tzinfo is None:
+            accepted_dt = accepted_dt.replace(tzinfo=timezone.utc)
+
+    steps = getattr(req, 'tracking_steps', None) or getattr(req, 'trackings', None) or []
+    for t in steps:
+        if 'exigencia formal' in (t.messages or '').lower():
+            t_dt = getattr(t, 'created_at', None)
+            if t_dt is not None and t_dt.tzinfo is None:
+                t_dt = t_dt.replace(tzinfo=timezone.utc)
+            if accepted_dt is not None and t_dt is not None and t_dt < accepted_dt:
+                continue
+            has_any_demand = True
+            if t_dt is not None:
+                if latest_demand_dt is None or t_dt > latest_demand_dt:
+                    latest_demand_dt = t_dt
+
+    has_pending_demand = False
+    if has_any_demand:
+        if not has_phase_just:
+            has_pending_demand = True
+        elif latest_demand_dt is not None and latest_just_dt is not None and latest_demand_dt > latest_just_dt:
+            has_pending_demand = True
+
+    has_delay_block = (is_delayed and not has_phase_just) or has_pending_demand
+
+    return {
+        'is_delayed': is_delayed,
+        'has_delay_block': has_delay_block,
+        'has_phase_justification': has_phase_just,
+        'has_pending_demand': has_pending_demand,
+        'justification_type': just_type if has_delay_block else None,
+        'lifecycle_exceeded': lifecycle_exceeded,
+    }
 
 def _get_request_state_id(req: Request) -> int | None:
     """Obtiene de forma segura el ID del Estado geográfico de la institución solicitante."""
@@ -719,7 +863,8 @@ def _emit_sla_alerts_for_requests(requests_list):
                                 ],
                             },
                             action_text="Planificar Ahora",
-                            only_if_unread=True
+                            only_if_unread=True,
+                            db_session=db.session
                         )
                 elif hours > 72:
                     if req.attended_by_id:
@@ -740,39 +885,59 @@ def _emit_sla_alerts_for_requests(requests_list):
                                 ],
                             },
                             action_text="Justificar y Planificar",
-                            only_if_unread=True
+                            only_if_unread=True,
+                            db_session=db.session
                         )
 
-            # 2. Fase de Cierre Post-Jornada (STAT-005 con >10 días de vencimiento)
-            elif s_code == 'STAT-005' and req.plannings:
+            # 2. Fase de Ejecución / Cierre Post-Jornada (STAT-005 y STAT-006)
+            elif s_code in ('STAT-005', 'STAT-006') and req.plannings:
                 plans_with_date = [p for p in req.plannings if p.planned_for]
+                days_over = 0
                 if plans_with_date:
                     latest_plan = max(plans_with_date, key=lambda p: p.planned_for)
                     plan_date = latest_plan.planned_for.date() if hasattr(latest_plan.planned_for, 'date') else latest_plan.planned_for
                     days_over = (now_dt.date() - plan_date).days
-                    if days_over > 10 and req.attended_by_id:
-                        NotificationService.notify_user_once(
-                            user_id=req.attended_by_id,
-                            event=NotificationEvent.REQUEST_DELAY_CRITICAL,
-                            unique_redirect_url=f"/requests/{req.id}/detail#crit10d",
-                            context={
-                                "request_code": req.request_code,
-                                "institution_name": inst_name,
-                                "delay_detail": f"{days_over} días sin acta de cierre (>10 días)",
-                                "status_name": status_label,
-                                "_display": [
-                                    ("Código de Solicitud", req.request_code),
-                                    ("Institución", inst_name),
-                                    ("Detalle del Retraso", f"{days_over} días sin acta de cierre (>10 días)"),
-                                    ("Estado Actual", status_label),
-                                ],
-                            },
-                            action_text="Cerrar y Justificar",
-                            only_if_unread=True
-                        )
+                else:
+                    active_plan = get_request_active_planning(req)
+                    if active_plan and active_plan.execution_deadline:
+                        dl_date = active_plan.execution_deadline.date() if hasattr(active_plan.execution_deadline, 'date') else active_plan.execution_deadline
+                        days_over = (now_dt.date() - dl_date).days
+                if days_over > 10 and req.attended_by_id:
+                    NotificationService.notify_user_once(
+                        user_id=req.attended_by_id,
+                        event=NotificationEvent.REQUEST_DELAY_CRITICAL,
+                        unique_redirect_url=f"/requests/{req.id}/detail#crit10d",
+                        context={
+                            "request_code": req.request_code,
+                            "institution_name": inst_name,
+                            "delay_detail": f"{days_over} días sin acta de cierre (>10 días)",
+                            "status_name": status_label,
+                            "_display": [
+                                ("Código de Solicitud", req.request_code),
+                                ("Institución", inst_name),
+                                ("Detalle del Retraso", f"{days_over} días sin acta de cierre (>10 días)"),
+                                ("Estado Actual", status_label),
+                            ],
+                        },
+                        action_text="Cerrar y Justificar",
+                        only_if_unread=True,
+                        db_session=db.session
+                    )
     except Exception as notif_err:
         import logging
         logging.getLogger(__name__).warning(f"Error en _emit_sla_alerts_for_requests: {notif_err}")
+
+
+def _resolve_system_tracking_user_id(req) -> int:
+    """Resuelve un user_id válido para trazas automáticas sin depender de columnas inexistentes."""
+    if req.attended_by_id:
+        return req.attended_by_id
+    staff_user = (
+        req.institutional_staff.person.user
+        if (req.institutional_staff and req.institutional_staff.person)
+        else None
+    )
+    return staff_user.id if staff_user else 1
 
 
 def run_proactive_sla_check() -> dict:
@@ -795,6 +960,7 @@ def run_proactive_sla_check() -> dict:
             Request.historical == False,
             Status.status_code.in_(active_statuses),
         )
+        .with_for_update(of=Request, skip_locked=True)
         .all()
     )
 
@@ -815,24 +981,182 @@ def run_proactive_sla_check() -> dict:
                         req.status = status_in_process
                         req.updated_at = datetime.now(timezone.utc)
                         req._skip_auto_audit = True
+                        tracking_uid = _resolve_system_tracking_user_id(req)
                         tracking = RequestTracking(
                             request_id=req.id,
-                            user_id=req.attended_by_id or 1,
+                            user_id=tracking_uid,
                             messages="Llegada la fecha programada, la solicitud pasa formalmente a estado 'En Proceso' para ejecución presencial y carga de evidencias."
                         )
                         tracking._skip_auto_audit = True
                         db.session.add(tracking)
                         transitioned += 1
 
-    if transitioned > 0:
-        db.session.commit()
-
     _emit_sla_alerts_for_requests(active_requests)
+
+    # Caducidad automática de seguridad (Día MAX_LIFECYCLE_DAYS + AUTO_EXPIRE_GRACE_DAYS)
+    expired_count = 0
+    now_utc = datetime.now(timezone.utc)
+    expire_cutoff = now_utc - timedelta(days=MAX_LIFECYCLE_DAYS + AUTO_EXPIRE_GRACE_DAYS)
+    status_cancelled = Status.query.filter_by(status_code='STAT-009').first()
+
+    if status_cancelled:
+        from app.models.reason_model import Reason
+        fallback_reason = (
+            Reason.query.filter(Reason.reason_code.ilike('%RSL%')).first()
+            or Reason.query.filter_by(reason_code='REAS-007').first()
+            or Reason.query.order_by(Reason.id.asc()).first()
+        )
+        for req in active_requests:
+            req_created = req.created_at
+            if req_created and req_created.tzinfo is None:
+                req_created = req_created.replace(tzinfo=timezone.utc)
+            if req_created and req_created < expire_cutoff:
+                old_code = req.status.status_code if req.status else 'N/A'
+                req.status_id = status_cancelled.id
+                req.status = status_cancelled
+                req.historical = True
+                req.finished_at = now_utc
+                req.updated_at = now_utc
+                req._skip_auto_audit = True
+
+                if fallback_reason:
+                    auto_just = RequestJustification(
+                        request_id=req.id,
+                        reason_id=fallback_reason.id,
+                        user_id=None,
+                        justification_type='CANCELACION_ADMIN',
+                        justification=(
+                            f"Caducidad automática del sistema tras superar el ciclo máximo de "
+                            f"{MAX_LIFECYCLE_DAYS} días y {AUTO_EXPIRE_GRACE_DAYS} días de gracia."
+                        ),
+                    )
+                    auto_just._skip_auto_audit = True
+                    db.session.add(auto_just)
+
+                tracking_uid = _resolve_system_tracking_user_id(req)
+                auto_track = RequestTracking(
+                    request_id=req.id,
+                    user_id=tracking_uid,
+                    messages=(
+                        f"Expediente cerrado automáticamente (STAT-009) por caducidad normativa "
+                        f"al superar {MAX_LIFECYCLE_DAYS + AUTO_EXPIRE_GRACE_DAYS} días sin culminación."
+                    ),
+                )
+                auto_track._skip_auto_audit = True
+                db.session.add(auto_track)
+                expired_count += 1
+
+                try:
+                    from app.binnacle.services import BinnacleService
+                    from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+                    BinnacleService.create_log_entry(
+                        module=AuditModule.REQUESTS.value,
+                        action_type=AuditAction.CAMBIO_ESTATUS.value,
+                        description=f"Caducidad automática de solicitud {req.request_code} ({old_code} -> STAT-009)",
+                        target_table='sages.requests',
+                        record_id=req.id,
+                        old_values={'status_code': old_code, 'historical': False},
+                        new_values={'status_code': 'STAT-009', 'historical': True},
+                        status=AuditStatus.COMPLETADO.value,
+                        user_id=None,
+                        user_identifier='SISTEMA',
+                        session_instance=db.session
+                    )
+                except Exception:
+                    pass
+
+                try:
+                    inst_name = (
+                        req.institutional_staff.institution.institution_name
+                        if req.institutional_staff and req.institutional_staff.institution
+                        else "Plantel Educativo"
+                    )
+                    training_name = (
+                        getattr(req.training, 'name', None)
+                        or getattr(req.training, 'training_name', 'Formación Solicitada')
+                    )
+                    cancel_context = {
+                        'request_code': req.request_code,
+                        'institution_name': inst_name,
+                        'training_name': training_name,
+                        'reason_name': 'Caducidad automática de ciclo (33+ días)',
+                        'justification': 'Cierre automático por vencimiento máximo de ciclo.',
+                    }
+                    NotificationService.notify_role(
+                        role_name='super_admin',
+                        event=NotificationEvent.REQUEST_CANCELLED_BY_ADMIN,
+                        context=cancel_context,
+                        redirect_url=f"/requests/audit-detail/{req.id}",
+                        action_text="Ver Expediente",
+                        db_session=db.session
+                    )
+                    if req.attended_by_id:
+                        NotificationService.notify_user(
+                            user_id=req.attended_by_id,
+                            event=NotificationEvent.REQUEST_CANCELLED_BY_ADMIN,
+                            context=cancel_context,
+                            redirect_url=f"/requests/{req.id}/detail",
+                            action_text="Ver Expediente",
+                            db_session=db.session
+                        )
+                    if req.institutional_staff and req.institutional_staff.institution_id:
+                        NotificationService.notify_institution_affiliates(
+                            institution_id=req.institutional_staff.institution_id,
+                            event=NotificationEvent.REQUEST_CANCELLED_BY_ADMIN,
+                            context=cancel_context,
+                            redirect_url=f"/requests/my-requests/{req.id}",
+                            action_text="Ver Motivo",
+                            db_session=db.session
+                        )
+                except Exception:
+                    pass
+
+    db.session.commit()
 
     return {
         'checked': len(active_requests),
         'transitioned': transitioned,
+        'expired': expired_count,
     }
+
+
+_sla_sweep_lock = threading.Lock()
+_last_sla_sweep_date = None
+
+
+def ensure_proactive_sla_checked(force: bool = False) -> dict | None:
+    """
+    Disparador perezoso (Lazy Auto-Sweep) diario para entorno MVP/Web sin Cron.
+    Ejecuta run_proactive_sla_check() como máximo una vez por día calendario
+    (hora Caracas) usando un Lock no bloqueante para evitar doble ejecución
+    concurrente y sin afectar la latencia ni estabilidad de las vistas HTTP.
+    """
+    global _last_sla_sweep_date
+    today_vzla = get_caracas_today()
+
+    if not force and _last_sla_sweep_date == today_vzla:
+        return None
+
+    acquired = _sla_sweep_lock.acquire(blocking=False)
+    if not acquired:
+        return None
+
+    try:
+        if not force and _last_sla_sweep_date == today_vzla:
+            return None
+
+        summary = run_proactive_sla_check()
+        _last_sla_sweep_date = today_vzla
+        return summary
+    except Exception as exc:
+        db.session.rollback()
+        import logging
+        logging.getLogger(__name__).warning(
+            f"[SLA Auto-Sweep] Error controlado en barrido diario: {exc}"
+        )
+        return None
+    finally:
+        _sla_sweep_lock.release()
 
 
 def get_state_requests_paginated(
@@ -913,60 +1237,67 @@ def get_state_requests_paginated(
     now_local = datetime.now(vzla_tz)
 
     for req in pagination.items:
-        status_code = req.status.status_code
-        base_text = req.status.status_name
-        
-        # Tiempo desde la radicación (Para solicitudes Nuevas)
-        if req.created_at:
-            created_local = req.created_at.astimezone(vzla_tz)
-            hours_diff_created = (now_local - created_local).total_seconds() / 3600
-        else:
-            hours_diff_created = 0
-            
-        # Tiempo desde la última actualización (Aceptación/Planificación)
-        if req.updated_at:
-            updated_local = req.updated_at.astimezone(vzla_tz)
-            hours_diff_updated = (now_local - updated_local).total_seconds() / 3600
-        else:
-            hours_diff_updated = 0
-            
-        # Asignación Dinámica
-        if status_code in ['STAT-007', 'STAT-008', 'STAT-009']:
-            req.traffic_light_color = 'green'
-            req.traffic_light_text = base_text
-            
-        elif status_code == 'STAT-003':
-            req.traffic_light_color = 'red'
-            # Límite 3 días para atender una solicitud nueva
-            if hours_diff_created > 72:
-                req.traffic_light_text = f'{base_text} (Límite Excedido)'
-            elif hours_diff_created > 48:
-                req.traffic_light_text = f'{base_text} (+2 días sin atender)'
-            else:
-                req.traffic_light_text = base_text
-                
-        elif status_code in ['STAT-004', 'STAT-005', 'STAT-006']:
-            req.traffic_light_color = 'yellow'
-            # Límite 10 días para ejecutarla (desde que cambió de estatus)
-            days_elapsed = int(hours_diff_updated / 24)
-            days_remaining = 10 - days_elapsed
-            
-            if days_remaining < 0:
-                req.traffic_light_text = f'{base_text} (Límite Excedido)'
-            elif days_remaining <= 3:
-                # Mostrar cuenta regresiva de alerta (-3, -2, -1)
-                req.traffic_light_text = f'{base_text} (Quedan {days_remaining} días)'
-            else:
-                req.traffic_light_text = base_text
-        else:
-            # Fallback
-            req.traffic_light_color = 'yellow'
-            req.traffic_light_text = base_text
+        sla_eval = evaluate_request_sla(req, now_local=now_local)
+        _apply_detail_traffic_light(req, sla_eval, now_local)
 
     # 7. Emisión de alertas preventivas y críticas de SLA (Idempotente)
     _emit_sla_alerts_for_requests(pagination.items)
 
     return pagination
+
+def _apply_detail_traffic_light(req: Request, sla_eval: dict, now_local: datetime) -> None:
+    """Asigna color y texto del semáforo de detalle/workspace alineados con evaluate_request_sla()."""
+    status_code = req.status.status_code if req.status else ''
+    base_text = req.status.status_name if req.status else 'En Proceso'
+
+    if status_code in ['STAT-007', 'STAT-008', 'STAT-009']:
+        req.traffic_light_color = 'green'
+        req.traffic_light_text = base_text
+    elif status_code == 'STAT-003':
+        req.traffic_light_color = 'red'
+        if req.created_at:
+            created_local = to_caracas_time(req.created_at)
+            hours_diff = (now_local - created_local).total_seconds() / 3600
+            if hours_diff > 72 or sla_eval.get('is_delayed'):
+                req.traffic_light_text = f'{base_text} (Límite Excedido)'
+            elif hours_diff > 48:
+                req.traffic_light_text = f'{base_text} (+2 días sin atender)'
+            elif hours_diff > 24:
+                req.traffic_light_text = f'{base_text} (+1 día sin atender)'
+            else:
+                req.traffic_light_text = base_text
+        else:
+            req.traffic_light_text = base_text
+    elif status_code in ['STAT-004', 'STAT-005', 'STAT-006']:
+        active_plan = get_request_active_planning(req)
+        if sla_eval.get('is_delayed'):
+            req.traffic_light_color = 'red'
+            req.traffic_light_text = f'{base_text} (Límite Excedido)'
+        elif active_plan and getattr(active_plan, 'execution_deadline', None):
+            req.traffic_light_color = 'yellow'
+            dl_local = to_caracas_time(active_plan.execution_deadline)
+            days_remaining = (dl_local.date() - now_local.date()).days
+            if days_remaining <= 3:
+                req.traffic_light_text = f'{base_text} (Quedan {max(0, days_remaining)} días)'
+            else:
+                req.traffic_light_text = base_text
+        elif req.created_at:
+            req.traffic_light_color = 'yellow'
+            created_local = to_caracas_time(req.created_at)
+            days_remaining = SLA_EXECUTION_DAYS - int((now_local - created_local).total_seconds() / 86400)
+            if days_remaining < 0:
+                req.traffic_light_text = f'{base_text} (Límite Excedido)'
+            elif days_remaining <= 3:
+                req.traffic_light_text = f'{base_text} (Quedan {days_remaining} días)'
+            else:
+                req.traffic_light_text = base_text
+        else:
+            req.traffic_light_color = 'yellow'
+            req.traffic_light_text = base_text
+    else:
+        req.traffic_light_color = 'yellow'
+        req.traffic_light_text = base_text
+
 
 def get_request_full_detail(request_id: int):
     """
@@ -989,73 +1320,13 @@ def get_request_full_detail(request_id: int):
         joinedload(Request.tracking_steps).joinedload(RequestTracking.user).joinedload(User.person)
     ).get_or_404(request_id)
 
-    # Evaluación de bloqueo ANS
+    # Evaluación centralizada de bloqueo ANS (anclas inmutables y por fase)
     vzla_tz = timezone(timedelta(hours=-4))
     now_local = datetime.now(vzla_tz)
-    has_delay_block = False
-
     status_code = req.status.status_code
-
-    if status_code == 'STAT-003':
-        if req.created_at:
-            hours_diff = (now_local - req.created_at.astimezone(vzla_tz)).total_seconds() / 3600
-            if hours_diff > 72:
-                has_delay_block = True
-    elif status_code in ['STAT-004', 'STAT-005', 'STAT-006']:
-        if req.updated_at:
-            hours_diff = (now_local - req.updated_at.astimezone(vzla_tz)).total_seconds() / 3600
-            if hours_diff > 240:
-                has_delay_block = True
-
-    # Si posee justificaciones previas registradas para este retraso, se levanta el bloqueo visual temporal
-    if not has_delay_block and status_code in ('STAT-003', 'STAT-004', 'STAT-005', 'STAT-006'):
-        if _has_formal_justification_demand(req):
-            has_delay_block = True
-
-    if has_delay_block and req.justifications:
-        for just in req.justifications:
-            if just.justification_type in ['RETRASO', 'REPROGRAMACION', 'RETRASO_ATENCION', 'RETRASO_EJECUCION']:
-                has_delay_block = False
-                break
-                
-    req.has_delay_block = has_delay_block
-    # ---------------------------------------------------------
-    # Semáforo de Tiempos y Alertas Visuales 
-    # ---------------------------------------------------------
-    base_text = req.status.status_name
-    if status_code in ['STAT-007', 'STAT-008', 'STAT-009']:
-        req.traffic_light_color = 'green'
-        req.traffic_light_text = base_text
-    elif status_code == 'STAT-003':
-        req.traffic_light_color = 'red'
-        if req.created_at:
-            if hours_diff > 72:
-                req.traffic_light_text = f'{base_text} (Límite Excedido)'
-            elif hours_diff > 48:
-                req.traffic_light_text = f'{base_text} (+2 días sin atender)'
-            elif hours_diff > 24:
-                req.traffic_light_text = f'{base_text} (+1 día sin atender)'
-            else:
-                req.traffic_light_text = base_text
-        else:
-            req.traffic_light_text = base_text
-    elif status_code in ['STAT-004', 'STAT-005', 'STAT-006']:
-        req.traffic_light_color = 'yellow'
-        if req.updated_at:
-            days_elapsed = int(hours_diff / 24)
-            days_remaining = 10 - days_elapsed
-            
-            if days_remaining < 0:
-                req.traffic_light_text = f'{base_text} (Límite Excedido)'
-            elif days_remaining <= 3:
-                req.traffic_light_text = f'{base_text} (Quedan {days_remaining} días)'
-            else:
-                req.traffic_light_text = base_text
-        else:
-            req.traffic_light_text = base_text
-    else:
-        req.traffic_light_color = 'yellow'
-        req.traffic_light_text = base_text
+    sla_eval = evaluate_request_sla(req, now_local=now_local)
+    req.has_delay_block = sla_eval['has_delay_block']
+    _apply_detail_traffic_light(req, sla_eval, now_local)
 
     req.closure_alert = check_closure_spam_alert(req)
 
@@ -1260,6 +1531,12 @@ def plan_training_session(request_id: int, planned_date, notes: str, admin_user,
         return False, "Error de integridad: La solicitud no posee un registro de planificación asociado.", {}
 
     try:
+        # 4b. Validar techo del ciclo de vida de 30 días y día hábil futuro
+        is_valid_date, date_err = _validate_lifecycle_date(req, planned_date, planning=planning, is_reschedule=False)
+        if not is_valid_date:
+            db.session.rollback()
+            return False, date_err, {}
+
         # 5. Evaluación Transaccional del ANS (SLA)
         is_exceeded = False
         time_exceeded = 0
@@ -1484,19 +1761,16 @@ def reschedule_training_session(
         db.session.rollback()
         return False, "Error de integridad: La solicitud no posee un registro de planificación asociado.", {}
 
-    # 5. Validar fecha estrictamente futura en día hábil
+    # 5. Validar fecha estrictamente futura en día hábil, techo de 30 días y tope MAX_RESCHEDULES
     if hasattr(new_date, 'date'):
         parsed_date = new_date.date()
     else:
         parsed_date = new_date
 
-    if parsed_date <= get_caracas_today():
+    is_valid_date, date_err = _validate_lifecycle_date(req, parsed_date, planning=planning, is_reschedule=True)
+    if not is_valid_date:
         db.session.rollback()
-        return False, "La nueva fecha debe ser estrictamente posterior al día de hoy.", {}
-
-    if parsed_date.weekday() >= 5:
-        db.session.rollback()
-        return False, "La nueva fecha debe ser un día hábil (de lunes a viernes).", {}
+        return False, date_err, {}
 
     # 6. Validar motivo catalogado en sages.reasons
     reason = Reason.query.get(reason_id)
@@ -1730,35 +2004,40 @@ def _evaluate_traffic_light(req: Request, now_dt: datetime) -> dict:
                 "risk_level": 3
             }
 
-    # 3. Planificada (STAT-005) → Verde (en norma)
-    if status_code == 'STAT-005':
-        return {
-            "color": "green",
-            "badge_class": "badge-ans-green",
-            "text": "Planificada",
-            "risk_level": 3
-        }
+    # 3. Planificada (STAT-005) y En Proceso (STAT-006) — sincronizado con evaluate_request_sla
+    if status_code in ('STAT-005', 'STAT-006'):
+        sla_eval = evaluate_request_sla(req)
+        active_plan = get_request_active_planning(req)
+        ref_dt = (
+            active_plan.accepted_at
+            if (active_plan and getattr(active_plan, 'accepted_at', None))
+            else created_at
+        )
+        if ref_dt.tzinfo is None:
+            ref_dt = ref_dt.replace(tzinfo=timezone.utc)
+        days_in_process = max(0, (now_dt - ref_dt).days)
 
-    # 4. En Proceso (STAT-006)
-    if status_code == 'STAT-006':
-        days_in_process = max(0, (now_dt - created_at).days)
-        if days_in_process > 10:
-            # 🔴 Rojo – Excedió el límite de 10 días en proceso
+        if sla_eval.get('is_delayed'):
             return {
                 "color": "red",
                 "badge_class": "badge-ans-red",
-                "text": f"+{days_in_process} días en proceso",
+                "text": "Plazo de ejecución excedido" if status_code == 'STAT-005' else f"+{days_in_process} días en proceso",
                 "risk_level": 1
             }
-        else:
-            # 🟢 Verde – En proceso dentro del plazo
-            days_str = "1 día" if days_in_process == 1 else f"{days_in_process} días"
+        if status_code == 'STAT-005':
             return {
                 "color": "green",
                 "badge_class": "badge-ans-green",
-                "text": f"En atención ({days_str})",
+                "text": "Planificada",
                 "risk_level": 3
             }
+        days_str = "1 día" if days_in_process == 1 else f"{days_in_process} días"
+        return {
+            "color": "green",
+            "badge_class": "badge-ans-green",
+            "text": f"En atención ({days_str})",
+            "risk_level": 3
+        }
 
     # Otros estados archivados (STAT-008, STAT-009, etc.) → Gris
     return {
@@ -1954,10 +2233,11 @@ def get_delays_audit_data(
     """
     now_dt = datetime.now(timezone.utc)
 
-    # Subconsulta para planificaciones (máxima fecha de aceptación para evitar duplicidad de filas)
+    # Subconsulta para planificaciones (máxima fecha de aceptación y última fecha pautada)
     planning_subquery = db.session.query(
         RequestPlanning.requests_id,
-        func.max(RequestPlanning.accepted_at).label('max_accepted_at')
+        func.max(RequestPlanning.accepted_at).label('max_accepted_at'),
+        func.max(RequestPlanning.planned_for).label('max_planned_for')
     ).group_by(RequestPlanning.requests_id).subquery()
 
     # Subconsulta para justificaciones de mora formal registradas
@@ -1968,17 +2248,21 @@ def get_delays_audit_data(
         RequestJustification.justification_type.in_(['RETRASO_ATENCION', 'RETRASO_EJECUCION'])
     ).group_by(RequestJustification.request_id).subquery()
 
-    # Criterio SQL de Mora
+    # Criterio SQL de Mora (incluye STAT-005 y STAT-006)
     cond_atencion = and_(
         Status.status_code.in_(['STAT-003', 'STAT-004']),
         func.now() - Request.created_at > text("INTERVAL '72 hours'")
     )
     cond_ejecucion = and_(
-        Status.status_code == 'STAT-006',
+        Status.status_code.in_(['STAT-005', 'STAT-006']),
         or_(
             and_(
                 planning_subquery.c.max_accepted_at.isnot(None),
                 func.now() - planning_subquery.c.max_accepted_at > text("INTERVAL '10 days'")
+            ),
+            and_(
+                planning_subquery.c.max_planned_for.isnot(None),
+                planning_subquery.c.max_planned_for < func.current_date()
             ),
             func.now() - Request.created_at > text("INTERVAL '10 days'")
         )
@@ -2200,9 +2484,26 @@ def get_request_justification_detail(request_id: int) -> dict | None:
 
 
 def _has_formal_justification_demand(req) -> bool:
-    """Verifica si el Super Administrador ya emitió una exigencia formal de justificación."""
+    """Verifica si el Super Administrador ya emitió una exigencia formal en la fase actual."""
+    status_code = req.status.status_code if getattr(req, 'status', None) else ''
+    accepted_dt = None
+    if status_code in ('STAT-004', 'STAT-005', 'STAT-006'):
+        active_plan = get_request_active_planning(req)
+        if active_plan and getattr(active_plan, 'accepted_at', None):
+            accepted_dt = active_plan.accepted_at
+            if accepted_dt.tzinfo is None:
+                accepted_dt = accepted_dt.replace(tzinfo=timezone.utc)
+
     steps = getattr(req, 'tracking_steps', None) or getattr(req, 'trackings', None) or []
-    return any('exigencia formal' in (t.messages or '').lower() for t in steps)
+    for t in steps:
+        if 'exigencia formal' in (t.messages or '').lower():
+            t_dt = getattr(t, 'created_at', None)
+            if t_dt is not None and t_dt.tzinfo is None:
+                t_dt = t_dt.replace(tzinfo=timezone.utc)
+            if accepted_dt is not None and t_dt is not None and t_dt < accepted_dt:
+                continue
+            return True
+    return False
 
 
 def demand_delay_response(request_id: int, super_admin_user) -> tuple[bool, str, int]:
@@ -2240,34 +2541,13 @@ def demand_delay_response(request_id: int, super_admin_user) -> tuple[bool, str,
     if status_code not in ('STAT-003', 'STAT-004', 'STAT-005', 'STAT-006'):
         return False, "El expediente no se encuentra en un estado operativo activo que admita requerimiento.", 422
 
-    is_delayed = False
+    sla_eval = evaluate_request_sla(req)
+    is_delayed = sla_eval['is_delayed']
 
-    if status_code in ('STAT-003', 'STAT-004'):
-        delta_hours = (now_dt - created_at).total_seconds() / 3600.0
-        if delta_hours > 72.0:
-            is_delayed = True
-    elif status_code == 'STAT-006':
-        accepted_at = None
-        if req.plannings:
-            for p in req.plannings:
-                if p.accepted_at:
-                    accepted_at = p.accepted_at
-                    if accepted_at.tzinfo is None:
-                        accepted_at = accepted_at.replace(tzinfo=timezone.utc)
-                    break
-        ref_dt = accepted_at if accepted_at else created_at
-        days_proc = (now_dt - ref_dt).days
-        if days_proc > 10:
-            is_delayed = True
+    if sla_eval['has_phase_justification']:
+        return False, "El expediente ya cuenta con un descargo formal consignado en esta fase.", 422
 
-    has_just = any(
-        j.justification_type in ('RETRASO_ATENCION', 'RETRASO_EJECUCION', 'RETRASO', 'REPROGRAMACION')
-        for j in req.justifications
-    )
-    if has_just:
-        return False, "El expediente ya cuenta con un descargo formal consignado.", 422
-
-    # Bloqueo estricto: Una sola exigencia por solicitud para evitar spam
+    # Bloqueo estricto: Una sola exigencia por fase para evitar spam
     if _has_formal_justification_demand(req):
         return False, "Ya se ha emitido una exigencia formal previa para este expediente. Debe esperar la respuesta.", 422
 
@@ -2411,43 +2691,25 @@ def submit_delay_justification(
     if req.historical:
         return False, "La solicitud es histórica y no admite justificaciones operativas.", 422
 
-    # ── 3. Verificar Estado de Bloqueo ANS ─────────────────────────────────
-    vzla_tz = timezone(timedelta(hours=-4))
-    now_local = datetime.now(vzla_tz)
-    status_code = req.status.status_code if req.status else ''
+    # ── 2b. Aislamiento Territorial y de Titularidad ────────────────────────
+    if admin_user:
+        admin_state_id = get_admin_state_id(admin_user)
+        req_state_id = _get_request_state_id(req)
+        if not admin_state_id or req_state_id != admin_state_id:
+            return False, "Acceso denegado: El expediente pertenece a otra jurisdicción territorial.", 403
 
-    has_delay_block = False
-    justification_type = None
+    if req.attended_by_id is not None and (not admin_user or req.attended_by_id != admin_user.id):
+        return False, "Acceso denegado: Solo el administrador responsable asignado puede justificar este expediente.", 403
 
-    if status_code == 'STAT-003':
-        if req.created_at:
-            hours_diff = (now_local - req.created_at.astimezone(vzla_tz)).total_seconds() / 3600
-            if hours_diff > 72:
-                has_delay_block = True
-                justification_type = 'RETRASO_ATENCION'
-
-    elif status_code in ('STAT-004', 'STAT-005', 'STAT-006'):
-        if req.updated_at:
-            hours_diff = (now_local - req.updated_at.astimezone(vzla_tz)).total_seconds() / 3600
-            if hours_diff > 240:
-                has_delay_block = True
-                justification_type = 'RETRASO_EJECUCION'
-
-    if not has_delay_block and status_code in ('STAT-003', 'STAT-004', 'STAT-005', 'STAT-006'):
-        if _has_formal_justification_demand(req):
-            has_delay_block = True
-            justification_type = 'RETRASO_ATENCION' if status_code == 'STAT-003' else 'RETRASO_EJECUCION'
-
-    # Verificar si ya existe justificación de retraso previa (Anti-spam estricto)
-    already_justified = any(
-        j.justification_type in ('RETRASO_ATENCION', 'RETRASO_EJECUCION', 'RETRASO', 'REPROGRAMACION')
-        for j in req.justifications
-    )
-
-    if already_justified:
-        return False, "Este expediente ya cuenta con un descargo formal registrado.", 422
+    # ── 3. Verificar Estado de Bloqueo ANS (Centralizado) ───────────────────
+    now_local = get_caracas_now()
+    sla_eval = evaluate_request_sla(req, now_local=now_local)
+    has_delay_block = sla_eval['has_delay_block']
+    justification_type = sla_eval['justification_type']
 
     if not has_delay_block:
+        if sla_eval['has_phase_justification']:
+            return False, "Este expediente ya cuenta con un descargo formal registrado.", 422
         return False, "Este expediente no presenta bloqueo ANS activo que requiera justificación.", 422
 
     # ── 4. Validar Razón ────────────────────────────────────────────────────
@@ -2716,33 +2978,37 @@ def check_closure_spam_alert(req, user_id: int = None) -> dict:
         if plans_with_date:
             active_planning = max(plans_with_date, key=lambda p: p.planned_for)
 
-    if not active_planning:
-        return {'should_trigger': False}
-
     today = get_caracas_today()
-    planned_date = active_planning.planned_for
+    created_ref = to_caracas_time(req.created_at).date() if req.created_at else today
+    lifecycle_limit = created_ref + timedelta(days=MAX_LIFECYCLE_DAYS)
+    lifecycle_exceeded = today > lifecycle_limit
 
-    # El día de la formación (planned_date == today) se está cumpliendo la formación;
-    # el spam se activa a partir del día siguiente (today > planned_date)
-    if planned_date >= today:
+    if not active_planning and not lifecycle_exceeded:
         return {'should_trigger': False}
 
     # 3. Sin evidencias de cumplimiento registradas
     if req.evidences:
         return {'should_trigger': False}
 
-    days_overdue = (today - planned_date).days
-    rescheduled_count = active_planning.rescheduled_count or 0
-    can_reschedule = (rescheduled_count < 1)
+    planned_date = active_planning.planned_for if active_planning else None
+    planned_overdue = bool(planned_date and today > planned_date)
+
+    if not planned_overdue and not lifecycle_exceeded:
+        return {'should_trigger': False}
+
+    days_overdue = (today - planned_date).days if planned_overdue else (today - lifecycle_limit).days
+    rescheduled_count = (active_planning.rescheduled_count or 0) if active_planning else 0
+    can_reschedule = bool(active_planning) and (rescheduled_count < MAX_RESCHEDULES) and (today < lifecycle_limit)
 
     return {
         'should_trigger': True,
         'days_overdue': days_overdue,
-        'planned_date': planned_date.strftime('%d/%m/%Y'),
-        'planned_date_iso': planned_date.isoformat(),
+        'planned_date': planned_date.strftime('%d/%m/%Y') if planned_date else 'Sin planificar',
+        'planned_date_iso': planned_date.isoformat() if planned_date else '',
         'rescheduled_count': rescheduled_count,
         'can_reschedule': can_reschedule,
-        'planning_id': active_planning.id,
+        'planning_id': active_planning.id if active_planning else None,
+        'lifecycle_exceeded': lifecycle_exceeded,
     }
 
 
@@ -3048,8 +3314,9 @@ def submit_closure_reschedule(
     if not active_planning:
         return False, "No se encontro una planificacion activa para esta solicitud."
 
-    if (active_planning.rescheduled_count or 0) >= 1:
-        return False, "Esta solicitud ya fue reprogramada anteriormente y no admite más reprogramaciones. Debe cargar los soportes de cumplimiento para cerrarla."
+    is_valid_date, date_err = _validate_lifecycle_date(req, new_date, planning=active_planning, is_reschedule=True)
+    if not is_valid_date:
+        return False, date_err
 
     try:
         justification = RequestJustification(
@@ -3358,67 +3625,11 @@ def get_active_workspace_context(request_id: int, current_user=None) -> dict:
         # 5. Métricas de recaudos y evidencias digitales
         evidence_metrics = compute_workspace_evidence_metrics(req.evidences)
 
-        # 5.1 Evaluación de Bloqueo ANS (has_delay_block) y Semáforo (idéntico a Ficha Técnica)
+        # 5.1 Evaluación centralizada de Bloqueo ANS (has_delay_block)
         now_local = get_caracas_now()
-        has_delay_block = False
-        hours_diff = 0
-
-        if status_code == 'STAT-003':
-            if req.created_at:
-                hours_diff = (now_local - to_caracas_time(req.created_at)).total_seconds() / 3600
-                if hours_diff > 72:
-                    has_delay_block = True
-        elif status_code in ['STAT-004', 'STAT-005', 'STAT-006']:
-            if req.updated_at:
-                hours_diff = (now_local - to_caracas_time(req.updated_at)).total_seconds() / 3600
-                if hours_diff > 240:
-                    has_delay_block = True
-
-        if not has_delay_block and status_code in ['STAT-004', 'STAT-005', 'STAT-006']:
-            if _has_formal_justification_demand(req):
-                has_delay_block = True
-
-        if has_delay_block and req.justifications:
-            for just in req.justifications:
-                if just.justification_type in ['RETRASO', 'REPROGRAMACION', 'RETRASO_ATENCION', 'RETRASO_EJECUCION']:
-                    has_delay_block = False
-                    break
-
-        req.has_delay_block = has_delay_block
-
-        base_text = req.status.status_name if req.status else 'En Proceso'
-        if status_code in ['STAT-007', 'STAT-008', 'STAT-009']:
-            req.traffic_light_color = 'green'
-            req.traffic_light_text = base_text
-        elif status_code == 'STAT-003':
-            req.traffic_light_color = 'red'
-            if req.created_at:
-                if hours_diff > 72:
-                    req.traffic_light_text = f'{base_text} (Límite Excedido)'
-                elif hours_diff > 48:
-                    req.traffic_light_text = f'{base_text} (+2 días sin atender)'
-                elif hours_diff > 24:
-                    req.traffic_light_text = f'{base_text} (+1 día sin atender)'
-                else:
-                    req.traffic_light_text = base_text
-            else:
-                req.traffic_light_text = base_text
-        elif status_code in ['STAT-004', 'STAT-005', 'STAT-006']:
-            req.traffic_light_color = 'yellow'
-            if req.updated_at:
-                days_elapsed = int(hours_diff / 24)
-                days_remaining = 10 - days_elapsed
-                if days_remaining < 0:
-                    req.traffic_light_text = f'{base_text} (Límite Excedido)'
-                elif days_remaining <= 3:
-                    req.traffic_light_text = f'{base_text} (Quedan {days_remaining} días)'
-                else:
-                    req.traffic_light_text = base_text
-            else:
-                req.traffic_light_text = base_text
-        else:
-            req.traffic_light_color = 'yellow'
-            req.traffic_light_text = base_text
+        sla_eval = evaluate_request_sla(req, now_local=now_local)
+        req.has_delay_block = sla_eval['has_delay_block']
+        _apply_detail_traffic_light(req, sla_eval, now_local)
 
         # 5.2 Cálculo del Progreso Real de la Solicitud (Nuevo -> Pendiente -> Planificada -> En Proceso -> 100% con Evidencias)
         if evidence_metrics['can_complete'] or status_code == 'STAT-007':
@@ -3605,19 +3816,21 @@ def get_forensic_audit_detail(request_id: int) -> dict:
     sla_text = 'Dentro de Parámetros Normativos'
     sla_level = 'NORMAL'
 
-    # Verificación de justificaciones previas
-    has_justification = False
+    # Verificación de justificaciones previas (aislada por fase vía evaluate_request_sla)
+    sla_eval = evaluate_request_sla(req, now_local=now_vzla)
+    has_justification = sla_eval['has_phase_justification']
     latest_justification = None
+    expected_just_type = 'RETRASO_ATENCION' if status_code == 'STAT-003' else 'RETRASO_EJECUCION'
     if req.justifications:
         for just in req.justifications:
-            if just.justification_type in ['RETRASO', 'REPROGRAMACION', 'RETRASO_ATENCION', 'RETRASO_EJECUCION']:
-                has_justification = True
+            if just.justification_type == expected_just_type or just.justification_type in ('RETRASO', 'RETRASO_ATENCION', 'RETRASO_EJECUCION'):
                 latest_justification = just
-                break
+                if just.justification_type == expected_just_type:
+                    break
 
     if status_code == 'STAT-003':
         # Atención inicial: Máximo 72h (3 días)
-        if hours_diff > 72:
+        if hours_diff > 72 or sla_eval['is_delayed']:
             is_exceeded = True
             sla_level = 'CRITICO'
             sla_badge_class = 'badge-sla-critical'
@@ -3627,13 +3840,15 @@ def get_forensic_audit_detail(request_id: int) -> dict:
             sla_badge_class = 'badge-sla-warning'
             sla_text = 'Atención Próxima a Vencer (>48h)'
     elif status_code in ['STAT-004', 'STAT-005', 'STAT-006']:
-        # Ejecución presencial: 240h (10 días)
-        execution_hours = (now_vzla - updated_vzla).total_seconds() / 3600
-        if execution_hours > 240:
+        # Ejecución presencial: anclada en accepted_at / execution_deadline / evaluate_request_sla
+        active_plan = get_request_active_planning(req)
+        ref_vzla = to_caracas_time(active_plan.accepted_at) if (active_plan and getattr(active_plan, 'accepted_at', None)) else created_vzla
+        execution_hours = (now_vzla - ref_vzla).total_seconds() / 3600
+        if sla_eval['is_delayed'] or execution_hours > 240:
             is_exceeded = True
             sla_level = 'CRITICO'
             sla_badge_class = 'badge-sla-critical'
-            exec_days = int(execution_hours // 24)
+            exec_days = int(max(0, execution_hours) // 24)
             sla_text = f'Mora de Ejecución ({exec_days} días en proceso)'
         elif execution_hours > 168:
             sla_level = 'ALERTA'

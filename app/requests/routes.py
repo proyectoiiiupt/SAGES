@@ -8,6 +8,29 @@ from app.models.user_model import User
 from app.extensions import limiter
 
 
+@requests_bp.before_request
+def _auto_sweep_sla_on_view():
+    """
+    Ejecuta el barrido SLA diario de forma perezosa solo en peticiones GET
+    de vistas principales de usuario autenticado (excluye APIs, descargas y estáticos).
+    """
+    if request.method != 'GET':
+        return
+    if not current_user or not current_user.is_authenticated:
+        return
+    path = request.path or ''
+    if '/api/' in path or path.startswith('/static/'):
+        return
+    if request.endpoint in (
+        'requests.state_admin_dashboard',
+        'requests.national_monitoring',
+        'requests.delays_audit',
+        'requests.applicant_dashboard',
+    ):
+        from app.requests.services import ensure_proactive_sla_checked
+        ensure_proactive_sla_checked()
+
+
 def verify_request_access(f):
     """
     Decorador de acceso compartido para consulta/descarga de expedientes.
@@ -1963,6 +1986,7 @@ def check_sla_cli():
     summary = run_proactive_sla_check()
     click.echo(
         f"[SAGES SLA] Revisadas: {summary['checked']} | "
-        f"Transicionadas a En Proceso (STAT-006): {summary['transitioned']}"
+        f"Transicionadas a En Proceso (STAT-006): {summary['transitioned']} | "
+        f"Caducadas (STAT-009): {summary.get('expired', 0)}"
     )
 
