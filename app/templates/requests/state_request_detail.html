@@ -599,7 +599,7 @@
                 </div>
             </div>
             <div class="detail-custom-modal-body" style="padding: 16px; max-height: 65vh; overflow-y: auto;">
-                {% with hide_header=True %}
+                {% with hide_header=True, read_only=True %}
                 {% include 'requests/partials/_tracking_timeline.html' %}
                 {% endwith %}
             </div>

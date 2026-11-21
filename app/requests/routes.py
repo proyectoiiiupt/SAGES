@@ -1570,24 +1570,34 @@ def api_add_tracking_note(id):
     is_state_admin = 'state_admin' in user_roles
     is_applicant = 'applicant' in user_roles
 
-    if not is_super_admin:
-        if is_state_admin:
-            admin_state_id = get_admin_state_id(current_user)
-            try:
-                req_state_id = req.institutional_staff.institution.parish.municipality.state_id
-            except AttributeError:
-                req_state_id = None
-            if not admin_state_id or req_state_id != admin_state_id:
-                return jsonify({'success': False, 'message': 'Violación territorial: No tiene permiso sobre este expediente.'}), 403
-        elif is_applicant:
-            user = User.query.get(current_user.id)
-            if not user or not user.person or not user.person.institutional_staff:
-                return jsonify({'success': False, 'message': 'No posee afiliación institucional válida.'}), 403
-            user_inst_id = user.person.institutional_staff[0].institution_id
-            if not req.institutional_staff or req.institutional_staff.institution_id != user_inst_id:
-                return jsonify({'success': False, 'message': 'Acceso denegado: El expediente no pertenece a su institución.'}), 403
-        else:
-            return jsonify({'success': False, 'message': 'Rol no autorizado para interactuar en la bitácora.'}), 403
+    if is_super_admin:
+        return jsonify({
+            'success': False,
+            'message': 'Modo supervisión: El Super Administrador solo puede consultar la bitácora en modo lectura.'
+        }), 403
+
+    if is_state_admin:
+        admin_state_id = get_admin_state_id(current_user)
+        try:
+            req_state_id = req.institutional_staff.institution.parish.municipality.state_id
+        except AttributeError:
+            req_state_id = None
+        if not admin_state_id or req_state_id != admin_state_id:
+            return jsonify({'success': False, 'message': 'Violación territorial: No tiene permiso sobre este expediente.'}), 403
+        if not req.attended_by_id or req.attended_by_id != current_user.id:
+            return jsonify({
+                'success': False,
+                'message': 'Solo el facilitador titular asignado puede registrar notas en este expediente.'
+            }), 403
+    elif is_applicant:
+        user = User.query.get(current_user.id)
+        if not user or not user.person or not user.person.institutional_staff:
+            return jsonify({'success': False, 'message': 'No posee afiliación institucional válida.'}), 403
+        user_inst_id = user.person.institutional_staff[0].institution_id
+        if not req.institutional_staff or req.institutional_staff.institution_id != user_inst_id:
+            return jsonify({'success': False, 'message': 'Acceso denegado: El expediente no pertenece a su institución.'}), 403
+    else:
+        return jsonify({'success': False, 'message': 'Rol no autorizado para interactuar en la bitácora.'}), 403
 
     data = request.get_json(silent=True) or {}
     message_text = data.get('message', '')
