@@ -185,6 +185,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /* Limpiar flag del loader para que se vuelva a mostrar en el siguiente inicio de sesión */
     sessionStorage.removeItem('systemLoaderShown');
+    sessionStorage.removeItem('sidebarActiveTop');
+    sessionStorage.removeItem('sidebarActiveUserId');
 
     const passwordSuccessData = document.getElementById('passwordSuccessData');
     if (passwordSuccessData) {

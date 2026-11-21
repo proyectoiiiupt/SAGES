@@ -18,6 +18,21 @@
     --transition-speed: 0.35s;
 }
 
+/* =========================================
+   PREVENCIÓN DE PARPADEO EN CARGA (PRELOAD)
+   ========================================= */
+.preload,
+.preload *,
+.preload *::before,
+.preload *::after {
+    -webkit-transition: none !important;
+    -moz-transition: none !important;
+    -ms-transition: none !important;
+    -o-transition: none !important;
+    transition: none !important;
+    animation-duration: 0s !important;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -391,7 +406,47 @@ body {
     border-radius: 10px;
     z-index: 0;
     pointer-events: none;
+    min-height: 46px;
     /* La transición se aplica por JS tras el posicionamiento inicial */
+}
+
+/* =========================================
+   TOOLTIP FLOTANTE DEL SIDEBAR (MODO COLAPSADO)
+   ========================================= */
+.sidebar-tooltip {
+    position: fixed;
+    background: #1e293b;
+    color: #ffffff;
+    font-size: 0.82rem;
+    font-weight: 500;
+    padding: 7px 14px;
+    border-radius: 8px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(-6px);
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+    z-index: 10000;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-tooltip::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: -5px;
+    transform: translateY(-50%);
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-right: 5px solid #1e293b;
+}
+
+.sidebar-tooltip.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0);
 }
 
 .sidebar.collapsed .active-indicator {

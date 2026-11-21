@@ -1,8 +1,25 @@
-<aside class="sidebar" id="sidebar">
-    <script>
-        if (localStorage.getItem('sidebarCollapsed') === 'true' && window.innerWidth > 992) {
-            document.getElementById('sidebar').classList.add('collapsed');
+<script>
+    (function () {
+        var userId = "{{ current_user.id if current_user.is_authenticated else '' }}";
+        var storageKey = userId ? 'sidebarCollapsed_' + userId : 'sidebarCollapsed';
+        if (localStorage.getItem(storageKey) === 'true' && window.innerWidth > 992) {
+            document.write('<style id="sidebar-temp-collapsed">.sidebar{width:var(--sidebar-collapsed-width,76px)!important;}.main-wrapper{margin-left:var(--sidebar-collapsed-width,76px)!important;width:calc(100% - var(--sidebar-collapsed-width,76px))!important;}.sidebar-header img.logo-full{display:none!important;}.sidebar-header img.logo-icon{display:block!important;animation:none!important;}.sidebar-menu a span{display:none!important;width:0!important;}.sidebar-menu a{justify-content:center!important;padding:12px 0!important;}.sidebar-menu a svg{margin-right:0!important;}.sidebar-footer a{justify-content:center!important;padding:12px 0!important;}.sidebar-footer a span{display:none!important;}.sidebar-footer a svg{margin-right:0!important;}.active-indicator{left:50%!important;width:48px!important;margin-left:-24px!important;}</style>');
         }
+    })();
+</script>
+<aside class="sidebar" id="sidebar" data-user-id="{{ current_user.id if current_user.is_authenticated else '' }}">
+    <script>
+        (function () {
+            var userId = "{{ current_user.id if current_user.is_authenticated else '' }}";
+            var storageKey = userId ? 'sidebarCollapsed_' + userId : 'sidebarCollapsed';
+            if (localStorage.getItem(storageKey) === 'true' && window.innerWidth > 992) {
+                document.getElementById('sidebar').classList.add('collapsed');
+            }
+            var tempStyle = document.getElementById('sidebar-temp-collapsed');
+            if (tempStyle) {
+                tempStyle.remove();
+            }
+        })();
     </script>
     <div class="sidebar-header">
         <img src="{{ url_for('static', filename='img/logo_corpoelec.png') }}" class="logo-full" alt="Corpoelec">
@@ -33,7 +50,8 @@
         {% if 'view_home' in user_permissions %}
         <li>
             <a href="{{ url_for('home_' ~ user_role) }}"
-                class="{{ active_if(['home_super_admin', 'home_state_admin', 'home_applicant']) }}">
+                class="{{ active_if(['home_super_admin', 'home_state_admin', 'home_applicant']) }}"
+                data-tooltip="Inicio">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round">
                     <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
@@ -47,7 +65,9 @@
         {# ── PANEL ADMINISTRATIVO (exclusivo Super Administrador) ─────── #}
         {% if user_role == 'super_admin' and 'view_admin_panel' in user_permissions %}
         <li>
-            <a href="{{ url_for('dashboard.index') }}" class="{{ active_if(['dashboard.index', 'dashboard.audit_view', 'dashboard.map_fullscreen_view']) }}">
+            <a href="{{ url_for('dashboard.index') }}"
+                class="{{ active_if(['dashboard.index', 'dashboard.audit_view', 'dashboard.map_fullscreen_view', 'binnacle.index']) }}"
+                data-tooltip="Panel Administrativo">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
@@ -64,10 +84,12 @@
         <li>
             {% if user_role == 'super_admin' %}
                 <a href="{{ url_for('requests.national_monitoring') }}"
-                   class="{{ active_if(['requests.national_monitoring', 'requests.delays_audit']) }}">
+                   class="{{ active_if(['requests.national_monitoring', 'requests.delays_audit', 'requests.admin_request_detail', 'requests.state_request_detail', 'requests.active_workspace_view', 'requests.state_admin_history', 'requests.historical_request_detail']) }}"
+                   data-tooltip="Solicitudes">
             {% else %}
                 <a href="{{ url_for('requests.state_admin_dashboard') }}"
-                   class="{{ active_if(['requests.state_admin_dashboard']) }}">
+                   class="{{ active_if(['requests.state_admin_dashboard', 'requests.state_request_detail', 'requests.active_workspace_view', 'requests.state_admin_history', 'requests.historical_request_detail', 'requests.admin_request_detail']) }}"
+                   data-tooltip="Solicitudes">
             {% endif %}
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round">
@@ -86,7 +108,8 @@
         {% if 'create_request' in user_permissions %}
         <li>
             <a href="{{ url_for('requests.applicant_dashboard') }}"
-                class="{{ active_if(['requests.applicant_dashboard']) }}">
+                class="{{ active_if(['requests.applicant_dashboard', 'requests.new_request_wizard', 'requests.applicant_request_view', 'requests.applicant_history', 'requests.historical_request_detail', 'requests.satisfaction_survey']) }}"
+                data-tooltip="Mis Solicitudes">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -104,7 +127,8 @@
         {% if 'view_training_catalog' in user_permissions %}
         <li>
             <a href="{{ url_for('trainings.index') }}"
-                class="{{ active_if(['trainings.index', 'trainings.list_all']) }}">
+                class="{{ active_if(['trainings.index', 'trainings.list_all', 'trainings.module_topics', 'trainings.edit_module', 'trainings.new_module', 'trainings.view_training_detail', 'trainings.new_training', 'trainings.edit_training', 'trainings.bulk_upload_view']) }}"
+                data-tooltip="Formación">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round">
                     <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
@@ -119,7 +143,8 @@
         {% if 'view_my_institution' in user_permissions %}
         <li>
             <a href="{{ url_for('institutions.my_institution') }}"
-                class="{{ active_if(['institutions.my_institution']) }}">
+                class="{{ active_if(['institutions.my_institution', 'institutions.edit_institution']) }}"
+                data-tooltip="Mi Institución">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round">
                     <line x1="3" y1="22" x2="21" y2="22"></line>
@@ -138,7 +163,8 @@
         {% if 'view_statistics' in user_permissions %}
         <li>
             <a href="{{ url_for('analytics.index') }}"
-               class="{{ active_if(['analytics.index', 'analytics.indicators_view', 'analytics.reports_wizard']) }}">
+               class="{{ active_if(['analytics.index', 'analytics.indicators_view', 'analytics.reports_wizard']) }}"
+               data-tooltip="Estadísticas">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round">
                     <line x1="12" y1="20" x2="12" y2="10"></line>
@@ -154,7 +180,8 @@
         {% if 'manage_users' in user_permissions %}
         <li>
             <a href="{{ url_for('users.list_users') }}"
-                class="{{ active_if(['users.list_users', 'users.view_user', 'users.edit_user']) }}">
+                class="{{ active_if(['users.list_users', 'users.view_user', 'users.edit_user', 'users.register_admin', 'users.list_requests']) }}"
+                data-tooltip="Usuarios">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round">
                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -171,7 +198,8 @@
         {% if 'manage_institution' in user_permissions %}
         <li>
             <a href="{{ url_for('institutions.list_institutions') }}"
-                class="{{ active_if(['institutions.list_institutions', 'institutions.view_institution', 'institutions.edit_institution']) }}">
+                class="{{ active_if(['institutions.list_institutions', 'institutions.view_institution', 'institutions.edit_institution', 'institutions.view_institution_users', 'institutions.invite_institution_collaborator']) }}"
+                data-tooltip="Instituciones">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round">
                     <line x1="3" y1="22" x2="21" y2="22"></line>
@@ -190,7 +218,8 @@
         {% if 'system_configuration' in user_permissions %}
         <li>
             <a href="{{ url_for('configurations.index') }}"
-                class="{{ active_if(['configurations.index']) }}">
+                class="{{ active_if(['configurations.index']) }}"
+                data-tooltip="Configuración">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round">
                     <circle cx="12" cy="12" r="3"></circle>
@@ -205,8 +234,19 @@
 
     </ul>
 
+    <script>
+        (function () {
+            var activeItem = document.querySelector('.sidebar-menu a.active');
+            var indicator = document.getElementById('active-indicator');
+            if (activeItem && indicator) {
+                indicator.style.height = (activeItem.offsetHeight || 46) + 'px';
+                indicator.style.transform = 'translateY(' + activeItem.offsetTop + 'px)';
+            }
+        })();
+    </script>
+
     <div class="sidebar-footer">
-        <a href="#" id="sidebar-btn-logout" data-logout-url="{{ url_for('auth.logout') }}">
+        <a href="#" id="sidebar-btn-logout" data-logout-url="{{ url_for('auth.logout') }}" data-tooltip="Cerrar Sesión">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
