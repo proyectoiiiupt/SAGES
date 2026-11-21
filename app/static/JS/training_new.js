@@ -220,21 +220,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Confirmación antes de guardar
+            // Confirmación antes de guardar / actualizar
+            const isEdit = !!window.CURRENT_TRAINING_ID || (form && form.id === 'form-edit-training');
+            const confirmTitle = isEdit ? '¿Actualizar Tema Formativo?' : '¿Registrar Tema Formativo?';
+            const confirmText = isEdit 
+                ? '¿Deseas guardar los cambios realizados en este tema formativo?' 
+                : '¿Deseas guardar este nuevo Tema Formativo en el sistema?';
+            const confirmBtnText = isEdit ? 'Sí, actualizar' : 'Sí, guardar';
+            const loadingTitle = isEdit ? 'Actualizando Tema Formativo...' : 'Guardando Tema Formativo...';
+            const loadingText = isEdit ? 'Procesando la actualización, por favor espera' : 'Procesando el registro, por favor espera';
+
             Swal.fire({
-                title: '¿Registrar Tema Formativo?',
-                text: '¿Deseas guardar este nuevo Tema Formativo en el sistema?',
+                title: confirmTitle,
+                text: confirmText,
                 icon: 'question',
                 showCancelButton: true,
-                confirmButtonColor: '#0d9488',
+                confirmButtonColor: '#007865',
                 cancelButtonColor: '#64748b',
-                confirmButtonText: 'Sí, guardar',
+                confirmButtonText: confirmBtnText,
                 cancelButtonText: 'Revisar'
             }).then((result) => {
                 if (result.isConfirmed) {
                     Swal.fire({
-                        title: 'Guardando Tema Formativo...',
-                        text: 'Procesando el registro, por favor espera',
+                        title: loadingTitle,
+                        text: loadingText,
                         allowOutsideClick: false,
                         didOpen: () => {
                             Swal.showLoading();
