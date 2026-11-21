@@ -1,6 +1,6 @@
 /* Cabecera estándar del sistema (.page-header) */
 .page-header {
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 14px;
     padding: 14px 24px;
     display: flex;
@@ -113,7 +113,7 @@
 /* Estructura general de página para alineación a la izquierda total */
 .module-page-wrapper {
     padding: 1.5rem;
-    background-color: #f8fafc;
+    background-color: #f4f7f6;
     min-height: calc(100vh - var(--topbar-height, 70px));
     width: 100%;
     box-sizing: border-box;
@@ -128,7 +128,7 @@
 
 /* Tarjeta del Formulario (Basada en .wizard-container) */
 .module-form-card {
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 20px;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2);
     overflow: hidden;
@@ -233,7 +233,7 @@
 .form-select-custom:focus {
     border-color: #1fcab0;
     box-shadow: 0 0 0 3px rgba(31, 202, 176, 0.1);
-    background: #ffffff;
+    background: #f9fafb;
 }
 
 .form-input-custom.is-invalid,

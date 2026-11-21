@@ -16,8 +16,8 @@
     --uree-gray-light: #94a3b8;
     --uree-border: #e2e8f0;
     --uree-border-light: #f1f5f9;
-    --uree-bg-light: #f8fafc;
-    --uree-bg-card: #ffffff;
+    --uree-bg-light: #f4f7f6;
+    --uree-bg-card: #f9fafb;
     --uree-danger: #dc2626;
     --uree-danger-light: #fee2e2;
     --uree-warning: #d97706;
@@ -35,6 +35,7 @@
    Contenedor Principal Adaptable y Fluido (100% Responsivo)
    ========================================================================== */
 .active-workspace-container {
+    background-color: var(--bg-light, #f4f7f6);
     width: 100%;
     max-width: 100%;
     margin: 0;

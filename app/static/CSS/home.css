@@ -1,6 +1,6 @@
 :root {
     --home-bg:          #F4F7F6;
-    --card-bg:          #ffffff;
+    --card-bg:          #f9fafb; /* [UI GLOBAL] Recuadros ligeramente suavizados */
 
     --text-heading:     #111827;
     --text-body:        #374151;
@@ -28,7 +28,7 @@
    BANNER DE BIENVENIDA
    ========================================= */
 .welcome-banner {
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 14px;
     padding: 14px 24px;                 
     display: flex;

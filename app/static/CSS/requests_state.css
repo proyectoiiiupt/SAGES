@@ -5,13 +5,13 @@
 .state-dashboard-container {
     padding: 20px;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f8f9fa;
+    background-color: #f4f7f6;
     min-height: calc(100vh - 60px);
 }
 
 /* 1. Banner Superior */
 .dashboard-banner {
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 14px;
     padding: 14px 24px;
     display: flex;

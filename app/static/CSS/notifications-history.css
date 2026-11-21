@@ -9,13 +9,14 @@
     --sages-green-hover: #017a61;
     --sages-amber: #d97706;
     --sages-red: #dc2626;
-    --sages-gray-bg: #f8fafc;
+    --sages-gray-bg: #f4f7f6;
     --sages-border: #e2e8f0;
     --sages-text-main: #1e293b;
     --sages-text-muted: #64748b;
 }
 
 .notifications-history-container {
+    background-color: var(--bg-light, #f4f7f6);
     max-width: 960px;
     margin: 0 auto;
     padding: 1.5rem 1rem;
@@ -377,7 +378,7 @@
    BANNER DE BIENVENIDA (Desde Home)
    ========================================= */
 .welcome-banner {
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 14px;
     padding: 14px 24px;                 
     display: flex;

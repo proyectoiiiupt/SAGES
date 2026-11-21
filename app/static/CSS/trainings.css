@@ -39,7 +39,7 @@
 
     /* Generales del módulo */
     --hub-page-bg: #f4f7f6;
-    --hub-card-bg: #ffffff;
+    --hub-card-bg: #f9fafb;
     --hub-card-radius: 20px;
     --hub-card-shadow: 0 4px 16px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
     --hub-card-shadow-hover: 0 16px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
@@ -66,7 +66,7 @@
 
 /* ── CABECERA DE P\u00c1GINA (est\u00e1ndar instituciones) ────────────────────────── */
 .hub-page .page-header {
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 14px;
     padding: 14px 24px;
     display: flex;
@@ -903,6 +903,7 @@
 
 /* ── CONTENEDOR PRINCIPAL TABULAR ─────────────────────────────────────── */
 .trainings-container {
+    background-color: var(--bg-light, #f4f7f6);
     padding: 2rem;
     max-width: 1400px;
     margin: 0 auto;
@@ -912,7 +913,7 @@
 
 /* Cabecera institucional */
 .trainings-container .page-header {
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 14px;
     padding: 14px 24px;
     display: flex;
@@ -1135,7 +1136,7 @@
 
 /* ── TABLA INSTITUCIONAL ─────────────────────────────────────────────── */
 .trainings-container .table-container {
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 14px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
     border: 1px solid #e2e8f0;
@@ -2405,7 +2406,7 @@
 
 /* Base para todas las Tarjetas con sombras de diseño */
 .tarjeta {
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 16px;
     padding: 28px;
     border: 1px solid rgba(226, 232, 240, 0.8);

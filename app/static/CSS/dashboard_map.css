@@ -4,7 +4,7 @@
    ========================================================================== */
 
 .map-widget-card {
-    background: #ffffff;
+    background: #f9fafb;
     border: 1px solid #e2e8f0;
     border-radius: 14px;
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
@@ -522,6 +522,7 @@
 
 /* ── Contenedor principal de la vista de mapa (alineado al estándar institucional) ── */
 .map-monitoring-container {
+    background-color: var(--bg-light, #f4f7f6);
     padding: 24px;
     width: 100%;
     box-sizing: border-box;
@@ -532,7 +533,7 @@
 
 /* ── Banner / Cabecera Institucional SAGES ── */
 .map-page-header {
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 14px;
     padding: 14px 24px;
     display: flex;
@@ -579,6 +580,7 @@
     color: #007865;
     flex-shrink: 0;
 }
+
 /* Cuadrícula Principal (70% Mapa / 30% Panel Lateral) */
 .map-view-grid {
     display: grid;
@@ -595,7 +597,7 @@
 
 /* Tarjeta del Mapa en Vista Ampliada */
 .map-canvas-card {
-    background: #ffffff;
+    background: #f9fafb;
     border: 1px solid #e2e8f0;
     border-radius: 14px;
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
@@ -631,7 +633,7 @@
 
 /* Panel Lateral de Demanda (30%) */
 .map-detail-card {
-    background: #ffffff;
+    background: #f9fafb;
     border: 1px solid #e2e8f0;
     border-radius: 14px;
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);

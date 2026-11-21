@@ -1,5 +1,6 @@
 /* ── CONTENEDOR PRINCIPAL FLUIDO (ADAPTADO AL 100% DE LA PANTALLA) ── */
 .analytics-container {
+    background-color: var(--bg-light, #f4f7f6);
     width: 100%;
     max-width: 100%;
     margin: 0;
@@ -14,7 +15,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: #ffffff;
+    background: #f9fafb;
     padding: 0.75rem; /* Ultra compacto */
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.04);
@@ -148,7 +149,7 @@
 
 /* Tarjetas con estilo de módulos rectores (Actualizado con borde verde) */
 .chart-card {
-    background: #ffffff;
+    background: #f9fafb;
     border: 1px solid #e2e8f0;
     border-radius: 16px;
     border-top: 4px solid #10b981; 
@@ -330,7 +331,7 @@
 
 /* Cabecera Estilo Banner (Idéntica a Gestión de Solicitudes) */
 .dashboard-banner {
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 14px;
     padding: 14px 24px;
     display: flex;
@@ -419,7 +420,7 @@
 }
 
 .wizard-card-container {
-    background: #ffffff;
+    background: #f9fafb;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
     padding: 2rem;
@@ -539,7 +540,7 @@
     padding: 0.75rem 0.95rem;
     font-size: 1rem;
     color: #0f172a;
-    background: #ffffff;
+    background: #f9fafb;
     border: 1.5px solid #cbd5e1;
     border-radius: 8px;
     outline: none;
@@ -622,7 +623,7 @@
     padding: 1.25rem 1rem;
     text-align: center;
     cursor: pointer;
-    background: #ffffff;
+    background: #f9fafb;
     transition: all 0.2s;
 }
 
@@ -680,7 +681,7 @@
     border: 1.5px solid #e2e8f0;
     border-radius: 8px;
     cursor: pointer;
-    background: #ffffff;
+    background: #f9fafb;
     transition: border-color 0.2s, background 0.2s;
 }
 
@@ -793,7 +794,7 @@
 
 /* ── BARRA LATERAL DE FILTROS SINCRONIZADA ── */
 .indicators-filter-sidebar {
-    background: #ffffff;
+    background: #f9fafb;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
     padding: 1.5rem;
@@ -901,7 +902,7 @@
     padding: 0.65rem 0.85rem;
     font-size: 0.95rem;
     color: #0f172a;
-    background: #ffffff;
+    background: #f9fafb;
     border: 1.5px solid #cbd5e1;
     border-radius: 6px;
     outline: none;
@@ -1006,7 +1007,7 @@
 }
 
 .indicator-card {
-    background: #ffffff;
+    background: #f9fafb;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
     padding: 1.25rem 1.5rem;
@@ -1090,7 +1091,7 @@
 
 /* Barra Lateral */
 .indicators-filter-sidebar {
-    background: #ffffff;
+    background: #f9fafb;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
     padding: 1.25rem;
@@ -1130,7 +1131,7 @@
     padding: 0.45rem 0.65rem;
     font-size: 0.85rem;
     color: #0f172a;
-    background: #ffffff;
+    background: #f9fafb;
     border: 1px solid #cbd5e1;
     border-radius: 6px;
     outline: none;
@@ -1182,7 +1183,7 @@
     gap: 0.5rem;
     width: 100%;
     padding: 0.7rem 1rem;
-    background: #ffffff;
+    background: #f9fafb;
     color: #0f3669;
     border: 1.5px solid #0f3669;
     border-radius: 8px;
@@ -1242,7 +1243,7 @@
 }
 
 .analytics-modal-card {
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 16px;
     width: 100%;
     max-width: 580px;
@@ -1389,7 +1390,7 @@
 .btn-modal-cancel {
     padding: 0.65rem 1.2rem;
     border: 1px solid #cbd5e1;
-    background: #ffffff;
+    background: #f9fafb;
     color: #475569;
     border-radius: 8px;
     font-size: 0.9rem;

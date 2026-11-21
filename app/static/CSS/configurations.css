@@ -9,8 +9,8 @@
     --cfg-primary: #1c3d73;
     --cfg-accent: #019577;
     --cfg-teal: #1fcab0;
-    --cfg-bg: #f8fafc;
-    --cfg-card-bg: #ffffff;
+    --cfg-bg: #f4f7f6;
+    --cfg-card-bg: #f9fafb;
     --cfg-border: #e2e8f0;
     --cfg-text: #1e293b;
     --cfg-muted: #64748b;
@@ -20,6 +20,7 @@
 }
 
 .config-container {
+    background-color: var(--bg-light, #f4f7f6);
     max-width: 1350px;
     margin: 0 auto;
     padding: 1.5rem;
@@ -30,7 +31,7 @@
    1. CABECERA ESTÁNDAR DEL SISTEMA (.page-header)
    ========================================================================== */
 .page-header {
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 14px;
     padding: 14px 24px;
     display: flex;

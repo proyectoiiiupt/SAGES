@@ -11,7 +11,7 @@
     --sidebar-width: 260px;
     --sidebar-collapsed-width: 76px;
     --topbar-height: 70px;
-    --bg-light: #f8fafc;
+    --bg-light: #f4f7f6; /* [UI GLOBAL] Oscurecer ligeramente el fondo: estándar Formación/Home para reducir fatiga visual */
     --text-dark: #1f2937;
     --text-light: #ffffff;
     --text-muted: #9ca3af;
@@ -45,6 +45,11 @@ body {
     display: flex;
     min-height: 100vh;
     overflow-x: hidden;
+}
+
+.content-area {
+    background-color: var(--bg-light);
+    flex-grow: 1;
 }
 
 /* =========================================

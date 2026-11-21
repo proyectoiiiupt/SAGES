@@ -1,4 +1,5 @@
 .applicant-dashboard-container {
+    background-color: var(--bg-light, #f4f7f6);
     padding: 24px;
     /* Se remueven max-width y margin auto para que la vista y el banner
        ocupen el 100% del ancho de forma dinámica junto con la barra lateral */
@@ -8,7 +9,7 @@
 
 /* Cabecera Estilo Banner (Inspirado en home.css) */
 .dashboard-banner {
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 14px;
     padding: 14px 24px;                 
     display: flex;

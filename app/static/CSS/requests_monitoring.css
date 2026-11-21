@@ -4,8 +4,8 @@
    ========================================================================== */
 
 :root {
-    --monitoring-bg-light: #f8fafc;
-    --monitoring-card-bg: #ffffff;
+    --monitoring-bg-light: #f4f7f6;
+    --monitoring-card-bg: #f9fafb;
     --monitoring-border: #e2e8f0;
     --monitoring-text-primary: #0f172a;
     --monitoring-text-secondary: #475569;
@@ -72,7 +72,7 @@
    ========================================================================== */
 .page-header,
 .mon-page-header {
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 14px;
     padding: 14px 24px;
     display: flex;

@@ -4,8 +4,8 @@
   --bulk-primary-hover: #0f766e;
   --bulk-danger: #ef4444;
   --bulk-success: #10b981;
-  --bulk-bg: #f8fafc;
-  --bulk-card-bg: rgba(255, 255, 255, 0.95);
+  --bulk-bg: #f4f7f6;
+  --bulk-card-bg: #f9fafb;
   --bulk-border: #e2e8f0;
   --bulk-text: #1e293b;
   --bulk-text-muted: #64748b;
@@ -14,7 +14,7 @@
 
 .bulk-container {
   padding: 1.5rem;
-  background-color: #f8fafc;
+  background-color: #f4f7f6;
   min-height: calc(100vh - var(--topbar-height, 70px));
   width: 100%;
   box-sizing: border-box;
@@ -30,7 +30,7 @@
 
 /* ── REPLICATED HEADER STYLES ── */
 .page-header {
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 14px;
     padding: 14px 24px;
     display: flex;

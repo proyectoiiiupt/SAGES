@@ -1,5 +1,6 @@
 /* Estilos Específicos para la Vista de Detalle */
 .detail-container {
+    background-color: var(--bg-light, #f4f7f6);
     padding: 20px;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     min-height: calc(100vh - 60px);
@@ -9,7 +10,7 @@
    Banner Superior 
    ========================================================================== */
 .dashboard-banner {
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 14px;
     padding: 14px 24px;
     display: flex;

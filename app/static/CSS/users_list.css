@@ -1,7 +1,7 @@
 /* Contenedor Principal */
 .users-container {
     padding: 1.5rem;
-    background-color: #f8fafc;
+    background-color: #f4f7f6;
     min-height: 100vh;
     width: 100%;
     box-sizing: border-box;
@@ -11,7 +11,7 @@
 .header-card {
     padding: 1.25rem 2rem;
     margin-bottom: 1.5rem;
-    background: white;
+    background: #f9fafb;
     border-radius: 30px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.03);
     display: flex;
@@ -151,7 +151,7 @@
 
 /* Tarjeta de la Tabla */
 .table-card {
-    background: white;
+    background: #f9fafb;
     border-radius: 12px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.02);
     border: 1px solid #e2e8f0;

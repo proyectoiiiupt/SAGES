@@ -10,12 +10,7 @@ Estilos CSS Modernos para el Módulo de Instituciones
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: #ffffff;
-    min-height: 100vh;
-    overflow-x: hidden;
-    overflow-y: auto;
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE and Edge */
+    background: var(--bg-light, #f4f7f6);
 }
 
 body::-webkit-scrollbar {
@@ -26,7 +21,7 @@ body::-webkit-scrollbar {
     padding: 2rem;
     max-width: 1400px;
     margin: 0 auto;
-    background: rgba(255, 255, 255, 0.95);
+    background: rgba(249, 250, 251, 0.95);
     border-radius: 20px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(10px);
@@ -42,7 +37,7 @@ body::-webkit-scrollbar {
 
 /* Banner de título estilo welcome-banner */
 .page-header {
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 14px;
     padding: 14px 24px;
     display: flex;
@@ -102,7 +97,7 @@ body::-webkit-scrollbar {
 
 .filters-section {
     padding: 1.5rem;
-    background-color: #ffffff;
+    background-color: #f9fafb;
 }
 
 .filter-row {
@@ -204,7 +199,7 @@ body::-webkit-scrollbar {
 }
 
 .table-container {
-    background: white;
+    background: #f9fafb;
     border-radius: 15px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
     overflow: hidden;

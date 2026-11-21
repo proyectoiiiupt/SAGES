@@ -3,6 +3,7 @@
    ========================================================================== */
 
 .applicant-view-container {
+    background-color: var(--bg-light, #f4f7f6);
     padding: 24px;
     width: 100%;
     box-sizing: border-box;
@@ -24,7 +25,7 @@
     align-items: center;
     gap: 8px;
     padding: 10px 18px;
-    background: #ffffff;
+    background: #f9fafb;
     color: #4b5563;
     border: 1px solid #d1d5db;
     border-radius: 10px;
@@ -44,7 +45,7 @@
 
 /* 2. Tarjeta de Encabezado Principal */
 .request-summary-header {
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 14px;
     padding: 24px;
     margin-bottom: 24px;
@@ -146,7 +147,7 @@
 
 /* 3. Stepper Gráfico de Avance (5 Hitos) */
 .stepper-card {
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 14px;
     padding: 28px 24px;
     margin-bottom: 24px;
@@ -261,7 +262,7 @@
 }
 
 .stepper-item.active .stepper-node {
-    background: #ffffff;
+    background: #f9fafb;
     color: #019577;
     border: 3px solid #019577;
     box-shadow: 0 0 0 5px rgba(1, 149, 119, 0.2);
@@ -374,7 +375,7 @@
     display: flex;
     align-items: flex-start;
     gap: 18px;
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 14px;
     padding: 22px 24px;
     margin-bottom: 24px;
@@ -441,7 +442,7 @@
 }
 
 .detail-card {
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 14px;
     padding: 22px;
     border: 1px solid #e5e7eb;
@@ -575,7 +576,7 @@
 
 .field-justification-box {
     margin: 0;
-    background: #ffffff;
+    background: #f9fafb;
     border: 1px solid #feb2b2;
     border-radius: 8px;
     padding: 12px 16px;
@@ -586,7 +587,7 @@
 
 /* 8. Zona Inferior de Acciones */
 .action-footer-panel {
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 14px;
     padding: 20px 24px;
     margin-top: 10px;
@@ -712,7 +713,7 @@
 .cancellation-modal-dialog {
     width: 100%;
     max-width: 540px;
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 16px;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     overflow: hidden;
@@ -842,7 +843,7 @@
     padding: 10px 14px;
     font-size: 0.9rem;
     color: #111827;
-    background: #ffffff;
+    background: #f9fafb;
     font-family: inherit;
     box-sizing: border-box;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -893,7 +894,7 @@
 
 .btn-modal-cancel {
     padding: 10px 18px;
-    background: #ffffff;
+    background: #f9fafb;
     border: 1px solid #d1d5db;
     color: #4b5563;
     border-radius: 8px;
@@ -959,7 +960,7 @@
    CABECERA BANNER Y SOLUCIÓN DEL ÍCONO GIGANTE
    ========================================================================== */
    .dashboard-banner {
-    background: #ffffff;
+    background: #f9fafb;
     border-radius: 14px;
     padding: 14px 24px;                 
     display: flex;
