@@ -202,7 +202,7 @@
 
     {# Cargar Formación -> Nueva Formación #}
     {% if 'upload_training' in user_permissions %}
-    <a href="#" class="card card-green">
+    <a href="{{ url_for('trainings.new_training') }}" class="card card-green">
         <div class="card-header">
             <div class="card-title">Nueva Formación</div>
             <div class="card-icon">

@@ -13,6 +13,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const passwordWrapper = document.getElementById('wrapper-clave');
 
     let errorTimeout;
+    // Timeouts individuales para auto-ocultar errores de campo
+    let idCardErrorTimeout;
+    let passwordErrorTimeout;
 
     // =========================================================
     // Mensaje global (flash de Flask: cierre de sesión, etc.)
@@ -58,6 +61,19 @@ document.addEventListener('DOMContentLoaded', () => {
         errorSpan.classList.add('visible');
         wrapper.classList.add('input-error');
         input.setAttribute('aria-invalid', 'true');
+
+        // Auto-ocultar el error de campo luego de 4 segundos
+        if (errorSpan === idCardError) {
+            if (idCardErrorTimeout) clearTimeout(idCardErrorTimeout);
+            idCardErrorTimeout = setTimeout(() => {
+                clearFieldError(input, wrapper, errorSpan);
+            }, 4000);
+        } else {
+            if (passwordErrorTimeout) clearTimeout(passwordErrorTimeout);
+            passwordErrorTimeout = setTimeout(() => {
+                clearFieldError(input, wrapper, errorSpan);
+            }, 4000);
+        }
     };
 
     const clearFieldError = (input, wrapper, errorSpan) => {
