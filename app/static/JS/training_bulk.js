@@ -352,7 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let alertText = `Se crearán ${validCount} temas formativos en el sistema.`;
         if (invalidCount > 0) {
-            alertText = `Se guardarán ${validCount} temas con éxito y las ${invalidCount} filas con errores serán ignoradas.\n\n⚠️ IMPORTANTE: Si deseas conservar el registro de los errores para corregirlos, asegúrate de haberlos descargado ANTES de continuar.`;
+            alertText = `Se guardarán ${validCount} temas con éxito y las ${invalidCount} filas con errores serán ignoradas.\n\nIMPORTANTE: Si deseas conservar el registro de los errores para corregirlos, asegúrate de haberlos descargado ANTES de continuar.`;
         }
 
         const confirmDialog = await Swal.fire({

@@ -21,6 +21,9 @@
         cursor: pointer;
         font-weight: bold;
         transition: background 0.3s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
     }
     .btn-unlock:hover {
         background: #e09b3d;
@@ -68,7 +71,12 @@
                                        value="{{ request.form.get('identification_number', user.person.identification_number if user.person else '') }}" readonly 
                                        class="figma-input locked-box" style="flex-grow: 1;">
                                 {% if user_role == 'super_admin' %}
-                                    <button type="button" id="unlockIdBtn" class="btn-unlock" title="Desbloquear para editar">🔓</button>
+                                    <button type="button" id="unlockIdBtn" class="btn-unlock" title="Desbloquear para editar">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                            <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+                                        </svg>
+                                    </button>
                                 {% endif %}
                             </div>
                         </div>

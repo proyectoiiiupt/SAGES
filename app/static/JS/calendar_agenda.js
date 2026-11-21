@@ -388,7 +388,7 @@
             // Super Admin visualiza operador y plantel
             bodyContentHtml = `
                 <div class="cal-tooltip-row">
-                    <span class="cal-tooltip-icon">👤</span>
+                    <span class="cal-tooltip-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span>
                     <div>
                         <span class="cal-tooltip-label">Operador Asignado</span>
                         <span class="cal-tooltip-value" style="color: #019577; font-weight: 700;">
@@ -397,7 +397,7 @@
                     </div>
                 </div>
                 <div class="cal-tooltip-row">
-                    <span class="cal-tooltip-icon">🏫</span>
+                    <span class="cal-tooltip-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg></span>
                     <div>
                         <span class="cal-tooltip-label">Plantel Educativo</span>
                         <span class="cal-tooltip-value">${escapeHtml(evt.institution_name || 'N/A')}</span>
@@ -405,7 +405,7 @@
                 </div>
                 ${evt.state_name ? `
                 <div class="cal-tooltip-row">
-                    <span class="cal-tooltip-icon">📍</span>
+                    <span class="cal-tooltip-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></span>
                     <div>
                         <span class="cal-tooltip-label">Ubicación</span>
                         <span class="cal-tooltip-value" style="font-size: 0.76rem; color: #64748b;">
@@ -418,7 +418,7 @@
             // Admin Estadal visualiza plantel y tema
             bodyContentHtml = `
                 <div class="cal-tooltip-row">
-                    <span class="cal-tooltip-icon">🏫</span>
+                    <span class="cal-tooltip-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg></span>
                     <div>
                         <span class="cal-tooltip-label">Plantel Educativo</span>
                         <span class="cal-tooltip-value" style="color: #0f172a; font-weight: 700;">
@@ -427,7 +427,7 @@
                     </div>
                 </div>
                 <div class="cal-tooltip-row">
-                    <span class="cal-tooltip-icon">📚</span>
+                    <span class="cal-tooltip-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg></span>
                     <div>
                         <span class="cal-tooltip-label">Tema Formativo</span>
                         <span class="cal-tooltip-value" style="color: #0284c7;">
@@ -437,7 +437,7 @@
                 </div>
                 ${evt.municipality_name ? `
                 <div class="cal-tooltip-row">
-                    <span class="cal-tooltip-icon">📍</span>
+                    <span class="cal-tooltip-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></span>
                     <div>
                         <span class="cal-tooltip-label">Municipio</span>
                         <span class="cal-tooltip-value" style="font-size: 0.76rem; color: #64748b;">
@@ -590,7 +590,7 @@
                         <div style="font-size: 0.9rem; line-height: 1.5;">
                             <div style="margin-bottom: 5px;"><strong>Operador:</strong> <span style="color: #019577;">${escapeHtml(evt.operator_name || 'Sin Asignar')}</span></div>
                             <div style="color: #1e293b;"><strong>Plantel:</strong> ${escapeHtml(evt.institution_name)}</div>
-                            ${evt.state_name ? `<div style="color: #64748b; font-size: 0.82rem; margin-top: 3px;">📍 ${escapeHtml(evt.state_name)}</div>` : ''}
+                            ${evt.state_name ? `<div style="color: #64748b; font-size: 0.82rem; margin-top: 3px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:3px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>${escapeHtml(evt.state_name)}</div>` : ''}
                         </div>
                     `;
                 } else {
@@ -598,7 +598,7 @@
                         <div style="font-size: 0.9rem; line-height: 1.5;">
                             <div style="margin-bottom: 5px;"><strong>Plantel:</strong> ${escapeHtml(evt.institution_name)}</div>
                             <div style="color: #0284c7;"><strong>Tema:</strong> ${escapeHtml(evt.topic_name)}</div>
-                            ${evt.municipality_name ? `<div style="color: #64748b; font-size: 0.82rem; margin-top: 3px;">📍 ${escapeHtml(evt.municipality_name)}</div>` : ''}
+                            ${evt.municipality_name ? `<div style="color: #64748b; font-size: 0.82rem; margin-top: 3px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:3px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>${escapeHtml(evt.municipality_name)}</div>` : ''}
                         </div>
                     `;
                 }

@@ -26,6 +26,9 @@
     font-weight: bold;
     color: #1e293b;
     font-style: italic;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .date-text {
@@ -66,7 +69,9 @@
     top: 50%;
     transform: translateY(-50%);
     color: #94a3b8;
-    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
 }
 
 .search-input {
@@ -273,9 +278,11 @@
 }
 
 .empty-icon {
-    display: block;
-    font-size: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     margin-bottom: 0.5rem;
+    color: #94a3b8;
 }
 
 /* Paginación */
