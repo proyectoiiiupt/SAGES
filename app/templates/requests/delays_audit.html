@@ -324,7 +324,7 @@
 
                                     <!-- Botón Secundario Inspeccionar Expediente -->
                                     <a
-                                        href="{{ url_for('requests.admin_request_detail', request_id=req.id) }}"
+                                        href="{{ url_for('requests.admin_request_detail', request_id=req.id, source='delays_audit') }}"
                                         class="btn-action-audit btn-inspect-expediente icon-only-action"
                                         title="Inspeccionar Ficha Forense de Auditoría"
                                         aria-label="Inspeccionar Ficha Forense de Auditoría"

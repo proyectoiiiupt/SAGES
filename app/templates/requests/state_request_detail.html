@@ -38,7 +38,8 @@
     <!-- 2. Action Toolbar (Navegación y Acciones) -->
     <div class="action-toolbar">
         <div class="toolbar-left">
-            <a href="{{ url_for('requests.state_admin_dashboard') }}" class="btn-cancel">
+            <a href="{{ url_for('requests.national_monitoring') if is_super_admin else url_for('requests.state_admin_dashboard') }}"
+                class="btn-cancel">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">
                     <line x1="19" y1="12" x2="5" y2="12"></line>

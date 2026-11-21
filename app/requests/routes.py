@@ -1113,10 +1113,20 @@ def admin_request_detail(request_id):
     from app.requests.services import get_forensic_audit_detail
 
     audit_data = get_forensic_audit_detail(request_id)
+    source = (request.args.get('source') or '').strip().lower()
+    if source == 'delays_audit' or (not source and '/requests/delays-audit' in (request.referrer or '')):
+        back_url = url_for('requests.delays_audit')
+        back_label = 'Volver a Auditoría de Retrasos SLA'
+    else:
+        back_url = url_for('requests.national_monitoring')
+        back_label = 'Volver al Tablero Nacional'
+
     return render_template(
         'requests/audit_detail.html',
         audit=audit_data,
-        req=audit_data['request']
+        req=audit_data['request'],
+        back_url=back_url,
+        back_label=back_label
     )
 
 
