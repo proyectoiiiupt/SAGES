@@ -201,6 +201,10 @@
     width: 100%;
 }
 
+.kpi-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
 .kpi-card {
     background: #ffffff;
     border-radius: 18px;
@@ -279,6 +283,7 @@
     background: linear-gradient(135deg, #ffffff 60%, var(--dash-blue-bg) 100%);
     border-color: #bae6fd;
 }
+
 .kpi-blue .kpi-icon-container,
 .kpi-card.kpi-total .kpi-icon-container {
     background: var(--dash-blue-icon-bg);
@@ -290,6 +295,7 @@
     background: linear-gradient(135deg, #ffffff 60%, var(--dash-green-bg) 100%);
     border-color: #bbf7d0;
 }
+
 .kpi-green .kpi-icon-container,
 .kpi-card.kpi-completed .kpi-icon-container {
     background: var(--dash-green-icon-bg);
@@ -301,6 +307,7 @@
     background: linear-gradient(135deg, #ffffff 60%, var(--dash-amber-bg) 100%);
     border-color: #fde047;
 }
+
 .kpi-amber .kpi-icon-container,
 .kpi-card.kpi-in-process .kpi-icon-container {
     background: var(--dash-amber-icon-bg);
@@ -312,6 +319,7 @@
     background: linear-gradient(135deg, #ffffff 60%, var(--dash-red-bg) 100%);
     border-color: #fecdd3;
 }
+
 .kpi-red .kpi-icon-container,
 .kpi-card.kpi-pending .kpi-icon-container {
     background: var(--dash-red-icon-bg);
@@ -323,6 +331,7 @@
     background: linear-gradient(135deg, #ffffff 60%, #f5f3ff 100%);
     border-color: #c4b5fd;
 }
+
 .kpi-purple .kpi-icon-container,
 .kpi-card.kpi-planned .kpi-icon-container {
     background: #ede9fe;
@@ -568,13 +577,48 @@
     white-space: nowrap;
 }
 
-.status-pill.stat-003 { background: #e0e7ff; color: #3730a3; } /* Nuevo */
-.status-pill.stat-004 { background: #fef3c7; color: #92400e; } /* Pendiente */
-.status-pill.stat-005 { background: #e0f2fe; color: #0369a1; } /* Planificada */
-.status-pill.stat-006 { background: #ccfbf1; color: #0f766e; } /* En Proceso */
-.status-pill.stat-007 { background: #d1fae5; color: #065f46; } /* Completado */
-.status-pill.stat-008 { background: #fee2e2; color: #991b1b; } /* Rechazado */
-.status-pill.stat-009 { background: #f1f5f9; color: #475569; } /* Cancelado */
+.status-pill.stat-003 {
+    background: #e0e7ff;
+    color: #3730a3;
+}
+
+/* Nuevo */
+.status-pill.stat-004 {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+/* Pendiente */
+.status-pill.stat-005 {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+/* Planificada */
+.status-pill.stat-006 {
+    background: #ccfbf1;
+    color: #0f766e;
+}
+
+/* En Proceso */
+.status-pill.stat-007 {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+/* Completado */
+.status-pill.stat-008 {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* Rechazado */
+.status-pill.stat-009 {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+/* Cancelado */
 
 /* ==========================================================================
    Badges de Semáforo Cromático ANS (SLA)
@@ -617,10 +661,12 @@
         transform: scale(0.95);
         box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
     }
+
     70% {
         transform: scale(1);
         box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
     }
+
     100% {
         transform: scale(0.95);
         box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
@@ -804,6 +850,7 @@
    Responsive Breakpoints
    ========================================================================== */
 @media (max-width: 1200px) {
+
     .kpi-grid,
     .kpi-metrics-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -1152,6 +1199,7 @@
 }
 
 @media (max-width: 768px) {
+
     .page-header,
     .mon-page-header {
         flex-direction: column;
@@ -1164,6 +1212,7 @@
         flex-direction: column;
         align-items: center;
     }
+
     .mon-pagination-buttons {
         flex-wrap: wrap;
         justify-content: center;
@@ -1175,12 +1224,12 @@
    ========================================================================== */
 
 .card-highlight-danger {
-    border: 2px solid #f87171 !important;
+    border: 2px solid #fecdd3 !important;
     background: #fff5f5 !important;
 }
 
 .card-highlight-warning {
-    border: 2px solid #fbbf24 !important;
+    border: 2px solid #fde047 !important;
     background: #fffbeb !important;
 }
 
@@ -1595,4 +1644,3 @@
 .btn-modal-close:hover {
     background: #016252;
 }
-

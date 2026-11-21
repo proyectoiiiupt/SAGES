@@ -67,7 +67,7 @@
     </nav>
 
     <!-- ===== CUADRÍCULA DE TARJETAS KPI (MÉTRICAS DE MORA) ===== -->
-    <div class="kpi-grid">
+    <div class="kpi-grid kpi-grid-3">
         <!-- KPI 1: Total en Mora ANS -->
         <div class="kpi-card kpi-blue">
             <div class="kpi-card-left">
@@ -342,18 +342,14 @@
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="8" class="empty-state-cell">
-                                <div class="empty-state-container">
-                                    <div class="empty-state-icon text-success">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 48px; height: 48px; color: #10b981;">
-                                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                                        </svg>
-                                    </div>
-                                    <h3 class="empty-state-title">Sin Retrasos Normativos Detectados</h3>
-                                    <p class="empty-state-desc">
-                                        Todas las solicitudes en el ámbito territorial seleccionado se encuentran dentro de los tiempos normativos del Acuerdo de Nivel de Servicio (ANS / SLA) institucional.
-                                    </p>
+                            <td colspan="8" class="empty-state">
+                                <div class="empty-state-content">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="empty-icon" style="color: #10b981;">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                    </svg>
+                                    <p class="empty-title">Sin Retrasos Normativos Detectados</p>
+                                    <p class="empty-subtitle">Todas las solicitudes en el ámbito territorial seleccionado se encuentran dentro de los tiempos normativos del Acuerdo de Nivel de Servicio (ANS / SLA) institucional.</p>
                                 </div>
                             </td>
                         </tr>
