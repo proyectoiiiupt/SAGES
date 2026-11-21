@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 import smtplib
 import logging
@@ -117,7 +118,7 @@ def send_recovery_email(to_email: str, code: str) -> bool:
             </tr>
             <tr>
                 <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
-                    &copy; 2026 SAGES. Todos los derechos reservados.
+                    &copy; {datetime.now().year} SAGES. Todos los derechos reservados.
                 </td>
             </tr>
         </table>
@@ -186,7 +187,7 @@ Por favor, no responda a este correo automatizado."""
             </tr>
             <tr>
                 <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
-                    &copy; 2026 SAGES. Todos los derechos reservados.
+                    &copy; {datetime.now().year} SAGES. Todos los derechos reservados.
                 </td>
             </tr>
         </table>
@@ -251,7 +252,7 @@ def send_invitation_email(to_email: str, link: str, institution_name: str) -> bo
             </tr>
             <tr>
                 <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
-                    &copy; 2026 SAGES. Todos los derechos reservados.
+                    &copy; {datetime.now().year} SAGES. Todos los derechos reservados.
                 </td>
             </tr>
         </table>
@@ -323,7 +324,7 @@ def send_applicant_activation_email(to_email: str, token: str, full_name: str = 
             </tr>
             <tr>
                 <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
-                    &copy; 2026 SAGES. Todos los derechos reservados.
+                    &copy; {datetime.now().year} SAGES. Todos los derechos reservados.
                 </td>
             </tr>
         </table>
@@ -401,7 +402,7 @@ def send_applicant_rejection_email(to_email: str, full_name: str = "", instituti
             </tr>
             <tr>
                 <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
-                    &copy; 2026 SAGES. Todos los derechos reservados.
+                    &copy; {datetime.now().year} SAGES. Todos los derechos reservados.
                 </td>
             </tr>
         </table>
@@ -470,7 +471,7 @@ def send_administrative_activation_email(to_email: str, token: str, role_display
             </tr>
             <tr>
                 <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
-                    &copy; 2026 SAGES. Todos los derechos reservados.
+                    &copy; {datetime.now().year} SAGES. Todos los derechos reservados.
                 </td>
             </tr>
         </table>
@@ -534,7 +535,7 @@ def send_request_receipt_email(to_email: str, full_name: str, institution_name: 
             </tr>
             <tr>
                 <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
-                    &copy; 2026 SAGES. Todos los derechos reservados.
+                    &copy; {datetime.now().year} SAGES. Todos los derechos reservados.
                 </td>
             </tr>
         </table>
@@ -589,7 +590,7 @@ La Gerencia General (Super Administrador), en ejercicio de sus funciones de fisc
 Por tal motivo, se le intima a ingresar de manera INMEDIATA a la plataforma SAGES y consignar el descargo operativo y justificación técnica correspondiente para la regularización del caso.
 
 Este mensaje fue generado automáticamente por la Gerencia de Auditoría y Fiscalización SLA.
-© 2026 SAGES - CORPOELEC. Todos los derechos reservados.
+© {datetime.now().year} SAGES - CORPOELEC. Todos los derechos reservados.
 """
 
     html_content = f"""
@@ -667,7 +668,7 @@ Este mensaje fue generado automáticamente por la Gerencia de Auditoría y Fisca
             <!-- Pie de Página -->
             <tr>
                 <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
-                    &copy; 2026 SAGES - CORPOELEC. Todos los derechos reservados.
+                    &copy; {datetime.now().year} SAGES - CORPOELEC. Todos los derechos reservados.
                 </td>
             </tr>
         </table>
@@ -736,7 +737,7 @@ Gracias por usar el sistema SAGES.
             </tr>
             <tr>
                 <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
-                    &copy; 2026 SAGES. Todos los derechos reservados.
+                    &copy; {datetime.now().year} SAGES. Todos los derechos reservados.
                 </td>
             </tr>
         </table>
@@ -823,7 +824,7 @@ Gracias por usar el sistema SAGES.
             </tr>
             <tr>
                 <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
-                    &copy; 2026 SAGES. Todos los derechos reservados.
+                    &copy; {datetime.now().year} SAGES. Todos los derechos reservados.
                 </td>
             </tr>
         </table>
@@ -872,7 +873,7 @@ def send_request_cancelled_email(
             f"Justificación Consignada:\n{safe_justification}\n\n"
             f"El expediente ha sido archivado formalmente en el sistema.\n\n"
             f"* Este mensaje fue generado de forma automática por el sistema SAGES. No responda a este correo.\n\n"
-            f"© 2026 SAGES — CORPOELEC. Todos los derechos reservados."
+            f"© {datetime.now().year} SAGES — CORPOELEC. Todos los derechos reservados."
         )
     else:
         subject = f"Aviso de Desistimiento: Solicitud {safe_code} — {safe_institution}"
@@ -889,7 +890,7 @@ def send_request_cancelled_email(
             f"Justificación Consignada:\n{safe_justification}\n\n"
             f"El expediente ha sido trasladado al archivo histórico del sistema.\n\n"
             f"* Este mensaje fue generado de forma automática por el sistema SAGES. No responda a este correo.\n\n"
-            f"© 2026 SAGES — CORPOELEC. Todos los derechos reservados."
+            f"© {datetime.now().year} SAGES — CORPOELEC. Todos los derechos reservados."
         )
 
     html_content = f"""<!DOCTYPE html>
@@ -957,7 +958,7 @@ def send_request_cancelled_email(
             </tr>
             <tr>
                 <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
-                    &copy; 2026 SAGES &mdash; CORPOELEC. Todos los derechos reservados.
+                    &copy; {datetime.now().year} SAGES &mdash; CORPOELEC. Todos los derechos reservados.
                 </td>
             </tr>
         </table>
@@ -1068,7 +1069,7 @@ Sistema de Gestión de Solicitudes SAGES - CORPOELEC.
             </tr>
             <tr>
                 <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
-                    &copy; 2026 SAGES &mdash; CORPOELEC. Todos los derechos reservados.
+                    &copy; {datetime.now().year} SAGES &mdash; CORPOELEC. Todos los derechos reservados.
                 </td>
             </tr>
         </table>
@@ -1114,7 +1115,7 @@ def send_training_completed_survey_email(
         f"Asimismo, le notificamos que el Informe Técnico Final certificado con Código QR ya se encuentra "
         f"disponible para consulta y descarga en su panel de autogestión.\n\n"
         f"* Este mensaje fue generado de forma automática por el sistema SAGES. No responda a este correo.\n\n"
-        f"© 2026 SAGES — CORPOELEC. Todos los derechos reservados."
+        f"© {datetime.now().year} SAGES — CORPOELEC. Todos los derechos reservados."
     )
 
     logo_html = get_logo_html()
@@ -1200,7 +1201,7 @@ def send_training_completed_survey_email(
             </tr>
             <tr>
                 <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
-                    &copy; 2026 SAGES &mdash; CORPOELEC. Todos los derechos reservados.
+                    &copy; {datetime.now().year} SAGES &mdash; CORPOELEC. Todos los derechos reservados.
                 </td>
             </tr>
         </table>
@@ -1305,7 +1306,7 @@ def send_institution_inactivated_email(
                     <!-- Pie -->
                     <tr>
                         <td align="center" style="background-color:#f9fafb;padding:20px;font-size:11px;color:#9ca3af;border-top:1px solid #e5e7eb;">
-                            &copy; 2026 SAGES &mdash; CORPOELEC. Todos los derechos reservados.
+                            &copy; {datetime.now().year} SAGES &mdash; CORPOELEC. Todos los derechos reservados.
                         </td>
                     </tr>
                 </table>
@@ -1406,7 +1407,7 @@ def send_user_deactivation_email(to_email: str, full_name: str = "", username: s
             </tr>
             <tr>
                 <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
-                    &copy; 2026 SAGES &mdash; CORPOELEC. Todos los derechos reservados.
+                    &copy; {datetime.now().year} SAGES &mdash; CORPOELEC. Todos los derechos reservados.
                 </td>
             </tr>
         </table>

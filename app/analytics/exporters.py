@@ -388,7 +388,7 @@ def send_report_email_async(app, to_email, user_name, report_title, file_bytes, 
             </tr>
             <tr>
                 <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
-                    &copy; 2026 SAGES — CORPOELEC. Todos los derechos reservados.
+                    &copy; {datetime.now().year} SAGES — CORPOELEC. Todos los derechos reservados.
                 </td>
             </tr>
         </table>

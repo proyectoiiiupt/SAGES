@@ -1,3 +1,4 @@
+from datetime import datetime
 from flask import Flask, redirect, url_for, request, flash, render_template, session, jsonify
 from flask_limiter.errors import RateLimitExceeded
 from app.config import Config
@@ -54,10 +55,10 @@ def create_app(config_class=Config) -> Flask:
     def inject_user_role():
         from flask_login import current_user
         def get_user_role():
-            if current_user.is_authenticated and getattr(current_user, 'roles_assoc', None):
+            if current_user and getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'roles_assoc', None):
                 return current_user.roles_assoc[0].role.name
             return 'applicant'
-        return dict(user_role=get_user_role())
+        return dict(user_role=get_user_role(), current_year=datetime.now().year)
 
     # Registro del blueprint de Instituciones
     from app.institutions import institutions_bp
