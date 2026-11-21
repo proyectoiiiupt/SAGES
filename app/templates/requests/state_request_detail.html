@@ -278,7 +278,54 @@
         </div>
     </div>
 
-    <!-- 2.5 Banner Central: Responsable Asignado y Fecha Planificada (US-39) -->
+    <!-- 2.5 Cabecera Principal de Expediente (Código, Radicación y Estado) -->
+    <div class="detail-main-header status-border-{{ req.traffic_light_color }}">
+        <div class="request-id-block">
+            <h1>
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#019577" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                Código: {{ req.request_code }}
+            </h1>
+            <div class="request-meta">
+                <span>
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    Radicada el: <strong class="local-datetime" data-utc="{{ req.created_at.isoformat() }}"
+                        data-format="standard"></strong>
+                </span>
+            </div>
+        </div>
+
+        <div class="request-status-block">
+            <span class="status-badge-lg badge-{{ req.traffic_light_color }}">
+                {% if 'Excedido' in req.traffic_light_text or '+' in req.traffic_light_text or 'Quedan' in
+                req.traffic_light_text %}
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                    </path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                {% else %}
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 8 12 12 14 15"></polyline>
+                </svg>
+                {% endif %}
+                {{ req.traffic_light_text }}
+            </span>
+        </div>
+    </div>
+
+    <!-- 3. Banner Central: Responsable Asignado y Fecha Planificada (US-39) -->
     <div class="central-assignment-banner">
         <div class="assignment-block">
             <div class="assignment-icon-wrap">
@@ -327,53 +374,6 @@
                     {% endif %}
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- 3. Cabecera Secundaria (Estado y Radicación) -->
-    <div class="detail-main-header status-border-{{ req.traffic_light_color }}">
-        <div class="request-id-block">
-            <h1>
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#019577" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                    <polyline points="10 9 9 9 8 9"></polyline>
-                </svg>
-                Código: {{ req.request_code }}
-            </h1>
-            <div class="request-meta">
-                <span>
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <polyline points="12 6 12 12 16 14"></polyline>
-                    </svg>
-                    Radicada el: <strong class="local-datetime" data-utc="{{ req.created_at.isoformat() }}"
-                        data-format="standard"></strong>
-                </span>
-            </div>
-        </div>
-
-        <div class="request-status-block">
-            <span class="status-badge-lg badge-{{ req.traffic_light_color }}">
-                {% if 'Excedido' in req.traffic_light_text or '+' in req.traffic_light_text or 'Quedan' in
-                req.traffic_light_text %}
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
-                    </path>
-                    <line x1="12" y1="9" x2="12" y2="13"></line>
-                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                </svg>
-                {% else %}
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <polyline points="12 8 12 12 14 15"></polyline>
-                </svg>
-                {% endif %}
-                {{ req.traffic_light_text }}
-            </span>
         </div>
     </div>
 
@@ -545,23 +545,6 @@
                             {{ req.description }}
                         </div>
                     </li>
-                    {% if req.plannings and req.plannings[0].planned_for %}
-                    <li class="info-item" style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed #e2e8f0;">
-                        <span class="info-label"
-                            style="display: flex; align-items: center; justify-content: space-between;">
-                            <span>Fecha de Jornada Agendada</span>
-                            <span id="detail-rescheduled-count-badge" class="badge-reprogrammed"
-                                style="{% if not req.plannings[0].rescheduled_count or req.plannings[0].rescheduled_count == 0 %}display:none;{% endif %} background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">
-                                Reprogramada (<span id="detail-rescheduled-count-num">{{
-                                    req.plannings[0].rescheduled_count }}</span> vez/veces)
-                            </span>
-                        </span>
-                        <strong class="info-value" id="detail-planned-date-display"
-                            style="font-size: 1.05rem; color: #0284c7; display: block; margin-top: 4px;">
-                            {{ req.plannings[0].planned_for.strftime('%d/%m/%Y') }}
-                        </strong>
-                    </li>
-                    {% endif %}
                 </ul>
             </div>
 
