@@ -341,11 +341,11 @@
 }
 
 .sages-state-table tbody tr:nth-child(even) {
-    background-color: #f8fafc;
+    background-color: #eaeded;
 }
 
 .sages-state-table tbody tr:hover {
-    background-color: #f1f5f9;
+    background-color: #dbe2e6;
 }
 
 .sages-state-table td {
@@ -355,35 +355,32 @@
 }
 
 .sages-state-table .action-btn {
-    padding: 6px 14px;
-    border-radius: 8px;
-    border: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    text-decoration: none;
-    font-size: 0.8rem;
-    font-weight: 600;
+    width: 34px !important;
+    height: 34px !important;
+    padding: 0 !important;
+    border-radius: 8px !important;
+    border: 1px solid #bae6fd !important;
+    background: #e0f2fe !important;
+    color: #0284c7 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    text-decoration: none !important;
 }
 
-.sages-state-table .view-btn {
-    background: #e0f2fe;
-    color: #0284c7;
-    border: 1px solid #bae6fd;
+.sages-state-table .action-btn:hover {
+    background: #0284c7 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 8px rgba(2, 132, 199, 0.25) !important;
+    transform: translateY(-1px) !important;
 }
 
-.sages-state-table .view-btn:hover {
-    background: #0284c7;
-    color: #ffffff;
-    box-shadow: 0 4px 8px rgba(2, 132, 199, 0.25);
-    transform: translateY(-1px);
-}
-
-.sages-state-table .view-btn svg {
-    width: 18px;
-    height: 18px;
+.sages-state-table .action-btn svg {
+    width: 18px !important;
+    height: 18px !important;
+    stroke-width: 2.2 !important;
 }
 
 .traffic-badge {

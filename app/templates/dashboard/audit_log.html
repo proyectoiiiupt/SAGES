@@ -163,6 +163,7 @@
             <table class="users-table">
                 <thead>
                     <tr>
+                        <th style="width: 50px; text-align: center;">N°</th>
                         <th>Fecha/Hora</th>
                         <th>Usuario</th>
                         <th>Módulo</th>
@@ -174,7 +175,8 @@
                 </thead>
                 <tbody>
                     {% for log in logs %}
-                    <tr class="{% if loop.index0 % 2 == 0 %}row-odd{% else %}row-even{% endif %}">
+                    <tr>
+                        <td class="code-cell text-muted" style="text-align: center; font-weight: 600;">{{ loop.index }}</td>
                         <td style="font-family: monospace; font-size: 0.85rem;">{{ log.date }}</td>
                         <td>
                             {{ log.user | e }}
@@ -194,15 +196,26 @@
                             </span>
                         </td>
                         <td style="text-align: center;">
-                            <button type="button" class="btn-inspect btn-ver-detalles" data-log-id="{{ log.id }}" title="Ver detalles">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                            <button type="button" class="action-btn view-btn btn-ver-detalles" data-log-id="{{ log.id }}" title="Ver detalles" aria-label="Ver detalles">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
                             </button>
                         </td>
                     </tr>
                 {% else %}
                     <tr>
-                        <td colspan="7" style="text-align: center; padding: 2.5rem; color: #64748b; font-size: 0.95rem;">
-                            No hay registros de auditoría disponibles bajo estos criterios.
+                        <td colspan="8" class="empty-state">
+                            <div class="empty-state-content">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="empty-icon" aria-hidden="true">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                    <line x1="8" y1="11" x2="14" y2="11"></line>
+                                </svg>
+                                <p class="empty-title">No se encontraron registros</p>
+                                <p class="empty-subtitle">No se encontraron registros de auditoría disponibles bajo estos criterios.</p>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -211,11 +224,25 @@
         </div>
         
         <!-- Controles de Paginación -->
-        <div class="pagination-container" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border-top: 1px solid #e2e8f0; background: #f8fafc;">
-            <span style="font-size: 0.85rem; color: #64748b;">Mostrando <span id="page-start">0</span> a <span id="page-end">0</span> de <span id="page-total">0</span> registros</span>
-            <div style="display: flex; gap: 5px;">
-                <button class="btn-page" id="btn-prev" disabled>&laquo; Ant</button>
-                <button class="btn-page" id="btn-next">Sig &raquo;</button>
+        <div class="pagination-container">
+            <div class="pagination-info">
+                <span>Mostrando <span id="page-start">0</span> a <span id="page-end">0</span> de <span id="page-total">0</span> registros</span>
+            </div>
+            <div class="pagination-controls">
+                <div class="pagination-buttons">
+                    <button class="pagination-btn" id="btn-prev" disabled>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                        Anterior
+                    </button>
+                    <button class="pagination-btn" id="btn-next">
+                        Siguiente
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -418,8 +445,16 @@
 
                     if (json.data.length === 0) {
                         tbody.innerHTML = `<tr>
-                            <td colspan="7" style="text-align: center; padding: 2.5rem; color: #64748b; font-size: 0.95rem;">
-                                No hay registros de auditoría disponibles bajo estos criterios.
+                            <td colspan="8" class="empty-state">
+                                <div class="empty-state-content">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="empty-icon" aria-hidden="true">
+                                        <circle cx="11" cy="11" r="8"></circle>
+                                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                        <line x1="8" y1="11" x2="14" y2="11"></line>
+                                    </svg>
+                                    <p class="empty-title">No se encontraron registros</p>
+                                    <p class="empty-subtitle">No se encontraron registros de auditoría disponibles bajo estos criterios.</p>
+                                </div>
                             </td>
                         </tr>`;
                         return;
@@ -427,7 +462,6 @@
 
                     json.data.forEach((log, index) => {
                         const tr = document.createElement('tr');
-                        tr.className = index % 2 === 0 ? 'row-even' : 'row-odd';
                         
                         let statusBadgeClass = 'badge-process';
                         if (log.status === 'Completado') statusBadgeClass = 'badge-completed';
@@ -440,6 +474,7 @@
                         }
 
                         tr.innerHTML = `
+                            <td class="code-cell text-muted" style="text-align: center; font-weight: 600;">${(json.pagination.current_page - 1) * 15 + index + 1}</td>
                             <td style="font-family: monospace; font-size: 0.85rem;">${log.date}</td>
                             <td>${userHtml}</td>
                             <td style="text-transform: uppercase; font-size: 0.8rem;">${log.module}</td>
@@ -447,8 +482,8 @@
                             <td style="color: #475569; max-width: 200px;">${log.desc}</td>
                             <td><span class="${statusBadgeClass}">${log.status}</span></td>
                             <td style="text-align: center;">
-                                <button type="button" class="btn-inspect btn-ver-detalles" data-log-id="${log.id}" title="Ver detalles">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                <button type="button" class="action-btn view-btn btn-ver-detalles" data-log-id="${log.id}" title="Ver detalles" aria-label="Ver detalles">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                                 </button>
                             </td>
                         `;

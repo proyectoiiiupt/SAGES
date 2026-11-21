@@ -138,7 +138,7 @@
                 <tbody>
                     {% if users %}
                         {% for user in users %}
-                        <tr class="{{ loop.cycle('row-even', 'row-odd') }}">
+                        <tr>
                             <td class="text-muted font-medium">{{ (pagination.page - 1) * 10 + loop.index }}</td>
                             
                             <td class="font-medium">
@@ -192,8 +192,11 @@
                             </td>
                             
                             <td class="text-center">
-                                <a href="{{ url_for('users.view_user', user_id=user.id) }}" class="btn-view">
-                                    Ver
+                                <a href="{{ url_for('users.view_user', user_id=user.id) }}" class="action-btn view-btn" title="Ver detalles" aria-label="Ver detalles">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
                                 </a>
                             </td>
                         </tr>
@@ -201,13 +204,15 @@
                     {% else %}
                         <tr>
                             <td colspan="7" class="empty-state">
-                                <span class="empty-icon" aria-hidden="true">
-                                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                                <div class="empty-state-content">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="empty-icon" aria-hidden="true">
                                         <circle cx="11" cy="11" r="8"></circle>
                                         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                        <line x1="8" y1="11" x2="14" y2="11"></line>
                                     </svg>
-                                </span>
-                                <strong>No se encontraron registros</strong>
+                                    <p class="empty-title">No se encontraron registros</p>
+                                    <p class="empty-subtitle">No se encontraron coincidencias para los criterios aplicados.</p>
+                                </div>
                             </td>
                         </tr>
                     {% endif %}
@@ -216,22 +221,50 @@
         </div>
 
         <!-- Paginación -->
-        {% if pagination and pagination.pages > 1 %}
-        <div class="pagination-wrapper">
+        {% if pagination and pagination.total > 0 %}
+        <div class="pagination-container">
             <div class="pagination-info">
-                Mostrando página {{ pagination.page }} de {{ pagination.pages }}
+                <span>
+                    Mostrando registros {{ (pagination.page - 1) * pagination.per_page + 1 }}-{% if pagination.page * pagination.per_page < pagination.total %}{{ pagination.page * pagination.per_page }}{% else %}{{ pagination.total }}{% endif %} de {{ pagination.total }} registros
+                </span>
             </div>
             
             <div class="pagination-controls">
-                {% if pagination.has_prev %}
-                    <a href="{{ url_for('users.list_users', page=pagination.prev_num, search=filters.search, status=filters.status, state=filters.state, role=filters.role, municipality=filters.municipality, parish=filters.parish) }}" class="page-link">&lt;&lt;</a>
-                {% endif %}
-                
-                <span class="page-current">{{ pagination.page }}</span>
+                <div class="pagination-buttons">
+                    <button type="button"
+                            class="pagination-btn"
+                            {% if not pagination.has_prev %}disabled{% endif %}
+                            onclick="goToPage({{ pagination.prev_num if pagination.has_prev else 1 }})">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                        Anterior
+                    </button>
 
-                {% if pagination.has_next %}
-                    <a href="{{ url_for('users.list_users', page=pagination.next_num, search=filters.search, status=filters.status, state=filters.state, role=filters.role, municipality=filters.municipality, parish=filters.parish) }}" class="page-link">&gt;&gt;</a>
-                {% endif %}
+                    <div class="page-numbers">
+                        {% for p in range(1, pagination.pages + 1) %}
+                            {% if p == 1 or p == pagination.pages or (p >= pagination.page - 1 and p <= pagination.page + 1) %}
+                                <button type="button"
+                                        class="page-number {% if p == pagination.page %}active{% endif %}"
+                                        onclick="goToPage({{ p }})">
+                                    {{ p }}
+                                </button>
+                            {% elif p == pagination.page - 2 or p == pagination.page + 2 %}
+                                <span class="page-ellipsis">...</span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+
+                    <button type="button"
+                            class="pagination-btn"
+                            {% if not pagination.has_next %}disabled{% endif %}
+                            onclick="goToPage({{ pagination.next_num if pagination.has_next else pagination.pages }})">
+                        Siguiente
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </div>
         {% endif %}

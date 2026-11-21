@@ -190,14 +190,19 @@
 
 .users-table tbody tr {
     border-bottom: 1px solid #e2e8f0;
+    transition: background-color 0.2s ease;
 }
 
-.row-even {
-    background-color: #eaeded;
+.users-table tbody tr:nth-child(odd) {
+    background-color: #ffffff !important;
 }
 
-.row-odd {
-    background-color: #ffffff;
+.users-table tbody tr:nth-child(even) {
+    background-color: #eaeded !important;
+}
+
+.users-table tbody tr:hover {
+    background-color: #dbe2e6 !important;
 }
 
 .users-table td {
@@ -260,68 +265,29 @@
 }
 
 .btn-view {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: 1px solid #bae6fd;
     background: #e0f2fe;
     color: #0284c7;
-    padding: 0.25rem 0.8rem;
-    border-radius: 50px;
-    text-decoration: none;
-    font-size: 0.8rem;
-    font-weight: bold;
-    display: inline-block;
-}
-
-/* Estado Vacío (Sin resultados) */
-.empty-state {
-    padding: 4rem 1.5rem !important;
-    text-align: center;
-    color: #94a3b8;
-}
-
-.empty-icon {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 0.5rem;
-    color: #94a3b8;
-}
-
-/* Paginación */
-.pagination-wrapper {
-    padding: 1rem 1.5rem;
-    background: #ffffff;
-    border-top: 1px solid #e2e8f0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.pagination-info {
-    font-size: 0.85rem;
-    color: #64748b;
-}
-
-.pagination-controls {
-    display: flex;
-    gap: 0.3rem;
-}
-
-.page-link {
-    padding: 0.35rem 0.75rem;
-    border: 1px solid #e2e8f0;
-    border-radius: 4px;
     text-decoration: none;
-    color: #334155;
-    font-size: 0.85rem;
-    background: white;
+    transition: all 0.2s ease;
 }
 
-.page-current {
-    padding: 0.35rem 0.75rem;
-    background: #00cc99;
-    color: white;
-    border-radius: 4px;
-    font-size: 0.85rem;
-    font-weight: bold;
+.btn-view:hover {
+    background: #0284c7;
+    color: #ffffff;
+    box-shadow: 0 4px 8px rgba(2, 132, 199, 0.25);
+    transform: translateY(-1px);
+}
+
+.btn-view svg {
+    width: 18px;
+    height: 18px;
 }
 
 /* Alineación para el ícono del calendario */

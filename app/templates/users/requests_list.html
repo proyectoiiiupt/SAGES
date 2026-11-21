@@ -59,7 +59,7 @@
                 <tbody>
                     {% if requests %}
                         {% for req in requests %}
-                        <tr class="{{ loop.cycle('row-even', 'row-odd') }}">
+                        <tr>
                             <td class="text-muted font-medium">{{ loop.index }}</td>
                             
                             <!-- Nombre y Apellido (Unificados) -->
@@ -91,9 +91,12 @@
                                 <div style="display: flex; justify-content: center; align-items: center; gap: 8px;">
                                     
                                     <!-- BOTÓN VER -->
-                                    <button type="button" class="btn-clear" style="padding: 6px 12px; font-size: 13px; border: 1px solid #94a3b8; border-radius: 6px; cursor: pointer; background-color: white; color: #334155; display: flex; align-items: center; gap: 6px;" 
+                                    <button type="button" class="action-btn view-btn" title="Ver evidencias" aria-label="Ver evidencias"
                                             onclick="abrirModalEvidencia('{{ req.id }}')">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Ver
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                            <circle cx="12" cy="12" r="3"></circle>
+                                        </svg>
                                     </button>
                             
                                     <!-- 2. BOTÓN APROBAR: Bloqueado por defecto -->
@@ -115,12 +118,15 @@
                     {% else %}
                         <tr>
                             <td colspan="6" class="empty-state">
-                                <span class="empty-icon" aria-hidden="true">
-                                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                                <div class="empty-state-content">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="empty-icon" aria-hidden="true">
+                                        <circle cx="11" cy="11" r="8"></circle>
+                                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                        <line x1="8" y1="11" x2="14" y2="11"></line>
                                     </svg>
-                                </span>
-                                <strong>No hay solicitudes pendientes.</strong>
+                                    <p class="empty-title">No hay solicitudes pendientes</p>
+                                    <p class="empty-subtitle">Actualmente no existen solicitudes de registro pendientes de aprobación.</p>
+                                </div>
                             </td>
                         </tr>
                     {% endif %}

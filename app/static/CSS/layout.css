@@ -646,3 +646,345 @@ body {
     background-color: #b91c1c !important;
     transform: translateY(-1px) !important;
 }
+
+
+/* ==========================================================================
+   ESTANDARIZACIÓN GLOBAL DE TABLAS, PAGINACIÓN Y ESTADO VACÍO (SAGES)
+   Basado en el formato de la vista tabular de Gestión de Temas Formativos
+   ========================================================================== */
+
+/* Contenedores de tabla */
+.table-container,
+.table-card {
+    background: #f9fafb;
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    margin-bottom: 2rem;
+}
+
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+}
+
+/* Formato tabular estándar */
+.trainings-table,
+.users-table,
+.institutions-table,
+.config-table,
+.sages-state-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 0.9rem;
+}
+
+.trainings-table thead tr,
+.users-table thead tr,
+.institutions-table thead tr,
+.config-table thead tr,
+.sages-state-table thead tr,
+.institutions-table thead {
+    background: #f8fafc !important;
+    border-bottom: 2px solid #e2e8f0 !important;
+}
+
+.trainings-table th,
+.users-table th,
+.institutions-table th,
+.config-table th,
+.sages-state-table th {
+    padding: 1rem 1.25rem;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: #475569 !important;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    white-space: nowrap;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.trainings-table tbody tr,
+.users-table tbody tr,
+.institutions-table tbody tr,
+.config-table tbody tr,
+.sages-state-table tbody tr {
+    border-bottom: 1px solid #e2e8f0;
+    transition: background-color 0.2s ease;
+}
+
+.trainings-table tbody tr:nth-child(odd),
+.users-table tbody tr:nth-child(odd),
+.institutions-table tbody tr:nth-child(odd),
+.config-table tbody tr:nth-child(odd),
+.sages-state-table tbody tr:nth-child(odd) {
+    background-color: #ffffff !important;
+}
+
+.trainings-table tbody tr:nth-child(even),
+.users-table tbody tr:nth-child(even),
+.institutions-table tbody tr:nth-child(even),
+.config-table tbody tr:nth-child(even),
+.sages-state-table tbody tr:nth-child(even) {
+    background-color: #eaeded !important;
+}
+
+.trainings-table tbody tr:hover,
+.users-table tbody tr:hover,
+.institutions-table tbody tr:hover,
+.config-table tbody tr:hover,
+.sages-state-table tbody tr:hover {
+    background-color: #dbe2e6 !important;
+}
+
+.trainings-table td,
+.users-table td,
+.institutions-table td,
+.config-table td,
+.sages-state-table td {
+    padding: 1rem 1.25rem;
+    vertical-align: middle;
+    color: #334155;
+}
+
+.trainings-table .code-cell,
+.users-table .code-cell,
+.institutions-table .code-cell {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+/* Botón de acción 'Ver' estándar con icono SVG */
+.action-btn {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 8px !important;
+    border: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
+    transition: all 0.2s ease !important;
+}
+
+.action-btn.view-btn,
+.view-btn,
+.btn-view {
+    background: #e0f2fe !important;
+    color: #0284c7 !important;
+    border: 1px solid #bae6fd !important;
+}
+
+.action-btn.view-btn:hover,
+.view-btn:hover,
+.btn-view:hover {
+    background: #0284c7 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 8px rgba(2, 132, 199, 0.25) !important;
+    transform: translateY(-1px) !important;
+}
+
+.action-btn svg,
+.view-btn svg,
+.btn-view svg {
+    width: 18px !important;
+    height: 18px !important;
+    stroke-width: 2.2 !important;
+}
+
+/* Badges de Estatus Estándar */
+.status-badge {
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
+    padding: 4px 10px !important;
+    border-radius: 20px !important;
+    display: inline-block !important;
+    white-space: nowrap !important;
+}
+
+.status-STAT-001,
+.status-active {
+    background: #dcfce7 !important;
+    color: #15803d !important;
+    border: 1px solid #bbf7d0 !important;
+}
+
+.status-STAT-002,
+.status-inactive {
+    background: #fee2e2 !important;
+    color: #b91c1c !important;
+    border: 1px solid #fecaca !important;
+}
+
+.status-STAT-006,
+.status-pending {
+    background: #fef3c7 !important;
+    color: #b45309 !important;
+    border: 1px solid #fde68a !important;
+}
+
+/* Estado Vacío / Sin Resultados Estandarizado */
+.empty-state {
+    padding: 4.5rem 1.5rem !important;
+    text-align: center !important;
+}
+
+.empty-state-content {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.empty-icon {
+    width: 48px !important;
+    height: 48px !important;
+    color: #94a3b8 !important;
+    margin-bottom: 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.empty-title {
+    font-size: 1.1rem !important;
+    font-weight: 700 !important;
+    color: #334155 !important;
+    margin-bottom: 4px !important;
+}
+
+.empty-subtitle {
+    font-size: 0.88rem !important;
+    color: #64748b !important;
+    margin: 0 !important;
+}
+
+/* ── CONTROLES DE PAGINACIÓN ESTANDARIZADOS ─────────────────────────── */
+.pagination-container,
+.pagination-wrapper {
+    padding: 1.25rem 1.5rem !important;
+    background: #ffffff !important;
+    border-top: 1px solid #e2e8f0 !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 1rem !important;
+}
+
+.pagination-info {
+    font-size: 0.85rem !important;
+    color: #64748b !important;
+    font-weight: 500 !important;
+}
+
+.pagination-controls {
+    display: flex !important;
+    align-items: center !important;
+}
+
+.pagination-buttons {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.4rem !important;
+}
+
+.pagination-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 0.45rem 0.85rem !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    background: #ffffff !important;
+    color: #334155 !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    text-decoration: none !important;
+}
+
+.pagination-btn svg {
+    width: 15px !important;
+    height: 15px !important;
+}
+
+.pagination-btn:hover:not(:disabled):not(.disabled) {
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+    color: #007865 !important;
+}
+
+.pagination-btn:disabled,
+.pagination-btn.disabled,
+.pagination-btn[disabled] {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    background: #ffffff !important;
+    color: #94a3b8 !important;
+    border-color: #e2e8f0 !important;
+}
+
+.page-numbers {
+    display: flex !important;
+    gap: 0.3rem !important;
+    align-items: center !important;
+}
+
+.page-number {
+    min-width: 34px !important;
+    height: 34px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    background: #ffffff !important;
+    color: #334155 !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    text-decoration: none !important;
+}
+
+.page-number:hover:not(.active) {
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+}
+
+.page-number.active {
+    background: #007865 !important;
+    color: #ffffff !important;
+    border-color: #007865 !important;
+    box-shadow: 0 2px 6px rgba(0, 120, 101, 0.25) !important;
+}
+
+.page-ellipsis {
+    color: #94a3b8 !important;
+    padding: 0 4px !important;
+    font-weight: bold !important;
+}
+
+@media (max-width: 768px) {
+    .pagination-container,
+    .pagination-wrapper {
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 1rem !important;
+    }
+
+    .pagination-controls {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+
+    .pagination-buttons {
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+    }
+}
