@@ -22,7 +22,39 @@
     document.addEventListener('DOMContentLoaded', function () {
         fetchModuleCounts();
         initCardClickNavigation();
+        initRegisterDropdown();
     });
+
+    /**
+     * Inicializa el comportamiento interactivo del dropdown 'Registrar Nuevo'
+     * en la barra de acciones del catálogo.
+     */
+    function initRegisterDropdown() {
+        const dropdown = document.getElementById('hub-register-dropdown');
+        const toggleBtn = document.getElementById('btn-register-dropdown');
+        if (!dropdown || !toggleBtn) return;
+
+        toggleBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const isOpen = dropdown.classList.toggle('active');
+            toggleBtn.setAttribute('aria-expanded', String(isOpen));
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!dropdown.contains(e.target)) {
+                dropdown.classList.remove('active');
+                toggleBtn.setAttribute('aria-expanded', 'false');
+            }
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && dropdown.classList.contains('active')) {
+                dropdown.classList.remove('active');
+                toggleBtn.setAttribute('aria-expanded', 'false');
+                toggleBtn.focus();
+            }
+        });
+    }
 
     /**
      * Permite que toda la tarjeta de módulo sea interactiva y navegue

@@ -238,40 +238,141 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
 }
 
-/* Variante: importar */
+/* Variante: importar (estilo institucional secundario estilizado) */
 .hub-btn-import {
-    background: #fef3c7;
-    color: #92400e;
-    border: 1px solid #fde68a;
+    background: #ffffff;
+    color: #007865;
+    border: 1.5px solid #007865;
+    font-weight: 600;
+}
+
+.hub-btn-import svg {
+    color: #007865;
 }
 
 .hub-btn-import:hover {
-    background: #fde68a;
-    box-shadow: 0 2px 8px rgba(251, 191, 36, 0.25);
+    background: #f0fdf4;
+    color: #005a4c;
+    border-color: #005a4c;
+    box-shadow: 0 4px 12px rgba(0, 120, 101, 0.18);
+    transform: translateY(-1px);
 }
 
 /* Variante: nuevo módulo (secundario) */
 .hub-btn-secondary {
-    background: #f0f7ff;
-    color: #0369a1;
-    border: 1px solid #bae6fd;
+    background: #f8fafc;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+    font-weight: 600;
 }
 
 .hub-btn-secondary:hover {
-    background: #e0f2fe;
-    box-shadow: 0 2px 8px rgba(56, 189, 248, 0.25);
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #94a3b8;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-/* Variante: nuevo tema (primario, gradiente) */
+/* Variante: nuevo tema / registrar (primario institucional estándar) */
 .hub-btn-primary {
-    background: linear-gradient(135deg, var(--btn-gradient-start, #1c3d73) 0%, var(--btn-gradient-end, #1fcab0) 100%);
+    background: linear-gradient(135deg, #007865 0%, #10b981 100%);
     color: #ffffff;
-    box-shadow: 0 3px 12px rgba(31, 202, 176, 0.30);
+    border: 1px solid transparent;
+    font-weight: 600;
+    box-shadow: 0 3px 12px rgba(16, 185, 129, 0.30);
 }
 
 .hub-btn-primary:hover {
-    box-shadow: 0 6px 18px rgba(31, 202, 176, 0.40);
-    filter: brightness(1.06);
+    background: linear-gradient(135deg, #006956 0%, #059669 100%);
+    box-shadow: 0 6px 18px rgba(16, 185, 129, 0.40);
+    filter: brightness(1.03);
+    transform: translateY(-1px);
+}
+
+/* ── DROPDOWN UNIFICADO REGISTRAR NUEVO ──────────────────────────────── */
+.hub-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.hub-dropdown-toggle {
+    cursor: pointer;
+    user-select: none;
+}
+
+.hub-dropdown-toggle .chevron-icon {
+    width: 15px;
+    height: 15px;
+    transition: transform 0.22s ease;
+    margin-left: 2px;
+}
+
+.hub-dropdown.active .hub-dropdown-toggle .chevron-icon {
+    transform: rotate(180deg);
+}
+
+.hub-dropdown-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: #ffffff;
+    min-width: 245px;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04);
+    padding: 8px;
+    z-index: 1050;
+    animation: hubDropdownFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hub-dropdown.active .hub-dropdown-menu {
+    display: block;
+}
+
+@keyframes hubDropdownFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.hub-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    color: #1e293b;
+    text-decoration: none;
+    font-size: 0.92rem;
+    font-weight: 500;
+    border-radius: 10px;
+    transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.hub-dropdown-item:hover {
+    background-color: #f0fdf4;
+    color: #007865;
+    text-decoration: none;
+    transform: translateX(2px);
+}
+
+.hub-dropdown-item svg {
+    width: 18px;
+    height: 18px;
+    color: #007865;
+    flex-shrink: 0;
+}
+
+.hub-dropdown-divider {
+    height: 1px;
+    background: #f1f5f9;
+    margin: 6px 4px;
 }
 
 /* Separador vertical en la barra */
@@ -2309,11 +2410,12 @@
    VISTA DETALLE DE FORMACIÓN (FICHA TÉCNICA)
    ========================================================================== */
 
-   .training-detail-card {
+.training-detail-card {
     border-radius: 12px;
     overflow: hidden;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05) !important;
-    border-top: 5px solid #007865; /* Color institucional basado en tu CSS actual */
+    border-top: 5px solid #007865;
+    /* Color institucional basado en tu CSS actual */
 }
 
 .training-title {
@@ -2361,7 +2463,7 @@
     border: 1px solid #e2e8f0;
     background: linear-gradient(145deg, #ffffff, #f8fafc);
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.03);
-    border-left: 4px solid #007865; 
+    border-left: 4px solid #007865;
     border-radius: 12px;
     transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
@@ -2378,8 +2480,8 @@
 }
 
 .impact-number {
-    color: #007865; 
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.02);
+    color: #007865;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .btn-volver {
@@ -2424,7 +2526,8 @@
     padding: 24px;
     font-family: system-ui, -apple-system, sans-serif;
     color: #333;
-    background-color: var(--hub-page-bg, #f4f7f6); /* Contraste fundamental */
+    background-color: var(--hub-page-bg, #f4f7f6);
+    /* Contraste fundamental */
     min-height: 100vh;
 }
 
@@ -2553,9 +2656,10 @@
 .layout-dos-columnas {
     display: grid;
     /* Divide el espacio: 2 fracciones para la izquierda, 1 fracción para la derecha */
-    grid-template-columns: 2fr 1fr; 
+    grid-template-columns: 2fr 1fr;
     gap: 24px;
-    align-items: start; /* Evita que las tarjetas se estiren verticalmente de forma irregular */
+    align-items: start;
+    /* Evita que las tarjetas se estiren verticalmente de forma irregular */
 }
 
 /* Espaciado interno de las columnas */
@@ -2593,10 +2697,11 @@
     .layout-dos-columnas {
         grid-template-columns: 1fr;
     }
-    
+
     /* Cambia el orden para que en móviles el badge y las métricas salgan arriba o abajo según prefieras */
     .columna-lateral {
-        order: -1; /* Pone la columna lateral (badge) arriba en móviles */
+        order: -1;
+        /* Pone la columna lateral (badge) arriba en móviles */
     }
 
     .impact-metric-box {

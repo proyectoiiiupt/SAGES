@@ -4,207 +4,8 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/trainings.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/training_new.css') }}">
 <style>
-    /* Estructura general de página para alineación a la izquierda total */
-    .module-page-wrapper {
-        padding: 1.25rem 2.25rem 3.5rem 2.25rem;
-        min-height: calc(100vh - var(--topbar-height, 70px));
-        background-color: var(--hub-page-bg, #f4f7f6);
-    }
-
-    .page-top-actions {
-        width: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        margin-bottom: 1rem;
-    }
-
-    .back-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.65rem 1.4rem;
-        background-color: #6c757d;
-        color: #ffffff;
-        border-radius: 6px;
-        text-decoration: none;
-        font-weight: 600;
-        font-size: 1.05rem;
-        transition: background-color 0.2s ease, transform 0.2s ease;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
-    }
-
-    .back-btn:hover {
-        background-color: #5a6268;
-        transform: translateY(-1px);
-        color: #ffffff;
-        text-decoration: none;
-    }
-
-    .back-btn svg {
-        width: 19px;
-        height: 19px;
-    }
-
-    .module-form-container {
-        max-width: 960px;
-        margin: 0 auto;
-        padding: 0;
-    }
-
-    .module-form-card {
-        background: #ffffff;
-        border-radius: 20px;
-        border: 1px solid #cbd5e1;
-        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.07);
-        overflow: hidden;
-    }
-
-    .module-form-header {
-        padding: 2.25rem 2.5rem;
-        border-bottom: 1px solid #e2e8f0;
-        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-    }
-
-    .module-form-title {
-        font-size: 1.85rem;
-        font-weight: 800;
-        color: #0f172a;
-        margin: 0 0 0.5rem 0;
-        display: flex;
-        align-items: center;
-        gap: 0.85rem;
-        letter-spacing: -0.02em;
-    }
-
-    .module-form-title svg {
-        width: 32px;
-        height: 32px;
-        color: #0d9488;
-    }
-
-    .module-form-subtitle {
-        font-size: 1.15rem;
-        color: #475569;
-        margin: 0;
-        line-height: 1.5;
-        font-weight: 400;
-    }
-
-    .module-form-body {
-        padding: 2.5rem;
-    }
-
-    .form-grid {
-        display: flex;
-        flex-direction: column;
-        gap: 2rem;
-        margin-bottom: 2rem;
-    }
-
-    .form-group-custom {
-        display: flex;
-        flex-direction: column;
-        gap: 0.65rem;
-    }
-
-    .form-group-custom label {
-        font-size: 1.15rem;
-        font-weight: 700;
-        color: #0f172a;
-        letter-spacing: -0.01em;
-    }
-
-    .form-group-custom .required-mark {
-        color: #dc2626;
-        font-weight: 700;
-        margin-left: 0.25rem;
-    }
-
-    .form-input-custom,
-    .form-textarea-custom {
-        width: 100%;
-        padding: 0.95rem 1.25rem;
-        font-size: 1.15rem;
-        color: #0f172a;
-        background-color: #ffffff;
-        border: 2px solid #cbd5e1;
-        border-radius: 12px;
-        transition: all 0.2s ease;
-        outline: none;
-        box-sizing: border-box;
-        line-height: 1.5;
-        font-family: inherit;
-    }
-
-    .form-input-custom::placeholder,
-    .form-textarea-custom::placeholder {
-        color: #94a3b8;
-        font-size: 1.05rem;
-    }
-
-    .form-input-custom:focus,
-    .form-textarea-custom:focus {
-        border-color: #0d9488;
-        box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.18);
-    }
-
-    .form-input-custom.is-invalid,
-    .form-textarea-custom.is-invalid {
-        border-color: #ef4444;
-        background-color: #fef2f2;
-    }
-
-    .form-helper-text {
-        font-size: 0.95rem;
-        color: #475569;
-        margin-top: 0.25rem;
-        line-height: 1.4;
-    }
-
-    .form-error-feedback {
-        font-size: 0.95rem;
-        color: #dc2626;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 0.45rem;
-        margin-top: 0.35rem;
-    }
-
-    .form-actions-bar {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 1.25rem;
-        padding-top: 2rem;
-        margin-top: 2rem;
-        border-top: 1px solid #e2e8f0;
-    }
-
-    .btn-action-submit {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.65rem;
-        padding: 0.9rem 2rem;
-        font-size: 1.15rem;
-        font-weight: 700;
-        color: #ffffff;
-        background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
-        border: none;
-        border-radius: 12px;
-        cursor: pointer;
-        box-shadow: 0 4px 12px rgba(13, 148, 136, 0.35);
-        transition: all 0.2s ease;
-    }
-
-    .btn-action-submit:hover {
-        background: linear-gradient(135deg, #115e59 0%, #0f766e 100%);
-        box-shadow: 0 6px 16px rgba(13, 148, 136, 0.45);
-        transform: translateY(-1px);
-    }
-
     /* Toggle de Estatus Operativo del Módulo */
     .module-toggle-section {
         display: flex;
@@ -378,7 +179,30 @@
 {% block content %}
 <div class="module-page-wrapper">
 
-    {# Barra superior: botón a la izquierda total #}
+    {# Barra superior estándar del sistema #}
+    <div class="page-header">
+        <div class="page-title">
+            Editar Módulo Rector
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+        </div>
+        
+        <div class="page-actions">
+            <div class="page-date">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <span id="current-date"></span>
+            </div>
+        </div>
+    </div>
+
+    {# Botón volver #}
     <div class="page-top-actions">
         <a href="{{ url_for('trainings.index') }}" class="back-btn" id="btn-back-to-catalog">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -547,6 +371,17 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // 0. Formateo de fecha dinámica en el banner
+    const dateSpan = document.getElementById('current-date');
+    if (dateSpan) {
+        if (typeof formatCurrentDate === 'function') {
+            formatCurrentDate(dateSpan, 'full-date');
+        } else {
+            const options = { day: 'numeric', month: 'long', year: 'numeric' };
+            dateSpan.textContent = new Date().toLocaleDateString('es-VE', options);
+        }
+    }
+
     const form        = document.getElementById('form-edit-module');
     const nameInput   = document.getElementById('{{ form.name.id }}');
     const descInput   = document.getElementById('{{ form.description.id }}');
@@ -602,7 +437,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     title: 'Campo obligatorio',
                     text: 'Por favor, ingresa el nombre del Módulo Rector.',
                     icon: 'warning',
-                    confirmButtonColor: '#0d9488',
+                    confirmButtonColor: '#007865',
                     confirmButtonText: 'Entendido'
                 }).then(() => { if (nameInput) nameInput.focus(); });
                 return;
@@ -613,7 +448,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     title: 'Nombre muy corto',
                     text: 'El nombre del módulo rector debe tener al menos 3 caracteres.',
                     icon: 'warning',
-                    confirmButtonColor: '#0d9488',
+                    confirmButtonColor: '#007865',
                     confirmButtonText: 'Entendido'
                 }).then(() => { if (nameInput) nameInput.focus(); });
                 return;
@@ -624,7 +459,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     title: 'Campo obligatorio',
                     text: 'Por favor, ingresa una descripción para el Módulo Rector.',
                     icon: 'warning',
-                    confirmButtonColor: '#0d9488',
+                    confirmButtonColor: '#007865',
                     confirmButtonText: 'Entendido'
                 }).then(() => { if (descInput) descInput.focus(); });
                 return;
@@ -635,7 +470,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     title: 'Descripción muy corta',
                     text: 'La descripción debe tener al menos 10 caracteres para explicar el alcance del módulo.',
                     icon: 'warning',
-                    confirmButtonColor: '#0d9488',
+                    confirmButtonColor: '#007865',
                     confirmButtonText: 'Entendido'
                 }).then(() => { if (descInput) descInput.focus(); });
                 return;
@@ -646,7 +481,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 text: '¿Deseas guardar los cambios en este Módulo Rector?',
                 icon: 'question',
                 showCancelButton: true,
-                confirmButtonColor: '#0d9488',
+                confirmButtonColor: '#007865',
                 cancelButtonColor: '#64748b',
                 confirmButtonText: 'Sí, guardar',
                 cancelButtonText: 'Revisar'

@@ -66,49 +66,67 @@
             {% if is_super_admin %}
             <div class="hub-actions-separator" aria-hidden="true"></div>
 
-            {# Importación Masiva #}
-            <a href="{{ url_for('trainings.bulk_upload_view') }}"
-               id="btn-bulk-import"
-               class="hub-btn hub-btn-import"
-               title="Importación Masiva desde CSV/Excel"
-               aria-label="Importación Masiva de Temas Formativos">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <polyline points="16 16 12 12 8 16"/>
-                    <line x1="12" y1="12" x2="12" y2="21"/>
-                    <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
-                </svg>
-                Importación Masiva
-            </a>
-
-            {# Nuevo Módulo Rector #}
-            <a href="{{ url_for('trainings.new_module') }}"
-               id="btn-new-module"
-               class="hub-btn hub-btn-secondary"
-               title="Crear un nuevo Módulo Rector"
-               aria-label="Agregar Nuevo Módulo Rector">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="12" y1="8" x2="12" y2="16"/>
-                    <line x1="8" y1="12" x2="16" y2="12"/>
-                </svg>
-                Módulo Rector
-            </a>
-
-            {# Nuevo Tema (acción primaria) #}
-            <a href="{{ url_for('trainings.new_training') }}"
-               id="btn-new-topic"
-               class="hub-btn hub-btn-primary"
-               title="Crear un nuevo Tema Formativo"
-               aria-label="Agregar Nuevo Tema Formativo">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <line x1="12" y1="5" x2="12" y2="19"/>
-                    <line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-                Nuevo Tema
-            </a>
+            {# Registrar Nuevo (Dropdown unificado con Temas, Módulos e Importación Masiva) #}
+            <div class="hub-dropdown" id="hub-register-dropdown">
+                <button type="button"
+                        id="btn-register-dropdown"
+                        class="hub-btn hub-btn-primary hub-dropdown-toggle"
+                        aria-expanded="false"
+                        aria-haspopup="true"
+                        title="Opciones para registrar nuevo elemento">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="12" y1="5" x2="12" y2="19"/>
+                        <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                    <span>Registrar Nuevo</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                         stroke-linecap="round" stroke-linejoin="round" class="chevron-icon" aria-hidden="true">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </button>
+                <div class="hub-dropdown-menu" id="hub-register-menu" role="menu">
+                    <a href="{{ url_for('trainings.new_training') }}"
+                       id="btn-new-topic"
+                       class="hub-dropdown-item"
+                       role="menuitem"
+                       title="Crear un nuevo Tema Formativo">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                        </svg>
+                        <span>Nuevo Tema Formativo</span>
+                    </a>
+                    <a href="{{ url_for('trainings.new_module') }}"
+                       id="btn-new-module"
+                       class="hub-dropdown-item"
+                       role="menuitem"
+                       title="Crear un nuevo Módulo Rector">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="8" x2="12" y2="16"/>
+                            <line x1="8" y1="12" x2="16" y2="12"/>
+                        </svg>
+                        <span>Nuevo Módulo Rector</span>
+                    </a>
+                    <div class="hub-dropdown-divider" aria-hidden="true"></div>
+                    <a href="{{ url_for('trainings.bulk_upload_view') }}"
+                       id="btn-bulk-import"
+                       class="hub-dropdown-item"
+                       role="menuitem"
+                       title="Importación masiva desde archivo Excel">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="16 16 12 12 8 16"/>
+                            <line x1="12" y1="12" x2="12" y2="21"/>
+                            <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+                        </svg>
+                        <span>Importación Masiva (Excel)</span>
+                    </a>
+                </div>
+            </div>
             {% endif %}
 
         </div>
