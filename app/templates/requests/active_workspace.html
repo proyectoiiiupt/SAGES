@@ -24,8 +24,92 @@
     data-has-photo="{{ 'true' if ctx.evidence_metrics.has_photo_evidence else 'false' }}"
     data-has-pdf="{{ 'true' if ctx.evidence_metrics.has_pdf_evidence else 'false' }}">
 
-    <!-- 1. BANNER PRINCIPAL (Exactamente el mismo de state_request_detail.html) -->
-    <div class="detail-main-header status-border-{{ req.traffic_light_color }}">
+    <!-- 1. CABECERA CLÁSICA ESTÁNDAR SAGES -->
+    <div class="dashboard-banner">
+        <div class="banner-date">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span id="current-date-display"></span>
+        </div>
+        <div class="banner-title">
+            Espacio de Trabajo Activo
+        </div>
+    </div>
+
+    <!-- 2. BARRA DE ACCIONES UNIFICADA (Debajo de la cabecera) -->
+    <div class="ws-actions-toolbar">
+        <!-- Izquierda: Botón Volver -->
+        <div class="ws-toolbar-left">
+            <a href="{{ url_for('requests.state_request_detail', id=req.id) }}" class="ws-btn-volver">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                <span>Volver</span>
+            </a>
+        </div>
+
+        <!-- Derecha: Todas las acciones de gestión unificadas -->
+        <div class="ws-toolbar-right">
+            {% if req.has_delay_block and is_owner %}
+            <button type="button" id="btn-open-sla-gate" class="btn-action-danger" data-request-id="{{ req.id }}">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                    </path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                Justificar Retraso
+            </button>
+            {% endif %}
+
+            <button type="button" class="ws-action-btn" id="btn-toggle-bitacora"
+                title="Abrir bitácora de novedades y seguimiento">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <span>Bitácora de Campo</span>
+                <span class="ws-counter-pill" id="ws-topbar-note-count">{{ ctx.tracking_steps|length if ctx and
+                    ctx.tracking_steps else 0 }}</span>
+            </button>
+
+            {% if is_owner %}
+            <button type="button" class="ws-btn-reprogramar ws-btn-reprogramar-top" id="btn-open-reschedule-modal"
+                data-request-id="{{ req.id }}" {% if (ctx.facilitator_data.rescheduled_count or 0)>= 2
+                %}disabled title="Límite de reprogramaciones alcanzado (2/2)"{% endif %}>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span>{{ 'Planificar' if req.status.status_code == 'STAT-004' else 'Reprogramar' }}</span>
+            </button>
+            {% endif %}
+
+            {% if is_owner and req.status.status_code in ['STAT-005', 'STAT-006'] and not req.historical %}
+            <button type="button" class="ws-btn-cancel-outline" id="openCancellationModalBtn"
+                data-request-id="{{ req.id }}">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
+                <span>Cancelar Solicitud</span>
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 3. BANNER DE IDENTIFICACIÓN DEL EXPEDIENTE (Código, Radicación y Semáforo) -->
+    <div class="detail-main-header status-border-{{ req.traffic_light_color }} ws-detail-banner">
         <div class="request-id-block">
             <h1>
                 <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#019577" stroke-width="2"
@@ -71,44 +155,32 @@
         </div>
     </div>
 
-    <!-- 2. BARRA DE BOTONES DEBAJO Y FUERA DEL BANNER -->
-    <div class="ws-actions-toolbar">
-        <!-- Izquierda: Botón Volver -->
-        <div class="ws-toolbar-left">
-            <a href="{{ url_for('requests.state_request_detail', id=req.id) }}" class="ws-btn-volver">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="19" y1="12" x2="5" y2="12"></line>
-                    <polyline points="12 19 5 12 12 5"></polyline>
-                </svg>
-                <span>Volver</span>
-            </a>
+    <!-- 4. FRANJA COMPACTA DE ESTADO OPERATIVO Y SLA -->
+    <div class="ws-status-strip">
+        <div class="ws-strip-cell">
+            <span class="ws-strip-label">Estado Actual</span>
+            <div class="ws-strip-val-row">
+                <span class="ws-strip-status-pill">{{ req.status.status_name }}</span>
+            </div>
         </div>
-
-        <!-- Derecha: Botón Mágico Justificar Retraso (si aplica) + Bitácora de Campo -->
-        <div class="ws-toolbar-right">
-            {% if req.has_delay_block and is_owner %}
-            <button type="button" id="btn-open-sla-gate" class="btn-action-danger" data-request-id="{{ req.id }}">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
-                    </path>
-                    <line x1="12" y1="9" x2="12" y2="13"></line>
-                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                </svg>
-                Justificar Retraso
-            </button>
-            {% endif %}
-
-            <button type="button" class="ws-action-btn" id="btn-toggle-bitacora"
-                title="Abrir bitácora de novedades y seguimiento">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                </svg>
-                <span>Bitácora de Campo</span>
-                <span class="ws-counter-pill" id="ws-topbar-note-count">{{ ctx.tracking_steps|length if ctx and
-                    ctx.tracking_steps else 0 }}</span>
-            </button>
+        <div class="ws-strip-cell">
+            <span class="ws-strip-label">Fecha Pautada</span>
+            <div class="ws-strip-val" id="ws-planned-date-display">{{ ctx.facilitator_data.planned_for_str }}</div>
+        </div>
+        <div class="ws-strip-cell">
+            <span class="ws-strip-label">Límite Normativo</span>
+            <div class="ws-strip-val">
+                {{ ctx.active_planning.execution_deadline.strftime('%d/%m/%Y') if ctx.active_planning and
+                ctx.active_planning.execution_deadline else 'Por definir' }}
+            </div>
+        </div>
+        <div class="ws-strip-cell">
+            <span class="ws-strip-label">Reprogramaciones</span>
+            <div class="ws-strip-val-row">
+                <span id="ws-rescheduled-count-badge" class="ws-reprog-pill">
+                    <span id="ws-rescheduled-count-num">{{ ctx.facilitator_data.rescheduled_count or 0 }}</span> / 2
+                </span>
+            </div>
         </div>
     </div>
 
@@ -136,8 +208,14 @@
                     <span class="ws-eyebrow">INSTITUCIÓN EDUCATIVA BENEFICIARIA</span>
                     <h2 class="ws-school-title">{{ ctx.institution_data.name }}</h2>
                     <p class="ws-school-address">
-                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -1px; margin-right: 3px;" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                        {{ ctx.institution_data.address }}, Pqa. {{ ctx.institution_data.parish_name }}, Mun. {{ ctx.institution_data.municipality_name }} (Edo. {{ ctx.institution_data.state_name }})
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            style="vertical-align: -1px; margin-right: 3px;" aria-hidden="true">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                            <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                        {{ ctx.institution_data.address }}, Pqa. {{ ctx.institution_data.parish_name }}, Mun. {{
+                        ctx.institution_data.municipality_name }} (Edo. {{ ctx.institution_data.state_name }})
                     </p>
                 </div>
                 <span class="ws-dea-badge">DEA: {{ ctx.institution_data.dea_code }}</span>
@@ -149,7 +227,13 @@
                     <span class="ws-eyebrow">CONTACTO SOLICITANTE DEL PLANTEL</span>
                     <strong class="ws-mini-title">{{ ctx.institution_data.contact_name }}</strong>
                     <span class="ws-mini-sub">
-                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -1px; margin-right: 3px;" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            style="vertical-align: -1px; margin-right: 3px;" aria-hidden="true">
+                            <path
+                                d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z">
+                            </path>
+                        </svg>
                         {{ ctx.institution_data.contact_phone }}
                     </span>
                     <span class="ws-mini-sub ws-contact-email">
@@ -163,32 +247,29 @@
                     </span>
                 </div>
 
-                <div class="ws-mini-card-wrapper">
-                    <div class="ws-mini-card">
-                        <span class="ws-eyebrow">CRONOGRAMA Y FACILITADOR</span>
-                        <strong class="ws-mini-title">{{ ctx.facilitator_data.facilitator_name }}</strong>
-                        <span class="ws-mini-sub">
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -1px; margin-right: 3px;" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                            Pautada: <strong id="ws-planned-date-display">{{ ctx.facilitator_data.planned_for_str }}</strong> 
-                            <span id="ws-rescheduled-count-badge" class="badge-reprogrammed" style="{% if not ctx.facilitator_data.rescheduled_count or ctx.facilitator_data.rescheduled_count == 0 %}display:none;{% endif %} margin-left: 4px; background: #fef3c7; color: #b45309; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">(Reprog: <span id="ws-rescheduled-count-num">{{ ctx.facilitator_data.rescheduled_count }}</span>)</span>
-                        </span>
-                    </div>
-                    {% if is_owner %}
-                    <!-- Botón Reprogramar -->
-                    <div class="ws-reschedule-action">
-                        <button type="button" class="ws-btn-reprogramar" id="btn-open-reschedule-modal"
-                            data-request-id="{{ req.id }}" {% if (ctx.facilitator_data.rescheduled_count or 0)>= 2
-                            %}disabled title="Límite de reprogramaciones alcanzado (2/2)" style="cursor: not-allowed;
-                            opacity: 0.55;"{% else %}style="cursor: pointer;"{% endif %}>
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
-                                stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <polyline points="12 6 12 12 16 14"></polyline>
-                            </svg>
-                            <span>Reprogramar</span>
-                        </button>
-                    </div>
-                    {% endif %}
+                <div class="ws-mini-card">
+                    <span class="ws-eyebrow">CRONOGRAMA Y FACILITADOR</span>
+                    <strong class="ws-mini-title">{{ ctx.facilitator_data.facilitator_name }}</strong>
+                    <span class="ws-mini-sub">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            style="vertical-align: -1px; margin-right: 3px;" aria-hidden="true">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                        Pautada: <strong>{{ ctx.facilitator_data.planned_for_str }}</strong>
+                    </span>
+                    <span class="ws-mini-sub ws-contact-email">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z">
+                            </path>
+                            <polyline points="22,6 12,13 2,6"></polyline>
+                        </svg>
+                        {{ ctx.facilitator_data.facilitator_email }}
+                    </span>
                 </div>
             </div>
 
@@ -223,7 +304,7 @@
                         style="width: {{ pct }}%;"></div>
                 </div>
                 <div class="ws-progress-labels">
-                    <span>Progreso probatorio</span>
+                    <span>Avance de la solicitud</span>
                     <strong id="compliance-pct-text">{{ pct }}% completado</strong>
                 </div>
             </div>
@@ -335,24 +416,7 @@
 
     </div>
 
-    <!-- 4. BOTÓN INFERIOR: CANCELAR SOLICITUD -->
-    {% if is_owner and req.status.status_code in ['STAT-005', 'STAT-006'] and not req.historical %}
-    <div class="ws-bottom-cancel-row">
-        <button type="button" class="ws-btn-cancel-request" id="openCancellationModalBtn"
-            data-request-id="{{ req.id }}">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
-                </path>
-                <line x1="12" y1="9" x2="12" y2="13"></line>
-                <line x1="12" y1="17" x2="12.01" y2="17"></line>
-            </svg>
-            <span>Cancelar Solicitud</span>
-        </button>
-    </div>
-    {% endif %}
-
-    <!-- 5. DRAWER LATERAL DESLIZABLE PARA LA BITÁCORA TRANSVERSAL (US-45) -->
+    <!-- 4. DRAWER LATERAL DESLIZABLE PARA LA BITÁCORA TRANSVERSAL (US-45) -->
     <div class="ws-drawer-backdrop" id="bitacora-backdrop" style="display: none;"></div>
     <aside class="ws-side-drawer" id="bitacora-drawer" aria-label="Bitácora de seguimiento">
         <div class="ws-drawer-header">

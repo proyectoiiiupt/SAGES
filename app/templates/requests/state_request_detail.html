@@ -461,8 +461,6 @@
                         <span class="info-label">Ubicación Geográfica</span>
                         <span class="info-value" style="line-height: 1.4;">
                             {{ req.institutional_staff.institution.parish.municipality.state.name | title }} /
-                            {% set locs = req.institutional_staff.institution.parish.locations %}
-                            {% if locs %}{{ locs[0].city.name | title }} / {% endif %}
                             {{ req.institutional_staff.institution.parish.municipality.name | title }} /
                             {{ req.institutional_staff.institution.parish.name | title }}
                         </span>

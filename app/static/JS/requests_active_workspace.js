@@ -4,6 +4,13 @@
  */
 
 document.addEventListener('DOMContentLoaded', function () {
+    const dateEl = document.getElementById('current-date-display');
+    if (dateEl) {
+        const opts = { day: 'numeric', month: 'long', year: 'numeric' };
+        const formatted = new Date().toLocaleDateString('es-ES', opts);
+        dateEl.textContent = formatted.charAt(0).toUpperCase() + formatted.slice(1);
+    }
+
     const rootEl = document.getElementById('active-workspace-root');
     if (!rootEl) return;
 

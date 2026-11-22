@@ -579,4 +579,165 @@
 .text-dark { color: #0f172a !important; }
 .small { font-size: 0.82rem !important; }
 
+/* ==========================================================================
+   Franja Compacta de Estado Operativo / SLA y Barra Unificada (v3.2)
+   ========================================================================== */
+.ws-detail-banner {
+    margin: 0 0 1.1rem 0 !important;
+}
+
+.ws-status-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    margin: 0 0 1.25rem 0;
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+}
+
+.ws-strip-cell {
+    padding: 0.7rem 1rem;
+    border-right: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.2rem;
+}
+
+.ws-strip-cell:last-child {
+    border-right: none;
+}
+
+.ws-strip-label {
+    font-size: 0.70rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+}
+
+.ws-strip-val-row {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+}
+
+.ws-strip-val {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.ws-strip-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.90rem;
+    font-weight: 800;
+    color: #1c3d73;
+}
+
+.ws-strip-status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.14rem 0.55rem;
+    background: #eff6ff;
+    color: #1c3d73;
+    border: 1px solid #bfdbfe;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 700;
+}
+
+.ws-reprog-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.14rem 0.55rem;
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fcd34d;
+    border-radius: 999px;
+    font-size: 0.80rem;
+    font-weight: 700;
+}
+
+.ws-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+}
+
+.ws-btn-reprogramar-top {
+    width: auto !important;
+    padding: 0.5rem 0.9rem !important;
+    border-radius: 8px !important;
+    font-size: 0.84rem !important;
+    font-weight: 700 !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+}
+
+.ws-btn-reprogramar-top:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.ws-btn-cancel-outline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.9rem;
+    background: #ffffff;
+    color: #b91c1c;
+    border: 1.5px solid #fca5a5;
+    border-radius: 8px;
+    font-size: 0.84rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.ws-btn-cancel-outline:hover {
+    background: #fef2f2;
+    border-color: #ef4444;
+    color: #991b1b;
+}
+
+@media (max-width: 992px) {
+    .ws-status-strip {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .ws-strip-cell:nth-child(2n) {
+        border-right: none;
+    }
+
+    .ws-strip-cell {
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .ws-strip-cell:nth-last-child(-n+2) {
+        border-bottom: none;
+    }
+}
+
+@media (max-width: 640px) {
+    .ws-status-strip {
+        grid-template-columns: 1fr;
+    }
+
+    .ws-strip-cell {
+        border-right: none;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .ws-strip-cell:last-child {
+        border-bottom: none;
+    }
+}
+
 
