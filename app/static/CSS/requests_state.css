@@ -385,28 +385,33 @@
 
 .traffic-badge {
     padding: 6px 14px;
-    border-radius: 20px;
+    border-radius: 999px;
     font-weight: 700;
-    font-size: 0.8rem;
+    font-size: 0.80rem;
+    letter-spacing: 0.01em;
     display: inline-block;
     text-align: center;
-    min-width: 100px;
-    white-space: nowrap;/
+    min-width: 105px;
+    white-space: nowrap;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
 }
 
 .badge-red {
-    background-color: #fe7972;
-    color: #a20707;
+    background-color: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #f87171;
 }
 
 .badge-yellow {
-    background-color: #ffe48d;
-    color: #c57702;
+    background-color: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fbbf24;
 }
 
 .badge-green {
-    background-color: #52e0b8;
-    color: #129261;
+    background-color: #d1fae5;
+    color: #047857;
+    border: 1px solid #34d399;
 }
 
 /* 7. Paginación */
@@ -473,4 +478,116 @@
     .truncate-text {
         max-width: 150px;
     }
+}
+
+/* 7. Integración estética con Monitoreo Nacional (.mon-table / .monitoring-filters-card) */
+.state-dashboard-container .kpi-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+    margin-bottom: 22px;
+}
+
+@media (max-width: 1200px) {
+    .state-dashboard-container .kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .state-dashboard-container .kpi-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.state-top-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.35rem;
+    flex-wrap: wrap;
+}
+
+.state-btn-navy {
+    color: #ffffff;
+    background: linear-gradient(135deg, #1c3d73 0%, #142c54 100%);
+    border-color: #142c54;
+    font-weight: 700;
+    box-shadow: 0 4px 12px rgba(28, 61, 115, 0.24);
+}
+
+.state-btn-navy svg {
+    color: #ffffff;
+}
+
+.state-btn-navy:hover {
+    color: #ffffff;
+    background: linear-gradient(135deg, #244c8f 0%, #1c3d73 100%);
+    border-color: #1c3d73;
+    box-shadow: 0 6px 16px rgba(28, 61, 115, 0.32);
+}
+
+.state-btn-navy:hover svg {
+    color: #ffffff;
+}
+
+.state-filters-card {
+    margin-bottom: 1.25rem;
+}
+
+.state-filter-layout {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.state-filter-layout .search-input-wrapper {
+    flex: 1 1 240px;
+    min-width: 210px;
+}
+
+.state-date-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.state-date-main {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.state-code-sub {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #019577;
+}
+
+.state-pagination-cell {
+    padding: 0 !important;
+    border-bottom: none !important;
+}
+
+.state-pagination-container {
+    border-top: 1px solid #e2e8f0;
+}
+
+.state-dashboard-container .mon-pagination-btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.state-dashboard-container .mon-table .col-school,
+.state-dashboard-container .mon-table .col-topic {
+    max-width: none;
+    width: auto;
+}
+
+.state-dashboard-container .mon-table .school-name,
+.state-dashboard-container .mon-table .training-topic {
+    max-width: clamp(240px, 26vw, 440px);
+    margin: 0 auto;
 }
