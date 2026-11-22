@@ -5475,12 +5475,19 @@ def get_historical_request_detail(request_id: int, user: User) -> dict:
     token = generate_verification_token(req.request_code, req.id)
     token_display = f"{token[:4].upper()}-{token[4:8].upper()}-{token[8:12].upper()}-{token[12:16].upper()}"
 
-    # Resumen consolidado de la labor formativa
-    summary_text = (
-        f"Jornada de formación comunitaria en {pedagogical_data['training_name']} impartida a la comunidad "
-        f"educativa de {institution_data['name']}. Actividad coordinada y certificada por la División de Uso "
-        f"Racional y Eficiente de la Energía (UREE) de CORPOELEC."
-    )
+    # Resumen consolidado según estado final del expediente
+    if status_code == 'STAT-009':
+        summary_text = (
+            f"Solicitud de formación en {pedagogical_data['training_name']} correspondiente a "
+            f"{institution_data['name']}, cerrada formalmente por cancelación y archivada en la cadena "
+            f"de custodia digital de la División UREE de CORPOELEC."
+        )
+    else:
+        summary_text = (
+            f"Jornada de formación comunitaria en {pedagogical_data['training_name']} impartida a la comunidad "
+            f"educativa de {institution_data['name']}. Actividad coordinada y certificada por la División de Uso "
+            f"Racional y Eficiente de la Energía (UREE) de CORPOELEC."
+        )
 
     return {
         'request': req,

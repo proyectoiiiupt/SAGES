@@ -232,6 +232,8 @@ def generate_completion_report_pdf(request_obj_or_id) -> io.BytesIO:
     Retorna flujo binario io.BytesIO listo para descarga inmediata.
     """
     from sqlalchemy.orm import joinedload
+    from html import escape as html_escape
+    import re as _re
     from app.models.request_model import Request
     from app.models.training_model import Training
     from app.models.training_module_model import TrainingModule
@@ -251,10 +253,12 @@ def generate_completion_report_pdf(request_obj_or_id) -> io.BytesIO:
             joinedload(Request.status),
             joinedload(Request.training).joinedload(Training.training_module),
             joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.person),
+            joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.position),
             joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.institution).joinedload(Institution.parish).joinedload(Parish.municipality).joinedload(Municipality.state),
             joinedload(Request.attended_by).joinedload(User.person),
             joinedload(Request.plannings),
-            joinedload(Request.evidences)
+            joinedload(Request.evidences),
+            joinedload(Request.ratings)
         ).get(int(request_obj_or_id))
     else:
         req = request_obj_or_id
@@ -331,16 +335,31 @@ def generate_completion_report_pdf(request_obj_or_id) -> io.BytesIO:
         elements.append(logo)
         elements.append(Spacer(1, 4))
 
-    # Fecha oficial de emisión (Zona horaria Venezuela UTC-4)
+    # Franja discreta superior: Código de Expediente a la izquierda y Fecha de emisión a la derecha
     vzla_tz = timezone(timedelta(hours=-4))
     now = datetime.now(vzla_tz)
     date_formatted = f"Caracas, {now.day} de {get_spanish_month(now.month)} de {now.year}"
-    elements.append(Paragraph(date_formatted, date_style))
+    exp_style = ParagraphStyle('RepExpStyle', parent=normal_style, fontSize=8.5, alignment=0)
+    top_meta_table = Table(
+        [[
+            Paragraph(f"<b>Expediente N°:</b> <font color='#1c3d73'><b>{html_escape(str(req.request_code or 'N/A'))}</b></font>", exp_style),
+            Paragraph(date_formatted, date_style)
+        ]],
+        colWidths=[270, 270]
+    )
+    top_meta_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    elements.append(top_meta_table)
 
     # Títulos Centrales
     elements.append(Paragraph("<b>INFORME TÉCNICO DE CUMPLIMIENTO</b>", title_style))
     elements.append(Paragraph("<b>DIVISIÓN DE USO RACIONAL Y EFICIENTE DE LA ENERGÍA (UREE)</b>", subtitle_style))
-    elements.append(Spacer(1, 4))
+    elements.append(Spacer(1, 2))
 
     intro_text = (
         "La Corporación Eléctrica Nacional (CORPOELEC), adscrita al Ministerio del Poder Popular para la Energía "
@@ -348,13 +367,20 @@ def generate_completion_report_pdf(request_obj_or_id) -> io.BytesIO:
         "certifica mediante el presente documento la ejecución satisfactoria y culminación formal de la jornada formativa "
         "comunitaria impartida a la institución educativa que se detalla a continuación:"
     )
-    elements.append(Paragraph(intro_text, ParagraphStyle('Intro', parent=normal_style, alignment=4, leading=12)))
-    elements.append(Spacer(1, 8))
+    elements.append(Paragraph(intro_text, ParagraphStyle('Intro', parent=normal_style, alignment=4, leading=11)))
+    elements.append(Spacer(1, 6))
 
     # Bloque I: Identificación Institucional
     staff = req.institutional_staff
     institution = staff.institution if staff else None
     inst_type_str = institution.institution_type.name if (institution and hasattr(institution, 'institution_type') and institution.institution_type) else "Educativa"
+    code_dea = institution.plantel_code if (institution and hasattr(institution, 'plantel_code') and institution.plantel_code) else "N/A"
+    if staff and staff.person:
+        rep_name = f"{staff.person.first_name} {staff.person.last_name}".strip()
+        rep_pos = staff.position.name if (hasattr(staff, 'position') and staff.position) else "Directivo"
+        rep_str = f"{rep_name} ({rep_pos})"
+    else:
+        rep_str = "N/A"
     try:
         parish_name = institution.parish.name
         municipality_name = institution.parish.municipality.name
@@ -367,36 +393,45 @@ def generate_completion_report_pdf(request_obj_or_id) -> io.BytesIO:
 
     inst_data = [
         [Paragraph("<b>I. IDENTIFICACIÓN DE LA INSTITUCIÓN EDUCATIVA</b>", header_col_style), ""],
-        [Paragraph("<b>Nombre del Plantel:</b>", bold_style), Paragraph(institution.institution_name if institution else "N/A", normal_style)],
-        [Paragraph("<b>Tipo de Institución:</b>", bold_style), Paragraph(inst_type_str, normal_style)],
-        [Paragraph("<b>Jurisdicción:</b>", bold_style), Paragraph(location_str, normal_style)],
-        [Paragraph("<b>Dirección Sede:</b>", bold_style), Paragraph(address_str, normal_style)],
+        [Paragraph("<b>Nombre del Plantel:</b>", bold_style), Paragraph(html_escape(institution.institution_name if institution else "N/A"), normal_style)],
+        [Paragraph("<b>Código DEA / Tipo:</b>", bold_style), Paragraph(f"{html_escape(str(code_dea))} &nbsp;|&nbsp; {html_escape(inst_type_str)}", normal_style)],
+        [Paragraph("<b>Representante / Cargo:</b>", bold_style), Paragraph(html_escape(rep_str), normal_style)],
+        [Paragraph("<b>Jurisdicción:</b>", bold_style), Paragraph(html_escape(location_str), normal_style)],
+        [Paragraph("<b>Dirección Sede:</b>", bold_style), Paragraph(html_escape(address_str), normal_style)],
     ]
     inst_table = Table(inst_data, colWidths=[140, 400])
     inst_table.setStyle(TableStyle([
         ('SPAN', (0,0), (1,0)),
         ('BACKGROUND', (0,0), (1,0), colors.HexColor("#019577")),
         ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
-        ('PADDING', (0,0), (-1,-1), 3.5),
+        ('PADDING', (0,0), (-1,-1), 3),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE')
     ]))
     elements.append(inst_table)
-    elements.append(Spacer(1, 8))
+    elements.append(Spacer(1, 6))
 
     # Bloque II: Memoria Pedagógica y Facilitador
     training = req.training
     module = training.training_module if training else None
 
-    # Fecha de ejecución
-    execution_date_str = "Concluida según cronograma"
-    if req.finished_at:
-        fin_local = req.finished_at.astimezone(vzla_tz)
-        execution_date_str = fin_local.strftime("%d/%m/%Y")
-    elif req.plannings:
+    # Trazabilidad de fechas: Solicitud, Ejecución y Cierre
+    created_date_str = req.created_at.astimezone(vzla_tz).strftime("%d/%m/%Y") if req.created_at else "N/A"
+    closed_date_str = req.finished_at.astimezone(vzla_tz).strftime("%d/%m/%Y") if req.finished_at else (req.updated_at.astimezone(vzla_tz).strftime("%d/%m/%Y") if req.updated_at else "N/A")
+    execution_date_str = closed_date_str if closed_date_str != "N/A" else "Concluida según cronograma"
+    if req.plannings:
         plans = [p for p in req.plannings if p.planned_for]
         if plans:
             latest_plan = max(plans, key=lambda p: p.planned_for)
             execution_date_str = latest_plan.planned_for.strftime("%d/%m/%Y")
+
+    trace_dates_str = f"<b>Solicitada:</b> {created_date_str} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Ejecución:</b> {execution_date_str} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Cierre:</b> {closed_date_str}"
+
+    # Evaluación de satisfacción si existe
+    if req.ratings:
+        rating_score = req.ratings[0].score
+        rating_str = f"{rating_score} / 5.0 (Evaluada por el plantel)"
+    else:
+        rating_str = "Sin encuesta registrada"
 
     # Facilitador
     if req.attended_by and req.attended_by.person:
@@ -406,46 +441,81 @@ def generate_completion_report_pdf(request_obj_or_id) -> io.BytesIO:
         facilitator_str = "Equipo Técnico de la Coordinación Estadal UREE"
 
     pedagogical_data = [
-        [Paragraph("<b>II. MEMORIA PEDAGÓGICA Y ESTADO INSTITUCIONAL</b>", header_col_style), ""],
+        [Paragraph("<b>II. MEMORIA PEDAGÓGICA Y TRAZABILIDAD DEL TRÁMITE</b>", header_col_style), ""],
         [Paragraph("<b>Condición Operativa:</b>", bold_style), Paragraph("<b>Jornada Ejecutada y Culminada Satisfactoriamente</b>", normal_style)],
-        [Paragraph("<b>Módulo Rector:</b>", bold_style), Paragraph(module.name if module else "N/A", normal_style)],
-        [Paragraph("<b>Tema Formativo:</b>", bold_style), Paragraph(training.name if training else "N/A", normal_style)],
-        [Paragraph("<b>Fecha de Ejecución:</b>", bold_style), Paragraph(execution_date_str, normal_style)],
-        [Paragraph("<b>Facilitador Responsable:</b>", bold_style), Paragraph(facilitator_str, normal_style)],
+        [Paragraph("<b>Módulo / Tema:</b>", bold_style), Paragraph(f"{html_escape(module.name if module else 'N/A')} &mdash; {html_escape(training.name if training else 'N/A')}", normal_style)],
+        [Paragraph("<b>Ciclo de Fechas:</b>", bold_style), Paragraph(trace_dates_str, normal_style)],
+        [Paragraph("<b>Facilitador Responsable:</b>", bold_style), Paragraph(html_escape(facilitator_str), normal_style)],
+        [Paragraph("<b>Satisfacción del Plantel:</b>", bold_style), Paragraph(html_escape(rating_str), normal_style)],
     ]
     ped_table = Table(pedagogical_data, colWidths=[140, 400])
     ped_table.setStyle(TableStyle([
         ('SPAN', (0,0), (1,0)),
         ('BACKGROUND', (0,0), (1,0), colors.HexColor("#1c3d73")),
         ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
-        ('PADDING', (0,0), (-1,-1), 3.5),
+        ('PADDING', (0,0), (-1,-1), 3),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE')
     ]))
     elements.append(ped_table)
-    elements.append(Spacer(1, 8))
+    elements.append(Spacer(1, 6))
 
-    # Bloque III: Resumen de Actividad y Evidencias Custodiadas
-    ev_count = len(req.evidences) if req.evidences else 0
+    # Bloque III: Resumen de Actividad y Relación Compacta de Evidencias Custodiadas
+    evidences = req.evidences or []
+    ev_count = len(evidences)
+    ev_plural_label = "1 evidencia documental custodiada" if ev_count == 1 else f"{ev_count} evidencias documentales custodiadas"
+
+    ev_lines = []
+    max_ev_rows = 4
+    for idx, ev in enumerate(evidences[:max_ev_rows], 1):
+        fmt = (ev.format or '').upper()
+        if fmt == 'JPEG':
+            fmt = 'JPG'
+        weight = ev.file_weight or 0
+        weight_str = f"{weight / (1024 * 1024):.2f} MB" if weight >= 1024 * 1024 else f"{max(1, round(weight / 1024))} KB"
+        raw_name = (ev.file_name or '').strip()
+        base, ext_part = os.path.splitext(raw_name)
+        if not ext_part and fmt:
+            ext_part = '.' + fmt.lower()
+        parts = base.split('_', 1)
+        if len(parts) == 2 and _re.match(r'^[0-9a-fA-F\-]{8,}$', parts[0]):
+            clean_name = parts[1] + ext_part
+        else:
+            clean_name = raw_name
+        clean_base, clean_ext = os.path.splitext(clean_name)
+        if (
+            not clean_name
+            or clean_base.isdigit()
+            or _re.match(r'^[0-9a-fA-F\-]{8,}$', clean_base)
+            or clean_base.lower() in ('file', 'evidence', 'soporte', 'upload', 'blob', 'image', 'imagen', 'documento', 'archivo')
+        ):
+            ext_label = clean_ext if clean_ext else ext_part
+            clean_name = f"Soporte Documental N°{idx}{ext_label}"
+        ev_lines.append(f"<font color='#019577'><b>&#10003;</b></font> {html_escape(clean_name)} <font color='#64748b'>({html_escape(fmt or 'DOC')} &middot; {weight_str})</font>")
+
+    if ev_count > max_ev_rows:
+        ev_lines.append(f"<font color='#64748b'><i>... y {ev_count - max_ev_rows} soporte(s) adicional(es) resguardados en bóveda digital.</i></font>")
+
     activity_summary = (
         f"Se impartió la acción pedagógica comunitaria orientada a la concienciación sobre el uso eficiente de la "
         f"energía eléctrica, orientando a docentes, directivos y estudiantes en hábitos de consumo responsable. "
-        f"El expediente cuenta con un total de <b>{ev_count} evidencia(s) documental(es) custodiada(s)</b> en la bóveda digital "
-        f"de SAGES, integrando minutas de asistencia, acta de cierre y registros fotográficos de la jornada."
+        f"El expediente cuenta con <b>{ev_plural_label}</b> en la bóveda digital de SAGES:"
     )
+    if ev_lines:
+        activity_summary += "<br/>" + "<br/>".join(ev_lines)
 
     act_data = [
-        [Paragraph("<b>III. SÍNTESIS DE LA ACTIVIDAD FORMATIVA</b>", header_col_style)],
-        [Paragraph(activity_summary, ParagraphStyle('ActText', parent=normal_style, alignment=4, leading=12))]
+        [Paragraph("<b>III. SÍNTESIS DE LA ACTIVIDAD Y EVIDENCIAS CUSTODIADAS</b>", header_col_style)],
+        [Paragraph(activity_summary, ParagraphStyle('ActText', parent=normal_style, alignment=4, leading=11))]
     ]
     act_table = Table(act_data, colWidths=[540])
     act_table.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (0,0), colors.HexColor("#336699")),
         ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
-        ('PADDING', (0,0), (-1,-1), 4),
+        ('PADDING', (0,0), (-1,-1), 3.5),
         ('VALIGN', (0,0), (-1,-1), 'TOP')
     ]))
     elements.append(act_table)
-    elements.append(Spacer(1, 10))
+    elements.append(Spacer(1, 7))
 
     # Bloque IV: Certificación y Código QR Criptográfico
     token = generate_verification_token(req.request_code, req.id)
