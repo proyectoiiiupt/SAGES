@@ -4,10 +4,16 @@
 
 /* ── Page layout ──────────────────────────────────────────── */
 .registro-page {
-    /* Fondo heredado de public.css */
+    background-color: #0b1a30;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+}
+
+/* Suavizar blobs de fondo para evitar fatiga visual */
+.registro-page .hero-blob-1,
+.registro-page .hero-blob-2 {
+    opacity: 0.18;
 }
 
 /* ── Navbar custom overrides (if needed) ──────────────────── */
@@ -40,11 +46,12 @@
 
 /* ── Card container (Matches Login white card) ────────────── */
 .registro-card {
-    background: #ffffff;
+    background: #f9fafb;
+    border: 1px solid rgba(226, 232, 240, 0.8);
     border-radius: 20px;
     width: 100%;
-    max-width: 780px;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    max-width: 920px;
+    box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.45);
     overflow: hidden;
     color: var(--text-dark, #1f2937);
     animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
@@ -57,7 +64,7 @@
 
 /* ── Card Header ──────────────────────────────────────────── */
 .registro-card-header {
-    background: linear-gradient(135deg, #1fcab0, #1c3d73);
+    background: #1c3d73;
     padding: 2.5rem 2.5rem 1.5rem;
     text-align: center;
     border-bottom: 1px solid rgba(0,0,0,0.05);
@@ -218,8 +225,8 @@
 .form-label {
     display: block;
     color: var(--text-muted, #6b7280);
-    font-size: 0.85rem;
-    margin-bottom: 0.2rem;
+    font-size: 0.92rem;
+    margin-bottom: 0.25rem;
     font-weight: 600;
 }
 
@@ -259,7 +266,7 @@
     background: transparent;
     border: none;
     outline: none;
-    font-size: 0.95rem;
+    font-size: 1rem;
     color: var(--text-dark, #1f2937);
     font-family: inherit;
     appearance: none;
@@ -363,58 +370,59 @@
 }
 
 .voucher-title {
-    margin: 0 0 .2rem;
-    font-size: 0.95rem;
+    margin: 0 0 .3rem;
+    font-size: 1.05rem;
     font-weight: 600;
     color: var(--text-dark, #1f2937);
 }
 
 .voucher-desc {
-    margin: 0 0 .3rem;
-    font-size: 0.83rem;
-    color: #6b7280;
-    line-height: 1.45;
+    margin: 0 0 .35rem;
+    font-size: 0.95rem;
+    color: #4b5563;
+    line-height: 1.5;
 }
 
 .voucher-specs {
     margin: 0;
-    font-size: 0.78rem;
-    color: #94a3b8;
+    font-size: 0.88rem;
+    color: #64748b;
     font-weight: 500;
 }
 
 .btn-voucher {
     display: inline-flex;
     align-items: center;
-    gap: .45rem;
-    padding: 0.65rem 1.25rem;
-    background: linear-gradient(90deg, #1c3d73, #1fcab0);
+    gap: .5rem;
+    padding: 0.75rem 1.4rem;
+    background: #1c3d73;
     border: none;
     border-radius: 30px;
     color: #fff;
-    font-size: 0.88rem;
+    font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
     flex-shrink: 0;
 }
 
 .btn-voucher:hover {
+    background: #16325c;
     transform: translateY(-2px);
-    box-shadow: 0 6px 14px rgba(31, 202, 176, 0.35);
+    box-shadow: 0 6px 14px rgba(28, 61, 115, 0.35);
 }
 
 .btn-voucher-remove {
     display: inline-flex;
     align-items: center;
     gap: .4rem;
-    padding: 0.55rem 1rem;
+    padding: 0.6rem 1.1rem;
     background: transparent;
     border: 1px solid #e5e7eb;
     border-radius: 30px;
     color: #6b7280;
-    font-size: 0.83rem;
+    font-size: 0.88rem;
     font-weight: 500;
     cursor: pointer;
     white-space: nowrap;
@@ -430,11 +438,19 @@
 .voucher-privacy-note {
     display: flex;
     align-items: center;
-    gap: .4rem;
-    margin: .6rem .3rem 0;
-    font-size: 0.75rem;
-    color: #94a3b8;
-    line-height: 1.4;
+    gap: .55rem;
+    margin: .85rem .3rem 0;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #374151;
+    line-height: 1.5;
+}
+
+.voucher-privacy-note svg {
+    width: 18px !important;
+    height: 18px !important;
+    color: #374151;
+    flex-shrink: 0;
 }
 
 /* ── File Upload Modal ──────────────────────────────────────── */
@@ -453,7 +469,8 @@
 }
 
 .file-modal {
-    background: #ffffff;
+    background: #f9fafb;
+    border: 1px solid rgba(226, 232, 240, 0.8);
     border-radius: 20px;
     width: 100%;
     max-width: 520px;
@@ -467,7 +484,7 @@
     align-items: center;
     justify-content: center;
     padding: 1.25rem 1.5rem;
-    background: linear-gradient(90deg, #1fcab0, #1c3d73);
+    background: #1c3d73;
     border-top-left-radius: 12px;
     border-top-right-radius: 12px;
     position: relative;
@@ -629,14 +646,14 @@
 
 /* ── Field error messages ─────────────────────────────────── */
 .field-hint {
-    font-size: .75rem;
+    font-size: .82rem;
     color: #6b7280;
-    margin-top: .2rem;
+    margin-top: .25rem;
     margin-left: 0.5rem;
 }
 
 .field-error {
-    font-size: .78rem;
+    font-size: .85rem;
     color: #ef4444;
     font-weight: 500;
     margin-top: .3rem;
@@ -668,7 +685,7 @@
 
 .info-alert p {
     margin: 0;
-    font-size: .88rem;
+    font-size: .95rem;
     color: #475569;
     line-height: 1.5;
 }
@@ -713,26 +730,28 @@
 /* Reusing base styles but scoping it for registration */
 .btn-nav-primary.btn-primary-registration {
     padding: 0.85rem 2rem;
-    background: linear-gradient(90deg, #1c3d73, #1fcab0);
+    background: #1c3d73;
     border: none;
     border-radius: 30px;
     color: white;
-    font-size: 1rem;
+    font-size: 1.05rem;
     font-weight: 600;
     cursor: pointer;
     display: flex;
     justify-content: center;
     align-items: center;
     gap: 0.5rem;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
 }
 
 .btn-nav-primary.btn-primary-registration:hover {
+    background: #16325c;
     transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(31, 202, 176, 0.4);
+    box-shadow: 0 8px 16px -3px rgba(28, 61, 115, 0.35);
 }
 
 .btn-nav-primary.btn-primary-registration:active {
+    background: #11284a;
     transform: translateY(0);
 }
 
@@ -749,7 +768,7 @@
     color: #64748b;
     border: 1px solid #cbd5e1;
     border-radius: 30px;
-    font-size: 0.95rem;
+    font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
     transition: all .2s ease;
@@ -790,18 +809,19 @@
     gap: 0.5rem;
     padding: 0.625rem 1.25rem;
     border-radius: 9999px;
-    background: linear-gradient(90deg, #1c3d73, #1fcab0);
+    background: #1c3d73;
     color: #fff;
     font-size: 0.875rem;
     font-weight: 600;
-    box-shadow: 0 0 20px rgba(6,182,212,0.4);
+    box-shadow: 0 4px 12px rgba(28, 61, 115, 0.35);
     border: none;
     cursor: pointer;
     transition: all 0.3s ease;
     text-decoration: none;
 }
 .btn-back-floating:hover {
-    box-shadow: 0 6px 20px rgba(6,182,212,0.5);
+    background: #16325c;
+    box-shadow: 0 6px 18px rgba(28, 61, 115, 0.45);
     transform: translateY(-2px);
     color: #fff;
 }
@@ -809,7 +829,7 @@
 /* ── Sworn Declaration Modal ────────────────────────────────── */
 /* Amplía el ancho del modal base (.file-modal) para mostrar 2 columnas */
 .sworn-modal {
-    max-width: 780px;
+    max-width: 860px;
     width: 95%;
 }
 
@@ -865,6 +885,7 @@
 .sworn-data-list dd {
     display: inline;
     margin: 0;
+    word-break: break-word;
 }
 
 /* Caja del texto legal */
