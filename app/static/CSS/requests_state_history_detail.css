@@ -1,0 +1,785 @@
+/* ==========================================================================
+   SAGES — Expediente Histórico Oficial de Formación (Modelo Expediente)
+   Estilos externos unificados. Paleta institucional: #019577 (Verde), #1c3d73 (Azul).
+   ========================================================================== */
+
+.dossier-page-title {
+  margin: 0;
+}
+
+.dossier-page-subtitle {
+  color: #64748b;
+  font-size: 0.9rem;
+  margin: 4px 0 0 0;
+  font-weight: 400;
+}
+
+.dossier-page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0.25rem 0 2.5rem;
+  color: #0f172a;
+}
+
+/* --- Barra superior al ancho completo --- */
+.dossier-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin: 0 0 1.25rem;
+  width: 100%;
+}
+
+.dossier-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.btn-dossier-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  background: #ffffff;
+  color: #1e293b;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.btn-dossier-back:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #1c3d73;
+}
+
+.chip-readonly {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.btn-dossier-pdf {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.48rem 1rem;
+  background: #019577;
+  color: #ffffff;
+  border: 1px solid #017a61;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-dossier-pdf:hover {
+  background: #017a61;
+  box-shadow: 0 2px 6px rgba(1, 149, 119, 0.25);
+}
+
+.btn-dossier-pdf:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.chip-no-pdf {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.42rem 0.75rem;
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+/* --- Hoja única de Expediente --- */
+.dossier-sheet {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+}
+
+.dossier-accent-bar {
+  height: 5px;
+  background: linear-gradient(90deg, #1c3d73 0%, #1c3d73 62%, #019577 62%, #019577 100%);
+}
+
+/* --- Membrete oficial centrado --- */
+.dossier-letterhead {
+  text-align: center;
+  padding: 1.25rem 1.75rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.dossier-lh-republic {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #475569;
+  margin-bottom: 0.15rem;
+}
+
+.dossier-lh-org {
+  font-size: 0.88rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #019577;
+  margin-bottom: 0.45rem;
+}
+
+.dossier-lh-title {
+  font-size: 1.04rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #1c3d73;
+  margin: 0;
+}
+
+/* --- Franja de 4 metadatos --- */
+.dossier-meta-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.dossier-meta-cell {
+  padding: 0.65rem 1rem;
+  border-right: 1px solid #e2e8f0;
+}
+
+.dossier-meta-cell:last-child {
+  border-right: none;
+}
+
+.dossier-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  margin-bottom: 0.2rem;
+}
+
+.dossier-value {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.dossier-code-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #1c3d73;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.16rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.80rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.status-pill-completed {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.status-pill-cancelled {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+/* --- Síntesis institucional + 4 micro-celdas --- */
+.dossier-synthesis-block {
+  padding: 0.9rem 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.dossier-summary-box {
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border-left: 3px solid #019577;
+  border-radius: 0 4px 4px 0;
+  font-size: 0.91rem;
+  line-height: 1.52;
+  color: #1e293b;
+  margin-bottom: 0.75rem;
+}
+
+.dossier-timeline-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  background: #fcfcfd;
+}
+
+.dossier-tl-cell {
+  padding: 0.5rem 0.75rem;
+  border-right: 1px solid #e2e8f0;
+}
+
+.dossier-tl-cell:last-child {
+  border-right: none;
+}
+
+.dossier-rating-star {
+  color: #d97706;
+  font-weight: 700;
+}
+
+/* --- Secciones del expediente --- */
+.dossier-section {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.dossier-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.38rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.dossier-section-title {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #1c3d73;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.dossier-section-title::before {
+  content: "";
+  display: inline-block;
+  width: 3px;
+  height: 0.95rem;
+  background: #019577;
+  border-radius: 2px;
+}
+
+.dossier-section-count {
+  font-size: 0.80rem;
+  font-weight: 700;
+  color: #475569;
+  background: #f1f5f9;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+}
+
+.dossier-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem 1.15rem;
+}
+
+.dossier-field-span2 {
+  grid-column: span 2;
+}
+
+.dossier-field-full {
+  grid-column: 1 / -1;
+}
+
+.dossier-justification-text {
+  padding: 0.55rem 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 0.90rem;
+  font-weight: 500;
+  color: #334155;
+  line-height: 1.5;
+}
+
+/* --- Evaluación de Satisfacción (STAT-007) --- */
+.dossier-scores-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.dossier-score-box {
+  padding: 0.55rem 0.8rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.dossier-score-num {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #019577;
+  white-space: nowrap;
+}
+
+.dossier-comment-box {
+  padding: 0.6rem 0.85rem;
+  background: #f8fafc;
+  border-left: 3px solid #1c3d73;
+  border-radius: 0 4px 4px 0;
+  font-size: 0.90rem;
+  font-style: italic;
+  color: #334155;
+}
+
+/* --- Registro de Cancelación (STAT-009) --- */
+.dossier-cancel-box {
+  padding: 0.85rem 1rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-left: 4px solid #dc2626;
+  border-radius: 5px;
+}
+
+.dossier-cancel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.90rem;
+  font-weight: 800;
+  color: #991b1b;
+  margin-bottom: 0.6rem;
+}
+
+.dossier-cancel-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 0.65rem 1rem;
+}
+
+.dossier-cancel-date {
+  margin-top: 0.55rem;
+  font-size: 0.81rem;
+  font-weight: 600;
+  color: #991b1b;
+}
+
+/* --- Evidencias Custodiadas (Checklist compacto) --- */
+.dossier-ev-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.dossier-ev-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.8rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.dossier-ev-row:last-child {
+  border-bottom: none;
+}
+
+.dossier-ev-row:nth-child(even) {
+  background: #f8fafc;
+}
+
+.dossier-ev-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.dossier-ev-check {
+  color: #019577;
+  font-weight: 800;
+  font-size: 0.90rem;
+  flex-shrink: 0;
+}
+
+.dossier-ev-name {
+  font-size: 0.90rem;
+  font-weight: 600;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dossier-ev-meta {
+  font-size: 0.81rem;
+  color: #64748b;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.dossier-ev-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.btn-ev-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.28rem 0.65rem;
+  border-radius: 4px;
+  font-size: 0.80rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-ev-view {
+  background: #eff6ff;
+  color: #1c3d73;
+  border-color: #bfdbfe;
+}
+
+.btn-ev-view:hover {
+  background: #dbeafe;
+}
+
+.btn-ev-dl {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+.btn-ev-dl:hover {
+  background: #d1fae5;
+}
+
+.dossier-empty-note {
+  font-size: 0.88rem;
+  color: #64748b;
+  font-style: italic;
+  padding: 0.4rem 0;
+}
+
+/* --- Bitácora colapsable (<details>) --- */
+.dossier-bitacora {
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  background: #f8fafc;
+}
+
+.dossier-bitacora-summary {
+  padding: 0.55rem 0.85rem;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #1c3d73;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+}
+
+.dossier-bitacora-summary::-webkit-details-marker {
+  display: none;
+}
+
+.dossier-bitacora-summary::after {
+  content: "Mostrar ▾";
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.dossier-bitacora[open] .dossier-bitacora-summary::after {
+  content: "Ocultar ▴";
+}
+
+.dossier-bitacora[open] .dossier-bitacora-summary {
+  border-bottom: 1px solid #e2e8f0;
+  background: #f1f5f9;
+}
+
+.dossier-bitacora-list {
+  padding: 0.65rem 0.9rem;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.dossier-bitacora-item {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px dashed #e2e8f0;
+  font-size: 0.86rem;
+}
+
+.dossier-bitacora-item:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.dossier-bitacora-time {
+  font-size: 0.80rem;
+  font-weight: 700;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.dossier-bitacora-author {
+  font-weight: 700;
+  color: #1c3d73;
+  margin-right: 0.35rem;
+}
+
+.dossier-bitacora-msg {
+  color: #334155;
+  line-height: 1.4;
+}
+
+/* --- Pie de Certificación (3 columnas) --- */
+.dossier-footer {
+  display: grid;
+  grid-template-columns: 1.1fr 1.5fr 0.9fr;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.95rem 1.5rem;
+  background: #f8fafc;
+  border-top: 2px solid #1c3d73;
+}
+
+.dossier-footer-stamp {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #019577;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.2rem;
+}
+
+.dossier-footer-sub {
+  font-size: 0.81rem;
+  color: #475569;
+  line-height: 1.38;
+}
+
+.dossier-footer-center {
+  text-align: center;
+  border-left: 1px solid #cbd5e1;
+  border-right: 1px solid #cbd5e1;
+  padding: 0 0.85rem;
+}
+
+.dossier-footer-token {
+  margin-top: 0.25rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #1c3d73;
+}
+
+.dossier-footer-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+
+.btn-verify-qr {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.38rem 0.75rem;
+  background: #1c3d73;
+  color: #ffffff;
+  border-radius: 5px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.btn-verify-qr:hover {
+  background: #142c54;
+}
+
+/* --- Modal Visor de Evidencias (usado por requests_history.js) --- */
+.modal-media-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.75);
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+}
+
+.modal-media-overlay.active {
+  display: flex;
+}
+
+.modal-media-content {
+  background: #ffffff;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 860px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
+}
+
+.modal-media-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.1rem;
+  background: #1c3d73;
+  color: #ffffff;
+}
+
+.modal-media-header-title {
+  font-size: 0.86rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-modal-close {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.25rem;
+}
+
+.modal-media-body {
+  padding: 1rem;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0f172a;
+  min-height: 300px;
+}
+
+.modal-media-body img {
+  max-width: 100%;
+  max-height: 72vh;
+  border-radius: 4px;
+}
+
+.modal-media-body iframe {
+  width: 100%;
+  height: 72vh;
+  border: none;
+  background: #ffffff;
+}
+
+/* --- Responsive --- */
+@media (max-width: 768px) {
+  .dossier-meta-strip,
+  .dossier-timeline-strip,
+  .dossier-grid-3,
+  .dossier-scores-grid,
+  .dossier-cancel-grid,
+  .dossier-footer {
+    grid-template-columns: 1fr;
+  }
+
+  .dossier-field-span2 {
+    grid-column: auto;
+  }
+
+  .dossier-meta-cell,
+  .dossier-tl-cell {
+    border-right: none;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .dossier-meta-cell:last-child,
+  .dossier-tl-cell:last-child {
+    border-bottom: none;
+  }
+
+  .dossier-footer-center {
+    border-left: none;
+    border-right: none;
+    border-top: 1px solid #cbd5e1;
+    border-bottom: 1px solid #cbd5e1;
+    padding: 0.65rem 0;
+    text-align: left;
+  }
+
+  .dossier-footer-right {
+    align-items: flex-start;
+  }
+
+  .dossier-bitacora-item {
+    grid-template-columns: 1fr;
+    gap: 0.2rem;
+  }
+
+  .dossier-ev-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
