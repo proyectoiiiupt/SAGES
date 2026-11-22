@@ -1,0 +1,148 @@
+/* ==========================================================================
+   ESTILOS DE VISTA: ARCHIVO HISTÓRICO DE SOLICITUDES (state_history.html)
+   SAGES — CORPOELEC (UREE)
+   ========================================================================== */
+
+/* Escala tipográfica mejorada */
+.trainings-container {
+    font-size: 1.02rem;
+}
+
+/* Subtítulo superior y barra de acciones */
+.table-actions-bar p {
+    font-size: 1.05rem !important;
+    line-height: 1.5;
+}
+
+.btn-hub-view {
+    font-size: 1.02rem !important;
+    padding: 0.72rem 1.5rem !important;
+}
+
+.btn-hub-view svg {
+    width: 20px !important;
+    height: 20px !important;
+}
+
+/* Barra de filtros */
+.trainings-container .search-group input {
+    font-size: 1.02rem !important;
+    padding: 0.72rem 2.8rem 0.72rem 1.3rem !important;
+}
+
+.trainings-container .filter-group select {
+    font-size: 1.0rem !important;
+    padding: 0.72rem 1.4rem !important;
+}
+
+.trainings-container .btn-clear {
+    font-size: 1.0rem !important;
+    padding: 0.72rem 1.6rem !important;
+}
+
+/* Encabezados de tabla */
+.trainings-table th {
+    font-size: 0.94rem !important;
+    padding: 1.15rem 1.35rem !important;
+    letter-spacing: 0.7px !important;
+}
+
+/* Filas y celdas */
+.trainings-table td {
+    padding: 1.15rem 1.35rem !important;
+    font-size: 1.0rem !important;
+}
+
+/* Columna N° correlativo */
+.trainings-table .col-num-text {
+    font-size: 1.05rem !important;
+    font-weight: 700 !important;
+    color: #475569 !important;
+}
+
+/* Fecha Cierre */
+.trainings-table .date-cell {
+    font-size: 1.02rem !important;
+    font-weight: 600 !important;
+    color: #334155 !important;
+}
+
+/* Badges de Estatus */
+.status-badge {
+    font-size: 0.92rem !important;
+    font-weight: 700 !important;
+    padding: 6px 15px !important;
+}
+
+.status-STAT-007 {
+    background: #dcfce7;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+}
+
+.status-STAT-009 {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+/* Nombre de Institución y Ubicación */
+.trainings-table .training-name {
+    font-size: 1.08rem !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    line-height: 1.35 !important;
+    margin-bottom: 4px !important;
+}
+
+.trainings-table .training-description {
+    font-size: 0.94rem !important;
+    color: #64748b !important;
+    line-height: 1.4 !important;
+}
+
+/* Facilitador */
+.trainings-table .facilitator-text {
+    font-size: 1.02rem !important;
+    font-weight: 600 !important;
+    color: #334155 !important;
+}
+
+/* Botón de acción con icono de ojo */
+.trainings-table .action-btn.view-btn {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 9px !important;
+}
+
+.trainings-table .action-btn.view-btn svg {
+    width: 20px !important;
+    height: 20px !important;
+}
+
+/* Paginación */
+.trainings-container .pagination-info {
+    font-size: 0.98rem !important;
+    font-weight: 600 !important;
+    color: #475569 !important;
+}
+
+.trainings-container .pagination-btn {
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    padding: 0.55rem 1.1rem !important;
+}
+
+.trainings-container .page-number {
+    font-size: 0.95rem !important;
+    min-width: 38px !important;
+    height: 38px !important;
+    font-weight: 600 !important;
+}
+
+/* Asegurar que botones de enlace no muestren subrayado */
+.trainings-container a.btn-hub-view,
+.trainings-container a.action-btn,
+.trainings-container a.btn-clear {
+    text-decoration: none;
+}
