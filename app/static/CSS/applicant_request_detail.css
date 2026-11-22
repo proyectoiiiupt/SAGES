@@ -1002,3 +1002,81 @@
     color: #019577;
     flex-shrink: 0;
 }
+
+/* ==========================================================================
+   Ajuste tipográfico quirúrgico en vista de consulta del solicitante (view-request)
+   ========================================================================== */
+.applicant-view-container .request-summary-header {
+    padding: 18px 22px;
+    margin-bottom: 18px;
+}
+
+.applicant-view-container .summary-label {
+    font-size: 0.74rem;
+}
+
+.applicant-view-container .summary-code {
+    font-size: 1.25rem;
+    line-height: 1.3;
+    letter-spacing: -0.2px;
+}
+
+.applicant-view-container .summary-date-meta {
+    font-size: 0.82rem;
+}
+
+.applicant-view-container .request-status-badge {
+    font-size: 0.84rem;
+    padding: 6px 14px;
+}
+
+.applicant-view-container .stepper-card {
+    padding: 20px 22px;
+    margin-bottom: 20px;
+}
+
+.applicant-view-container .stepper-header {
+    margin-bottom: 18px;
+}
+
+.applicant-view-container .stepper-title {
+    font-size: 0.98rem;
+}
+
+.applicant-view-container .stepper-subtitle {
+    font-size: 0.80rem;
+}
+
+.applicant-view-container .stepper-label {
+    font-size: 0.80rem;
+}
+
+.applicant-view-container .stepper-desc {
+    font-size: 0.72rem;
+}
+
+/* Reorganización en 2 columnas de Coordinación Activa (Fecha Pautada + Facilitador) */
+.applicant-view-container .coordination-active-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin-bottom: 24px;
+    align-items: stretch;
+}
+
+.applicant-view-container .coordination-active-grid--single {
+    grid-template-columns: 1fr;
+}
+
+.applicant-view-container .coordination-active-grid .confirmed-date-banner,
+.applicant-view-container .coordination-active-grid .corpoelec-coordination-card {
+    margin-bottom: 0;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+@media (max-width: 900px) {
+    .applicant-view-container .coordination-active-grid {
+        grid-template-columns: 1fr;
+    }
+}

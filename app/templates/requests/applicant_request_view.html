@@ -15,7 +15,8 @@
     <!-- 1. Cabecera Estilo Banner -->
     <div class="dashboard-banner">
         <div class="banner-date">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                 <line x1="16" y1="2" x2="16" y2="6"></line>
                 <line x1="8" y1="2" x2="8" y2="6"></line>
@@ -32,7 +33,8 @@
     <div class="view-navigation-bar">
         <div class="nav-left">
             <a href="{{ url_for('requests.applicant_dashboard') }}" class="btn-back-nav">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
                     <line x1="19" y1="12" x2="5" y2="12"></line>
                     <polyline points="12 19 5 12 12 5"></polyline>
                 </svg>
@@ -40,12 +42,15 @@
             </a>
         </div>
         <div class="nav-right">
-            <button type="button" class="ws-action-btn" id="btn-toggle-bitacora" title="Abrir bitácora y novedades de coordinación">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <button type="button" class="ws-action-btn" id="btn-toggle-bitacora"
+                title="Abrir bitácora y novedades de coordinación">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                 </svg>
                 <span>Bitácora de Coordinación</span>
-                <span class="ws-counter-pill" id="ws-topbar-note-count">{{ req.timeline_steps|length if req.timeline_steps else 0 }}</span>
+                <span class="ws-counter-pill" id="ws-topbar-note-count">{{ req.timeline_steps|length if
+                    req.timeline_steps else 0 }}</span>
             </button>
         </div>
     </div>
@@ -60,24 +65,25 @@
                     <circle cx="12" cy="12" r="10"></circle>
                     <polyline points="12 6 12 12 16 14"></polyline>
                 </svg>
-                <span>Radicada el: <strong class="local-datetime" data-utc="{{ req.created_at.isoformat() }}" data-format="standard"></strong></span>
+                <span>Radicada el: <strong class="local-datetime" data-utc="{{ req.created_at.isoformat() }}"
+                        data-format="standard"></strong></span>
             </div>
         </div>
 
         <div class="summary-status-block">
             {% set badge_style = 'badge-new' %}
             {% if req.status.status_code == 'STAT-003' %}
-                {% set badge_style = 'badge-new' %}
+            {% set badge_style = 'badge-new' %}
             {% elif req.status.status_code == 'STAT-004' %}
-                {% set badge_style = 'badge-pending' %}
+            {% set badge_style = 'badge-pending' %}
             {% elif req.status.status_code == 'STAT-005' %}
-                {% set badge_style = 'badge-planned' %}
+            {% set badge_style = 'badge-planned' %}
             {% elif req.status.status_code == 'STAT-006' %}
-                {% set badge_style = 'badge-in-process' %}
+            {% set badge_style = 'badge-in-process' %}
             {% elif req.status.status_code == 'STAT-007' %}
-                {% set badge_style = 'badge-completed' %}
+            {% set badge_style = 'badge-completed' %}
             {% elif req.status.status_code in ['STAT-008', 'STAT-009'] %}
-                {% set badge_style = 'badge-closed' %}
+            {% set badge_style = 'badge-closed' %}
             {% endif %}
 
             <span class="request-status-badge {{ badge_style }}">
@@ -119,18 +125,21 @@
             </div>
             <div class="cancelled-notice-text">
                 <h3>Trámite Cancelado Definitivamente</h3>
-                <p>Este requerimiento no continuará el ciclo de avance operativo y ha sido archivado en el histórico del plantel.</p>
+                <p>Este requerimiento no continuará el ciclo de avance operativo y ha sido archivado en el histórico del
+                    plantel.</p>
             </div>
         </div>
         {% else %}
         <div class="stepper-track-wrapper">
             <div class="stepper-track">
                 <!-- Paso 1: Recibida -->
-                {% set step1_class = 'completed' if req.stepper_step > 1 else ('active' if req.stepper_step == 1 else 'pending') %}
+                {% set step1_class = 'completed' if req.stepper_step > 1 else ('active' if req.stepper_step == 1 else
+                'pending') %}
                 <div class="stepper-item {{ step1_class }}">
                     <div class="stepper-node">
                         {% if req.stepper_step > 1 %}
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                            stroke-width="3">
                             <polyline points="20 6 9 17 4 12"></polyline>
                         </svg>
                         {% else %}
@@ -146,11 +155,13 @@
                 <div class="stepper-line {{ 'completed' if req.stepper_step > 1 else '' }}"></div>
 
                 <!-- Paso 2: En Coordinación -->
-                {% set step2_class = 'completed' if req.stepper_step > 2 else ('active' if req.stepper_step == 2 else 'pending') %}
+                {% set step2_class = 'completed' if req.stepper_step > 2 else ('active' if req.stepper_step == 2 else
+                'pending') %}
                 <div class="stepper-item {{ step2_class }}">
                     <div class="stepper-node">
                         {% if req.stepper_step > 2 %}
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                            stroke-width="3">
                             <polyline points="20 6 9 17 4 12"></polyline>
                         </svg>
                         {% else %}
@@ -166,11 +177,13 @@
                 <div class="stepper-line {{ 'completed' if req.stepper_step > 2 else '' }}"></div>
 
                 <!-- Paso 3: Fecha Pautada -->
-                {% set step3_class = 'completed' if req.stepper_step > 3 else ('active' if req.stepper_step == 3 else 'pending') %}
+                {% set step3_class = 'completed' if req.stepper_step > 3 else ('active' if req.stepper_step == 3 else
+                'pending') %}
                 <div class="stepper-item {{ step3_class }}">
                     <div class="stepper-node">
                         {% if req.stepper_step > 3 %}
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                            stroke-width="3">
                             <polyline points="20 6 9 17 4 12"></polyline>
                         </svg>
                         {% else %}
@@ -186,11 +199,13 @@
                 <div class="stepper-line {{ 'completed' if req.stepper_step > 3 else '' }}"></div>
 
                 <!-- Paso 4: En Ejecución -->
-                {% set step4_class = 'completed' if req.stepper_step > 4 else ('active' if req.stepper_step == 4 else 'pending') %}
+                {% set step4_class = 'completed' if req.stepper_step > 4 else ('active' if req.stepper_step == 4 else
+                'pending') %}
                 <div class="stepper-item {{ step4_class }}">
                     <div class="stepper-node">
                         {% if req.stepper_step > 4 %}
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                            stroke-width="3">
                             <polyline points="20 6 9 17 4 12"></polyline>
                         </svg>
                         {% else %}
@@ -210,7 +225,8 @@
                 <div class="stepper-item {{ step5_class }}">
                     <div class="stepper-node">
                         {% if req.stepper_step == 5 %}
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                            stroke-width="3">
                             <polyline points="20 6 9 17 4 12"></polyline>
                         </svg>
                         {% else %}
@@ -227,85 +243,62 @@
         {% endif %}
     </div>
 
-    <!-- 5. Banner de Fecha Pautada (Condicional) -->
-    {% if req.has_scheduled_date and req.status.status_code != 'STAT-009' %}
-    <div class="confirmed-date-banner">
-        <div class="calendar-icon-wrap">
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-        </div>
-        <div class="confirmed-date-content">
-            <span class="date-badge-label">Jornada Presencial Pautada</span>
-            <h3 class="date-highlight">{{ req.planned_date.strftime('%d/%m/%Y') }}</h3>
-            <p class="date-instructions">Por favor asegure la disponibilidad del espacio físico y la convocatoria oportuna de los participantes en la fecha acordada.</p>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- 6. Bloque Operativo CORPOELEC (Facilitador Asignado) -->
-    <div class="corpoelec-coordination-card">
-        <div class="coordination-icon-wrap {{ 'assigned' if req.attended_by else 'unassigned' }}">
-            {% if req.attended_by %}
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-            {% else %}
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-            {% endif %}
-        </div>
-        <div class="coordination-details">
-            {% if req.attended_by %}
-            <span class="coordination-status-label">Facilitador Responsable Asignado</span>
-            <h3 class="facilitator-name">{{ req.attended_by.person.first_name }} {{ req.attended_by.person.last_name }}</h3>
-            <p class="coordination-note">El personal de la cuadrilla estadal de CORPOELEC se pondrá en contacto directo con las autoridades del plantel para afinar detalles logísticos.</p>
-            {% else %}
-            <span class="coordination-status-label">En Cola de Coordinación Regional</span>
-            <h3 class="facilitator-name text-muted">En espera de asignación de facilitador</h3>
-            <p class="coordination-note">Su solicitud se encuentra en evaluación por la Gerencia Estadal de Uso Racional y Eficiente de la Energía. Será asignada a un facilitador en un plazo máximo de 72 horas hábiles.</p>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- 7. Cuadrícula de Detalles Técnicos -->
-    <div class="request-details-grid">
-        <!-- Tarjeta: Datos del Plantel -->
-        <div class="detail-card">
-            <div class="card-header-simple">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#019577" stroke-width="2">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+    <!-- 5. Bloque de Coordinación Activa: Fecha Pautada + Facilitador (2 columnas) -->
+    {% set show_scheduled_banner = req.has_scheduled_date and req.status.status_code != 'STAT-009' %}
+    <div class="coordination-active-grid {% if not show_scheduled_banner %}coordination-active-grid--single{% endif %}">
+        {% if show_scheduled_banner %}
+        <div class="confirmed-date-banner">
+            <div class="calendar-icon-wrap">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
                 </svg>
-                <h3>Institución Educativa</h3>
             </div>
-            <div class="card-content-simple">
-                <div class="info-row">
-                    <span class="info-label">Nombre del Plantel:</span>
-                    <span class="info-value font-semibold">{{ req.institutional_staff.institution.institution_name }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Ubicación Territorial:</span>
-                    <span class="info-value">
-                        {% if req.institutional_staff and req.institutional_staff.institution and req.institutional_staff.institution.parish %}
-                            {% set p = req.institutional_staff.institution.parish %}
-                            {{ p.municipality.state.name if p.municipality and p.municipality.state else 'N/A' }} — 
-                            {{ p.municipality.name if p.municipality else 'N/A' }},
-                            Pqa. {{ p.name }}
-                        {% else %}
-                            No especificada
-                        {% endif %}
-                    </span>
-                </div>
+            <div class="confirmed-date-content">
+                <span class="date-badge-label">Jornada Presencial Pautada</span>
+                <h3 class="date-highlight">{{ req.planned_date.strftime('%d/%m/%Y') }}</h3>
+                <p class="date-instructions">Por favor asegure la disponibilidad del espacio físico y la convocatoria
+                    oportuna de los participantes en la fecha acordada.</p>
             </div>
         </div>
+        {% endif %}
 
+        <div class="corpoelec-coordination-card">
+            <div class="coordination-icon-wrap {{ 'assigned' if req.attended_by else 'unassigned' }}">
+                {% if req.attended_by %}
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                {% else %}
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                {% endif %}
+            </div>
+            <div class="coordination-details">
+                {% if req.attended_by %}
+                <span class="coordination-status-label">Facilitador Responsable Asignado</span>
+                <h3 class="facilitator-name">{{ req.attended_by.person.first_name }} {{ req.attended_by.person.last_name
+                    }}</h3>
+                <p class="coordination-note">El personal de la cuadrilla estadal de CORPOELEC se pondrá en contacto
+                    directo con las autoridades del plantel para afinar detalles logísticos.</p>
+                {% else %}
+                <span class="coordination-status-label">En Cola de Coordinación Regional</span>
+                <h3 class="facilitator-name text-muted">En espera de asignación de facilitador</h3>
+                <p class="coordination-note">Su solicitud se encuentra en evaluación por la Gerencia Estadal de Uso
+                    Racional y Eficiente de la Energía. Será asignada a un facilitador en un plazo máximo de 72 horas
+                    hábiles.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. Cuadrícula de Detalles Técnicos (Formación a la izquierda, Institución a la derecha) -->
+    <div class="request-details-grid">
         <!-- Tarjeta: Contenido Formativo -->
         <div class="detail-card">
             <div class="card-header-simple">
@@ -326,7 +319,40 @@
                 </div>
                 <div class="info-row">
                     <span class="info-label">Alcance Temático:</span>
-                    <span class="info-value text-muted-small">{{ req.training.description or 'Formación comunitaria en eficiencia energética.' }}</span>
+                    <span class="info-value text-muted-small">{{ req.training.description or 'Formación comunitaria en
+                        eficiencia energética.' }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarjeta: Datos del Plantel -->
+        <div class="detail-card">
+            <div class="card-header-simple">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#019577" stroke-width="2">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                <h3>Institución Educativa</h3>
+            </div>
+            <div class="card-content-simple">
+                <div class="info-row">
+                    <span class="info-label">Nombre del Plantel:</span>
+                    <span class="info-value font-semibold">{{ req.institutional_staff.institution.institution_name
+                        }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Ubicación Territorial:</span>
+                    <span class="info-value">
+                        {% if req.institutional_staff and req.institutional_staff.institution and
+                        req.institutional_staff.institution.parish %}
+                        {% set p = req.institutional_staff.institution.parish %}
+                        {{ p.municipality.state.name if p.municipality and p.municipality.state else 'N/A' }} —
+                        {{ p.municipality.name if p.municipality else 'N/A' }},
+                        Pqa. {{ p.name }}
+                        {% else %}
+                        No especificada
+                        {% endif %}
+                    </span>
                 </div>
             </div>
         </div>
@@ -361,7 +387,8 @@
             </div>
             <div>
                 <h3>
-                    {% if req.cancellation_justification and req.cancellation_justification.justification_type == 'CANCELACION_ADMIN' %}
+                    {% if req.cancellation_justification and req.cancellation_justification.justification_type ==
+                    'CANCELACION_ADMIN' %}
                     Solicitud Cancelada por la Coordinación CORPOELEC
                     {% else %}
                     Registro de Desistimiento Voluntario del Plantel
@@ -374,19 +401,22 @@
             <div class="summary-field">
                 <span class="field-label">Motivo Registrado:</span>
                 <span class="field-value font-semibold">
-                    {{ req.cancellation_justification.reason.name if req.cancellation_justification and req.cancellation_justification.reason else 'Desistimiento escolar' }}
+                    {{ req.cancellation_justification.reason.name if req.cancellation_justification and
+                    req.cancellation_justification.reason else 'Desistimiento escolar' }}
                 </span>
             </div>
             <div class="summary-field">
                 <span class="field-label">Justificación Consignada:</span>
                 <p class="field-justification-box">
-                    {{ req.cancellation_justification.justification if req.cancellation_justification else 'Solicitud archivada formalmente.' }}
+                    {{ req.cancellation_justification.justification if req.cancellation_justification else 'Solicitud
+                    archivada formalmente.' }}
                 </p>
             </div>
             {% if req.finished_at %}
             <div class="summary-field">
                 <span class="field-label">Fecha de Cierre:</span>
-                <span class="field-value local-datetime" data-utc="{{ req.finished_at.isoformat() }}" data-format="standard"></span>
+                <span class="field-value local-datetime" data-utc="{{ req.finished_at.isoformat() }}"
+                    data-format="standard"></span>
             </div>
             {% endif %}
         </div>
@@ -400,7 +430,8 @@
         <div class="cancel-action-box">
             <div class="cancel-info-text">
                 <h4>¿Requiere desistir de esta jornada formativa?</h4>
-                <p>En etapas preliminares (antes de fijar fecha en agenda), el directivo del plantel puede cancelar voluntariamente el trámite por causas sobrevenidas o suspensión académica.</p>
+                <p>En etapas preliminares (antes de fijar fecha en agenda), el directivo del plantel puede cancelar
+                    voluntariamente el trámite por causas sobrevenidas o suspensión académica.</p>
             </div>
             <button type="button" class="btn-cancel-request-active" id="openCancellationModalBtn">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
@@ -421,9 +452,12 @@
             </div>
             <div class="blocked-content">
                 <h4>Desistimiento Directo No Disponible</h4>
-                <p>Esta formación ya cuenta con fecha acordada en el cronograma institucional o se encuentra en fase de ejecución. Para reprogramaciones o causas de fuerza mayor, por favor coordine directamente con el facilitador asignado.</p>
+                <p>Esta formación ya cuenta con fecha acordada en el cronograma institucional o se encuentra en fase de
+                    ejecución. Para reprogramaciones o causas de fuerza mayor, por favor coordine directamente con el
+                    facilitador asignado.</p>
             </div>
-            <button type="button" class="btn-cancel-request-disabled" disabled title="No disponible en esta fase del trámite">
+            <button type="button" class="btn-cancel-request-disabled" disabled
+                title="No disponible en esta fase del trámite">
                 Cancelar Solicitud
             </button>
         </div>
@@ -438,7 +472,8 @@
 <aside class="ws-side-drawer" id="bitacora-drawer" aria-label="Bitácora de coordinación">
     <div class="ws-drawer-header">
         <h3>Bitácora de Coordinación y Novedades</h3>
-        <button type="button" class="ws-drawer-close" id="btn-close-bitacora" aria-label="Cerrar bitácora">&times;</button>
+        <button type="button" class="ws-drawer-close" id="btn-close-bitacora"
+            aria-label="Cerrar bitácora">&times;</button>
     </div>
     <div class="ws-drawer-body">
         {% include "requests/partials/_tracking_timeline.html" %}
