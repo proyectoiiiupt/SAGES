@@ -637,11 +637,12 @@ def _validate_image_bytes(file_storage, allowed_signatures: list, max_size: int,
 
 def update_corporate_branding(form_data: dict, files: dict, current_user_id: int) -> dict:
     """
-    Actualiza la información corporativa oficial de CORPOELEC en la base de datos
-    y procesa de manera segura el reemplazo atómico de logotipo y favicon.
+    Procesa de manera segura el reemplazo atómico de logotipo y favicon de CORPOELEC
+    (COMP-001). Los datos fiscales (company_name, rif, identification_type) son
+    inmutables por regla de negocio y nunca se sobrescriben desde la petición.
 
     Args:
-        form_data (dict): Diccionario con datos de texto (company_name, rif).
+        form_data (dict): Diccionario del formulario (conservado por compatibilidad de firma).
         files (dict): Diccionario con FileStorage opcionales ('logo_file', 'icon_file').
         current_user_id (int): ID del super administrador que ejecuta el cambio.
 
@@ -663,26 +664,13 @@ def update_corporate_branding(form_data: dict, files: dict, current_user_id: int
         _validate_image_bytes(icon_file, [SIGNATURE_PNG, SIGNATURE_ICO], MAX_ICON_SIZE, 'Favicon / Ícono Institucional')
 
     try:
-        # 2. Persistencia de datos alfanuméricos en PostgreSQL (Sin alterar DDL)
+        # 2. Consulta de la entidad corporativa maestra (datos fiscales inmutables)
         company = Company.query.filter_by(company_code='COMP-001').first()
         if not company:
             raise ValueError("No se encontró la empresa institucional CORPOELEC (COMP-001) en la base de datos.")
 
         old_company_name = company.company_name
         old_rif = f"{company.identification_type}-{company.rif}" if company.identification_type else company.rif
-
-        # Parsear RIF: formato ^[JGVEP]-\d{8}-\d{1}$
-        rif_raw = form_data.get('rif', '').strip().upper()
-        if rif_raw:
-            if '-' in rif_raw:
-                parts = rif_raw.split('-', 1)
-                company.identification_type = parts[0]
-                company.rif = parts[1]
-            else:
-                company.rif = rif_raw
-
-        if form_data.get('company_name'):
-            company.company_name = form_data.get('company_name', '').strip()
 
         company._skip_auto_audit = True
 
@@ -750,7 +738,8 @@ def update_corporate_branding(form_data: dict, files: dict, current_user_id: int
         cache_buster = int(time.time())
         return {
             'success': True,
-            'message': 'Datos corporativos e identidad visual actualizados exitosamente.',
+            'message': 'Identidad visual actualizada exitosamente.',
+            'company_name': company.company_name,
             'cache_buster': cache_buster
         }
 

@@ -136,7 +136,7 @@ def update_corporate():
         # Notificación Post-Commit: Actualización de datos corporativos
         try:
             admin_name = _get_actor_name(current_user)
-            company_name = form.data.get('company_name', 'CORPOELEC')
+            company_name = result.get('company_name') or 'CORPOELEC'
             ctx = {
                 "admin_name": admin_name,
                 "company_name": company_name,
