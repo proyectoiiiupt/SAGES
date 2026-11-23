@@ -80,7 +80,7 @@
         {% endif %}
 
         {# ── SOLICITUDES — Gestión (manage_requests) ─────────────── #}
-        {% if 'manage_requests' in user_permissions %}
+        {% if user_role in ['super_admin', 'state_admin'] and 'manage_requests' in user_permissions %}
         <li>
             {% if user_role == 'super_admin' %}
                 <a href="{{ url_for('requests.national_monitoring') }}"
@@ -105,7 +105,7 @@
         {% endif %}
 
         {# ── SOLICITUDES — Crear (create_request) ────────────────── #}
-        {% if 'create_request' in user_permissions %}
+        {% if user_role == 'applicant' and 'create_request' in user_permissions %}
         <li>
             <a href="{{ url_for('requests.applicant_dashboard') }}"
                 class="{{ active_if(['requests.applicant_dashboard', 'requests.new_request_wizard', 'requests.applicant_request_view', 'requests.applicant_history', 'requests.historical_request_detail', 'requests.satisfaction_survey']) }}"
@@ -140,7 +140,7 @@
         {% endif %}
 
         {# ── MI INSTITUCIÓN ─────────────────────────────────────────── #}
-        {% if 'view_my_institution' in user_permissions %}
+        {% if user_role == 'applicant' and 'view_my_institution' in user_permissions %}
         <li>
             <a href="{{ url_for('institutions.my_institution') }}"
                 class="{{ active_if(['institutions.my_institution', 'institutions.edit_institution']) }}"
@@ -195,7 +195,7 @@
         {% endif %}
 
         {# ── INSTITUCIONES ────────────────────────────────────────── #}
-        {% if 'manage_institution' in user_permissions %}
+        {% if user_role in ['super_admin', 'state_admin'] and 'manage_institution' in user_permissions %}
         <li>
             <a href="{{ url_for('institutions.list_institutions') }}"
                 class="{{ active_if(['institutions.list_institutions', 'institutions.view_institution', 'institutions.edit_institution', 'institutions.view_institution_users', 'institutions.invite_institution_collaborator']) }}"
@@ -215,7 +215,7 @@
         {% endif %}
 
         {# ── CONFIGURACIÓN ────────────────────────────────────────── #}
-        {% if 'system_configuration' in user_permissions %}
+        {% if user_role == 'super_admin' and 'system_configuration' in user_permissions %}
         <li>
             <a href="{{ url_for('configurations.index') }}"
                 class="{{ active_if(['configurations.index']) }}"

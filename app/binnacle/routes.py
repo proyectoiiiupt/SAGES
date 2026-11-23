@@ -1,6 +1,8 @@
 from datetime import datetime
 from flask import Blueprint, jsonify, render_template, request
+from flask_login import login_required
 from sqlalchemy import and_, or_
+from app.decorators import role_required, check_permissions
 from app.models.binnacle_model import Binnacle 
 from app.models.person_model import Person
 from app.models.user_model import User
@@ -83,6 +85,9 @@ def _apply_audit_filters(query, fecha_desde, fecha_hasta, modulo, accion, usuari
 
 # --- RUTA PARA MOSTRAR LA PANTALLA ---
 @binnacle_bp.route('/', methods=['GET'])
+@login_required
+@role_required('super_admin')
+@check_permissions('view_admin_panel')
 def index():
     registros = Binnacle.query.order_by(Binnacle.created_at.desc()).limit(20).all()
     
@@ -103,6 +108,9 @@ def index():
 
 # --- RUTA DEL MODAL FORENSE ---
 @binnacle_bp.route('/api/logs/<int:log_id>', methods=['GET'])
+@login_required
+@role_required('super_admin')
+@check_permissions('view_admin_panel')
 def get_log_details(log_id):
     log = Binnacle.query.get(log_id)
     
@@ -156,6 +164,9 @@ def get_log_details(log_id):
 
 # --- RUTA PARA FILTROS Y PAGINACIÓN ---
 @binnacle_bp.route('/api/logs', methods=['GET'])
+@login_required
+@role_required('super_admin')
+@check_permissions('view_admin_panel')
 def get_logs_filtered():
     page = request.args.get('page', 1, type=int)
     fecha_desde = request.args.get('fecha_desde')

@@ -444,6 +444,38 @@ PROTECTED_SUPER_ADMIN_VIEWS = {
     'system_configuration'
 }
 
+ROLE_ALLOWED_VIEWS = {
+    'super_admin': {
+        'view_home',
+        'view_admin_panel',
+        'manage_requests',
+        'view_training_catalog',
+        'assign_to_states',
+        'upload_training',
+        'view_statistics',
+        'manage_users',
+        'register_users',
+        'manage_institution',
+        'system_configuration',
+    },
+    'state_admin': {
+        'view_home',
+        'manage_requests',
+        'view_training_catalog',
+        'assign_to_states',
+        'view_statistics',
+        'manage_users',
+        'register_users',
+        'manage_institution',
+    },
+    'applicant': {
+        'view_home',
+        'create_request',
+        'view_training_catalog',
+        'view_my_institution',
+    },
+}
+
 
 def get_permissions_grouped() -> list:
     """
@@ -610,6 +642,21 @@ def update_role_permissions(role_id: int, submitted_permission_ids: list, curren
 
         valid_permissions = Permission.query.filter(Permission.id.in_(clean_submitted_ids)).all() if clean_submitted_ids else []
         final_ids = {p.id for p in valid_permissions}
+
+        # 1b. Restricción de permisos incompatibles por tipo de actor (rol)
+        allowed_views = ROLE_ALLOWED_VIEWS.get(role.name)
+        if allowed_views is not None:
+            incompatible_views = sorted(
+                p.view for p in valid_permissions if p.view and p.view not in allowed_views
+            )
+            if incompatible_views:
+                logger.warning(
+                    f"[RBAC] Intento de asignar permisos incompatibles {incompatible_views} "
+                    f"al rol {role.name} por usuario {current_user_id}."
+                )
+                raise ValueError(
+                    f"Permisos incompatibles con el rol '{role.name}': {', '.join(incompatible_views)}."
+                )
 
         # 2. Aplicación explícita de la Regla Anti-Lockout para Super Administrador
         if role.name == 'super_admin':

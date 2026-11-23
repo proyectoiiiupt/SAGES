@@ -3,10 +3,10 @@ from flask import request, abort, jsonify, flash, redirect, url_for
 from flask_login import current_user
 from app.models.permission_model import Permission
 
-def check_permissions(view_name=None):
+def check_permissions(*view_names):
     """
     Decorador para validar si el rol del usuario en sesión tiene
-    permisos sobre la vista solicitada.
+    permisos sobre la vista (o alguna de las vistas) solicitadas.
     """
     def decorator(f):
         @wraps(f)
@@ -14,22 +14,23 @@ def check_permissions(view_name=None):
             if not current_user.is_authenticated:
                 return abort(401)
                 
-            # Usar view_name si se proporciona, sino usar el endpoint actual (ej: 'auth.login')
-            endpoint = view_name or request.endpoint
+            # Usar view_names si se proporcionan, sino usar el endpoint actual (ej: 'auth.login')
+            endpoints = [v for v in view_names if v] or [request.endpoint]
             
-            permission = Permission.query.filter_by(view=endpoint).first()
+            permissions = Permission.query.filter(Permission.view.in_(endpoints)).all()
             
-            if not permission:
+            if not permissions:
                 import logging
-                logging.warning(f"Permiso no configurado para endpoint '{endpoint}', user_id={current_user.id}")
+                logging.warning(f"Permiso no configurado para endpoint '{endpoints}', user_id={current_user.id}")
                 # Si la ruta no está registrada como un permiso en BD, denegamos el acceso
                 abort(403, description="No tienes permisos para acceder a esta ruta.")
                 
+            allowed_perm_ids = {p.id for p in permissions}
             has_permission = False
-            # Buscar si alguno de los roles del usuario tiene el permiso
+            # Buscar si alguno de los roles del usuario tiene alguno de los permisos requeridos
             for role_assoc in current_user.roles_assoc:
                 for perm_assoc in role_assoc.role.permissions_assoc:
-                    if perm_assoc.permission_id == permission.id:
+                    if perm_assoc.permission_id in allowed_perm_ids:
                         has_permission = True
                         break
                 if has_permission:

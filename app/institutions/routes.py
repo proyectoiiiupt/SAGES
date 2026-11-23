@@ -13,7 +13,7 @@ from app.institutions.services import (
     toggle_institution_status, get_institution_users, update_institution_contact_infrastructure,
     get_user_state_info, create_institution_invitation
 )
-from app.decorators import role_required, institution_active_required
+from app.decorators import role_required, check_permissions, institution_active_required
 from app.models.municipality_model import Municipality
 from app.models.parish_model import Parish
 from app.models.city_model import City
@@ -42,6 +42,7 @@ def _has_valid_email_domain(email):
 @institutions_bp.route('/', methods=['GET'])
 @login_required
 @role_required('super_admin', 'state_admin')
+@check_permissions('manage_institution')
 def list_institutions():
     """Vista para listar todas las instituciones con filtros y paginación."""
     try:
@@ -93,6 +94,7 @@ def list_institutions():
 @institutions_bp.route('/<int:institution_id>', methods=['GET'])
 @login_required
 @role_required('super_admin', 'state_admin')
+@check_permissions('manage_institution')
 def view_institution(institution_id):
     """Vista para ver detalles de una institución específica."""
     try:
@@ -111,6 +113,7 @@ def view_institution(institution_id):
 @institutions_bp.route('/<int:institution_id>/toggle-status', methods=['POST'])
 @login_required
 @role_required('super_admin', 'state_admin')
+@check_permissions('manage_institution')
 def toggle_institution_status_route(institution_id):
     """Ruta AJAX para alternar el estatus de una institución entre Activo e Inactivo."""
     try:
@@ -158,6 +161,7 @@ def toggle_institution_status_route(institution_id):
 @institutions_bp.route('/<int:institution_id>/users', methods=['GET'])
 @login_required
 @role_required('super_admin', 'state_admin', 'applicant')
+@check_permissions('manage_institution', 'view_my_institution')
 def view_institution_users(institution_id):
     """Vista para ver los usuarios afiliados a una institución específica."""
     try:
@@ -195,6 +199,7 @@ def view_institution_users(institution_id):
 @institutions_bp.route('/<int:institution_id>/edit', methods=['GET', 'POST'])
 @login_required
 @role_required('applicant', 'state_admin', 'super_admin')
+@check_permissions('manage_institution', 'view_my_institution')
 def edit_institution(institution_id):
     """Vista para editar los datos de una institución."""
     try:
@@ -356,6 +361,7 @@ def edit_institution(institution_id):
 @institutions_bp.route('/my-institution', methods=['GET'])
 @login_required
 @role_required('applicant')
+@check_permissions('view_my_institution')
 def my_institution():
     """Vista para que el usuario (applicant) vea directamente su institución afiliada."""
     try:
@@ -448,6 +454,7 @@ def get_parishes_api(municipality_id):
 @institutions_bp.route('/<int:institution_id>/users/invite', methods=['GET', 'POST'])
 @login_required
 @role_required('applicant')
+@check_permissions('view_my_institution')
 @institution_active_required
 def invite_institution_collaborator(institution_id):
     institution = get_institution_by_id(institution_id)

@@ -144,11 +144,38 @@ document.addEventListener('DOMContentLoaded', () => {
             { chkId: 'chk-sys-config', tagId: 'tag-sys-config', parentId: 'perm-item-sys-config' }
         ];
 
+        // Reglas de compatibilidad de vistas por tipo de actor (rol)
+        const roleAllowedViews = {
+            super_admin: new Set([
+                'view_home', 'view_admin_panel', 'manage_requests',
+                'view_training_catalog', 'assign_to_states', 'upload_training',
+                'view_statistics', 'manage_users', 'register_users',
+                'manage_institution', 'system_configuration'
+            ]),
+            state_admin: new Set([
+                'view_home', 'manage_requests', 'view_training_catalog',
+                'assign_to_states', 'view_statistics', 'manage_users',
+                'register_users', 'manage_institution'
+            ]),
+            applicant: new Set([
+                'view_home', 'create_request', 'view_training_catalog',
+                'view_my_institution'
+            ])
+        };
+        const allowedForRole = roleAllowedViews[roleCode] || null;
+
         // Desmarcar todos los checkboxes inicialmente mientras se consultan los datos
         const allCheckboxes = modalPermissions.querySelectorAll('input[type="checkbox"]');
         allCheckboxes.forEach(chk => {
+            const viewKey = chk.dataset.view;
+            const isCompatible = !allowedForRole || !viewKey || allowedForRole.has(viewKey);
             chk.checked = false;
-            chk.disabled = false;
+            chk.disabled = !isCompatible;
+            const itemLabel = chk.closest('.perm-checkbox-item');
+            if (itemLabel) {
+                itemLabel.style.opacity = isCompatible ? '' : '0.45';
+                itemLabel.title = isCompatible ? '' : 'Este permiso no es compatible con este rol.';
+            }
         });
 
         // Aplicar estado visual inicial de bloqueo para super_admin
@@ -180,7 +207,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     const activeIds = new Set(res.data.permission_ids.map(Number));
                     allCheckboxes.forEach(chk => {
                         const val = Number(chk.value);
-                        if (activeIds.has(val)) {
+                        const viewKey = chk.dataset.view;
+                        const isCompatible = !allowedForRole || !viewKey || allowedForRole.has(viewKey);
+                        if (isCompatible && activeIds.has(val)) {
                             chk.checked = true;
                         }
                     });
@@ -688,7 +717,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectEl.innerHTML = `<option value="">${placeholder}</option>`;
         items.forEach(item => {
             const opt = document.createElement('option');
-            opt.value       = item.id;
+            opt.value = item.id;
             opt.textContent = item.name;
             selectEl.appendChild(opt);
         });
@@ -699,11 +728,11 @@ document.addEventListener('DOMContentLoaded', () => {
      * Si se provee selectedMunicipalityId, preselecciona y carga parroquias.
      */
     async function loadMunicipalities(stateId, selectedMunicipalityId = null, selectedParishId = null) {
-        const munSel    = document.getElementById('place_municipality');
+        const munSel = document.getElementById('place_municipality');
         const parishSel = document.getElementById('place_parish');
         if (!munSel || !parishSel) return;
 
-        munSel.disabled    = true;
+        munSel.disabled = true;
         parishSel.disabled = true;
         fillSelect(parishSel, [], '— Seleccione Parroquia —');
 
@@ -763,7 +792,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── Listeners de cascada ────────────────────────────────────────────────
 
     const placeStateSelect = document.getElementById('place_state');
-    const placeMunSel      = document.getElementById('place_municipality');
+    const placeMunSel = document.getElementById('place_municipality');
 
     if (placeStateSelect) {
         placeStateSelect.addEventListener('change', function () {
@@ -779,10 +808,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── Modal de sedes (abrir / cerrar) ────────────────────────────────────
 
-    const modalPlace       = document.getElementById('modal-place');
-    const modalPlaceTitle  = document.getElementById('modal-place-title');
-    const placeIdHidden    = document.getElementById('place-id-hidden');
-    const formPlace        = document.getElementById('form-place');
+    const modalPlace = document.getElementById('modal-place');
+    const modalPlaceTitle = document.getElementById('modal-place-title');
+    const placeIdHidden = document.getElementById('place-id-hidden');
+    const formPlace = document.getElementById('form-place');
     const btnSavePlaceText = document.getElementById('btn-save-place-text');
 
     function openPlaceModal() {
@@ -845,8 +874,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Cerrar con X y botón Cancelar
-    const btnClosePlaceX  = document.getElementById('btn-close-place-modal-x');
-    const btnCancelPlace  = document.getElementById('btn-cancel-place-modal');
+    const btnClosePlaceX = document.getElementById('btn-close-place-modal-x');
+    const btnCancelPlace = document.getElementById('btn-cancel-place-modal');
     if (btnCancelPlace) {
         btnCancelPlace.addEventListener('click', (e) => {
             e.preventDefault();
@@ -880,7 +909,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnNewPlace = document.getElementById('btn-new-place');
     if (btnNewPlace) {
         btnNewPlace.addEventListener('click', () => {
-            if (modalPlaceTitle)  modalPlaceTitle.textContent = 'Registrar Nueva Sede';
+            if (modalPlaceTitle) modalPlaceTitle.textContent = 'Registrar Nueva Sede';
             if (btnSavePlaceText) btnSavePlaceText.textContent = 'Guardar Sede';
             resetPlaceModalForm();
             openPlaceModal();
@@ -895,20 +924,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const d = btn.dataset;
 
-        if (modalPlaceTitle)  modalPlaceTitle.textContent = `Editar Sede: ${d.name}`;
+        if (modalPlaceTitle) modalPlaceTitle.textContent = `Editar Sede: ${d.name}`;
         if (btnSavePlaceText) btnSavePlaceText.textContent = 'Guardar Cambios';
-        if (placeIdHidden)    placeIdHidden.value = d.id;
+        if (placeIdHidden) placeIdHidden.value = d.id;
 
         // Rellenar campos simples
-        const nameInput    = document.getElementById('place_name');
-        const phoneInput   = document.getElementById('place_phone');
+        const nameInput = document.getElementById('place_name');
+        const phoneInput = document.getElementById('place_phone');
         const addressInput = document.getElementById('place_address');
-        const stateSelect  = document.getElementById('place_state');
+        const stateSelect = document.getElementById('place_state');
 
-        if (nameInput)    nameInput.value    = d.name    || '';
-        if (phoneInput)   phoneInput.value   = d.phone   || '';
+        if (nameInput) nameInput.value = d.name || '';
+        if (phoneInput) phoneInput.value = d.phone || '';
         if (addressInput) addressInput.value = d.address || '';
-        if (stateSelect)  stateSelect.value  = d.stateId || '';
+        if (stateSelect) stateSelect.value = d.stateId || '';
 
         // Cargar la cascada con preselección
         await loadMunicipalities(d.stateId, d.municipalityId, d.parishId);
@@ -924,7 +953,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!formPlace) return;
 
             const placeId = placeIdHidden ? placeIdHidden.value : '';
-            const url     = placeId
+            const url = placeId
                 ? `/configurations/places/${placeId}/edit`
                 : '/configurations/places/new';
 
@@ -937,7 +966,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const resp = await fetch(url, {
                     method: 'POST',
-                    body  : formData
+                    body: formData
                 });
 
                 const result = await resp.json();
@@ -945,11 +974,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (result.success) {
                     closePlaceModal();
                     Swal.fire({
-                        icon             : 'success',
-                        title            : placeId ? 'Sede Actualizada' : 'Sede Registrada',
-                        text             : result.message,
+                        icon: 'success',
+                        title: placeId ? 'Sede Actualizada' : 'Sede Registrada',
+                        text: result.message,
                         confirmButtonColor: '#019577',
-                        confirmButtonText : 'Aceptar'
+                        confirmButtonText: 'Aceptar'
                     }).then(() => {
                         if (window.location.hash !== '#places') {
                             window.location.hash = '#places';
@@ -962,24 +991,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     let errorMsg = 'Revise los campos del formulario.';
                     if (result.errors) {
                         const msgs = Object.values(result.errors).flat();
-                        errorMsg   = msgs.join(' ');
+                        errorMsg = msgs.join(' ');
                     } else if (result.message) {
                         errorMsg = result.message;
                     }
                     Swal.fire({
-                        icon             : 'warning',
-                        title            : 'Error de Validación',
-                        text             : errorMsg,
+                        icon: 'warning',
+                        title: 'Error de Validación',
+                        text: errorMsg,
                         confirmButtonColor: '#d97706',
-                        confirmButtonText : 'Corregir'
+                        confirmButtonText: 'Corregir'
                     });
                 }
             } catch (err) {
                 console.error('[US-56] btnSavePlace fetch error:', err);
                 Swal.fire({
-                    icon : 'error',
+                    icon: 'error',
                     title: 'Error de Red',
-                    text : 'No fue posible comunicarse con el servidor. Intente nuevamente.'
+                    text: 'No fue posible comunicarse con el servidor. Intente nuevamente.'
                 });
             } finally {
                 btnSavePlace.disabled = false;
@@ -996,22 +1025,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const btn = e.target.closest('.btn-toggle-place');
         if (!btn) return;
 
-        const placeId     = btn.dataset.id;
-        const placeName   = btn.dataset.name;
+        const placeId = btn.dataset.id;
+        const placeName = btn.dataset.name;
         const currentStat = btn.dataset.currentStatus;
-        const isActive    = currentStat === 'STAT-001';
-        const action      = isActive ? 'inactivar' : 'activar';
+        const isActive = currentStat === 'STAT-001';
+        const action = isActive ? 'inactivar' : 'activar';
 
         // Confirmación previa con SweetAlert2
         const confirm = await Swal.fire({
-            icon            : 'question',
-            title           : '¿Confirmar cambio de estatus?',
-            html            : `¿Desea <strong>${action}</strong> la sede<br><strong>"${placeName}"</strong>?`,
+            icon: 'question',
+            title: '¿Confirmar cambio de estatus?',
+            html: `¿Desea <strong>${action}</strong> la sede<br><strong>"${placeName}"</strong>?`,
             showCancelButton: true,
             confirmButtonColor: isActive ? '#d97706' : '#019577',
-            cancelButtonColor : '#94a3b8',
-            confirmButtonText : `Sí, ${action}`,
-            cancelButtonText  : 'Cancelar'
+            cancelButtonColor: '#94a3b8',
+            confirmButtonText: `Sí, ${action}`,
+            cancelButtonText: 'Cancelar'
         });
 
         if (!confirm.isConfirmed) return;
@@ -1023,7 +1052,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const resp = await fetch(`/configurations/places/${placeId}/toggle-status`, {
-                method : 'POST',
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {})
@@ -1035,9 +1064,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (resp.status === 409) {
                 const result = await resp.json();
                 Swal.fire({
-                    icon             : 'warning',
-                    title            : 'Acción Denegada — Integridad Referencial',
-                    html             : `
+                    icon: 'warning',
+                    title: 'Acción Denegada — Integridad Referencial',
+                    html: `
                         <p style="text-align:left; margin-bottom:10px;">${result.message}</p>
                         <div style="background:#fef3c7; border:1px solid #fbbf24; border-radius:6px;
                                     padding:10px 14px; text-align:left; font-size:0.88rem; color:#92400e;">
@@ -1047,7 +1076,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             Reasigne o inactive al personal antes de inactivar esta sede.
                         </p>`,
                     confirmButtonColor: '#d97706',
-                    confirmButtonText : 'Entendido'
+                    confirmButtonText: 'Entendido'
                 });
                 return;
             }
@@ -1056,12 +1085,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (result.success) {
                 Swal.fire({
-                    icon             : 'success',
-                    title            : 'Estatus Actualizado',
-                    text             : result.message,
+                    icon: 'success',
+                    title: 'Estatus Actualizado',
+                    text: result.message,
                     confirmButtonColor: '#019577',
-                    timer            : 2000,
-                    showConfirmButton : false
+                    timer: 2000,
+                    showConfirmButton: false
                 }).then(() => {
                     if (window.location.hash !== '#places') {
                         window.location.hash = '#places';
@@ -1070,18 +1099,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             } else {
                 Swal.fire({
-                    icon : 'error',
+                    icon: 'error',
                     title: 'Error',
-                    text : result.message || 'No fue posible actualizar el estatus.'
+                    text: result.message || 'No fue posible actualizar el estatus.'
                 });
             }
 
         } catch (err) {
             console.error('[US-56] toggleStatus fetch error:', err);
             Swal.fire({
-                icon : 'error',
+                icon: 'error',
                 title: 'Error de Red',
-                text : 'No fue posible comunicarse con el servidor. Intente nuevamente.'
+                text: 'No fue posible comunicarse con el servidor. Intente nuevamente.'
             });
         }
     });

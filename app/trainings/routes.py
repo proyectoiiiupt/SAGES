@@ -201,6 +201,7 @@ def get_module_counts():
 @trainings_bp.route('/module/edit/<int:module_id>', methods=['GET', 'POST'])
 @login_required
 @role_required('super_admin')
+@check_permissions('upload_training')
 def edit_module(module_id: int):
     """
     Vista exclusiva para Super Administrador.
@@ -247,6 +248,7 @@ def edit_module(module_id: int):
 @trainings_bp.route('/module/toggle-status/<int:module_id>', methods=['POST'])
 @login_required
 @role_required('super_admin')
+@check_permissions('upload_training')
 def toggle_module_status_route(module_id: int):
     """
     Ruta exclusiva de Super Administrador para desincorporar (inactivar) o reactivar un Módulo Rector.
@@ -288,6 +290,7 @@ def toggle_module_status_route(module_id: int):
 @trainings_bp.route('/list', methods=['GET'])
 @login_required
 @role_required('super_admin', 'state_admin')
+@check_permissions('view_training_catalog')
 def list_all():
     """
     Vista alternativa tabular accesible para Super Administrador y Administradores Estadales.
@@ -435,6 +438,7 @@ def _get_next_order_index() -> int:
 @trainings_bp.route('/module/new', methods=['GET', 'POST'])
 @login_required
 @role_required('super_admin')
+@check_permissions('upload_training')
 def new_module():
     """
     Ruta para registrar un nuevo Módulo Rector.
@@ -535,6 +539,7 @@ def new_module():
 @trainings_bp.route('/api/validate-name', methods=['GET'])
 @login_required
 @role_required('super_admin')
+@check_permissions('upload_training')
 def validate_training_name_api():
     """
     Endpoint AJAX para validar duplicidad con normalización extrema (ignora tildes, puntuación y espacios)
@@ -591,6 +596,7 @@ def validate_training_name_api():
 @trainings_bp.route('/new', methods=['GET', 'POST'])
 @login_required
 @role_required('super_admin')
+@check_permissions('upload_training')
 @limiter.limit("20 per minute", methods=["POST"], key_func=lambda: str(current_user.id))
 def new_training():
     """
@@ -706,6 +712,7 @@ def get_module_trainings_api(module_id: int):
 @trainings_bp.route('/detail/<int:id>', methods=['GET'])
 @login_required
 @role_required('super_admin', 'state_admin', 'applicant')
+@check_permissions('view_training_catalog')
 def view_training_detail(id: int):
     training = (
         Training.query
@@ -741,6 +748,7 @@ def view_training_detail(id: int):
 @trainings_bp.route('/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
 @role_required('super_admin')
+@check_permissions('upload_training')
 def edit_training(id: int):
     """
     Ruta para editar un tema formativo existente.
@@ -862,6 +870,7 @@ def edit_training(id: int):
 @trainings_bp.route('/bulk', methods=['GET'])
 @login_required
 @role_required('super_admin')
+@check_permissions('upload_training')
 def bulk_upload_view():
     """Renderiza la interfaz de carga masiva."""
     modules = TrainingModule.query.filter_by(is_active=True).order_by(TrainingModule.order_index).all()
@@ -877,6 +886,7 @@ def bulk_upload_view():
 @trainings_bp.route('/bulk/template', methods=['GET'])
 @login_required
 @role_required('super_admin')
+@check_permissions('upload_training')
 def bulk_upload_template():
     """Genera y descarga la plantilla oficial de Excel para la carga masiva."""
     import openpyxl
@@ -943,6 +953,7 @@ def bulk_upload_template():
 @trainings_bp.route('/bulk/preview', methods=['POST'])
 @login_required
 @role_required('super_admin')
+@check_permissions('upload_training')
 @limiter.limit("10 per minute", key_func=lambda: str(current_user.id))
 def bulk_upload_preview():
     """Ejecuta el Dry-Run (análisis) del archivo y retorna resultados en JSON."""
@@ -982,6 +993,7 @@ def bulk_upload_preview():
 @trainings_bp.route('/bulk/process', methods=['POST'])
 @login_required
 @role_required('super_admin')
+@check_permissions('upload_training')
 @limiter.limit("5 per minute", key_func=lambda: str(current_user.id))
 def bulk_upload_process():
     """Procesa el archivo y guarda las filas válidas en base de datos."""
@@ -1090,6 +1102,7 @@ def bulk_upload_process():
 @trainings_bp.route('/bulk/download_errors', methods=['POST'])
 @login_required
 @role_required('super_admin')
+@check_permissions('upload_training')
 @limiter.limit("5 per minute", key_func=lambda: str(current_user.id))
 def bulk_download_errors():
     """Recibe la plantilla de carga masiva y devuelve un Excel únicamente con las filas inválidas y su motivo de error."""
@@ -1161,6 +1174,7 @@ def bulk_download_errors():
 @trainings_bp.route('/toggle_status/<int:training_id>', methods=['POST'])
 @login_required
 @role_required('super_admin')
+@check_permissions('upload_training')
 def toggle_training_status(training_id: int):
     """
     Alterna el estatus de un tema formativo entre Activo e Inactivo.
@@ -1314,7 +1328,8 @@ def toggle_training_status(training_id: int):
 
 @trainings_bp.route('/delete/<int:training_id>', methods=['POST'])
 @login_required
-@role_required('super_admin') 
+@role_required('super_admin')
+@check_permissions('upload_training')
 def delete_training(training_id: int):
     """
     Realiza el borrado lógico de un tema formativo.

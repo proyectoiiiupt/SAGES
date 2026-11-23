@@ -77,6 +77,8 @@ def format_identification(id_type, id_number):
 
 @users_bp.route('/list', methods=['GET'])
 @login_required
+@role_required('super_admin', 'state_admin')
+@check_permissions('manage_users')
 def list_users():
     user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
     
@@ -423,6 +425,8 @@ def view_user(user_id):
        
 @users_bp.route('/edit/<int:user_id>', methods=['GET', 'POST'])
 @login_required
+@role_required('super_admin', 'state_admin')
+@check_permissions('manage_users')
 def edit_user(user_id):
     """
     Ruta con validaciones JS combinadas con reglas de seguridad base.
@@ -608,6 +612,8 @@ def edit_user(user_id):
 
 @users_bp.route('/toggle_status/<int:user_id>', methods=['POST'])
 @login_required
+@role_required('super_admin', 'state_admin')
+@check_permissions('manage_users')
 def toggle_status(user_id):
     """
     US-16: Activa o desactiva un usuario.
@@ -776,6 +782,8 @@ def profile():
 
 @users_bp.route('/requests', methods=['GET'])
 @login_required
+@role_required('super_admin', 'state_admin')
+@check_permissions('manage_users')
 def list_requests():
     user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
     if user_role not in ['state_admin', 'super_admin']:
@@ -927,6 +935,8 @@ from app.models.staff_evidence_model import StaffEvidence
 
 @users_bp.route('/requests/<int:staff_id>/evidence', methods=['GET'])
 @login_required
+@role_required('super_admin', 'state_admin')
+@check_permissions('manage_users')
 def get_evidence(staff_id):
     user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
     if user_role not in ['state_admin', 'super_admin']:
@@ -979,6 +989,8 @@ def get_evidence(staff_id):
 
 @users_bp.route('/requests/<int:staff_id>/approve', methods=['POST'])
 @login_required
+@role_required('super_admin', 'state_admin')
+@check_permissions('manage_users')
 def approve_request(staff_id):
     user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
     if user_role not in ['state_admin', 'super_admin']:
@@ -1113,6 +1125,8 @@ def approve_request(staff_id):
 
 @users_bp.route('/requests/<int:staff_id>/reject', methods=['POST'])
 @login_required
+@role_required('super_admin', 'state_admin')
+@check_permissions('manage_users')
 def reject_request(staff_id):
     """
     Rechaza una solicitud de registro pendiente (STAT-004), cambiando el estatus a STAT-008 (Rechazado).
@@ -1209,6 +1223,8 @@ def reject_request(staff_id):
 
 @users_bp.route('/<int:user_id>/resend-activation', methods=['POST'])
 @login_required
+@role_required('super_admin', 'state_admin')
+@check_permissions('manage_users')
 def resend_activation_admin(user_id):
     """
     Permite a Super Admin o Admin Estadal reenviar el enlace de activación (48h)
@@ -1352,6 +1368,8 @@ def api_places_by_state(state_id):
 
 @users_bp.route('/register', methods=['GET', 'POST'])
 @login_required
+@role_required('super_admin', 'state_admin')
+@check_permissions('register_users')
 def register_admin():
     user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
     if user_role not in ['super_admin']:
