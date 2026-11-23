@@ -445,6 +445,81 @@ PROTECTED_SUPER_ADMIN_VIEWS = {
 }
 
 
+def get_permissions_grouped() -> list:
+    """
+    Consulta los permisos vigentes desde sages.permissions y los organiza en los
+    grupos funcionales esperados por #modal-permissions, preservando los IDs DOM
+    requeridos por configurations.js sin hardcodear IDs de base de datos.
+
+    Returns:
+        list[dict]: Lista de grupos con clave 'title' y 'permissions'.
+    """
+    perms = Permission.query.order_by(Permission.id).all()
+    by_view = {p.view: p for p in perms if p.view}
+
+    # Metadatos de presentación y contrato DOM por clave de vista (perm.view)
+    view_meta = {
+        'view_home': ('Ver Inicio', 'perm-item-home', 'chk-view-home', 'tag-home'),
+        'view_admin_panel': ('Panel Administrativo', 'perm-item-admin-panel', 'chk-admin-panel', 'tag-admin-panel'),
+        'view_statistics': ('Ver Estadísticas', 'perm-item-statistics', 'chk-statistics', None),
+        'manage_requests': ('Gestionar Solicitudes', 'perm-item-manage-requests', 'chk-manage-requests', None),
+        'create_request': ('Crear Solicitud', 'perm-item-create-request', 'chk-create-request', None),
+        'view_training_catalog': ('Catálogo de Formación', 'perm-item-training-catalog', 'chk-training-catalog', None),
+        'upload_training': ('Cargar Formación', 'perm-item-upload-training', 'chk-upload-training', None),
+        'assign_to_states': ('Asignar a Estados', 'perm-item-assign-states', 'chk-assign-states', None),
+        'manage_institution': ('Gestionar Institución', 'perm-item-manage-inst', 'chk-manage-inst', None),
+        'view_my_institution': ('Ver Mi Institución', 'perm-item-my-inst', 'chk-my-inst', None),
+        'manage_users': ('Gestionar Usuarios', 'perm-item-users', 'chk-manage-users', 'tag-manage-users'),
+        'register_users': ('Registrar Usuarios', 'perm-item-register-users', 'chk-register-users', None),
+        'system_configuration': ('Configuración del Sistema', 'perm-item-sys-config', 'chk-sys-config', 'tag-sys-config'),
+    }
+
+    group_specs = [
+        ('Módulos Generales', ['view_home', 'view_admin_panel', 'view_statistics']),
+        ('Gestión de Solicitudes UREE', ['manage_requests', 'create_request']),
+        ('Gestión de Formación', ['view_training_catalog', 'upload_training']),
+        ('Administración Territorial e Institucional', ['assign_to_states', 'manage_institution', 'view_my_institution']),
+        ('Usuarios y Seguridad Global', ['manage_users', 'register_users', 'system_configuration']),
+    ]
+
+    used_views = set()
+    groups = []
+
+    def _serialize(perm):
+        meta = view_meta.get(perm.view)
+        label = meta[0] if meta else perm.name
+        parent_id = meta[1] if meta else f'perm-item-{perm.id}'
+        chk_id = meta[2] if meta else f'chk-perm-{perm.id}'
+        tag_id = meta[3] if meta else (f'tag-perm-{perm.id}' if perm.view in PROTECTED_SUPER_ADMIN_VIEWS else None)
+        return {
+            'id': perm.id,
+            'view': perm.view,
+            'label': label,
+            'parent_id': parent_id,
+            'chk_id': chk_id,
+            'tag_id': tag_id,
+            'is_protected': perm.view in PROTECTED_SUPER_ADMIN_VIEWS,
+        }
+
+    for title, view_order in group_specs:
+        items = []
+        for view_key in view_order:
+            perm = by_view.get(view_key)
+            if perm:
+                used_views.add(view_key)
+                items.append(_serialize(perm))
+        if items:
+            groups.append({'title': title, 'permissions': items})
+
+    # Respaldo automático si se agregan nuevos permisos en BD en el futuro
+    deprecated_views = {'assign_to_educational_levels'}
+    extra_items = [_serialize(p) for p in perms if p.view not in used_views and p.view not in deprecated_views]
+    if extra_items:
+        groups.append({'title': 'Otros Permisos del Sistema', 'permissions': extra_items})
+
+    return groups
+
+
 def get_role_permissions(role_id: int) -> dict:
     """
     Retorna los identificadores de permisos asignados a un rol específico.

@@ -20,6 +20,7 @@ from app.configurations.services import (
     get_parishes_by_municipality,
     get_role_permissions,
     get_all_roles_matrix,
+    get_permissions_grouped,
     update_role_permissions,
     get_corporate_branding_data,
     update_corporate_branding,
@@ -106,6 +107,7 @@ def index():
     states     = State.query.order_by(State.name).all()
     form       = PlaceForm()
     roles_matrix = get_all_roles_matrix()
+    permission_groups = get_permissions_grouped()
 
     # Precarga de datos corporativos e identidad visual (US-58)
     corporate_data = get_corporate_branding_data()
@@ -124,6 +126,7 @@ def index():
         corporate_data=corporate_data,
         per_page=per_page,
         roles_matrix=roles_matrix,
+        permission_groups=permission_groups,
         search_query=search,
         selected_state_id=state_id,
         state_filter_val=state_filter_val,

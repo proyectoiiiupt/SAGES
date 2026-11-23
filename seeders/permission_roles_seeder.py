@@ -15,7 +15,6 @@ def seed_permission_roles():
         {"role_code": "ROL-001", "permission_code": "PERM-003"}, # Gestión de Solicitudes
         {"role_code": "ROL-001", "permission_code": "PERM-005"}, # Ver Catalogo de Formación
         {"role_code": "ROL-001", "permission_code": "PERM-006"}, # Asignar a Estados
-        {"role_code": "ROL-001", "permission_code": "PERM-007"}, # Asignar a Niveles Educativos
         {"role_code": "ROL-001", "permission_code": "PERM-008"}, # Cargar Formación
         {"role_code": "ROL-001", "permission_code": "PERM-009"}, # Ver Estadísticas
         {"role_code": "ROL-001", "permission_code": "PERM-010"}, # Gestionar Usuarios
