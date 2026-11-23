@@ -363,17 +363,20 @@ def get_parishes_by_municipality(municipality_id: int) -> list:
 # CARGA DE SEDES (para la vista principal)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def get_places_with_staff_count(page: int = 1, per_page: int = 10):
+def get_places_with_staff_count(page: int = 1, per_page: int = 10, search: str = '', state_id: int = None):
     """
     Obtiene las sedes de CORPOELEC paginadas con sus relaciones geográficas
     y el conteo de personal administrativo activo adscrito.
 
-    Solo enriquece con staff_count los registros de la página actual para
-    evitar N+1 queries sobre toda la tabla.
+    Soporta búsqueda opcional por nombre o código (search) y filtro por
+    estado territorial (state_id). Solo enriquece con staff_count los
+    registros de la página actual para evitar N+1 queries sobre toda la tabla.
 
     Args:
         page     (int): Página actual (1-indexada). Default: 1.
         per_page (int): Registros por página. Default: 10.
+        search   (str): Término de búsqueda por nombre o código de sede.
+        state_id (int): ID del estado para filtrar geográficamente.
 
     Returns:
         Pagination: Objeto de paginación de Flask-SQLAlchemy con atributo
@@ -385,7 +388,7 @@ def get_places_with_staff_count(page: int = 1, per_page: int = 10):
 
     status_act = _get_active_status()
 
-    pagination = (
+    query = (
         Place.query
         .options(
             joinedload(Place.parish)
@@ -393,7 +396,29 @@ def get_places_with_staff_count(page: int = 1, per_page: int = 10):
                 .joinedload(Municipality.state),
             joinedload(Place.status)
         )
-        .filter_by(company_id=corpoelec.id)
+        .filter(Place.company_id == corpoelec.id)
+    )
+
+    search_clean = (search or '').strip()
+    if search_clean:
+        pattern = f"%{search_clean}%"
+        query = query.filter(
+            db.or_(
+                Place.name.ilike(pattern),
+                Place.place_code.ilike(pattern)
+            )
+        )
+
+    if state_id is not None and state_id > 0:
+        query = (
+            query
+            .join(Place.parish)
+            .join(Parish.municipality)
+            .filter(Municipality.state_id == state_id)
+        )
+
+    pagination = (
+        query
         .order_by(Place.place_code)
         .paginate(page=page, per_page=per_page, error_out=False)
     )

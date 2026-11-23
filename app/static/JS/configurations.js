@@ -63,6 +63,48 @@ document.addEventListener('DOMContentLoaded', () => {
         switchTab(initialHash, false);
     }
 
+    // =========================================================================
+    // 2B. BUSCADOR Y FILTRO DINÁMICO DE SEDES (#form-places-filter)
+    // =========================================================================
+    const placesFilterForm = document.getElementById('form-places-filter');
+    const placesSearchInput = document.getElementById('places-search-input');
+    const placesStateFilter = document.getElementById('places-state-filter');
+
+    if (placesFilterForm) {
+        let placesDebounceTimer = null;
+        let lastPlacesQuery = placesSearchInput ? placesSearchInput.value.trim() : '';
+
+        if (placesSearchInput) {
+            placesSearchInput.addEventListener('input', (e) => {
+                clearTimeout(placesDebounceTimer);
+                placesDebounceTimer = setTimeout(() => {
+                    const currentQuery = e.target.value.trim();
+                    if (currentQuery !== lastPlacesQuery) {
+                        lastPlacesQuery = currentQuery;
+                        placesFilterForm.submit();
+                    }
+                }, 400);
+            });
+
+            placesSearchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const currentQuery = placesSearchInput.value.trim();
+                    if (currentQuery !== lastPlacesQuery) {
+                        lastPlacesQuery = currentQuery;
+                        placesFilterForm.submit();
+                    }
+                }
+            });
+        }
+
+        if (placesStateFilter) {
+            placesStateFilter.addEventListener('change', () => {
+                placesFilterForm.submit();
+            });
+        }
+    }
+
     // Soporte para botones Atrás/Adelante del navegador
     window.addEventListener('popstate', () => {
         const currentHash = window.location.hash.replace('#', '').trim();

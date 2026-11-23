@@ -72,7 +72,37 @@ def index():
     """
     page       = request.args.get('page', 1, type=int)
     per_page   = 10
-    pagination = get_places_with_staff_count(page=page, per_page=per_page)
+    search     = request.args.get('search', '', type=str).strip()
+
+    # Pre-filtrado inteligente por sede corporativa del Super Admin (igual que Monitoreo Nacional)
+    default_state_id = None
+    if current_user and getattr(current_user, 'person', None) and getattr(current_user.person, 'company_staff', None):
+        try:
+            default_state_id = current_user.person.company_staff[0].place.parish.municipality.state_id
+        except (IndexError, AttributeError):
+            default_state_id = None
+
+    if 'state_id' not in request.args:
+        state_id = default_state_id
+        state_filter_val = str(default_state_id) if default_state_id else 'all'
+    else:
+        raw_state = request.args.get('state_id', '').strip()
+        if raw_state in ('', 'all', '0'):
+            state_id = None
+            state_filter_val = 'all'
+        elif raw_state.isdigit():
+            state_id = int(raw_state)
+            state_filter_val = str(state_id)
+        else:
+            state_id = None
+            state_filter_val = 'all'
+
+    pagination = get_places_with_staff_count(
+        page=page,
+        per_page=per_page,
+        search=search,
+        state_id=state_id
+    )
     states     = State.query.order_by(State.name).all()
     form       = PlaceForm()
     roles_matrix = get_all_roles_matrix()
@@ -93,7 +123,11 @@ def index():
         corporate_form=corporate_form,
         corporate_data=corporate_data,
         per_page=per_page,
-        roles_matrix=roles_matrix
+        roles_matrix=roles_matrix,
+        search_query=search,
+        selected_state_id=state_id,
+        state_filter_val=state_filter_val,
+        default_state_id=default_state_id
     )
 
 

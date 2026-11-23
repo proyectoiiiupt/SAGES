@@ -359,6 +359,43 @@
                         </button>
                     </div>
 
+                    {# ── BUSCADOR Y FILTRO DINÁMICO POR ESTADO (US-59) ─────────────── #}
+                    <form method="GET" action="{{ url_for('configurations.index') }}#places" class="places-filter-bar"
+                        id="form-places-filter">
+                        <div class="places-filter-search">
+                            <input type="text" name="search" id="places-search-input" class="form-control"
+                                placeholder="Buscar por nombre o código (ej. PLC-001)..."
+                                value="{{ search_query or '' }}" maxlength="100" autocomplete="off">
+                        </div>
+                        <div class="places-filter-state">
+                            <select name="state_id" id="places-state-filter" class="form-control"
+                                aria-label="Filtrar por estado">
+                                <option value="all" {% if state_filter_val=='all' or not state_filter_val %}selected{%
+                                    endif %}>
+                                    Todos los Estados (Nacional)
+                                </option>
+                                {% for state in states %}
+                                <option value="{{ state.id }}" {% if state_filter_val==state.id|string %}selected{%
+                                    endif %}>
+                                    {{ state.name }}{% if default_state_id and default_state_id == state.id %} (Sede){%
+                                    endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="places-filter-actions">
+                            <a href="{{ url_for('configurations.index', state_id='all') }}#places"
+                                class="btn-filter-clear" id="btn-clear-places-filter">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="1 4 1 10 7 10"></polyline>
+                                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                                </svg>
+                                <span>Limpiar</span>
+                            </a>
+                        </div>
+                    </form>
+
                     <div class="table-responsive">
                         <table class="config-table" id="table-places">
                             <thead>
@@ -455,9 +492,15 @@
                                                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                                                 <line x1="8" y1="11" x2="14" y2="11"></line>
                                             </svg>
+                                            {% if search_query or selected_state_id %}
+                                            <p class="empty-title">No se encontraron sedes con los filtros aplicados</p>
+                                            <p class="empty-subtitle">Pruebe con otro término de búsqueda o limpie el
+                                                filtro de estado.</p>
+                                            {% else %}
                                             <p class="empty-title">No hay sedes registradas</p>
                                             <p class="empty-subtitle">Haga clic en "Registrar Sede" para agregar la
                                                 primera.</p>
+                                            {% endif %}
                                         </div>
                                     </td>
                                 </tr>
@@ -480,7 +523,7 @@
                             <div class="pagination-buttons">
                                 {# Botón Anterior #}
                                 {% if pagination.has_prev %}
-                                <a href="{{ url_for('configurations.index', page=pagination.prev_num) }}#places"
+                                <a href="{{ url_for('configurations.index', page=pagination.prev_num, search=search_query or None, state_id=state_filter_val or 'all') }}#places"
                                     class="pagination-btn">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                         stroke-linecap="round" stroke-linejoin="round">
@@ -507,7 +550,7 @@
                                         {{ p }}
                                         </button>
                                         {% else %}
-                                        <a href="{{ url_for('configurations.index', page=p) }}#places"
+                                        <a href="{{ url_for('configurations.index', page=p, search=search_query or None, state_id=state_filter_val or 'all') }}#places"
                                             class="page-number">
                                             {{ p }}
                                         </a>
@@ -520,7 +563,7 @@
 
                                 {# Botón Siguiente #}
                                 {% if pagination.has_next %}
-                                <a href="{{ url_for('configurations.index', page=pagination.next_num) }}#places"
+                                <a href="{{ url_for('configurations.index', page=pagination.next_num, search=search_query or None, state_id=state_filter_val or 'all') }}#places"
                                     class="pagination-btn">
                                     Siguiente
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
