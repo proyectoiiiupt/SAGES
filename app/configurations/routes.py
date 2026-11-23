@@ -8,7 +8,7 @@ Tareas:
 from flask import render_template, request, jsonify
 from flask_login import login_required, current_user
 from app.configurations import configurations_bp
-from app.decorators import role_required
+from app.decorators import role_required, check_permissions
 from app.extensions import limiter
 from app.configurations.forms import PlaceForm, CorporateDataForm
 from app.configurations.services import (
@@ -63,6 +63,7 @@ def _get_role_label(role_name: str) -> str:
 @configurations_bp.route('/', methods=['GET'])
 @login_required
 @role_required('super_admin')
+@check_permissions('system_configuration')
 def index():
     """
     Ruta base del módulo de configuraciones.
@@ -103,6 +104,7 @@ def index():
 @configurations_bp.route('/corporate', methods=['POST'])
 @login_required
 @role_required('super_admin')
+@check_permissions('system_configuration')
 @limiter.limit("10 per minute", methods=['POST'], key_func=lambda: str(current_user.id))
 def update_corporate():
     """
@@ -183,6 +185,7 @@ def update_corporate():
 @configurations_bp.route('/places/new', methods=['POST'])
 @login_required
 @role_required('super_admin')
+@check_permissions('system_configuration')
 def new_place():
     """
     Registra una nueva sede operativa.
@@ -257,6 +260,7 @@ def new_place():
 @configurations_bp.route('/places/<int:place_id>/edit', methods=['POST'])
 @login_required
 @role_required('super_admin')
+@check_permissions('system_configuration')
 def edit_place(place_id):
     """
     Actualiza los datos de una sede existente.
@@ -312,6 +316,7 @@ def edit_place(place_id):
 @configurations_bp.route('/places/<int:place_id>/toggle-status', methods=['POST'])
 @login_required
 @role_required('super_admin')
+@check_permissions('system_configuration')
 def toggle_status(place_id):
     """
     Alterna el estatus operativo de una sede entre Activo e Inactivo.
@@ -451,6 +456,7 @@ def _inject_dynamic_choices(form: PlaceForm) -> None:
 @configurations_bp.route('/roles/<int:role_id>/permissions', methods=['GET'])
 @login_required
 @role_required('super_admin')
+@check_permissions('system_configuration')
 def get_role_permissions_endpoint(role_id):
     """
     Retorna los privilegios actualmente asignados a un rol para poblar el modal.
@@ -469,6 +475,7 @@ def get_role_permissions_endpoint(role_id):
 @configurations_bp.route('/roles/<int:role_id>/permissions', methods=['POST'])
 @login_required
 @role_required('super_admin')
+@check_permissions('system_configuration')
 @limiter.limit("20 per minute", methods=['POST'], key_func=lambda: str(current_user.id))
 def update_role_permissions_endpoint(role_id):
     """
