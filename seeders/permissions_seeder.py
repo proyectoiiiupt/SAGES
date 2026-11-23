@@ -13,13 +13,13 @@ def seed_permissions():
         {"permission_code": "PERM-004", "name": "Crear Solicitud", "view": "create_request"},
         {"permission_code": "PERM-005", "name": "Ver Catalogo de Formación", "view": "view_training_catalog"},
         {"permission_code": "PERM-006", "name": "Asignar a Estados", "view": "assign_to_states"},
-        {"permission_code": "PERM-008", "name": "Cargar Formación", "view": "upload_training"},
-        {"permission_code": "PERM-009", "name": "Ver Estadísticas", "view": "view_statistics"},
-        {"permission_code": "PERM-010", "name": "Gestionar Usuarios", "view": "manage_users"},
-        {"permission_code": "PERM-011", "name": "Registrar Usuarios", "view": "register_users"},
-        {"permission_code": "PERM-012", "name": "Gestionar Institución", "view": "manage_institution"},
-        {"permission_code": "PERM-013", "name": "Configuración del sistema", "view": "system_configuration"},
-        {"permission_code": "PERM-014", "name": "Ver Mi Institución", "view": "view_my_institution"}
+        {"permission_code": "PERM-007", "name": "Cargar Formación", "view": "upload_training"},
+        {"permission_code": "PERM-008", "name": "Ver Estadísticas", "view": "view_statistics"},
+        {"permission_code": "PERM-009", "name": "Gestionar Usuarios", "view": "manage_users"},
+        {"permission_code": "PERM-010", "name": "Registrar Usuarios", "view": "register_users"},
+        {"permission_code": "PERM-011", "name": "Gestionar Institución", "view": "manage_institution"},
+        {"permission_code": "PERM-012", "name": "Configuración del sistema", "view": "system_configuration"},
+        {"permission_code": "PERM-013", "name": "Ver Mi Institución", "view": "view_my_institution"}
     ]
 
     for data in permissions_data:

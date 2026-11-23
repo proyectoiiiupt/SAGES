@@ -37,7 +37,6 @@ from seeders.institutions_seeder import seed_institutions
 from seeders.institution_levels_seeder import seed_institution_levels
 from seeders.institutional_staff_seeder import seed_institutional_staff
 from seeders.company_staff_seeder import seed_company_staff
-from seeders.backup_logs_seeder import seed_backup_log
 
 def run_all_seeders():
     print("Iniciando proceso de seeding...")
@@ -79,9 +78,6 @@ def run_all_seeders():
             seed_institution_levels()  # Depende de institutions, educational_levels
             seed_institutional_staff() # Depende de institutions, persons, positions
             seed_company_staff()       # Depende de places, persons, positions
-
-            # 6. Registros de Auditoría y Respaldos Iniciales (US-60)
-            seed_backup_log()
 
             print("¡Todos los seeders se han ejecutado correctamente!")
         except Exception as e:

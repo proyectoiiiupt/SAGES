@@ -55,4 +55,3 @@ class NotificationEvent(str, Enum):
     CONFIG_PLACE_CREATED = "CFG_PLACE_CREATED"                  # Nueva sede operativa registrada
     CONFIG_PLACE_UPDATED = "CFG_PLACE_UPDATED"                  # Datos de sede operativa modificados
     CONFIG_PLACE_STATUS_CHANGED = "CFG_PLACE_STATUS"            # Cambio de operatividad de sede
-    CONFIG_BACKUP_COMPLETED = "CFG_BACKUP_DONE"                 # Respaldo de sistema generado y descargado

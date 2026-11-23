@@ -233,12 +233,6 @@ NOTIFICATION_TEMPLATES = {
         "message_template": "La sede '{place_name}' (Estado {state_name}) ha sido {action_label} por {admin_name}.",
         "default_type": NotificationType.WARNING,
         "required_context": ["place_name", "state_name", "action_label", "admin_name"]
-    },
-    NotificationEvent.CONFIG_BACKUP_COMPLETED: {
-        "title": "Respaldo de Base de Datos Generado",
-        "message_template": "El administrador {admin_name} ha generado y descargado un respaldo completo del sistema ('{filename}').",
-        "default_type": NotificationType.INFO,
-        "required_context": ["admin_name", "filename"]
     }
 }
 
