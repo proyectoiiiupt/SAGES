@@ -37,7 +37,7 @@ def seed_permission_roles():
         {"role_code": "ROL-003", "permission_code": "PERM-001"}, # Ver Inicio
         {"role_code": "ROL-003", "permission_code": "PERM-004"}, # Crear Solicitud
         {"role_code": "ROL-003", "permission_code": "PERM-005"}, # Ver Catalogo de Formación
-        {"role_code": "Rol-003", "permission_code": "PERM-014"}  # Ver Institución
+        {"role_code": "ROL-003", "permission_code": "PERM-014"}  # Ver Institución
     ]
 
     for data in mappings:

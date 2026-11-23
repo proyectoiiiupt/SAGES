@@ -16,6 +16,8 @@ from app.models.municipality_model import Municipality
 from app.models.parish_model import Parish
 from app.models.state_model import State
 from app.models.role_model import Role
+from app.models.role_user_model import RoleUser
+from app.models.user_model import User
 from app.models.permission_model import Permission
 from app.models.permission_role_model import PermissionRole
 from app.models.binnacle_model import Binnacle
@@ -441,12 +443,25 @@ def get_role_permissions(role_id: int) -> dict:
 def get_all_roles_matrix() -> list:
     """
     Retorna la lista de roles del sistema junto a sus IDs de permisos asignados
-    y el conteo de usuarios vinculados, ordenados por id.
+    y el conteo de usuarios activos (STAT-001) vinculados, ordenados por id.
 
     Returns:
         list[dict]: Estructura lista para renderizar la matriz en el frontend.
     """
     roles = Role.query.order_by(Role.id).all()
+    status_act = _get_active_status()
+
+    active_counts = {}
+    if status_act:
+        rows = (
+            db.session.query(RoleUser.role_id, db.func.count(RoleUser.id))
+            .join(User, RoleUser.user_id == User.id)
+            .filter(User.status_id == status_act.id)
+            .group_by(RoleUser.role_id)
+            .all()
+        )
+        active_counts = {role_id: count for role_id, count in rows}
+
     matrix = []
     for r in roles:
         matrix.append({
@@ -455,7 +470,7 @@ def get_all_roles_matrix() -> list:
             'name': r.name,
             'description': r.description,
             'permission_ids': [pr.permission_id for pr in r.permissions_assoc],
-            'users_count': len(r.users_assoc)
+            'users_count': active_counts.get(r.id, 0) if status_act else len(r.users_assoc)
         })
     return matrix
 
@@ -496,12 +511,21 @@ def update_role_permissions(role_id: int, submitted_permission_ids: list, curren
         valid_permissions = Permission.query.filter(Permission.id.in_(clean_submitted_ids)).all() if clean_submitted_ids else []
         final_ids = {p.id for p in valid_permissions}
 
-        # 2. Aplicación de la Regla Anti-Lockout para Super Administrador
+        # 2. Aplicación explícita de la Regla Anti-Lockout para Super Administrador
         if role.name == 'super_admin':
             protected_perms = Permission.query.filter(Permission.view.in_(PROTECTED_SUPER_ADMIN_VIEWS)).all()
             protected_ids = {p.id for p in protected_perms}
-            # Inyectar forzosamente los permisos protegidos si el cliente los omitió
-            final_ids.update(protected_ids)
+            missing_protected = protected_ids - final_ids
+            if missing_protected:
+                missing_names = sorted(p.view for p in protected_perms if p.id in missing_protected)
+                logger.warning(
+                    f"[RBAC Anti-Lockout] Intento de revocar permisos protegidos {missing_names} "
+                    f"del rol super_admin por usuario {current_user_id}."
+                )
+                raise ValueError(
+                    "Regla Anti-Lockout: No está permitido retirar permisos críticos "
+                    "del rol Super Administrador."
+                )
 
         # 3. Obtener permisos actuales para cálculo de deltas
         current_permission_roles = PermissionRole.query.filter_by(role_id=role.id).all()

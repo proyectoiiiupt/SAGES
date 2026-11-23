@@ -4,7 +4,8 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/sweetalert2.min.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='CSS/configurations.css') }}?v={{ range(1000, 9999) | random }}">
+<link rel="stylesheet"
+    href="{{ url_for('static', filename='CSS/configurations.css') }}?v={{ range(1000, 9999) | random }}">
 {% endblock %}
 
 {% block content %}
@@ -115,7 +116,11 @@
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="text-center"><span class="badge-count">{{ (roles_matrix | selectattr('role_code', 'equalto', 'super_admin') | map(attribute='users_count') | first) | default((roles_matrix | selectattr('id', 'equalto', 1) | map(attribute='users_count') | first) | default(0)) }}</span></td>
+                                    <td class="text-center"><span class="badge-count">{{ (roles_matrix |
+                                            selectattr('role_code', 'equalto', 'super_admin') |
+                                            map(attribute='users_count') | first) | default((roles_matrix |
+                                            selectattr('id', 'equalto', 1) | map(attribute='users_count') | first) |
+                                            default(0)) }}</span></td>
                                     <td class="text-center"><span class="badge-status badge-success">Acceso Total</span>
                                     </td>
                                     <td class="text-center">
@@ -146,7 +151,11 @@
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="text-center"><span class="badge-count">{{ (roles_matrix | selectattr('role_code', 'equalto', 'state_admin') | map(attribute='users_count') | first) | default((roles_matrix | selectattr('id', 'equalto', 2) | map(attribute='users_count') | first) | default(0)) }}</span></td>
+                                    <td class="text-center"><span class="badge-count">{{ (roles_matrix |
+                                            selectattr('role_code', 'equalto', 'state_admin') |
+                                            map(attribute='users_count') | first) | default((roles_matrix |
+                                            selectattr('id', 'equalto', 2) | map(attribute='users_count') | first) |
+                                            default(0)) }}</span></td>
                                     <td class="text-center"><span class="badge-status badge-info">Aprobación
                                             Regional</span></td>
                                     <td class="text-center">
@@ -177,7 +186,11 @@
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="text-center"><span class="badge-count">{{ (roles_matrix | selectattr('role_code', 'equalto', 'applicant') | map(attribute='users_count') | first) | default((roles_matrix | selectattr('id', 'equalto', 3) | map(attribute='users_count') | first) | default(0)) }}</span></td>
+                                    <td class="text-center"><span class="badge-count">{{ (roles_matrix |
+                                            selectattr('role_code', 'equalto', 'applicant') |
+                                            map(attribute='users_count') | first) | default((roles_matrix |
+                                            selectattr('id', 'equalto', 3) | map(attribute='users_count') | first) |
+                                            default(0)) }}</span></td>
                                     <td class="text-center"><span class="badge-status badge-neutral">Lectura y
                                             Carga</span></td>
                                     <td class="text-center">
@@ -230,7 +243,8 @@
                                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                                     <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                                 </svg>
-                                <span>Datos de Registro Fiscal protegidos por configuración maestra de la institución</span>
+                                <span>Datos de Registro Fiscal protegidos por configuración maestra de la
+                                    institución</span>
                             </div>
 
                             <div class="form-group">
@@ -363,7 +377,8 @@
                                 {% for place in places %}
                                 <tr id="place-row-{{ place.id }}">
                                     <td class="code-cell text-muted" style="text-align: center; font-weight: 600;">
-                                        {{ loop.index }}
+                                        {{ ((pagination.page - 1) * pagination.per_page + loop.index) if pagination else
+                                        loop.index }}
                                     </td>
                                     <td>
                                         <code class="place-code">{{ place.place_code }}</code>
@@ -433,13 +448,16 @@
                                 <tr>
                                     <td colspan="8" class="empty-state">
                                         <div class="empty-state-content">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="empty-icon" aria-hidden="true">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+                                                class="empty-icon" aria-hidden="true">
                                                 <circle cx="11" cy="11" r="8"></circle>
                                                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                                                 <line x1="8" y1="11" x2="14" y2="11"></line>
                                             </svg>
                                             <p class="empty-title">No hay sedes registradas</p>
-                                            <p class="empty-subtitle">Haga clic en "Registrar Sede" para agregar la primera.</p>
+                                            <p class="empty-subtitle">Haga clic en "Registrar Sede" para agregar la
+                                                primera.</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -763,65 +781,62 @@
 
         <div class="modal-body">
             <form id="form-place" novalidate onsubmit="return false;">
-                    <input type="hidden" id="place-id-hidden" name="place_id" value="">
-                    {{ form.hidden_tag() }}
+                <input type="hidden" id="place-id-hidden" name="place_id" value="">
+                {{ form.hidden_tag() }}
 
-                    <!-- Nombre (ancho completo) -->
-                    <div class="form-group form-group--mb">
-                        <label for="place_name" class="form-label">Nombre de la Sede <span
+                <!-- Nombre (ancho completo) -->
+                <div class="form-group form-group--mb">
+                    <label for="place_name" class="form-label">Nombre de la Sede <span
+                            class="label-required">*</span></label>
+                    <input type="text" id="place_name" name="name" class="form-control"
+                        placeholder="Ej. Centro de Servicio Técnico &mdash; Catia" minlength="3" maxlength="200"
+                        autocomplete="off" required>
+                </div>
+
+                <!-- Selectores geográficos en cascada -->
+                <div class="place-geo-grid">
+                    <div class="form-group">
+                        <label for="place_state" class="form-label">Estado <span class="label-required">*</span></label>
+                        <select id="place_state" name="state_id" class="form-control" required>
+                            <option value="">— Seleccione Estado —</option>
+                            {% for state in states %}
+                            <option value="{{ state.id }}">{{ state.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="place_municipality" class="form-label">Municipio <span
                                 class="label-required">*</span></label>
-                        <input type="text" id="place_name" name="name" class="form-control"
-                            placeholder="Ej. Centro de Servicio Técnico &mdash; Catia" minlength="3" maxlength="200"
-                            autocomplete="off" required>
+                        <select id="place_municipality" name="municipality_id" class="form-control" disabled required>
+                            <option value="">— Seleccione Municipio —</option>
+                        </select>
                     </div>
-
-                    <!-- Selectores geográficos en cascada -->
-                    <div class="place-geo-grid">
-                        <div class="form-group">
-                            <label for="place_state" class="form-label">Estado <span
-                                    class="label-required">*</span></label>
-                            <select id="place_state" name="state_id" class="form-control" required>
-                                <option value="">— Seleccione Estado —</option>
-                                {% for state in states %}
-                                <option value="{{ state.id }}">{{ state.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="place_municipality" class="form-label">Municipio <span
-                                    class="label-required">*</span></label>
-                            <select id="place_municipality" name="municipality_id" class="form-control" disabled
-                                required>
-                                <option value="">— Seleccione Municipio —</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="place_parish" class="form-label">Parroquia <span
-                                    class="label-required">*</span></label>
-                            <select id="place_parish" name="parish_id" class="form-control" disabled required>
-                                <option value="">— Seleccione Parroquia —</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Teléfono -->
-                    <div class="form-group form-group--mb">
-                        <label for="place_phone" class="form-label">Teléfono Directo <span
+                    <div class="form-group">
+                        <label for="place_parish" class="form-label">Parroquia <span
                                 class="label-required">*</span></label>
-                        <input type="text" id="place_phone" name="phone" class="form-control"
-                            placeholder="(0212)-1234567" maxlength="14" autocomplete="tel" required>
-                        <small class="form-hint">Formato requerido: (XXXX)-XXXXXXX &mdash; ej: (0212)-1234567</small>
+                        <select id="place_parish" name="parish_id" class="form-control" disabled required>
+                            <option value="">— Seleccione Parroquia —</option>
+                        </select>
                     </div>
+                </div>
 
-                    <!-- Dirección física (ancho completo) -->
-                    <div class="form-group form-group--no-mb">
-                        <label for="place_address" class="form-label">Dirección Física Detallada <span
-                                class="label-required">*</span></label>
-                        <textarea id="place_address" name="address" class="form-control" rows="3" minlength="10"
-                            maxlength="500" placeholder="Av. Principal, Edificio..., Piso, Oficina..."
-                            required></textarea>
-                    </div>
-                </form>
+                <!-- Teléfono -->
+                <div class="form-group form-group--mb">
+                    <label for="place_phone" class="form-label">Teléfono Directo <span
+                            class="label-required">*</span></label>
+                    <input type="text" id="place_phone" name="phone" class="form-control" placeholder="(0212)-1234567"
+                        maxlength="14" autocomplete="tel" required>
+                    <small class="form-hint">Formato requerido: (XXXX)-XXXXXXX &mdash; ej: (0212)-1234567</small>
+                </div>
+
+                <!-- Dirección física (ancho completo) -->
+                <div class="form-group form-group--no-mb">
+                    <label for="place_address" class="form-label">Dirección Física Detallada <span
+                            class="label-required">*</span></label>
+                    <textarea id="place_address" name="address" class="form-control" rows="3" minlength="10"
+                        maxlength="500" placeholder="Av. Principal, Edificio..., Piso, Oficina..." required></textarea>
+                </div>
+            </form>
         </div>
 
         <div class="modal-footer">
