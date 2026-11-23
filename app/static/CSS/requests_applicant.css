@@ -381,31 +381,32 @@
 }
 
 .wizard-header {
-    background: linear-gradient(90deg, #1fcab0, #1c3d73);
-    padding: 2.5rem;
+    background: #1c3d73;
+    padding: 2.5rem 2.5rem 1.5rem;
     text-align: center;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .wizard-title {
     color: #ffffff;
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem;
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 0.85rem;
+    gap: 0.75rem;
 }
 
 .wizard-title svg {
-    width: 28px;
-    height: 28px;
+    width: 26px;
+    height: 26px;
     color: #ffffff;
 }
 
 .wizard-subtitle {
-    color: rgba(255, 255, 255, 0.8) !important;
-    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.85) !important;
+    font-size: 0.95rem;
     margin: 0;
     font-weight: 400;
 }
@@ -556,30 +557,32 @@
     border-top: 1px solid #e2e8f0;
 }
 
-/* Botones Modernizados (Igual a training_new.css) */
+/* Botones Modernizados (Estilo Pre-Registro Institucional) */
 .btn-action {
     padding: 0.85rem 2rem;
-    background: linear-gradient(90deg, #1c3d73, #1fcab0);
+    background: #1c3d73;
     border: none;
     border-radius: 30px;
     color: white;
-    font-size: 1rem;
+    font-size: 1.05rem;
     font-weight: 600;
     cursor: pointer;
     display: flex;
     justify-content: center;
     align-items: center;
     gap: 0.5rem;
-    transition: all 0.3s ease;
+    transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
 }
 
 .btn-action:hover:not(:disabled) {
+    background: #16325c;
     transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(31, 202, 176, 0.4);
+    box-shadow: 0 8px 16px -3px rgba(28, 61, 115, 0.35);
     color: white;
 }
 
 .btn-action:active:not(:disabled) {
+    background: #11284a;
     transform: translateY(0);
 }
 
