@@ -56,8 +56,7 @@ class AuditAction(str, Enum):
     CAMBIO_ESTATUS_INSTITUCION = 'CAMBIO_ESTATUS_INSTITUCION'
     INVITACION_COLABORADOR = 'INVITACION_COLABORADOR'
     
-    # Configuraciones y Respaldos (US-60-database-backup-monitoring)
-    RESPALDO_AUTOMATICO_EXITOSO = 'RESPALDO_AUTOMATICO_EXITOSO'
+    # Configuraciones
     REGISTRO_NUEVA_SEDE = 'REGISTRO_NUEVA_SEDE'
     ACTUALIZAR_SEDE = 'ACTUALIZAR_SEDE'
     CAMBIO_ESTATUS_SEDE = 'CAMBIO_ESTATUS_SEDE'
@@ -145,7 +144,6 @@ MODULE_ACTIONS_MAP = {
         AuditAction.CAMBIO_ESTATUS.value,
     ],
     AuditModule.CONFIGURATIONS.value: [
-        AuditAction.RESPALDO_AUTOMATICO_EXITOSO.value,
         AuditAction.REGISTRO_NUEVA_SEDE.value,
         AuditAction.ACTUALIZAR_SEDE.value,
         AuditAction.CAMBIO_ESTATUS_SEDE.value,

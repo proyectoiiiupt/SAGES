@@ -293,8 +293,7 @@ def resolve_notification_payload(event: NotificationEvent, context: dict = None)
         "changes_summary": "Permisos actualizados",
         "company_name": "CORPOELEC",
         "updated_fields": "Datos actualizados",
-        "place_name": "Sede",
-        "filename": "respaldo.sql"
+        "place_name": "Sede"
     }
     for k, v in defaults.items():
         ctx.setdefault(k, v)

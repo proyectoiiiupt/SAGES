@@ -24,7 +24,6 @@ def seed_permission_roles():
 
         # --- ADMIN ESTADAL (ROL-002) ---
         {"role_code": "ROL-002", "permission_code": "PERM-001"}, # Ver Inicio
-        {"role_code": "ROL-002", "permission_code": "PERM-002"}, # Ver Panel Administrativo
         {"role_code": "ROL-002", "permission_code": "PERM-003"}, # Gestión de Solicitudes
         {"role_code": "ROL-002", "permission_code": "PERM-005"}, # Ver Catalogo de Formación
         {"role_code": "ROL-002", "permission_code": "PERM-006"}, # Asignar a Estados

@@ -24,6 +24,7 @@ from app.configurations.services import (
     update_role_permissions,
     get_corporate_branding_data,
     update_corporate_branding,
+    ROLE_ALLOWED_VIEWS,
     FileValidationError
 )
 from app.models.state_model import State
@@ -108,6 +109,7 @@ def index():
     form       = PlaceForm()
     roles_matrix = get_all_roles_matrix()
     permission_groups = get_permissions_grouped()
+    role_allowed_views = {role: sorted(views) for role, views in ROLE_ALLOWED_VIEWS.items()}
 
     # Precarga de datos corporativos e identidad visual (US-58)
     corporate_data = get_corporate_branding_data()
@@ -127,6 +129,7 @@ def index():
         per_page=per_page,
         roles_matrix=roles_matrix,
         permission_groups=permission_groups,
+        role_allowed_views=role_allowed_views,
         search_query=search,
         selected_state_id=state_id,
         state_filter_val=state_filter_val,
@@ -475,15 +478,21 @@ def _inject_dynamic_choices(form: PlaceForm) -> None:
     from app.models.parish_model import Parish
 
     # Obtener los valores enviados desde el cliente
+    state_id  = request.form.get('state_id', 0, type=int)
     mun_id    = request.form.get('municipality_id', 0, type=int)
     parish_id = request.form.get('parish_id', 0, type=int)
 
-    # Reconstruir los choices mínimos necesarios para que WTForms los acepte
-    mun = Municipality.query.get(mun_id)
-    par = Parish.query.get(parish_id)
+    # Reconstruir los choices solo si los registros existen y respetan la jerarquía territorial
+    mun = Municipality.query.get(mun_id) if mun_id and mun_id > 0 else None
+    if mun and state_id and mun.state_id != state_id:
+        mun = None
 
-    form.municipality_id.choices = [(mun_id, mun.name if mun else '')] if mun_id else [(0, '')]
-    form.parish_id.choices       = [(parish_id, par.name if par else '')] if parish_id else [(0, '')]
+    par = Parish.query.get(parish_id) if parish_id and parish_id > 0 else None
+    if par and (not mun or par.municipality_id != mun.id):
+        par = None
+
+    form.municipality_id.choices = [(mun.id, mun.name)] if mun else [(0, '')]
+    form.parish_id.choices       = [(par.id, par.name)] if par else [(0, '')]
 
 
 # ─────────────────────────────────────────────────────────────────────────────

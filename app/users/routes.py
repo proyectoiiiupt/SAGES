@@ -1368,7 +1368,7 @@ def api_places_by_state(state_id):
 
 @users_bp.route('/register', methods=['GET', 'POST'])
 @login_required
-@role_required('super_admin', 'state_admin')
+@role_required('super_admin')
 @check_permissions('register_users')
 def register_admin():
     user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'

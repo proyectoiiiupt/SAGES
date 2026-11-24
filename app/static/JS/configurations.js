@@ -144,24 +144,20 @@ document.addEventListener('DOMContentLoaded', () => {
             { chkId: 'chk-sys-config', tagId: 'tag-sys-config', parentId: 'perm-item-sys-config' }
         ];
 
-        // Reglas de compatibilidad de vistas por tipo de actor (rol)
-        const roleAllowedViews = {
-            super_admin: new Set([
-                'view_home', 'view_admin_panel', 'manage_requests',
-                'view_training_catalog', 'assign_to_states', 'upload_training',
-                'view_statistics', 'manage_users', 'register_users',
-                'manage_institution', 'system_configuration'
-            ]),
-            state_admin: new Set([
-                'view_home', 'manage_requests', 'view_training_catalog',
-                'assign_to_states', 'view_statistics', 'manage_users',
-                'register_users', 'manage_institution'
-            ]),
-            applicant: new Set([
-                'view_home', 'create_request', 'view_training_catalog',
-                'view_my_institution'
-            ])
-        };
+        // Reglas de compatibilidad de vistas por tipo de actor (rol) desde el backend (Single Source of Truth)
+        const roleAllowedViews = {};
+        if (modalPermissions.dataset.allowedViews) {
+            try {
+                const parsed = JSON.parse(modalPermissions.dataset.allowedViews);
+                Object.entries(parsed).forEach(([role, views]) => {
+                    if (Array.isArray(views)) {
+                        roleAllowedViews[role] = new Set(views);
+                    }
+                });
+            } catch (err) {
+                console.error('[RBAC] Error al parsear data-allowed-views:', err);
+            }
+        }
         const allowedForRole = roleAllowedViews[roleCode] || null;
 
         // Desmarcar todos los checkboxes inicialmente mientras se consultan los datos
@@ -384,6 +380,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const dropzoneLogo = document.getElementById('dropzone-logo');
     const dropzoneIcon = document.getElementById('dropzone-icon');
 
+    function syncSaveCorporateButtonState() {
+        if (!btnSaveCorporate) return;
+        const hasLogo = Boolean(logoFileInput && logoFileInput.files && logoFileInput.files.length > 0);
+        const hasIcon = Boolean(iconFileInput && iconFileInput.files && iconFileInput.files.length > 0);
+        btnSaveCorporate.disabled = !(hasLogo || hasIcon);
+    }
+    syncSaveCorporateButtonState();
+
     // ── 1. Disparadores de Carga de Archivos ─────────────────────────────────
     if (btnBrowseLogo && logoFileInput) {
         btnBrowseLogo.addEventListener('click', (e) => {
@@ -441,7 +445,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (logoFileInput) {
         logoFileInput.addEventListener('change', () => {
             const file = logoFileInput.files[0];
-            if (!file) return;
+            if (!file) {
+                syncSaveCorporateButtonState();
+                return;
+            }
 
             // Validación preliminar de extensión / tipo
             const isPng = file.type === 'image/png' || file.name.toLowerCase().endsWith('.png');
@@ -456,6 +463,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 logoFileInput.value = '';
                 if (logoFileName) logoFileName.textContent = '';
+                syncSaveCorporateButtonState();
                 return;
             }
 
@@ -471,8 +479,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 logoFileInput.value = '';
                 if (logoFileName) logoFileName.textContent = '';
+                syncSaveCorporateButtonState();
                 return;
             }
+
+            syncSaveCorporateButtonState();
 
             // Lectura y renderizado reactivo inmediato
             const reader = new FileReader();
@@ -493,20 +504,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (iconFileInput) {
         iconFileInput.addEventListener('change', () => {
             const file = iconFileInput.files[0];
-            if (!file) return;
+            if (!file) {
+                syncSaveCorporateButtonState();
+                return;
+            }
 
-            const isAllowedExt = file.name.toLowerCase().endsWith('.png') || file.name.toLowerCase().endsWith('.ico');
-            if (!isAllowedExt) {
+            const isPng = file.type === 'image/png' || file.name.toLowerCase().endsWith('.png');
+            if (!isPng) {
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
                         icon: 'warning',
                         title: 'Formato no permitido',
-                        text: 'El favicon debe estar en formato ICO (.ico) o PNG (.png).',
+                        text: 'El favicon institucional debe ser una imagen PNG auténtica (.png).',
                         confirmButtonColor: '#019577'
                     });
                 }
                 iconFileInput.value = '';
                 if (iconFileName) iconFileName.textContent = '';
+                syncSaveCorporateButtonState();
                 return;
             }
 
@@ -521,8 +536,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 iconFileInput.value = '';
                 if (iconFileName) iconFileName.textContent = '';
+                syncSaveCorporateButtonState();
                 return;
             }
+
+            syncSaveCorporateButtonState();
 
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -592,6 +610,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (iconFileInput && iconFileInput.files && iconFileInput.files.length > 0) {
                 formData.append('icon_file', iconFileInput.files[0]);
+            }
+
+            if (!formData.has('logo_file') && !formData.has('icon_file')) {
+                syncSaveCorporateButtonState();
+                return;
             }
 
             // Indicador de carga interactivo en el botón
@@ -692,8 +715,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
             } finally {
-                btnSaveCorporate.disabled = false;
                 btnSaveCorporate.innerHTML = originalBtnHtml;
+                syncSaveCorporateButtonState();
             }
         });
     }

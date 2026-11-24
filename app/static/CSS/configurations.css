@@ -550,9 +550,15 @@
     transition: transform 0.2s ease, filter 0.2s ease;
 }
 
-.btn-save-primary:hover {
+.btn-save-primary:hover:not(:disabled) {
     filter: brightness(1.08);
     transform: translateY(-1px);
+}
+
+.btn-save-primary:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    box-shadow: none;
 }
 
 .btn-save-primary svg {

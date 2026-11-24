@@ -186,7 +186,7 @@
                         <input type="file" id="logo_file" name="logo_file" accept=".png,image/png"
                             style="display: none;">
                         <input type="file" id="icon_file" name="icon_file"
-                            accept=".png,.ico,image/png,image/x-icon,image/vnd.microsoft.icon" style="display: none;">
+                            accept=".png,image/png" style="display: none;">
 
                         <!-- Columna 1: Campos Institucionales (Solo lectura) -->
                         <div class="form-inputs-col">
@@ -267,7 +267,7 @@
                                         alt="Ícono CORPOELEC" class="preview-icon" id="preview-icon-img">
                                 </div>
                                 <div class="upload-meta">
-                                    <span class="upload-hint">Dimensión recomendada: 32×32 px (ICO o PNG, máx. 512
+                                    <span class="upload-hint">Dimensión recomendada: 32×32 px (PNG, máx. 512
                                         KB)</span>
                                     <span class="upload-filename" id="icon-file-name"></span>
                                 </div>
@@ -277,7 +277,7 @@
 
                         <!-- Botón de Envío -->
                         <div class="form-actions-full">
-                            <button type="button" class="btn-save-primary" id="btn-save-corporate">
+                            <button type="button" class="btn-save-primary" id="btn-save-corporate" disabled>
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
                                     <polyline points="17 21 17 13 7 13 7 21"></polyline>
@@ -549,7 +549,8 @@
 <!-- ══════════════════════════════════════════════════════════════════ -->
 <!-- MODAL DE MATRIZ DE PERMISOS (#modal-permissions)                  -->
 <!-- ══════════════════════════════════════════════════════════════════ -->
-<div class="modal-overlay" id="modal-permissions" style="display: none;">
+<div class="modal-overlay" id="modal-permissions" style="display: none;"
+    data-allowed-views='{{ (role_allowed_views or {}) | tojson }}'>
     <div class="modal-card">
 
         <div class="modal-header">

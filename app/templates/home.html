@@ -286,7 +286,7 @@
             {% endif %}
 
             {# Registrar Usuario #}
-            {% if 'register_users' in user_permissions %}
+            {% if user_role == 'super_admin' and 'register_users' in user_permissions %}
             <a href="{{ url_for('users.register_admin') }}" class="card card-green">
                 <div class="card-header">
                     <div class="card-title">Registrar Usuario</div>

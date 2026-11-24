@@ -465,7 +465,6 @@ ROLE_ALLOWED_VIEWS = {
         'assign_to_states',
         'view_statistics',
         'manage_users',
-        'register_users',
         'manage_institution',
     },
     'applicant': {
@@ -827,12 +826,20 @@ def update_corporate_branding(form_data: dict, files: dict, current_user_id: int
     logo_file = files.get('logo_file') if files else None
     icon_file = files.get('icon_file') if files else None
 
+    has_logo = bool(logo_file and getattr(logo_file, 'filename', None))
+    has_icon = bool(icon_file and getattr(icon_file, 'filename', None))
+
+    if not has_logo and not has_icon:
+        raise FileValidationError(
+            'Debe adjuntar al menos una imagen válida (logotipo o ícono) para actualizar la identidad visual.'
+        )
+
     # 1. Validación preventiva de archivos antes de cualquier mutación
-    if logo_file and getattr(logo_file, 'filename', None):
+    if has_logo:
         _validate_image_bytes(logo_file, [SIGNATURE_PNG], MAX_LOGO_SIZE, 'Logotipo del Sistema')
 
-    if icon_file and getattr(icon_file, 'filename', None):
-        _validate_image_bytes(icon_file, [SIGNATURE_PNG, SIGNATURE_ICO], MAX_ICON_SIZE, 'Favicon / Ícono Institucional')
+    if has_icon:
+        _validate_image_bytes(icon_file, [SIGNATURE_PNG], MAX_ICON_SIZE, 'Favicon / Ícono Institucional')
 
     try:
         # 2. Consulta de la entidad corporativa maestra (datos fiscales inmutables)
