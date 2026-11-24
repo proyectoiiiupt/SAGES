@@ -609,6 +609,7 @@
 
 
 <!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
 <!-- MODAL UNIFICADO DE SEDES (#modal-place)                           -->
 <!-- US-56-places-management: Registro y Edición                       -->
 <!-- ══════════════════════════════════════════════════════════════════ -->
@@ -617,9 +618,17 @@
     <div class="modal-card modal-card--wide">
 
         <div class="modal-header">
-            <div>
-                <h3 class="modal-title" id="modal-place-title">Registrar Nueva Sede</h3>
-                <p class="modal-subtitle">Complete los datos de la sede física operativa de CORPOELEC.</p>
+            <div class="modal-header-icon-group">
+                <div class="modal-header-avatar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                        <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="modal-title" id="modal-place-title">Registrar Nueva Sede</h3>
+                    <p class="modal-subtitle">Complete los datos de la sede física operativa de CORPOELEC.</p>
+                </div>
             </div>
             <button type="button" class="btn-close-modal" id="btn-close-place-modal-x"
                 aria-label="Cerrar modal">&times;</button>
@@ -630,57 +639,90 @@
                 <input type="hidden" id="place-id-hidden" name="place_id" value="">
                 {{ form.hidden_tag() }}
 
-                <!-- Nombre (ancho completo) -->
-                <div class="form-group form-group--mb">
-                    <label for="place_name" class="form-label">Nombre de la Sede <span
-                            class="label-required">*</span></label>
-                    <input type="text" id="place_name" name="name" class="form-control"
-                        placeholder="Ej. Centro de Servicio Técnico &mdash; Catia" minlength="3" maxlength="200"
-                        autocomplete="off" required>
+                <!-- SECCIÓN 1: IDENTIFICACIÓN GENERAL -->
+                <div class="place-form-section">
+                    <div class="place-form-section-title">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                        </svg>
+                        <span>Identificación de la Sede</span>
+                    </div>
+
+                    <div class="place-form-two-col">
+                        <!-- Nombre (ancho flexible) -->
+                        <div class="form-group form-group--flex-2">
+                            <label for="place_name" class="form-label">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M3 7v14M21 7v14M6 11h2M6 15h2M16 11h2M16 15h2M10 21v-4a2 2 0 0 1 4 0v4M12 3l9 4H3l9-4z"/></svg>
+                                Nombre de la Sede <span class="label-required">*</span>
+                            </label>
+                            <input type="text" id="place_name" name="name" class="form-control"
+                                placeholder="Ej. Centro de Servicio Técnico — Catia" minlength="3" maxlength="200"
+                                autocomplete="off" required>
+                        </div>
+
+                        <!-- Teléfono -->
+                        <div class="form-group form-group--flex-1">
+                            <label for="place_phone" class="form-label">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                                Teléfono Directo <span class="label-required">*</span>
+                            </label>
+                            <input type="text" id="place_phone" name="phone" class="form-control" placeholder="(0212)-1234567"
+                                maxlength="14" autocomplete="tel" required>
+                            <small class="form-hint">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                                Formato: (XXXX)-XXXXXXX
+                            </small>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Selectores geográficos en cascada -->
-                <div class="place-geo-grid">
-                    <div class="form-group">
-                        <label for="place_state" class="form-label">Estado <span class="label-required">*</span></label>
-                        <select id="place_state" name="state_id" class="form-control" required>
-                            <option value="">— Seleccione Estado —</option>
-                            {% for state in states %}
-                            <option value="{{ state.id }}">{{ state.name }}</option>
-                            {% endfor %}
-                        </select>
+                <!-- SECCIÓN 2: LOCALIZACIÓN TERRITORIAL Y DIRECCIÓN -->
+                <div class="place-form-section">
+                    <div class="place-form-section-title">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                            <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                        <span>Localización Territorial y Dirección Física</span>
                     </div>
-                    <div class="form-group">
-                        <label for="place_municipality" class="form-label">Municipio <span
-                                class="label-required">*</span></label>
-                        <select id="place_municipality" name="municipality_id" class="form-control" disabled required>
-                            <option value="">— Seleccione Municipio —</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="place_parish" class="form-label">Parroquia <span
-                                class="label-required">*</span></label>
-                        <select id="place_parish" name="parish_id" class="form-control" disabled required>
-                            <option value="">— Seleccione Parroquia —</option>
-                        </select>
-                    </div>
-                </div>
 
-                <!-- Teléfono -->
-                <div class="form-group form-group--mb">
-                    <label for="place_phone" class="form-label">Teléfono Directo <span
-                            class="label-required">*</span></label>
-                    <input type="text" id="place_phone" name="phone" class="form-control" placeholder="(0212)-1234567"
-                        maxlength="14" autocomplete="tel" required>
-                    <small class="form-hint">Formato requerido: (XXXX)-XXXXXXX &mdash; ej: (0212)-1234567</small>
-                </div>
+                    <!-- Selectores geográficos en cascada -->
+                    <div class="place-geo-grid">
+                        <div class="form-group">
+                            <label for="place_state" class="form-label">Estado <span class="label-required">*</span></label>
+                            <select id="place_state" name="state_id" class="form-control" required>
+                                <option value="">— Seleccione Estado —</option>
+                                {% for state in states %}
+                                <option value="{{ state.id }}">{{ state.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="place_municipality" class="form-label">Municipio <span
+                                    class="label-required">*</span></label>
+                            <select id="place_municipality" name="municipality_id" class="form-control" disabled required>
+                                <option value="">— Seleccione Municipio —</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="place_parish" class="form-label">Parroquia <span
+                                    class="label-required">*</span></label>
+                            <select id="place_parish" name="parish_id" class="form-control" disabled required>
+                                <option value="">— Seleccione Parroquia —</option>
+                            </select>
+                        </div>
+                    </div>
 
-                <!-- Dirección física (ancho completo) -->
-                <div class="form-group form-group--no-mb">
-                    <label for="place_address" class="form-label">Dirección Física Detallada <span
-                            class="label-required">*</span></label>
-                    <textarea id="place_address" name="address" class="form-control" rows="3" minlength="10"
-                        maxlength="500" placeholder="Av. Principal, Edificio..., Piso, Oficina..." required></textarea>
+                    <!-- Dirección física (ancho completo) -->
+                    <div class="form-group form-group--no-mb" style="margin-top: 0.75rem;">
+                        <label for="place_address" class="form-label">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                            Dirección Física Detallada <span class="label-required">*</span>
+                        </label>
+                        <textarea id="place_address" name="address" class="form-control" rows="3" minlength="10"
+                            maxlength="500" placeholder="Av. Principal, Edificio..., Piso, Oficina..." required></textarea>
+                    </div>
                 </div>
             </form>
         </div>

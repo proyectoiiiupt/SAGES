@@ -3,16 +3,22 @@
 {% block title %}Reportes y Estadísticas – SAGES{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/analytics.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/analytics.css') }}?v={{ range(1000, 9999) | random }}">
 {% endblock %}
 
 {% block content %}
 <div class="analytics-container">
-    <!-- ── CABECERA PRINCIPAL ── -->
-    <div class="analytics-header-card">
-        <div class="analytics-title-group">
-            <h1 class="analytics-main-title">Reportes y Estadísticas</h1>
-            <div class="analytics-jurisdiction-badge" title="Ámbito de datos">
+    <!-- ── 1. CABECERA / BANNER PRINCIPAL ESTÁNDAR SAGES ── -->
+    <div class="header-card">
+        <div class="welcome-text">
+            <i>Reportes y Estadísticas</i>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="18" y1="20" x2="18" y2="10"></line>
+                <line x1="12" y1="20" x2="12" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+            <div class="analytics-jurisdiction-badge" title="Ámbito de jurisdicción territorial">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="10"></circle>
                     <line x1="2" y1="12" x2="22" y2="12"></line>
@@ -21,8 +27,8 @@
                 <span>{{ metrics.jurisdiction_label }}</span>
             </div>
         </div>
-        <div class="analytics-date-wrapper">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <div class="date-text date-with-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                 <line x1="16" y1="2" x2="16" y2="6"></line>
                 <line x1="8" y1="2" x2="8" y2="6"></line>
@@ -32,53 +38,130 @@
         </div>
     </div>
 
-    <!-- ── TARJETA KPI SUPERIOR: ACTIVIDAD RECIENTE (28 DÍAS) ── -->
-    <div class="kpi-banner-card">
-        <div class="kpi-banner-left">
-            <div class="kpi-banner-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                </svg>
+    <!-- ── 2. CUADRO DE INDICADORES KPI ESTILO ADMINLTE (SMALL-BOXES) ── -->
+    <div class="kpi-grid">
+        <!-- 1. TOTAL DE SOLICITUDES -->
+        <div class="kpi-card kpi-blue">
+            <div class="kpi-card-left">
+                <div class="kpi-icon-container">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                </div>
+                <div class="kpi-info">
+                    <span class="kpi-label">Total Solicitudes</span>
+                    <span class="kpi-sublabel">Histórico consolidado</span>
+                </div>
             </div>
-            <div class="kpi-banner-text">
-                <span class="kpi-banner-number">{{ metrics.kpi_28_dias }}</span>
-                <span class="kpi-banner-label">solicitudes recibidas en los últimos 28 días</span>
+            <div class="kpi-value counter-value">{{ metrics.donut.total }}</div>
+        </div>
+
+        <!-- 2. SOLICITUDES APROBADAS / COMPLETADAS -->
+        <div class="kpi-card kpi-green">
+            <div class="kpi-card-left">
+                <div class="kpi-icon-container">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                </div>
+                <div class="kpi-info">
+                    <span class="kpi-label">Aprobadas</span>
+                    <span class="kpi-sublabel">Ejecución completada</span>
+                </div>
             </div>
+            <div class="kpi-value counter-value">{{ metrics.donut.aprobadas }}</div>
         </div>
-        <div class="kpi-banner-diff {% if metrics.diferencial_pct >= 0 %}diff-positive{% else %}diff-negative{% endif %}">
-            <span>{% if metrics.diferencial_pct >= 0 %}+{% endif %}{{ metrics.diferencial_pct }}%</span>
-            <small>vs. ciclo anterior</small>
+
+        <!-- 3. SOLICITUDES EN PROCESO -->
+        <div class="kpi-card kpi-amber">
+            <div class="kpi-card-left">
+                <div class="kpi-icon-container">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                </div>
+                <div class="kpi-info">
+                    <span class="kpi-label">En Proceso</span>
+                    <span class="kpi-sublabel">En atención activa</span>
+                </div>
+            </div>
+            <div class="kpi-value counter-value">{{ metrics.donut.en_proceso }}</div>
         </div>
-    </div>
-    
-     <!-- ── BOTONERA DE NAVEGACIÓN Y COMANDO PRINCIPAL ── -->
-     <div class="analytics-actions-footer">
-        <a href="{{ url_for('analytics.indicators_view') }}" class="btn-action-analytics btn-action-calc">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="4" y="2" width="16" height="20" rx="2"></rect>
-                <line x1="8" y1="6" x2="16" y2="6"></line>
-                <line x1="16" y1="14" x2="16" y2="18"></line>
-                <path d="M16 10h.01"></path>
-                <path d="M12 10h.01"></path>
-                <path d="M8 10h.01"></path>
-                <path d="M12 14h.01"></path>
-                <path d="M8 14h.01"></path>
-                <path d="M12 18h.01"></path>
-                <path d="M8 18h.01"></path>
-            </svg>
-            <span>Calcular indicadores</span>
-        </a>
-        <a href="{{ url_for('analytics.reports_wizard') }}" class="btn-action-analytics btn-action-export">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-            </svg>
-            <span>Exportar Reportes</span>
-        </a>
+
+        <!-- 4. SOLICITUDES PENDIENTES -->
+        <div class="kpi-card kpi-red">
+            <div class="kpi-card-left">
+                <div class="kpi-icon-container">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                </div>
+                <div class="kpi-info">
+                    <span class="kpi-label">Pendientes</span>
+                    <span class="kpi-sublabel">Por revisión inicial</span>
+                </div>
+            </div>
+            <div class="kpi-value counter-value">{{ metrics.donut.pendientes }}</div>
+        </div>
     </div>
 
-    <!-- ── CUADRÍCULA DE GRÁFICOS DEL TABLERO ── -->
+    <!-- ── 3. BANNER PRINCIPAL DE ACTIVIDAD RECIENTE Y ACCIONES (ADMINLTE HERO / CALLOUT) ── -->
+    <div class="analytics-summary-row">
+        <!-- Banner de Actividad Reciente (28 Días) -->
+        <div class="kpi-banner-card">
+            <div class="kpi-banner-left">
+                <div class="kpi-banner-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+                    </svg>
+                </div>
+                <div class="kpi-banner-text">
+                    <div class="kpi-banner-metric-line">
+                        <span class="kpi-banner-number">{{ metrics.kpi_28_dias }}</span>
+                        <span class="kpi-banner-label">solicitudes en los últimos 28 días</span>
+                    </div>
+                    <small class="kpi-banner-subtext">Ciclo operativo mensual de formación UREE</small>
+                </div>
+            </div>
+            <div class="kpi-banner-diff {% if metrics.diferencial_pct >= 0 %}diff-positive{% else %}diff-negative{% endif %}">
+                <span>{% if metrics.diferencial_pct >= 0 %}+{% endif %}{{ metrics.diferencial_pct }}%</span>
+                <small>vs. ciclo anterior</small>
+            </div>
+        </div>
+
+        <!-- Botonera de Acciones Rápidas del Módulo -->
+        <div class="analytics-actions-card">
+            <a href="{{ url_for('analytics.indicators_view') }}" class="btn-action-analytics btn-action-calc" title="Calcular indicadores de gestión">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4" y="2" width="16" height="20" rx="2"></rect>
+                    <line x1="8" y1="6" x2="16" y2="6"></line>
+                    <line x1="16" y1="14" x2="16" y2="18"></line>
+                    <path d="M16 10h.01"></path>
+                    <path d="M12 10h.01"></path>
+                    <path d="M8 10h.01"></path>
+                    <path d="M12 14h.01"></path>
+                    <path d="M8 14h.01"></path>
+                    <path d="M12 18h.01"></path>
+                    <path d="M8 18h.01"></path>
+                </svg>
+                <span>Calcular Indicadores</span>
+            </a>
+            <a href="{{ url_for('analytics.reports_wizard') }}" class="btn-action-analytics btn-action-export" title="Asistente de exportación de reportes">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                <span>Exportar Reportes</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- ── 4. CUADRÍCULA DE GRÁFICOS DEL TABLERO (ADMINLTE CARD BOXES) ── -->
     <div class="dashboard-charts-grid">
         <!-- 1. GRÁFICO CIRCULAR / DONUT: ESTADO DE LAS SOLICITUDES -->
         <div class="chart-card">
@@ -90,25 +173,26 @@
                     </svg>
                     Estado de las Solicitudes
                 </h3>
+                <span class="chart-subtitle-pill">{{ metrics.donut.total }} Total</span>
             </div>
             <div class="chart-card-body chart-donut-wrapper">
                 <canvas id="donutStatusChart"></canvas>
             </div>
             <div class="donut-custom-legend">
-                <div class="legend-item"><span class="legend-dot dot-green"></span> Aprobada ({{ metrics.donut.aprobadas }})</div>
+                <div class="legend-item"><span class="legend-dot dot-green"></span> Aprobadas ({{ metrics.donut.aprobadas }})</div>
                 <div class="legend-item"><span class="legend-dot dot-amber"></span> En proceso ({{ metrics.donut.en_proceso }})</div>
-                <div class="legend-item"><span class="legend-dot dot-red"></span> Pendiente ({{ metrics.donut.pendientes }})</div>
+                <div class="legend-item"><span class="legend-dot dot-red"></span> Pendientes ({{ metrics.donut.pendientes }})</div>
             </div>
         </div>
 
-        <!-- 2. GRÁFICO DE LÍNEAS CONTINUAS: EVOLUCIÓN DE SOLICITUDES (TENDENCIA ESTILO MERCADO/VENTAS) -->
+        <!-- 2. GRÁFICO DE LÍNEAS CONTINUAS: EVOLUCIÓN DE SOLICITUDES -->
         <div class="chart-card chart-card-wide">
             <div class="chart-card-header">
                 <h3 class="chart-card-title">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
                     </svg>
-                    Evolución de Solicitudes
+                    Evolución Temporal de Solicitudes
                 </h3>
                 <span class="chart-subtitle-pill">Tendencia por Estatus</span>
             </div>
@@ -128,14 +212,13 @@
                     </svg>
                     Tipo de Solicitud (Temas Formativos UREE Más Demandados)
                 </h3>
+                <span class="chart-subtitle-pill">Top Formaciones</span>
             </div>
             <div class="chart-card-body chart-bars-wrapper">
                 <canvas id="barTrainingsChart"></canvas>
             </div>
         </div>
     </div>
-
-   
 </div>
 {% endblock %}
 

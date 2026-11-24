@@ -3,7 +3,7 @@
 {% block title %}Generar Reportes – SAGES{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='CSS/analytics.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/analytics.css') }}?v={{ range(1000, 9999) | random }}">
 {% endblock %}
 
 {% block content %}
