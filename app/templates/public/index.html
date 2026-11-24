@@ -8,10 +8,19 @@
     <meta name="description"
         content="Plataforma institucional oficial de CORPOELEC para gestionar solicitudes de formación, talleres y charlas de uso racional y eficiente de la energía.">
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/public.css') }}">
+    <!-- Favicon Institucional -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/icon_corpoelec.png') }}">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/public.css') }}?v={{ range(1000, 9999) | random }}">
 </head>
 
 <body>
+
+    <!-- 1. Cintillo Institucional de la República Bolivariana de Venezuela (Membrete del Ministerio) -->
+    <header class="gov-header">
+        <img src="{{ url_for('static', filename='img/mppee-cintillo.jpg') }}"
+            alt="Cintillo Oficial MPPEE - República Bolivariana de Venezuela" class="gov-cintillo">
+    </header>
 
     <!-- ============================================================
          NAVBAR
@@ -118,7 +127,7 @@
                 <!-- Botones CTA -->
                 <div class="hero-cta reveal reveal-delay-3">
                     <a href="#catalog" class="btn-hero-primary">Conoce las formaciones</a>
-                    <a href="#system" class="btn-hero-primary">¿Cómo funciona?</a>
+                    <a href="#system" class="btn-hero-secondary">¿Cómo funciona?</a>
                 </div>
             </div>
 

@@ -184,17 +184,43 @@ button:focus-visible {
     border-width: 0;
 }
 
+/* ==========================================================================
+   1. CINTILLO INSTITUCIONAL DE LA REPÚBLICA BOLIVARIANA DE VENEZUELA
+   ========================================================================== */
+.gov-header {
+    width: 100%;
+    background-color: #ffffff;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    line-height: 0;
+    position: relative;
+    z-index: 55;
+}
+
+.gov-cintillo {
+    width: 100%;
+    max-height: 52px;
+    object-fit: cover;
+    display: block;
+}
+
+@media (min-width: 768px) {
+    .gov-cintillo {
+        max-height: 68px;
+    }
+}
+
 /* -----------------------------------------------
    NAVBAR
 ----------------------------------------------- */
 .navbar {
-    position: fixed;
-    top: 0; left: 0;
+    position: sticky;
+    top: 0;
+    left: 0;
     width: 100%;
     z-index: 50;
     transition: background 0.3s, box-shadow 0.3s;
     padding: 1rem 0;
-    background: rgba(11,26,48,0.8);
+    background: rgba(11,26,48,0.88);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid rgba(255,255,255,0.05);
@@ -279,18 +305,20 @@ button:focus-visible {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.625rem 1.25rem;
+    padding: 0.625rem 1.35rem;
     border-radius: 9999px;
-    background: linear-gradient(90deg, var(--brand-ocean), var(--brand-leaf));
-    color: #fff;
+    background: #1c3d73;
+    color: #ffffff;
     font-size: 0.875rem;
     font-weight: 600;
-    box-shadow: var(--shadow-glow);
+    box-shadow: 0 4px 12px rgba(28, 61, 115, 0.35);
     transition: all 0.3s ease;
-    border: none;
+    border: 1px solid #1c3d73;
 }
 .btn-primary:hover {
-    box-shadow: 0 6px 20px rgba(6,182,212,0.5);
+    background: #152f59;
+    border-color: #152f59;
+    box-shadow: 0 6px 18px rgba(28, 61, 115, 0.5);
     transform: translateY(-2px);
 }
 .btn-primary svg { width: 1rem; height: 1rem; }
@@ -350,13 +378,17 @@ button:focus-visible {
 }
 .mobile-btn-login {
     text-align: center;
-    background: linear-gradient(90deg, var(--brand-cyan), var(--brand-green));
-    color: #fff;
+    background: #1c3d73;
+    color: #ffffff;
     padding: 0.75rem 1.25rem;
     border-radius: 0.75rem;
     font-size: 1rem;
     font-weight: 600;
-    box-shadow: var(--shadow-glow);
+    box-shadow: 0 4px 12px rgba(28, 61, 115, 0.35);
+    transition: all 0.2s ease;
+}
+.mobile-btn-login:hover {
+    background: #152f59;
 }
 
 /* -----------------------------------------------
@@ -597,18 +629,44 @@ button:focus-visible {
 
 .btn-hero-primary {
     display: inline-flex;
-    padding: 1rem 2rem;
+    align-items: center;
+    justify-content: center;
+    padding: 0.875rem 1.85rem;
     font-size: 1rem;
     font-weight: 600;
     border-radius: 9999px;
-    color: #fff;
-    background: linear-gradient(90deg, var(--brand-ocean), var(--brand-leaf));
+    color: #ffffff;
+    background: #1c3d73;
+    border: 1px solid #1c3d73;
+    box-shadow: 0 4px 14px rgba(28, 61, 115, 0.35);
     transition: all 0.3s ease;
-    border: none;
 }
 .btn-hero-primary:hover {
-    box-shadow: var(--shadow-glow);
-    transform: translateY(-4px);
+    background: #152f59;
+    border-color: #152f59;
+    box-shadow: 0 6px 20px rgba(28, 61, 115, 0.5);
+    transform: translateY(-3px);
+}
+
+.btn-hero-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.875rem 1.85rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 9999px;
+    color: #ffffff;
+    background: #007865;
+    border: 1px solid #007865;
+    box-shadow: 0 4px 14px rgba(0, 120, 101, 0.35);
+    transition: all 0.3s ease;
+}
+.btn-hero-secondary:hover {
+    background: #005f50;
+    border-color: #005f50;
+    box-shadow: 0 6px 20px rgba(0, 120, 101, 0.5);
+    transform: translateY(-3px);
 }
 /* -----------------------------------------------
    SECCIÓN "EL SISTEMA" (#que-es) — Carrusel
@@ -1138,13 +1196,20 @@ button:focus-visible {
 
 .btn-preregister {
     display: inline-flex; align-items: center; gap: 0.75rem;
-    padding: 1rem 2rem;
+    padding: 1rem 2.25rem;
     font-size: 1rem; font-weight: 600;
     border-radius: 9999px; color: #fff;
-    background: linear-gradient(90deg, var(--brand-ocean), var(--brand-leaf));
-    transition: all 0.3s ease; border: none;
+    background: #007865;
+    border: 1px solid #007865;
+    box-shadow: 0 4px 16px rgba(0, 120, 101, 0.35);
+    transition: all 0.3s ease;
 }
-.btn-preregister:hover { box-shadow: var(--shadow-glow); transform: translateY(-4px); }
+.btn-preregister:hover {
+    background: #005f50;
+    border-color: #005f50;
+    box-shadow: 0 8px 24px rgba(0, 120, 101, 0.5);
+    transform: translateY(-3px);
+}
 .btn-preregister svg { width: 1.25rem; height: 1.25rem; transition: transform 0.3s; }
 .btn-preregister:hover svg { transform: translateX(4px); }
 
