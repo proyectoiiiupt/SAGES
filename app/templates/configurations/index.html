@@ -377,7 +377,7 @@
                                         <strong>{{ place.name }}</strong>
                                     </td>
                                     <td>{{ place.parish.municipality.state.name }} &mdash; {{ place.parish.name }}</td>
-                                    <td class="text-center">{{ place.phone or '&mdash;' }}</td>
+                                    <td class="text-center place-phone-cell">{{ place.phone or '—' }}</td>
                                     <td class="text-center">
                                         <span class="badge-count">{{ place.staff_count }} funcionario{{ 's' if
                                             place.staff_count != 1 else '' }}</span>

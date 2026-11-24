@@ -808,6 +808,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── Modal de sedes (abrir / cerrar) ────────────────────────────────────
 
+    // ── Formateo de Teléfonos (UI: (0212)-1234567 / BD: 02121234567) ───────
+
+    function stripPhoneFormatting(raw) {
+        return String(raw || '').replace(/\D/g, '').substring(0, 11);
+    }
+
+    function formatPhoneDisplay(raw) {
+        const digits = stripPhoneFormatting(raw);
+        if (digits.length > 4) {
+            return `(${digits.substring(0, 4)})-${digits.substring(4)}`;
+        }
+        if (digits.length > 0) {
+            return `(${digits}`;
+        }
+        return '';
+    }
+
+    document.querySelectorAll('#table-places .place-phone-cell').forEach(cell => {
+        const digits = stripPhoneFormatting(cell.textContent);
+        if (digits.length > 0) {
+            cell.textContent = formatPhoneDisplay(digits);
+        }
+    });
+
+    const placePhoneInput = document.getElementById('place_phone');
+    if (placePhoneInput) {
+        placePhoneInput.addEventListener('input', function () {
+            this.value = formatPhoneDisplay(this.value);
+        });
+    }
+
     const modalPlace = document.getElementById('modal-place');
     const modalPlaceTitle = document.getElementById('modal-place-title');
     const placeIdHidden = document.getElementById('place-id-hidden');
@@ -935,7 +966,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const stateSelect = document.getElementById('place_state');
 
         if (nameInput) nameInput.value = d.name || '';
-        if (phoneInput) phoneInput.value = d.phone || '';
+        if (phoneInput) phoneInput.value = formatPhoneDisplay(d.phone || '');
         if (addressInput) addressInput.value = d.address || '';
         if (stateSelect) stateSelect.value = d.stateId || '';
 
@@ -963,6 +994,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 const formData = new FormData(formPlace);
+                if (formData.has('phone')) {
+                    formData.set('phone', stripPhoneFormatting(formData.get('phone')));
+                }
 
                 const resp = await fetch(url, {
                     method: 'POST',

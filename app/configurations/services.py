@@ -118,7 +118,7 @@ def create_place(form_data: dict, user_id: int):
             name        = form_data['name'].strip(),
             parish_id   = int(form_data['parish_id']),
             address     = form_data['address'].strip(),
-            phone       = form_data['phone'].strip(),
+            phone       = re.sub(r'\D', '', form_data['phone']),
             status_id   = status_act.id
         )
         new_place._skip_auto_audit = True
@@ -192,7 +192,7 @@ def update_place(place_id: int, form_data: dict, user_id: int):
         place.name      = form_data['name'].strip()
         place.parish_id = int(form_data['parish_id'])
         place.address   = form_data['address'].strip()
-        place.phone     = form_data['phone'].strip()
+        place.phone     = re.sub(r'\D', '', form_data['phone'])
 
         new_values = {
             'name'     : place.name,

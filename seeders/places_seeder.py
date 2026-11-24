@@ -16,7 +16,7 @@ def seed_places():
             "name": "Sede Principal - Centro Empresarial Caracas",
             "parish_code": "PAR-1131",   # San Bernardino (Verificado en tu parroquias seeder)
             "address": "Av. Vollmer entre Caracas y Alameda, Edificio Centro Empresarial Caracas, San Bernardino, Caracas.",
-            "phone": "0212-5021111",
+            "phone": "02125021111",
             "status_code": "STAT-001"    # Activo
         },
         {
@@ -25,7 +25,7 @@ def seed_places():
             "name": "Centro de Servicio Técnico - Catia",
             "parish_code": "PAR-1137",   # Sucre (Catia) (Verificado en tu parroquias seeder)
             "address": "Av. Principal de Catia, Complejo Operativo e Industrial, Catia, Caracas.",
-            "phone": "0212-8602233",
+            "phone": "02128602233",
             "status_code": "STAT-001"    # Activo
         }
     ]

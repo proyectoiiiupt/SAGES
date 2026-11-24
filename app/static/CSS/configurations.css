@@ -1219,6 +1219,31 @@
     opacity: 0.7;
 }
 
+/* Ajuste proporcional y estético de la tabla de sedes (#table-places) */
+#table-places {
+    font-size: 0.9rem;
+}
+
+#table-places th {
+    font-size: 0.82rem;
+    padding: 0.75rem 0.7rem;
+    letter-spacing: 0.015em;
+}
+
+#table-places td {
+    padding: 0.85rem 0.7rem;
+}
+
+#table-places td:nth-child(5) {
+    white-space: nowrap;
+}
+
+#table-places .badge-status {
+    font-size: 0.82rem;
+    padding: 0.25rem 0.65rem;
+    white-space: nowrap;
+}
+
 /* Columna "Personal Adscrito" en la tabla */
 #table-places .badge-count {
     background: #eff6ff;

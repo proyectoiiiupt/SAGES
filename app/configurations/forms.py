@@ -4,9 +4,17 @@ Tareas:
   - US-56-places-management: Registro y edición de sedes operativas.
   - US-58-corporate-branding: Configuración de datos corporativos e identidad visual.
 """
+import re
 from flask_wtf import FlaskForm
 from wtforms import StringField, SelectField, TextAreaField, FileField
 from wtforms.validators import DataRequired, Length, Regexp, Optional
+
+
+def _clean_phone(value):
+    """Extrae únicamente los dígitos del número telefónico."""
+    if not value:
+        return ''
+    return re.sub(r'\D', '', str(value))
 
 
 class CorporateDataForm(FlaskForm):
@@ -86,11 +94,12 @@ class PlaceForm(FlaskForm):
 
     phone = StringField(
         'Teléfono Directo',
+        filters=[_clean_phone],
         validators=[
             DataRequired(message='El teléfono es obligatorio.'),
             Regexp(
-                r'^\(\d{4}\)-\d{7}$',
-                message='Formato inválido. Use (XXXX)-XXXXXXX (ej: (0212)-1234567).'
+                r'^\d{11}$',
+                message='Formato inválido. Debe contener 11 dígitos (ej: (0212)-1234567).'
             )
         ]
     )
