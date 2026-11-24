@@ -354,7 +354,235 @@
     box-shadow: 0 6px 14px rgba(0, 120, 101, 0.3);
 }
 
-/* ── 4. CUADRÍCULA DE GRÁFICOS (ADMINLTE STYLE) ── */
+/* ── 4. CUADRÍCULA DE 4 GRÁFICOS (ADMINLTE V4 MODO ENFOQUE / GRID 2x2) ── */
+.adminlte-charts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+    margin-top: 1.25rem;
+    transition: all 0.3s ease;
+}
+
+.adminlte-chart-card {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    margin-bottom: 0;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.adminlte-chart-card:hover {
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.07);
+    transform: translateY(-2px);
+}
+
+/* Variantes Outline exclusivas de AdminLTE v4 */
+.adminlte-chart-card.card-primary.card-outline {
+    border-top: 3.5px solid #1c3d73;
+}
+
+.adminlte-chart-card.card-danger.card-outline {
+    border-top: 3.5px solid #ef4444;
+}
+
+.adminlte-chart-card.card-info.card-outline {
+    border-top: 3.5px solid #0284c7;
+}
+
+.adminlte-chart-card.card-success.card-outline {
+    border-top: 3.5px solid #007865;
+}
+
+.adminlte-chart-card .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.85rem 1.25rem;
+    background: #fafbfc;
+    border-bottom: 1px solid #f1f5f9;
+    user-select: none;
+}
+
+.adminlte-chart-card .card-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    line-height: 1.2;
+}
+
+.adminlte-card-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+.card-primary .adminlte-card-icon { color: #1c3d73; }
+.card-danger .adminlte-card-icon { color: #ef4444; }
+.card-info .adminlte-card-icon { color: #0284c7; }
+.card-success .adminlte-card-icon { color: #007865; }
+
+.adminlte-chart-card .card-tools {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.adminlte-chart-card .btn-tool {
+    background: transparent;
+    border: 1px solid transparent;
+    color: #94a3b8;
+    padding: 4px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    width: 28px;
+    height: 28px;
+}
+
+.adminlte-chart-card .btn-tool svg {
+    width: 15px;
+    height: 15px;
+}
+
+.adminlte-chart-card .btn-tool:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #e2e8f0;
+}
+
+.adminlte-chart-card .btn-tool-maximize {
+    color: #0284c7;
+}
+
+.adminlte-chart-card .btn-tool-maximize:hover {
+    background: #e0f2fe;
+    color: #0369a1;
+    border-color: #bae6fd;
+}
+
+/* Badges temáticos para tools */
+.badge-primary-subtle {
+    background: #e0f2fe;
+    color: #0369a1;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.22rem 0.55rem;
+    border-radius: 50px;
+    border: 1px solid #bae6fd;
+}
+
+.badge-danger-subtle {
+    background: #fee2e2;
+    color: #b91c1c;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.22rem 0.55rem;
+    border-radius: 50px;
+    border: 1px solid #fecaca;
+}
+
+.badge-info-subtle {
+    background: #e0f7fa;
+    color: #00838f;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.22rem 0.55rem;
+    border-radius: 50px;
+    border: 1px solid #b2ebf2;
+}
+
+.badge-success-subtle {
+    background: #dcfce7;
+    color: #15803d;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.22rem 0.55rem;
+    border-radius: 50px;
+    border: 1px solid #bbf7d0;
+}
+
+.adminlte-chart-card .card-body {
+    padding: 1.25rem;
+    background: #ffffff;
+    flex-grow: 1;
+}
+
+.adminlte-chart-card .chart {
+    position: relative;
+    width: 100%;
+    height: 260px;
+    min-height: 260px;
+}
+
+/* ── MODO ENFOQUE AMPLIADO (FULLSCREEN FOCUS MODE) ── */
+.focus-mode-active {
+    grid-template-columns: repeat(3, 1fr) !important;
+}
+
+.adminlte-chart-card.card-focused {
+    grid-column: 1 / -1 !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    border-color: #cbd5e1;
+    order: -1;
+}
+
+.adminlte-chart-card.card-focused .chart {
+    height: 420px !important;
+    min-height: 420px !important;
+}
+
+.adminlte-chart-card.card-minimized-focus {
+    opacity: 0.85;
+    border-style: dashed;
+    cursor: pointer;
+    background: #fafbfc;
+}
+
+.adminlte-chart-card.card-minimized-focus:hover {
+    opacity: 1;
+    border-color: #0284c7;
+    background: #f0f7ff;
+    transform: translateY(-2px);
+}
+
+.adminlte-chart-card.card-minimized-focus .card-header {
+    background: transparent;
+    border-bottom: none;
+    padding: 0.75rem 1rem;
+}
+
+.adminlte-chart-card.card-minimized-focus .card-title {
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.adminlte-chart-card.card-minimized-focus .btn-tool-collapse {
+    display: none;
+}
+
+/* Tarjeta colapsada manualmente con [-] */
+.adminlte-chart-card.collapsed-card {
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.adminlte-chart-card.collapsed-card .card-header {
+    border-bottom: none;
+}
+
+/* ── COMPATIBILIDAD CON CUADRÍCULA ANTERIOR ── */
 .dashboard-charts-grid {
     display: grid;
     grid-template-columns: 36% 64%;
@@ -466,6 +694,18 @@
 }
 
 @media (max-width: 992px) {
+    .adminlte-charts-grid,
+    .focus-mode-active {
+        grid-template-columns: 1fr !important;
+    }
+    .adminlte-chart-card.card-focused .chart {
+        height: 320px !important;
+        min-height: 320px !important;
+    }
+    .adminlte-chart-col {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
     .dashboard-charts-grid {
         grid-template-columns: 1fr;
     }

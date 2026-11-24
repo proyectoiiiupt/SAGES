@@ -105,6 +105,7 @@ def index():
                 'kpi_28_dias': 0,
                 'diferencial_pct': 0.0,
                 'jurisdiction_label': "Jurisdicción Asignada",
+                'area': {'labels': [], 'data': [], 'total': 0},
                 'donut': {'aprobadas': 0, 'en_proceso': 0, 'pendientes': 0, 'total': 0},
                 'lines': {'labels': [], 'aprobadas': [], 'en_proceso': [], 'pendientes': []},
                 'bars': {'labels': [], 'data': []}

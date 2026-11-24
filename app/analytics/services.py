@@ -132,6 +132,14 @@ class AnalyticsService:
             'data': bar_values
         }
 
+        # 5. Volumen Consolidado de Solicitudes (Gráfico de Área estilo AdminLTE v4)
+        area_values = [(a + b + c) for a, b, c in zip(line_aprobadas, line_en_proceso, line_pendientes)]
+        area_dataset = {
+            'labels': line_labels,
+            'data': area_values,
+            'total': sum(area_values)
+        }
+
         # Información territorial de contexto para la vista
         user_role = user.roles_assoc[0].role.name if user.roles_assoc else 'applicant'
         state_info = get_user_state_info(user) if user_role == 'state_admin' else None
@@ -141,6 +149,7 @@ class AnalyticsService:
             'kpi_28_dias': req_ultimos_28,
             'diferencial_pct': diferencial_pct,
             'jurisdiction_label': jurisdiction_label,
+            'area': area_dataset,
             'donut': donut_dataset,
             'lines': lines_dataset,
             'bars': bars_dataset

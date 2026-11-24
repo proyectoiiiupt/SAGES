@@ -161,61 +161,100 @@
         </div>
     </div>
 
-    <!-- ── 4. CUADRÍCULA DE GRÁFICOS DEL TABLERO (ADMINLTE CARD BOXES) ── -->
-    <div class="dashboard-charts-grid">
-        <!-- 1. GRÁFICO CIRCULAR / DONUT: ESTADO DE LAS SOLICITUDES -->
-        <div class="chart-card">
-            <div class="chart-card-header">
-                <h3 class="chart-card-title">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <!-- ── 4. CUADRÍCULA DE 4 GRÁFICOS ESTILO ADMINLTE V4 (MODO ENFOQUE / GRID) ── -->
+    <div class="adminlte-charts-grid" id="charts-dashboard-container">
+        <!-- 1. AREA CHART: VOLUMEN GLOBAL DE SOLICITUDES -->
+        <div class="card card-primary card-outline adminlte-chart-card" id="card-area-chart">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <svg class="adminlte-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="1 20 1 14 7 10 13 16 19 8 23 12 23 20 1 20"></polygon>
+                    </svg>
+                    <span>Volumen Global de Solicitudes</span>
+                </h3>
+                <div class="card-tools">
+                    <span class="badge badge-primary-subtle me-1">Flujo Total</span>
+                    <button type="button" class="btn btn-tool btn-tool-maximize" data-lte-toggle="card-maximize" title="Ampliar pantalla completa">
+                        <svg class="icon-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="chart">
+                    <canvas id="areaChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. DONUT CHART: DISTRIBUCIÓN POR ESTATUS OPERATIVO -->
+        <div class="card card-danger card-outline adminlte-chart-card" id="card-donut-chart">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <svg class="adminlte-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="10"></circle>
                         <path d="M12 2a10 10 0 0 1 10 10h-10z"></path>
                     </svg>
-                    Estado de las Solicitudes
+                    <span>Distribución por Estatus</span>
                 </h3>
-                <span class="chart-subtitle-pill">{{ metrics.donut.total }} Total</span>
+                <div class="card-tools">
+                    <span class="badge badge-danger-subtle me-1">{{ metrics.donut.total }} Total</span>
+                    <button type="button" class="btn btn-tool btn-tool-maximize" data-lte-toggle="card-maximize" title="Ampliar pantalla completa">
+                        <svg class="icon-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+                    </button>
+                </div>
             </div>
-            <div class="chart-card-body chart-donut-wrapper">
-                <canvas id="donutStatusChart"></canvas>
-            </div>
-            <div class="donut-custom-legend">
-                <div class="legend-item"><span class="legend-dot dot-green"></span> Aprobadas ({{ metrics.donut.aprobadas }})</div>
-                <div class="legend-item"><span class="legend-dot dot-amber"></span> En proceso ({{ metrics.donut.en_proceso }})</div>
-                <div class="legend-item"><span class="legend-dot dot-red"></span> Pendientes ({{ metrics.donut.pendientes }})</div>
+            <div class="card-body">
+                <div class="chart">
+                    <canvas id="donutChart"></canvas>
+                </div>
             </div>
         </div>
 
-        <!-- 2. GRÁFICO DE LÍNEAS CONTINUAS: EVOLUCIÓN DE SOLICITUDES -->
-        <div class="chart-card chart-card-wide">
-            <div class="chart-card-header">
-                <h3 class="chart-card-title">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <!-- 3. LINE CHART: CICLO DE VIDA DE SOLICITUD -->
+        <div class="card card-info card-outline adminlte-chart-card" id="card-line-chart">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <svg class="adminlte-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
                     </svg>
-                    Evolución Temporal de Solicitudes
+                    <span>Ciclo de Vida de Solicitud</span>
                 </h3>
-                <span class="chart-subtitle-pill">Tendencia por Estatus</span>
+                <div class="card-tools">
+                    <span class="badge badge-info-subtle me-1">Multi-Serie</span>
+                    <button type="button" class="btn btn-tool btn-tool-maximize" data-lte-toggle="card-maximize" title="Ampliar pantalla completa">
+                        <svg class="icon-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+                    </button>
+                </div>
             </div>
-            <div class="chart-card-body chart-lines-wrapper">
-                <canvas id="lineEvolutionChart"></canvas>
+            <div class="card-body">
+                <div class="chart">
+                    <canvas id="lineChart"></canvas>
+                </div>
             </div>
         </div>
 
-        <!-- 3. GRÁFICO DE BARRAS HORIZONTALES: TIPO DE SOLICITUD (TEMAS FORMACIÓN UREE) -->
-        <div class="chart-card chart-card-full">
-            <div class="chart-card-header">
-                <h3 class="chart-card-title">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <!-- 4. BAR CHART: TOP FORMACIONES UREE MÁS DEMANDADAS -->
+        <div class="card card-success card-outline adminlte-chart-card" id="card-bar-chart">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <svg class="adminlte-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="18" y1="20" x2="18" y2="10"></line>
                         <line x1="12" y1="20" x2="12" y2="4"></line>
                         <line x1="6" y1="20" x2="6" y2="14"></line>
                     </svg>
-                    Tipo de Solicitud (Temas Formativos UREE Más Demandados)
+                    <span>Formaciones UREE Más Demandadas</span>
                 </h3>
-                <span class="chart-subtitle-pill">Top Formaciones</span>
+                <div class="card-tools">
+                    <span class="badge badge-success-subtle me-1">Top Demandas</span>
+                    <button type="button" class="btn btn-tool btn-tool-maximize" data-lte-toggle="card-maximize" title="Ampliar pantalla completa">
+                        <svg class="icon-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+                    </button>
+                </div>
             </div>
-            <div class="chart-card-body chart-bars-wrapper">
-                <canvas id="barTrainingsChart"></canvas>
+            <div class="card-body">
+                <div class="chart">
+                    <canvas id="barChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
