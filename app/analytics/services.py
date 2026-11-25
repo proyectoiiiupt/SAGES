@@ -3,6 +3,7 @@ from collections import defaultdict
 from datetime import datetime, timezone, timedelta, date
 from app.utils.timezone import caracas_date_range_to_utc, get_caracas_now, to_caracas_time
 from sqlalchemy import func, case, and_
+from sqlalchemy.orm import joinedload
 from app.extensions import db
 from app.models.request_model import Request
 from app.models.status_model import Status
@@ -487,6 +488,9 @@ class AnalyticsService:
             .join(Training.training_module)\
             .outerjoin(Request.plannings)
 
+        if include_metrics:
+            query = query.options(joinedload(Request.ratings))
+
         if report_type == 'impacto_educativo':
             query = query.filter(Status.status_code == 'STAT-007')
         elif report_type == 'retrasos_ans':
@@ -505,9 +509,9 @@ class AnalyticsService:
             headers.extend(['Cédula Solicitante', 'Nombre Representante', 'Cargo'])
         if include_metrics:
             if report_type == 'retrasos_ans':
-                headers.extend(['Exceso ANS (Horas)', 'Motivo Tipificado', 'Justificación de Demora'])
+                headers.extend(['Exceso ANS (Horas)', 'Motivo Tipificado', 'Justificación de Demora', 'Satisfacción (1-5)'])
             else:
-                headers.extend(['Estatus Actual', 'Atendida'])
+                headers.extend(['Estatus Actual', 'Atendida', 'Satisfacción (1-5)'])
 
         # 2. Contadores para KPIs y Matrices Consolidadas (Sección 1)
         total_records = len(records)
@@ -515,6 +519,7 @@ class AnalyticsService:
         publicos_count = 0
         privados_count = 0
         total_horas_exceso = 0
+        rating_scores = []
         planteles_set = set()
         niveles_set = set()
 
@@ -560,6 +565,18 @@ class AnalyticsService:
             ex_hours = (planning.time_exceeded or 0) if planning else 0
             total_horas_exceso += ex_hours
 
+            rating_str = "Sin evaluar"
+            if include_metrics:
+                req_ratings = getattr(req, 'ratings', None) or []
+                first_rating = req_ratings[0] if req_ratings else None
+                if first_rating is not None and getattr(first_rating, 'score', None) is not None:
+                    try:
+                        score_val = float(first_rating.score)
+                        rating_scores.append(score_val)
+                        rating_str = f"{score_val:.2f} / 5.00"
+                    except (ValueError, TypeError):
+                        rating_str = "Sin evaluar"
+
             mod_name = req.training.training_module.name if req.training and req.training.training_module else 'N/A'
             tema_name = req.training.name if req.training else 'N/A'
             dt_local = to_caracas_time(req.created_at) if req.created_at else None
@@ -593,14 +610,14 @@ class AnalyticsService:
                 row.extend([ci_str, rep_name, cargo_name])
             if include_metrics:
                 if report_type == 'retrasos_ans':
-                    row.extend([f"{ex_hours} h", reason_name, just_text])
+                    row.extend([f"{ex_hours} h", reason_name, just_text, rating_str])
                 else:
-                    row.extend([st_name, "SÍ" if is_attended else "NO"])
+                    row.extend([st_name, "SÍ" if is_attended else "NO", rating_str])
             data_rows.append(row)
 
             # Fila estilizada para PDF según el Tipo de Reporte
             if report_type == 'impacto_educativo':
-                pdf_rows.append([
+                imp_row = [
                     f"{req.request_code}\n{dt_str[:10]}",
                     f"{inst_name}\nCódigo DEA: {dea_code}",
                     f"{scope_name}\n{edu_level_name}",
@@ -608,7 +625,10 @@ class AnalyticsService:
                     tema_name,
                     f"{state_name}\nMun. {muni_name}",
                     f"{rep_name}\n{cargo_name} ({ci_str})"
-                ])
+                ]
+                if include_metrics:
+                    imp_row.append(rating_str)
+                pdf_rows.append(imp_row)
             elif report_type == 'retrasos_ans':
                 pdf_rows.append([
                     req.request_code, dt_str, f"{mod_name}\n{tema_name}",
@@ -624,11 +644,23 @@ class AnalyticsService:
                 if include_user:
                     pdf_row.append(f"{rep_name}\n{ci_str} ({cargo_name})")
                 if include_metrics:
-                    pdf_row.extend([st_name, "SÍ" if is_attended else "NO"])
+                    pdf_row.extend([st_name, "SÍ" if is_attended else "NO", rating_str])
                 pdf_rows.append(pdf_row)
 
         tasa_res = round((atendidas_count / total_records * 100), 1) if total_records > 0 else 0.0
         prom_exceso = round((total_horas_exceso / total_records), 1) if total_records > 0 else 0.0
+        rated_count = len(rating_scores)
+        avg_satisfaction = round(sum(rating_scores) / rated_count, 2) if rated_count > 0 else None
+        satisfaction_kpi_value = (
+            f"{avg_satisfaction:.2f} / 5.0 ({rated_count} eval.)"
+            if avg_satisfaction is not None
+            else "Sin evaluaciones"
+        )
+        satisfaction_meta = {
+            'average': avg_satisfaction,
+            'rated_count': rated_count,
+            'total_records': total_records,
+        }
 
         # 3. Configuración de la Matriz Consolidada (Sección 1) y Encabezados PDF (Sección 2)
         if report_type == 'impacto_educativo':
@@ -636,23 +668,37 @@ class AnalyticsService:
             for lvl, d in level_matrix.items():
                 pct = round((d['total'] / total_records * 100), 1) if total_records > 0 else 0.0
                 sum_rows.append([lvl, str(d['pub']), str(d['priv']), str(d['total']), f"{pct}%", ", ".join(list(d['mods'])[:2])])
-            sum_rows.append(["Total Impacto Socioeducativo", str(publicos_count), str(privados_count), str(total_records), "100.0%", "100% de Jornadas Ejecutadas"])
+            imp_total_obs = (
+                f"Satisfacción: {satisfaction_kpi_value}"
+                if avg_satisfaction is not None
+                else "100% de Jornadas Ejecutadas | Sin evaluaciones"
+            )
+            sum_rows.append(["Total Impacto Socioeducativo", str(publicos_count), str(privados_count), str(total_records), "100.0%", imp_total_obs])
+
+            imp_pdf_headers = ["Expediente / Cierre", "Plantel Educativo Beneficiado", "Sector / Nivel (SR-F-023)", "Módulo Rector UREE", "Tema Formativo Impartido", "Ubicación Territorial", "Enlace Institucional"]
+            imp_pdf_weights = [1.05, 1.80, 1.00, 1.25, 2.10, 1.00, 1.30]
+            imp_center_cols = {"Expediente / Cierre", "Sector / Nivel (SR-F-023)"}
+            if include_metrics:
+                imp_pdf_headers.append("Satisfacción")
+                imp_pdf_weights.append(0.85)
+                imp_center_cols.add("Satisfacción")
 
             report_meta = {
                 'report_type': report_type, 'include_metrics': include_metrics, 'subtitle_scope': scope_label,
                 'force_page_size': 'letter',
-                'kpi_headers': ["JORNADAS EJECUTADAS (STAT-007)", "PLANTELES BENEFICIADOS", "COBERTURA PÚBLICA VS. PRIVADA", "NIVELES EDUCATIVOS ALCANZADOS"],
-                'kpi_values': [f"{total_records} Actividades", f"{len(planteles_set)} Instituciones", f"Públicos: {publicos_count} | Privados: {privados_count}", ", ".join(list(niveles_set)[:3]) or "General"],
+                'kpi_headers': ["JORNADAS EJECUTADAS (STAT-007)", "PLANTELES BENEFICIADOS", "COBERTURA PÚBLICA VS. PRIVADA", "NIVELES EDUCATIVOS ALCANZADOS", "SATISFACCIÓN PROMEDIO"],
+                'kpi_values': [f"{total_records} Actividades", f"{len(planteles_set)} Instituciones", f"Públicos: {publicos_count} | Privados: {privados_count}", ", ".join(list(niveles_set)[:3]) or "General", satisfaction_kpi_value],
+                'satisfaction_summary': satisfaction_meta,
                 'summary_title': "1. Matriz de Cobertura Socioeducativa por Nivel Educativo y Sector (Normativa SR-F-023)",
                 'summary_headers': ["Nivel Educativo Oficial", "Jornadas en Sector Público", "Jornadas en Sector Privado", "Total Actividades Atendidas", "% de Cobertura", "Módulos UREE Impartidos"],
                 'summary_rows': sum_rows,
                 'summary_weights': [1.6, 1.1, 1.1, 1.2, 0.8, 2.2],
                 'center_cols_summary': {"Jornadas en Sector Público", "Jornadas en Sector Privado", "Total Actividades Atendidas", "% de Cobertura"},
                 'detail_title': "2. Detalle de Actividades Formativas Completadas en Comunidad (Formato Carta Horizontal)",
-                'pdf_headers': ["Expediente / Cierre", "Plantel Educativo Beneficiado", "Sector / Nivel (SR-F-023)", "Módulo Rector UREE", "Tema Formativo Impartido", "Ubicación Territorial", "Enlace Institucional"],
+                'pdf_headers': imp_pdf_headers,
                 'pdf_rows': pdf_rows,
-                'pdf_weights': [1.05, 1.95, 1.00, 1.35, 2.30, 1.00, 1.35],
-                'center_cols_detail': {"Expediente / Cierre", "Sector / Nivel (SR-F-023)"}
+                'pdf_weights': imp_pdf_weights,
+                'center_cols_detail': imp_center_cols
             }
 
         elif report_type == 'retrasos_ans':
@@ -666,8 +712,9 @@ class AnalyticsService:
             report_meta = {
                 'report_type': report_type, 'include_metrics': include_metrics, 'subtitle_scope': scope_label,
                 'force_page_size': 'legal',
-                'kpi_headers': ["EXPEDIENTES CON RETRASO ANS", "TIEMPO TOTAL / PROMEDIO EXCESO", "INCIDENCIA POR SECTOR", "NORMATIVA AUDITADA"],
-                'kpi_values': [f"{total_records} Solicitudes", f"{total_horas_exceso} h ({prom_exceso} h Prom.)", f"Públicos: {publicos_count} | Privados: {privados_count}", "Plazos ANS (48-72h / 10 días)"],
+                'kpi_headers': ["EXPEDIENTES CON RETRASO ANS", "TIEMPO TOTAL / PROMEDIO EXCESO", "INCIDENCIA POR SECTOR", "NORMATIVA AUDITADA", "SATISFACCIÓN PROMEDIO"],
+                'kpi_values': [f"{total_records} Solicitudes", f"{total_horas_exceso} h ({prom_exceso} h Prom.)", f"Públicos: {publicos_count} | Privados: {privados_count}", "Plazos ANS (48-72h / 10 días)", satisfaction_kpi_value],
+                'satisfaction_summary': satisfaction_meta,
                 'summary_title': "1. Distribución de Incidencias por Motivo Tipificado del Catálogo (sages.reasons)",
                 'summary_headers': ["Motivo Tipificado de Demora", "Expedientes Afectados", "Horas Acumuladas de Exceso", "Promedio de Demora", "% de Incidencia", "Impacto Operativo"],
                 'summary_rows': sum_rows,
@@ -685,7 +732,7 @@ class AnalyticsService:
             for st_key, d in status_matrix.items():
                 pct = round((d['total'] / total_records * 100), 1) if total_records > 0 else 0.0
                 sum_rows.append([st_key, str(d['pub']), str(d['priv']), str(d['total']), f"{pct}%", "Seguimiento operativo UREE"])
-            sum_rows.append(["Total Consolidado del Periodo", str(publicos_count), str(privados_count), str(total_records), "100.0%", f"{tasa_res}% de Resolución Efectiva"])
+            sum_rows.append(["Total Consolidado del Periodo", str(publicos_count), str(privados_count), str(total_records), "100.0%", f"{tasa_res}% Resolución | Satisfacción: {satisfaction_kpi_value}"])
 
             pdf_headers = []
             pdf_weights = []
@@ -698,8 +745,8 @@ class AnalyticsService:
                 pdf_headers.append("Solicitante (Cédula / Cargo)")
                 pdf_weights.append(1.35)
             if include_metrics:
-                pdf_headers.extend(["Estatus Actual", "Atendida"])
-                pdf_weights.extend([0.85, 0.65])
+                pdf_headers.extend(["Estatus Actual", "Atendida", "Satisfacción"])
+                pdf_weights.extend([0.85, 0.60, 0.80])
 
             # Si tiene más de 8 columnas usa Oficio (legal), si tiene 8 o menos usa Carta (letter)
             auto_page = 'legal' if len(pdf_headers) > 8 else 'letter'
@@ -708,8 +755,9 @@ class AnalyticsService:
             report_meta = {
                 'report_type': report_type, 'include_metrics': include_metrics, 'subtitle_scope': scope_label,
                 'force_page_size': auto_page,
-                'kpi_headers': ["TOTAL SOLICITUDES", "SOLICITUDES ATENDIDAS", "TASA DE RESOLUCIÓN", "IMPACTO POR SECTOR (SR-F-023)"],
-                'kpi_values': [f"{total_records} Expedientes", f"{atendidas_count} Completadas", f"{tasa_res}%", f"Públicos: {publicos_count} | Privados: {privados_count}"],
+                'kpi_headers': ["TOTAL SOLICITUDES", "SOLICITUDES ATENDIDAS", "TASA DE RESOLUCIÓN", "IMPACTO POR SECTOR (SR-F-023)", "SATISFACCIÓN PROMEDIO"],
+                'kpi_values': [f"{total_records} Expedientes", f"{atendidas_count} Completadas", f"{tasa_res}%", f"Públicos: {publicos_count} | Privados: {privados_count}", satisfaction_kpi_value],
+                'satisfaction_summary': satisfaction_meta,
                 'summary_title': "1. Resumen Consolidado por Estatus Operativo y Sector Institucional",
                 'summary_headers': ["Estatus de la Solicitud", "Sector Público", "Sector Privado", "Total Solicitudes", "% del Total", "Condición Operativa en el Corte"],
                 'summary_rows': sum_rows,
@@ -719,7 +767,7 @@ class AnalyticsService:
                 'pdf_headers': pdf_headers,
                 'pdf_rows': pdf_rows,
                 'pdf_weights': pdf_weights,
-                'center_cols_detail': {"Código Solicitud", "Fecha Radicación", "Código DEA", "Sector / Nivel", "Estatus Actual", "Atendida"}
+                'center_cols_detail': {"Código Solicitud", "Fecha Radicación", "Código DEA", "Sector / Nivel", "Estatus Actual", "Atendida", "Satisfacción"}
             }
 
         return headers, data_rows, report_meta
