@@ -427,6 +427,12 @@ class AnalyticsService:
                 bin_q = bin_q.filter(Binnacle.created_at <= end_utc)
 
             logs = bin_q.limit(200).all()
+            role_labels = {
+                'super_admin': 'Super Administrador',
+                'state_admin': 'Administrador Estadal',
+                'applicant': 'Solicitante',
+                'system': 'Sistema / Anónimo',
+            }
             headers = [
                 'ID Evento', 'Fecha y Hora', 'Módulo', 'Acción Ejecutada',
                 'Tabla Objetivo', 'Usuario Operador', 'Cédula Operador',
@@ -434,18 +440,65 @@ class AnalyticsService:
             ]
             data_rows = []
             pdf_rows = []
-            action_Groups = defaultdict(lambda: {'table': '', 'super': 0, 'state': 0, 'total': 0})
+            action_Groups = defaultdict(
+                lambda: {'table': '', 'super': 0, 'state': 0, 'applicant': 0, 'system': 0, 'total': 0}
+            )
             operators_set = set()
             completed_logs = 0
+            user_state_cache = {}
 
             for lg in logs:
                 u = getattr(lg, 'user', None)
                 p = getattr(u, 'person', None) if u else None
-                u_name = f"{p.first_name} {p.last_name}" if p else "Sistema / Operador"
-                u_ci = f"{p.identification_type}-{p.identification_number}" if p else "N/A"
-                r_name = u.roles_assoc[0].role.name if (u and u.roles_assoc) else "super_admin"
-                rol_label = "Super Administrador" if r_name == 'super_admin' else "Administrador Estadal"
-                jur_label = "Nacional" if r_name == 'super_admin' else scope_label
+                if p:
+                    u_name = f"{p.first_name} {p.last_name}"
+                    u_ci = f"{p.identification_type}-{p.identification_number}"
+                elif u:
+                    u_name = getattr(u, 'user_name', None) or getattr(lg, 'user_identifier', None) or "Usuario"
+                    u_ci = "N/A"
+                else:
+                    u_name = (getattr(lg, 'user_identifier', None) or "").strip() or "Sistema / Anónimo"
+                    u_ci = "N/A"
+
+                role_names = [
+                    ra.role.name.strip().lower()
+                    for ra in (getattr(u, 'roles_assoc', None) or [])
+                    if getattr(ra, 'role', None) and getattr(ra.role, 'name', None)
+                ] if u else []
+
+                if not u:
+                    r_key = 'system'
+                elif 'super_admin' in role_names:
+                    r_key = 'super_admin'
+                elif 'state_admin' in role_names:
+                    r_key = 'state_admin'
+                elif 'applicant' in role_names:
+                    r_key = 'applicant'
+                else:
+                    r_key = 'system'
+
+                rol_label = role_labels[r_key]
+
+                if r_key == 'super_admin':
+                    jur_label = "Nacional"
+                elif r_key == 'state_admin':
+                    u_id = getattr(u, 'id', None)
+                    if u_id not in user_state_cache:
+                        try:
+                            st_info = get_user_state_info(u)
+                        except Exception:
+                            st_info = None
+                        user_state_cache[u_id] = (
+                            st_info['state_name']
+                            if (st_info and st_info.get('state_name'))
+                            else "Jurisdicción Estadal"
+                        )
+                    jur_label = user_state_cache[u_id]
+                elif r_key == 'applicant':
+                    jur_label = "Institución Educativa"
+                else:
+                    jur_label = "Sistema"
+
                 ev_code = f"BIN-{lg.id:05d}" if getattr(lg, 'id', None) else "BIN-SAGES"
                 dt_local = to_caracas_time(getattr(lg, 'created_at', None))
                 dt_str = dt_local.strftime('%d/%m/%Y %I:%M %p') if dt_local else "S/F"
@@ -460,10 +513,14 @@ class AnalyticsService:
 
                 grp = action_Groups[act_name]
                 grp['table'] = tbl_name
-                if r_name == 'super_admin':
+                if r_key == 'super_admin':
                     grp['super'] += 1
-                else:
+                elif r_key == 'state_admin':
                     grp['state'] += 1
+                elif r_key == 'applicant':
+                    grp['applicant'] += 1
+                else:
+                    grp['system'] += 1
                 grp['total'] += 1
 
                 data_rows.append([ev_code, dt_str, getattr(lg, 'module', 'REQUESTS'), act_name, tbl_name, u_name, u_ci, rol_label, jur_label, desc_txt, st_name])
@@ -479,12 +536,18 @@ class AnalyticsService:
 
             sum_rows = []
             for act_key, g in action_Groups.items():
-                sum_rows.append([act_key, g['table'], str(g['super']), str(g['state']), str(g['total']), "100% Auditado"])
+                sum_rows.append([
+                    act_key, g['table'],
+                    str(g['super']), str(g['state']), str(g['applicant']), str(g['system']),
+                    str(g['total'])
+                ])
             sum_rows.append([
-                "Total Operaciones Auditadas", "Esquema sages.*",
+                "Total Operaciones Auditadas", "Bitácora General",
                 str(sum(x['super'] for x in action_Groups.values())),
                 str(sum(x['state'] for x in action_Groups.values())),
-                str(len(logs)), "Sin Incidencias"
+                str(sum(x['applicant'] for x in action_Groups.values())),
+                str(sum(x['system'] for x in action_Groups.values())),
+                str(len(logs))
             ])
 
             pct_ok = round((completed_logs / len(logs) * 100), 1) if logs else 100.0
@@ -494,12 +557,23 @@ class AnalyticsService:
                 'subtitle_scope': scope_label,
                 'force_page_size': 'letter',
                 'kpi_headers': ["EVENTOS AUDITADOS", "OPERACIONES EXITOSAS", "OPERADORES ACTIVOS", "FUENTE DE TRAZABILIDAD"],
-                'kpi_values': [f"{len(logs)} Registros Forenses", f"{completed_logs} ({pct_ok}%)", f"{len(operators_set)} Administradores", "Bitácora (sages.binnacle)"],
+                'kpi_values': [f"{len(logs)} Registros Forenses", f"{completed_logs} ({pct_ok}%)", f"{len(operators_set)} Actores / Operadores", "Bitácora (sages.binnacle)"],
                 'summary_title': "1. Resumen de Actividad Operativa por Tipo de Acción y Rol Institucional",
-                'summary_headers': ["Tipo de Acción en Bitácora", "Tabla Objetivo", "Super Administrador", "Administrador Estadal", "Total Eventos", "Estatus de Auditoría"],
+                'summary_headers': [
+                    "Tipo de Acción en Bitácora",
+                    "Tabla Objetivo",
+                    "Super Admin",
+                    "Admin Estadal",
+                    "Solicitante",
+                    "Sistema / Anónimo",
+                    "Total Eventos",
+                ],
                 'summary_rows': sum_rows,
-                'summary_weights': [2.1, 1.4, 1.0, 1.0, 0.8, 1.3],
-                'center_cols_summary': {"Tabla Objetivo", "Super Administrador", "Administrador Estadal", "Total Eventos", "Estatus de Auditoría"},
+                'summary_weights': [2.2, 1.4, 0.85, 0.90, 0.85, 1.00, 0.80],
+                'center_cols_summary': {
+                    "Tabla Objetivo", "Super Admin", "Admin Estadal",
+                    "Solicitante", "Sistema / Anónimo", "Total Eventos",
+                },
                 'detail_title': "2. Bitácora Cronológica de Eventos y Trazabilidad por Operador (Formato Carta Horizontal)",
                 'pdf_headers': ["ID Evento / Fecha", "Módulo / Acción Ejecutada", "Tabla Objetivo", "Operador Responsable", "Rol y Jurisdicción", "Detalle Técnico de la Operación", "Resultado"],
                 'pdf_rows': pdf_rows,
