@@ -3,6 +3,7 @@ import re
 from datetime import datetime
 from flask import render_template, flash, jsonify, request, redirect, url_for, send_file, current_app
 from flask_login import login_required, current_user
+from flask_limiter.errors import RateLimitExceeded
 
 from app import db
 from app.extensions import limiter
@@ -21,6 +22,17 @@ from app.notifications.enums import NotificationEvent, NotificationType
 # ---------------------------------------------------------------------------
 # Helpers Privados de Auditoría y Seguridad
 # ---------------------------------------------------------------------------
+
+@analytics_bp.errorhandler(RateLimitExceeded)
+def handle_analytics_rate_limit(e):
+    """Retorna respuesta JSON uniforme (HTTP 429) compatible con fetch/SweetAlert2 en el módulo."""
+    msg = 'Demasiadas solicitudes en poco tiempo. Espere un minuto antes de intentar nuevamente.'
+    return jsonify({
+        'success': False,
+        'error': msg,
+        'message': msg
+    }), 429
+
 
 def _resolve_state_label(state_id, fallback: str) -> str:
     """Resuelve el nombre legible del estado a partir de su ID."""
@@ -261,40 +273,12 @@ def get_geo_parishes(municipality_id):
 @login_required
 @role_required('super_admin', 'state_admin')
 @check_permissions('view_statistics')
+@limiter.limit("15 per minute", key_func=lambda: str(current_user.id))
 def export_report():
     """
     Endpoint principal para generar y despachar el reporte configurado en el Wizard.
-    Aplica blindaje territorial Anti-IDOR, sanitización y auditoría forense.
+    Aplica validación estricta con ReportWizardForm, rate limiting, blindaje territorial Anti-IDOR y auditoría forense.
     """
-    # Capturar datos del Wizard (Paso 1 y 2)
-    report_name = request.form.get('report_name', '').strip() or "Reporte_Institucional_SAGES"
-    report_type = (request.form.get('report_type') or 'gestion_general').strip().lower() or 'gestion_general'
-    export_format = request.form.get('export_format', 'pdf').lower()
-    delivery_method = request.form.get('delivery_method', 'local').lower()
-
-    include_user = request.form.get('include_user_data') in ['y', 'true', 'True', True, 'on']
-    include_req = request.form.get('include_request_details') in ['y', 'true', 'True', True, 'on']
-    include_metrics = request.form.get('include_metrics') in ['y', 'true', 'True', True, 'on']
-
-    form_config = {
-        'report_type': report_type,
-        'include_user_data': include_user,
-        'include_request_details': include_req,
-        'include_metrics': include_metrics
-    }
-
-    # Capturar filtros de segmentación de la barra lateral
-    filter_params = {
-        'state_id': request.form.get('state_id', type=int),
-        'municipality_id': request.form.get('municipality_id', type=int),
-        'parish_id': request.form.get('parish_id', type=int),
-        'institution_scope_id': request.form.get('institution_scope_id', type=int),
-        'educational_level_id': request.form.get('educational_level_id', type=int),
-        'month': request.form.get('month', type=int),
-        'date_from': request.form.get('date_from', ''),
-        'date_to': request.form.get('date_to', '')
-    }
-
     # Validación de rol y blindaje territorial Anti-IDOR
     is_super_admin = AnalyticsService.is_super_admin(current_user)
     user_role = 'super_admin' if is_super_admin else (
@@ -308,7 +292,9 @@ def export_report():
         user_state_id = state_info.get('state_id') if state_info else None
 
     # Bloqueo estricto del reporte nacional de auditoría para roles distintos a super_admin
-    if report_type == 'auditoria_usuarios' and not is_super_admin:
+    # (se evalúa antes de ReportWizardForm para preservar HTTP 403, bitácora forense y alerta IDOR)
+    raw_report_type = (request.form.get('report_type') or '').strip().lower()
+    if raw_report_type == 'auditoria_usuarios' and not is_super_admin:
         try:
             BinnacleService.log_security_event(
                 module=AuditModule.ANALYTICS.value,
@@ -330,6 +316,50 @@ def export_report():
             'message': 'Acceso denegado: El reporte de auditoría de usuarios es exclusivo del Super Administrador.'
         }), 403
 
+    # Validación estructural del formulario (CSRF global ya validado por CSRFProtect)
+    form = ReportWizardForm(is_super_admin=is_super_admin, meta={'csrf': False})
+    if not form.validate_on_submit():
+        first_error = next(
+            (err for fld_errs in form.errors.values() for err in fld_errs),
+            'Parámetros del reporte inválidos.'
+        )
+        if first_error == 'Not a valid choice.':
+            first_error = 'Uno de los valores seleccionados para el reporte no es válido.'
+        return jsonify({
+            'success': False,
+            'message': first_error,
+            'errors': form.errors
+        }), 400
+
+    # Capturar datos validados del Wizard (Paso 1 y 2)
+    report_name = form.report_name.data
+    report_type = form.report_type.data
+    export_format = form.export_format.data
+    delivery_method = form.delivery_method.data
+
+    include_user = bool(form.include_user_data.data)
+    include_req = bool(form.include_request_details.data)
+    include_metrics = bool(form.include_metrics.data)
+
+    form_config = {
+        'report_type': report_type,
+        'include_user_data': include_user,
+        'include_request_details': include_req,
+        'include_metrics': include_metrics
+    }
+
+    # Capturar filtros de segmentación de la barra lateral
+    filter_params = {
+        'state_id': request.form.get('state_id', type=int),
+        'municipality_id': request.form.get('municipality_id', type=int),
+        'parish_id': request.form.get('parish_id', type=int),
+        'institution_scope_id': request.form.get('institution_scope_id', type=int),
+        'educational_level_id': request.form.get('educational_level_id', type=int),
+        'month': request.form.get('month', type=int),
+        'date_from': request.form.get('date_from', ''),
+        'date_to': request.form.get('date_to', '')
+    }
+
     # Alerta IDOR preventiva si un state_admin manipula el formulario
     if user_role == 'state_admin':
         req_state = filter_params.get('state_id')
@@ -337,7 +367,7 @@ def export_report():
             _notify_idor_attempt(current_user, user_state_id, req_state, "/analytics/export")
 
     # 1. Sanitizar el nombre del archivo resultante
-    safe_name = re.sub(r'[^a-zA-Z0-9_\-]', '_', report_name.strip())
+    safe_name = re.sub(r'[^a-zA-Z0-9_\-]', '_', report_name) or "Reporte_Institucional_SAGES"
     timestamp_str = datetime.now().strftime('%Y%m%d_%H%M')
 
     try:

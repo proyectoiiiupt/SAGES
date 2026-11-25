@@ -15,6 +15,8 @@ SUPER_ADMIN_REPORT_TYPE_CHOICES = BASE_REPORT_TYPE_CHOICES + [
     ('auditoria_usuarios', 'Actividad de Usuario y Auditoría'),
 ]
 
+BOOLEAN_FALSE_VALUES = (False, 'false', 'False', '0', 'no', 'off', '')
+
 
 class ReportWizardForm(FlaskForm):
     """
@@ -23,6 +25,7 @@ class ReportWizardForm(FlaskForm):
     # ── PASO 1: PARÁMETROS DEL REPORTE ──
     report_name = StringField(
         'Nombre del Reporte',
+        filters=[lambda v: v.strip() if isinstance(v, str) else v],
         validators=[
             DataRequired(message="Debe asignar un nombre al reporte."),
             Length(min=3, max=150, message="El nombre debe tener entre 3 y 150 caracteres.")
@@ -32,6 +35,7 @@ class ReportWizardForm(FlaskForm):
     report_type = SelectField(
         'Tipo de Reporte',
         choices=BASE_REPORT_TYPE_CHOICES,
+        filters=[lambda v: v.strip().lower() if isinstance(v, str) else v],
         validators=[DataRequired(message="Debe seleccionar el tipo de reporte.")]
     )
 
@@ -43,9 +47,21 @@ class ReportWizardForm(FlaskForm):
             else list(BASE_REPORT_TYPE_CHOICES)
         )
 
-    include_user_data = BooleanField('Incluir datos de Usuario / Solicitante', default=True)
-    include_request_details = BooleanField('Incluir detalles de Solicitudes', default=True)
-    include_metrics = BooleanField('Incluir Métricas y Totales', default=True)
+    include_user_data = BooleanField(
+        'Incluir datos de Usuario / Solicitante',
+        default=True,
+        false_values=BOOLEAN_FALSE_VALUES
+    )
+    include_request_details = BooleanField(
+        'Incluir detalles de Solicitudes',
+        default=True,
+        false_values=BOOLEAN_FALSE_VALUES
+    )
+    include_metrics = BooleanField(
+        'Incluir Métricas y Totales',
+        default=True,
+        false_values=BOOLEAN_FALSE_VALUES
+    )
 
     # ── PASO 2: OPCIONES DE EXPORTACIÓN ──
     export_format = RadioField(
@@ -56,6 +72,7 @@ class ReportWizardForm(FlaskForm):
             ('csv', 'CSV (.csv)')
         ],
         default='pdf',
+        filters=[lambda v: v.strip().lower() if isinstance(v, str) else v],
         validators=[DataRequired(message="Seleccione un formato de exportación.")]
     )
 
@@ -66,6 +83,7 @@ class ReportWizardForm(FlaskForm):
             ('email', 'Enviar por Correo Electrónico')
         ],
         default='local',
+        filters=[lambda v: v.strip().lower() if isinstance(v, str) else v],
         validators=[DataRequired(message="Seleccione el método de entrega.")]
     )
 
