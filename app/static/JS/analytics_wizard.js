@@ -114,59 +114,98 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // 5. Cascada territorial en Barra Lateral (si es Super Admin)
+    // 5. Cascada territorial en Barra Lateral (Super Admin no bloqueante y State Admin bloqueado)
     const wState = document.getElementById('w-filter-state');
     const wMuni = document.getElementById('w-filter-municipality');
     const wParish = document.getElementById('w-filter-parish');
 
-    if (wState && wMuni && wParish && wState.tagName === 'SELECT') {
-        wState.addEventListener('change', function () {
-            const stateId = this.value;
-            wMuni.innerHTML = '<option value="">Todos los Municipios</option>';
+    function loadWizardParishes(muniId, preselectedParishId = '') {
+        if (!wParish) return;
+        wParish.innerHTML = '<option value="">Todas las Parroquias</option>';
+
+        if (!muniId) {
+            wParish.disabled = true;
+            return;
+        }
+
+        fetch(`/analytics/api/geo/parishes/${muniId}`)
+            .then(r => {
+                if (!r.ok) throw new Error("Error en servidor");
+                return r.json();
+            })
+            .then(parishes => {
+                parishes.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.id;
+                    opt.textContent = p.name;
+                    if (preselectedParishId && String(p.id) === String(preselectedParishId)) {
+                        opt.selected = true;
+                    }
+                    wParish.appendChild(opt);
+                });
+                wParish.disabled = false;
+            })
+            .catch(err => console.error("Error al cargar parroquias:", err));
+    }
+
+    function loadWizardMunicipalities(stateId, preselectedMuniId = '', preselectedParishId = '') {
+        if (!wMuni) return;
+        wMuni.innerHTML = '<option value="">Todos los Municipios</option>';
+        if (wParish) {
             wParish.innerHTML = '<option value="">Todas las Parroquias</option>';
             wParish.disabled = true;
+        }
 
-            if (!stateId) {
-                wMuni.disabled = true;
-                return;
-            }
+        if (!stateId) {
+            wMuni.disabled = true;
+            return;
+        }
 
-            fetch(`/analytics/api/geo/municipalities/${stateId}`)
-                .then(r => r.json())
-                .then(municipalities => {
-                    municipalities.forEach(m => {
-                        const opt = document.createElement('option');
-                        opt.value = m.id;
-                        opt.textContent = m.name;
-                        wMuni.appendChild(opt);
-                    });
-                    wMuni.disabled = false;
-                })
-                .catch(err => console.error("Error al cargar municipios:", err));
-        });
+        fetch(`/analytics/api/geo/municipalities/${stateId}`)
+            .then(r => {
+                if (!r.ok) throw new Error("Error en servidor");
+                return r.json();
+            })
+            .then(municipalities => {
+                let hasPreselectedMuni = false;
+                municipalities.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.id;
+                    opt.textContent = m.name;
+                    if (preselectedMuniId && String(m.id) === String(preselectedMuniId)) {
+                        opt.selected = true;
+                        hasPreselectedMuni = true;
+                    }
+                    wMuni.appendChild(opt);
+                });
+                wMuni.disabled = false;
+
+                if (hasPreselectedMuni) {
+                    loadWizardParishes(preselectedMuniId, preselectedParishId);
+                }
+            })
+            .catch(err => console.error("Error al cargar municipios:", err));
+    }
+
+    if (wState && wMuni && wParish) {
+        if (wState.tagName === 'SELECT') {
+            wState.addEventListener('change', function () {
+                loadWizardMunicipalities(this.value);
+            });
+        }
 
         wMuni.addEventListener('change', function () {
-            const muniId = this.value;
-            wParish.innerHTML = '<option value="">Todas las Parroquias</option>';
-
-            if (!muniId) {
-                wParish.disabled = true;
-                return;
-            }
-
-            fetch(`/analytics/api/geo/parishes/${muniId}`)
-                .then(r => r.json())
-                .then(parishes => {
-                    parishes.forEach(p => {
-                        const opt = document.createElement('option');
-                        opt.value = p.id;
-                        opt.textContent = p.name;
-                        wParish.appendChild(opt);
-                    });
-                    wParish.disabled = false;
-                })
-                .catch(err => console.error("Error al cargar parroquias:", err));
+            loadWizardParishes(this.value);
         });
+
+        // Precargar municipios si ya existe un estado preseleccionado (Sede de Super Admin, query param o State Admin)
+        if (wState.value) {
+            loadWizardMunicipalities(
+                wState.value,
+                wMuni.dataset.preselected || '',
+                wParish.dataset.preselected || ''
+            );
+        }
     }
 
     // ─────────────────────────────────────────────────────────────

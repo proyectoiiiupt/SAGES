@@ -233,23 +233,44 @@ class AnalyticsService:
         [US-55 + Parámetros de Blindaje Territorial de US-56]
         Prepara el contexto de filtros laterales y seguridad para el Asistente Wizard.
         """
-        user_role = user.roles_assoc[0].role.name if user.roles_assoc else 'applicant'
-        state_info = get_user_state_info(user) if user_role == 'state_admin' else None
+        is_super = AnalyticsService.is_super_admin(user)
+        user_role = 'super_admin' if is_super else (
+            user.roles_assoc[0].role.name
+            if (user and getattr(user, 'roles_assoc', None) and getattr(user.roles_assoc[0], 'role', None))
+            else 'applicant'
+        )
+        state_info = get_user_state_info(user) if user_role in ('state_admin', 'super_admin') else None
+        default_state_id = state_info['state_id'] if (state_info and state_info.get('state_id')) else None
 
         # 1. Blindaje territorial de catálogos
         if user_role == 'super_admin':
             states = State.query.order_by(State.name).all()
         else:
-            states = [State.query.get(state_info['state_id'])] if state_info else []
+            states = [db.session.get(State, default_state_id)] if default_state_id else []
 
         inst_types = InstitutionType.query.order_by(InstitutionType.name).all()
         inst_scopes = InstitutionScope.query.order_by(InstitutionScope.name).all()
         inst_deps = InstitutionDependency.query.order_by(InstitutionDependency.name).all()
         edu_levels = EducationalLevel.query.order_by(EducationalLevel.name).all()
 
-        # 2. Captura de filtros pre-seleccionados transferidos desde la Vista 2
+        # 2. Preselección territorial no bloqueante para Super Admin (sede) y estricta para State Admin
+        if user_role == 'state_admin':
+            selected_state_id = default_state_id
+        elif 'state_id' not in request_args:
+            selected_state_id = default_state_id
+        else:
+            raw_state = str(request_args.get('state_id') or '').strip().lower()
+            if raw_state in ('', 'all', '0'):
+                selected_state_id = None
+            else:
+                try:
+                    selected_state_id = int(raw_state)
+                except (TypeError, ValueError):
+                    selected_state_id = None
+
+        # 3. Captura de filtros pre-seleccionados transferidos desde la Vista 2
         preselected = {
-            'state_id': state_info['state_id'] if user_role == 'state_admin' else request_args.get('state_id', type=int),
+            'state_id': selected_state_id,
             'municipality_id': request_args.get('municipality_id', type=int),
             'parish_id': request_args.get('parish_id', type=int),
             'institution_scope_id': request_args.get('institution_scope_id', type=int),
@@ -264,6 +285,7 @@ class AnalyticsService:
         return {
             'user_role': user_role,
             'user_state': state_info,
+            'default_state_id': default_state_id,
             'states': states,
             'institution_types': inst_types,
             'institution_scopes': inst_scopes,
@@ -374,7 +396,16 @@ class AnalyticsService:
             else 'applicant'
         )
         state_info = get_user_state_info(user) if user_role == 'state_admin' else None
-        scope_label = state_info['state_name'] if state_info else "Consolidado Nacional / Filtrado"
+        if state_info:
+            scope_label = state_info['state_name']
+        elif filters.get('state_id') and report_type != 'auditoria_usuarios':
+            try:
+                st_obj = db.session.get(State, int(filters['state_id']))
+            except (TypeError, ValueError):
+                st_obj = None
+            scope_label = st_obj.name if (st_obj and st_obj.name) else "Consolidado Nacional / Filtrado"
+        else:
+            scope_label = "Consolidado Nacional / Filtrado"
 
         # ── CASO ESPECIAL: REPORTE 4 (AUDITORÍA DE USUARIOS Y BITÁCORA) ──
         if report_type == 'auditoria_usuarios':
@@ -919,33 +950,38 @@ class AnalyticsService:
         Prepara los datos del mes en curso y catálogos protegidos para la Vista 2.
         """
         now_ve = get_caracas_now()
-        user_role = user.roles_assoc[0].role.name if user.roles_assoc else 'applicant'
-        state_info = get_user_state_info(user) if user_role == 'state_admin' else None
+        is_super = AnalyticsService.is_super_admin(user)
+        user_role = 'super_admin' if is_super else (
+            user.roles_assoc[0].role.name
+            if (user and getattr(user, 'roles_assoc', None) and getattr(user.roles_assoc[0], 'role', None))
+            else 'applicant'
+        )
+        state_info = get_user_state_info(user) if user_role in ('state_admin', 'super_admin') else None
+        default_state_id = state_info['state_id'] if (state_info and state_info.get('state_id')) else None
 
         # Catálogos geográficos respetando permisos (utilizando db.session.get para SQLAlchemy 2.0)
         if user_role == 'super_admin':
             states = State.query.order_by(State.name).all()
         else:
-            states = [db.session.get(State, state_info['state_id'])] if (state_info and state_info.get('state_id')) else []
+            states = [db.session.get(State, default_state_id)] if default_state_id else []
 
         inst_types = InstitutionType.query.order_by(InstitutionType.name).all()
         inst_scopes = InstitutionScope.query.order_by(InstitutionScope.name).all()
         inst_deps = InstitutionDependency.query.order_by(InstitutionDependency.name).all()
         edu_levels = EducationalLevel.query.order_by(EducationalLevel.name).all()
 
-        # Datos del mes corriente por defecto (en hora oficial de Caracas)
+        # Datos del mes corriente por defecto (en hora oficial de Caracas), alineados con la sede preseleccionada
         filtros_iniciales = {
             'time_mode': 'month',
             'month': now_ve.month,
-            'state_id': state_info['state_id'] if state_info else None
+            'state_id': default_state_id
         }
         timeline_data = AnalyticsService.calculate_filtered_indicators(user, filtros_iniciales)
-
-
 
         return {
             'user_role': user_role,
             'user_state': state_info,
+            'default_state_id': default_state_id,
             'states': states,
             'institution_types': inst_types,
             'institution_scopes': inst_scopes,

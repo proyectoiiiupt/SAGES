@@ -164,11 +164,12 @@
                     
                     <div class="filter-field-item">
                         <label for="sel-filter-state">Estado:</label>
+                        {% set _default_state_id = ctx.get('default_state_id') %}
                         {% if ctx.user_role == 'super_admin' %}
                         <select id="sel-filter-state" class="filter-control">
-                            <option value="">Todos los Estados (Nacional)</option>
+                            <option value="" {% if not _default_state_id %}selected{% endif %}>Todos los Estados (Nacional)</option>
                             {% for st in ctx.states %}
-                            <option value="{{ st.id }}">{{ st.name }}</option>
+                            <option value="{{ st.id }}" {% if _default_state_id == st.id %}selected{% endif %}>{{ st.name }}{% if _default_state_id == st.id %} (Sede){% endif %}</option>
                             {% endfor %}
                         </select>
                         {% else %}
@@ -180,7 +181,7 @@
 
                     <div class="filter-field-item">
                         <label for="sel-filter-municipality">Municipio:</label>
-                        <select id="sel-filter-municipality" class="filter-control" {% if ctx.user_role == 'super_admin' %}disabled{% endif %}>
+                        <select id="sel-filter-municipality" class="filter-control" {% if ctx.user_role == 'super_admin' and not _default_state_id %}disabled{% endif %}>
                             <option value="">Todos los Municipios</option>
                         </select>
                     </div>

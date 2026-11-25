@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', function () {
             loadMunicipalities(this.value);
         });
 
-        // Si ya hay un estado preseleccionado (ej. Administrador Estadal)
+        // Si ya hay un estado preseleccionado (ej. Sede de Super Admin o Administrador Estadal)
         if (selState.value) {
             loadMunicipalities(selState.value);
         }

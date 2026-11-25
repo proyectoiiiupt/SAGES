@@ -512,7 +512,12 @@ def export_indicators_api():
         # 2. Metadatos de presentación
         user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
         state_info = get_user_state_info(current_user) if user_role == 'state_admin' else None
-        scope_label = state_info['state_name'] if state_info else "Consolidado Nacional"
+        if state_info:
+            scope_label = state_info['state_name']
+        elif clean_filters.get('state_id'):
+            scope_label = _resolve_state_label(clean_filters.get('state_id'), "Consolidado Nacional")
+        else:
+            scope_label = "Consolidado Nacional"
 
         timestamp_str = datetime.now().strftime('%Y%m%d_%H%M')
         base_name = f"Indicadores_Gestion_{scope_label.replace(' ', '_')}"
