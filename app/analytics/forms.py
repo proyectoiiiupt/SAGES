@@ -5,6 +5,8 @@ from wtforms.validators import DataRequired, Length, Optional, NumberRange, Rege
 from werkzeug.datastructures import MultiDict
 
 
+REPORT_TYPE_PLACEHOLDER_CHOICE = ('', 'Seleccione el tipo de reporte a realizar...')
+
 BASE_REPORT_TYPE_CHOICES = [
     ('gestion_general', 'Rendimiento y Actividad de Gestión'),
     ('impacto_educativo', 'Impacto Social y Cobertura Educativa'),
@@ -34,14 +36,15 @@ class ReportWizardForm(FlaskForm):
 
     report_type = SelectField(
         'Tipo de Reporte',
-        choices=BASE_REPORT_TYPE_CHOICES,
-        filters=[lambda v: v.strip().lower() if isinstance(v, str) else v],
+        choices=[REPORT_TYPE_PLACEHOLDER_CHOICE] + BASE_REPORT_TYPE_CHOICES,
+        default='',
+        filters=[lambda v: v.strip().lower() if isinstance(v, str) else ''],
         validators=[DataRequired(message="Debe seleccionar el tipo de reporte.")]
     )
 
     def __init__(self, *args, is_super_admin: bool = False, **kwargs):
         super().__init__(*args, **kwargs)
-        self.report_type.choices = (
+        self.report_type.choices = [REPORT_TYPE_PLACEHOLDER_CHOICE] + (
             list(SUPER_ADMIN_REPORT_TYPE_CHOICES)
             if is_super_admin
             else list(BASE_REPORT_TYPE_CHOICES)

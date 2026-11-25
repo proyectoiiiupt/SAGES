@@ -992,6 +992,18 @@
     box-shadow: 0 0 0 3px rgba(1, 149, 119, 0.15);
 }
 
+.wizard-select:invalid {
+    color: #64748b;
+}
+
+.wizard-select option {
+    color: #0f172a;
+}
+
+.wizard-select option[value=""] {
+    color: #64748b;
+}
+
 .wizard-hint {
     font-size: 0.85rem;
     color: #64748b;

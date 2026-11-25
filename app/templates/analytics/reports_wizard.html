@@ -88,7 +88,11 @@
                         <label class="wizard-label" for="{{ form.report_type.id }}">
                             Tipo de Reporte <span class="required-mark">*</span>
                         </label>
-                        {{ form.report_type(class="wizard-select") }}
+                        <select id="{{ form.report_type.id }}" name="{{ form.report_type.name }}" class="wizard-select" required>
+                            {% for val, label in form.report_type.choices %}
+                            <option value="{{ val }}"{% if val == '' %} disabled{% endif %}{% if (form.report_type.data or '') == val %} selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
                         <span class="wizard-hint">Seleccione la dimensión institucional a evaluar.</span>
                     </div>
 

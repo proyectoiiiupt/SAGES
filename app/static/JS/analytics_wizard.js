@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnNext = document.getElementById('btn-next-step');
     const btnPrev = document.getElementById('btn-prev-step');
     const inputReportName = document.getElementById('report_name');
+    const selectReportType = document.getElementById('report_type');
 
     // ── NAVEGACIÓN: PASO 1 -> PASO 2 ──
     if (btnNext) {
@@ -36,6 +37,20 @@ document.addEventListener('DOMContentLoaded', function () {
                     confirmButtonColor: '#019577'
                 }).then(() => {
                     if (inputReportName) inputReportName.focus();
+                });
+                return;
+            }
+
+            // Validación en cliente: Tipo de reporte obligatorio
+            const reportTypeVal = selectReportType ? selectReportType.value.trim() : '';
+            if (!reportTypeVal) {
+                Swal.fire({
+                    title: 'Tipo de reporte requerido',
+                    text: 'Debe seleccionar el tipo de reporte a realizar antes de continuar.',
+                    icon: 'warning',
+                    confirmButtonColor: '#019577'
+                }).then(() => {
+                    if (selectReportType) selectReportType.focus();
                 });
                 return;
             }
@@ -223,6 +238,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 Swal.fire({
                     title: 'Nombre requerido',
                     text: 'Por favor, regrese al Paso 1 y defina un nombre para el reporte.',
+                    icon: 'warning',
+                    confirmButtonColor: '#0f3669'
+                });
+                return;
+            }
+
+            const reportType = selectReportType ? selectReportType.value.trim() : '';
+            if (!reportType) {
+                Swal.fire({
+                    title: 'Tipo de reporte requerido',
+                    text: 'Por favor, regrese al Paso 1 y seleccione el tipo de reporte a realizar.',
                     icon: 'warning',
                     confirmButtonColor: '#0f3669'
                 });
