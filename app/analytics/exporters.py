@@ -1,14 +1,16 @@
 import csv
 import io
+import os
 import threading
 from xml.sax.saxutils import escape
 
-from flask import current_app
+from flask import current_app, has_app_context
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from reportlab.lib.pagesizes import letter, legal, landscape
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import cm
 from reportlab.lib import colors
 
 from app.trainings.services import sanitize_formula_injection
@@ -115,6 +117,21 @@ def get_adaptive_page_setup(col_count, force_page_size=None):
     return page_size, page_w, margin_x, usable_width, page_label
 
 
+def _build_pdf_logo(max_width, max_height):
+    """Carga el logo institucional de forma segura manteniendo su proporción; degrada a celda vacía si falla."""
+    logo_path = os.path.normpath(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'static', 'img', 'logo_corpoelec.png')
+    )
+    if not os.path.exists(logo_path):
+        return ""
+    try:
+        return Image(logo_path, width=max_width, height=max_height, kind='proportional', hAlign='LEFT')
+    except Exception as logo_err:
+        if has_app_context():
+            current_app.logger.warning(f"[WARN export_to_pdf] No se pudo cargar el logo CORPOELEC: {logo_err}")
+        return ""
+
+
 def export_to_pdf(headers, data_rows, title="Reporte Institucional", filename="reporte_sages.pdf", user_name="Administrador", report_meta=None):
     """
     Genera un documento PDF formal con Estructura Ejecutiva de Doble Nivel:
@@ -143,17 +160,30 @@ def export_to_pdf(headers, data_rows, title="Reporte Institucional", filename="r
     styles = getSampleStyleSheet()
     emitted_at = get_caracas_now().strftime('%d/%m/%Y %I:%M %p')
     subtitle_scope = report_meta.get('subtitle_scope', 'Institucional')
+    safe_title = str(title or "Reporte Institucional")
+    safe_scope = str(subtitle_scope or "Institucional")
+    safe_user = str(user_name or "Administrador")
 
     # ── 1. ESTILOS TIPOGRÁFICOS ──
-    title_style = ParagraphStyle(
-        'HeaderTitle', parent=styles['Heading1'],
-        fontName='Helvetica-Bold', fontSize=13,
-        textColor=colors.HexColor('#0F3669'), alignment=1, spaceAfter=2
+    header_org_style = ParagraphStyle(
+        'HeaderOrg', parent=styles['Normal'],
+        fontName='Helvetica-Bold', fontSize=7.5,
+        textColor=colors.HexColor('#64748B'), alignment=1, leading=9.5, spaceAfter=2
     )
-    subtitle_style = ParagraphStyle(
-        'HeaderSubtitle', parent=styles['Normal'],
-        fontName='Helvetica', fontSize=8.2,
-        textColor=colors.HexColor('#475569'), alignment=1, spaceAfter=8
+    header_title_style = ParagraphStyle(
+        'HeaderTitle', parent=styles['Heading1'],
+        fontName='Helvetica-Bold', fontSize=11.5,
+        textColor=colors.HexColor('#0F3669'), alignment=1, leading=13.5, spaceAfter=2
+    )
+    header_scope_style = ParagraphStyle(
+        'HeaderScope', parent=styles['Normal'],
+        fontName='Helvetica', fontSize=8.0,
+        textColor=colors.HexColor('#475569'), alignment=1, leading=10, spaceAfter=0
+    )
+    header_meta_style = ParagraphStyle(
+        'HeaderMeta', parent=styles['Normal'],
+        fontName='Helvetica', fontSize=7.8,
+        textColor=colors.HexColor('#334155'), alignment=2, leading=11, spaceAfter=0
     )
     section_title_style = ParagraphStyle(
         'SectionHeading', parent=styles['Heading2'],
@@ -183,14 +213,46 @@ def export_to_pdf(headers, data_rows, title="Reporte Institucional", filename="r
     td_center_style = ParagraphStyle('TableCellCenter', parent=td_style, alignment=1)
     td_bold_style = ParagraphStyle('TableCellBold', parent=td_style, fontName='Helvetica-Bold')
     td_bold_center_style = ParagraphStyle('TableCellBoldCenter', parent=td_center_style, fontName='Helvetica-Bold')
+    td_empty_style = ParagraphStyle(
+        'TableCellEmpty', parent=td_center_style,
+        fontName='Helvetica-Oblique', fontSize=8.0,
+        textColor=colors.HexColor('#64748B'), leading=11
+    )
 
-    # ── 2. ENCABEZADO INSTITUCIONAL ──
-    story.append(Paragraph("CORPORACIÓN ELÉCTRICA NACIONAL (CORPOELEC) — DIRECCIÓN UREE", title_style))
-    story.append(Paragraph(
-        f"<b>SAGES</b> — {escape(title.upper())} &nbsp;|&nbsp; <b>Alcance:</b> {escape(subtitle_scope)} &nbsp;|&nbsp; "
-        f"<b>Emitido por:</b> {escape(user_name)} &nbsp;|&nbsp; <b>Fecha:</b> {emitted_at}",
-        subtitle_style
-    ))
+    # ── 2. ENCABEZADO INSTITUCIONAL (SOLO PÁGINA 1, 3 COLUMNAS) ──
+    col_left = usable_width * 0.22
+    col_center = usable_width * 0.53
+    col_right = usable_width * 0.25
+
+    logo_cell = _build_pdf_logo(max_width=col_left - 8, max_height=1.25 * cm)
+    center_cell = [
+        Paragraph("CORPORACIÓN ELÉCTRICA NACIONAL (CORPOELEC) — DIRECCIÓN UREE", header_org_style),
+        Paragraph(f"SAGES — {escape(safe_title.upper())}", header_title_style),
+        Paragraph(f"<b>Alcance:</b> {escape(safe_scope)}", header_scope_style),
+    ]
+    right_cell = Paragraph(
+        f"<b>Fecha:</b> {escape(emitted_at)}<br/><b>Emitido por:</b> {escape(safe_user)}",
+        header_meta_style
+    )
+
+    header_table = Table(
+        [[logo_cell, center_cell, right_cell]],
+        colWidths=[col_left, col_center, col_right]
+    )
+    header_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+        ('LEFTPADDING', (0, 0), (0, 0), 0),
+        ('RIGHTPADDING', (0, 0), (0, 0), 4),
+        ('LEFTPADDING', (1, 0), (1, 0), 6),
+        ('RIGHTPADDING', (1, 0), (1, 0), 6),
+        ('LEFTPADDING', (2, 0), (2, 0), 4),
+        ('RIGHTPADDING', (2, 0), (2, 0), 0),
+        ('LINEBELOW', (0, 0), (-1, -1), 1.0, colors.HexColor('#0F3669')),
+    ]))
+    story.append(header_table)
+    story.append(Spacer(1, 8))
 
     # ── 3. BANDA EJECUTIVA DE KPIS Y SECCIÓN 1 (MATRIZ CONSOLIDADA) ──
     if report_meta.get('include_metrics', True):
@@ -206,14 +268,16 @@ def export_to_pdf(headers, data_rows, title="Reporte Institucional", filename="r
             kpi_values = [Paragraph(escape(str(v)), kpi_value_style) for v in kpi_v_raw]
             kpi_cols = len(kpi_headers)
             kpi_table = Table([kpi_headers, kpi_values], colWidths=[usable_width / float(kpi_cols)] * kpi_cols)
-            kpi_table.setStyle(TableStyle([
+            kpi_styles = [
                 ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F8FAFC')),
-                ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#CBD5E1')),
-                ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E2E8F0')),
+                ('BOX', (0, 0), (-1, -1), 0.8, colors.HexColor('#CBD5E1')),
                 ('TOPPADDING', (0, 0), (-1, -1), 4.5),
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 5.5),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
-            ]))
+            ]
+            if kpi_cols > 1:
+                kpi_styles.append(('LINEBEFORE', (1, 0), (-1, -1), 0.6, colors.HexColor('#CBD5E1')))
+            kpi_table.setStyle(TableStyle(kpi_styles))
             story.append(kpi_table)
             story.append(Spacer(1, 7))
 
@@ -241,16 +305,20 @@ def export_to_pdf(headers, data_rows, title="Reporte Institucional", filename="r
             sum_table = Table(sum_table_data, colWidths=sum_widths, repeatRows=1)
             sum_styles = [
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1E3A8A')),
+                ('BOX', (0, 0), (-1, 0), 0.6, colors.HexColor('#1E3A8A')),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                 ('TOPPADDING', (0, 0), (-1, -1), 3.8),
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 3.8),
                 ('LEFTPADDING', (0, 0), (-1, -1), 5),
                 ('RIGHTPADDING', (0, 0), (-1, -1), 5),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
+                ('GRID', (0, 1), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
                 ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8FAFC')])
             ]
+            if len(sum_headers) > 1:
+                sum_styles.append(('LINEBEFORE', (1, 0), (-1, 0), 0.5, colors.HexColor('#3B5BA9')))
             if len(sum_rows) > 1 and 'total' in str(sum_rows[-1][0]).lower():
                 sum_styles.append(('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#E2E8F0')))
+                sum_styles.append(('LINEABOVE', (0, -1), (-1, -1), 0.8, colors.HexColor('#94A3B8')))
             sum_table.setStyle(TableStyle(sum_styles))
             story.append(sum_table)
             story.append(Spacer(1, 8))
@@ -265,30 +333,51 @@ def export_to_pdf(headers, data_rows, title="Reporte Institucional", filename="r
     center_det = report_meta.get('center_cols_detail', set())
 
     det_table_data = [[Paragraph(escape(h), th_style) for h in pdf_headers]]
-    for row in pdf_rows:
-        formatted_row = []
-        for c_idx, cell_val in enumerate(row):
-            col_name = pdf_headers[c_idx] if c_idx < len(pdf_headers) else ''
-            st = td_center_style if col_name in center_det else td_style
-            parts = [escape(p) for p in str(cell_val)[:200].split('\n')]
-            if len(parts) > 1:
-                html_cell = f"<b>{parts[0]}</b><br/><font color='#475569' size='6.8'>{parts[1]}</font>"
-            else:
-                html_cell = parts[0]
-            formatted_row.append(Paragraph(html_cell, st))
-        det_table_data.append(formatted_row)
+    is_empty_detail = not pdf_rows
+    if is_empty_detail and pdf_headers:
+        det_table_data.append(
+            [Paragraph("No se encontraron registros para los filtros seleccionados.", td_empty_style)]
+            + [""] * (len(pdf_headers) - 1)
+        )
+    else:
+        for row in pdf_rows:
+            formatted_row = []
+            for c_idx, cell_val in enumerate(row):
+                col_name = pdf_headers[c_idx] if c_idx < len(pdf_headers) else ''
+                st = td_center_style if col_name in center_det else td_style
+                parts = [escape(p) for p in str(cell_val)[:200].split('\n')]
+                if len(parts) > 1:
+                    html_cell = f"<b>{parts[0]}</b><br/><font color='#475569' size='6.8'>{parts[1]}</font>"
+                else:
+                    html_cell = parts[0]
+                formatted_row.append(Paragraph(html_cell, st))
+            det_table_data.append(formatted_row)
 
     det_table = Table(det_table_data, colWidths=det_widths, repeatRows=1)
-    det_table.setStyle(TableStyle([
+    det_styles = [
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0F3669')),
+        ('BOX', (0, 0), (-1, 0), 0.6, colors.HexColor('#0F3669')),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('TOPPADDING', (0, 0), (-1, -1), 3.8),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 3.8),
         ('LEFTPADDING', (0, 0), (-1, -1), 4.5),
         ('RIGHTPADDING', (0, 0), (-1, -1), 4.5),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8FAFC')])
-    ]))
+    ]
+    if len(pdf_headers) > 1:
+        det_styles.append(('LINEBEFORE', (1, 0), (-1, 0), 0.5, colors.HexColor('#2B5486')))
+    if len(det_table_data) > 1:
+        det_styles.append(('GRID', (0, 1), (-1, -1), 0.5, colors.HexColor('#CBD5E1')))
+        if is_empty_detail:
+            if len(pdf_headers) > 1:
+                det_styles.append(('SPAN', (0, 1), (-1, 1)))
+            det_styles.extend([
+                ('BACKGROUND', (0, 1), (-1, 1), colors.HexColor('#F8FAFC')),
+                ('TOPPADDING', (0, 1), (-1, 1), 14),
+                ('BOTTOMPADDING', (0, 1), (-1, 1), 14),
+            ])
+        else:
+            det_styles.append(('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8FAFC')]))
+    det_table.setStyle(TableStyle(det_styles))
     story.append(det_table)
 
     # ── 5. PIE DE PÁGINA OFICIAL Y NUMERACIÓN ──
