@@ -3,6 +3,7 @@ import io
 import threading
 from xml.sax.saxutils import escape
 
+from flask import current_app
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from reportlab.lib.pagesizes import letter, legal, landscape
@@ -420,7 +421,7 @@ def send_report_email_async(app, to_email, user_name, report_title, file_bytes, 
             from app.notifications.enums import NotificationEvent, NotificationType
             ok = send_email(to_email, subject, html_content, text_content, attachments)
             if ok:
-                print(f"[SMTP ÉXITO]: Reporte '{filename}' enviado a {to_email}")
+                current_app.logger.info(f"[SMTP ÉXITO]: Reporte '{filename}' enviado a {to_email}")
                 if user_id:
                     try:
                         NotificationService.notify_user(
@@ -439,9 +440,9 @@ def send_report_email_async(app, to_email, user_name, report_title, file_bytes, 
                             action_text="Ir a Estadísticas"
                         )
                     except Exception as notif_err:
-                        print(f"[WARN] Error creando notificación de éxito SMTP: {notif_err}")
+                        current_app.logger.warning(f"[WARN] Error creando notificación de éxito SMTP: {notif_err}", exc_info=True)
             else:
-                print(f"[ERROR SMTP]: Falló el envío del reporte '{filename}' a {to_email}")
+                current_app.logger.error(f"[ERROR SMTP]: Falló el envío del reporte '{filename}' a {to_email}")
                 if user_id:
                     try:
                         NotificationService.notify_user(
@@ -460,6 +461,6 @@ def send_report_email_async(app, to_email, user_name, report_title, file_bytes, 
                             action_text="Descargar Manualmente"
                         )
                     except Exception as notif_err:
-                        print(f"[WARN] Error creando notificación de fallo SMTP: {notif_err}")
+                        current_app.logger.warning(f"[WARN] Error creando notificación de fallo SMTP: {notif_err}", exc_info=True)
 
     threading.Thread(target=_worker, daemon=True).start()

@@ -109,7 +109,7 @@ def index():
             metrics_json=json.dumps(metrics)
         )
     except Exception as e:
-        print(f"[ERROR analytics.index]: {e}")
+        current_app.logger.error(f"[ERROR analytics.index]: {e}", exc_info=True)
         flash("Ocurrió un error al cargar las estadísticas del sistema.", "danger")
         return render_template(
             'analytics/index.html',
@@ -142,7 +142,7 @@ def indicators_view():
             current_month=get_caracas_today().month,
         )
     except Exception as e:
-        print(f"[ERROR analytics.indicators_view]: {e}")
+        current_app.logger.error(f"[ERROR analytics.indicators_view]: {e}", exc_info=True)
         flash("Ocurrió un error al cargar la consola de indicadores de gestión.", "danger")
         return redirect(url_for('analytics.index'))
 
@@ -212,7 +212,7 @@ def reports_wizard():
             current_month=get_caracas_today().month,
         )
     except Exception as e:
-        print(f"[ERROR analytics.reports_wizard]: {e}")
+        current_app.logger.error(f"[ERROR analytics.reports_wizard]: {e}", exc_info=True)
         flash("Ocurrió un error al cargar el generador de reportes.", "danger")
         return redirect(url_for('analytics.index'))
 
@@ -343,6 +343,7 @@ def export_report():
 
     form_config = {
         'report_type': report_type,
+        'export_format': export_format,
         'include_user_data': include_user,
         'include_request_details': include_req,
         'include_metrics': include_metrics

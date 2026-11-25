@@ -3,7 +3,7 @@ from collections import defaultdict
 from datetime import datetime, timezone, timedelta, date
 from app.utils.timezone import caracas_date_range_to_utc, get_caracas_now, to_caracas_time
 from sqlalchemy import func, case, and_, distinct
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from app.extensions import db
 from app.models.request_model import Request
 from app.models.status_model import Status
@@ -24,6 +24,10 @@ from app.binnacle.services import BinnacleService
 from app.binnacle.types import AuditModule, AuditAction, AuditStatus
 
 class AnalyticsService:
+    MAX_EXPORT_ROWS_PDF = 1000
+    MAX_EXPORT_ROWS_TABULAR = 5000
+    MAX_AUDIT_ROWS = 200
+
     @staticmethod
     def is_super_admin(user) -> bool:
         """
@@ -414,7 +418,12 @@ class AnalyticsService:
                     "Acceso denegado: El reporte de auditoría de usuarios es exclusivo del Super Administrador."
                 )
             from app.models.binnacle_model import Binnacle
-            bin_q = db.session.query(Binnacle).order_by(Binnacle.created_at.desc())
+            from app.models.user_model import User
+            from app.models.role_user_model import RoleUser
+            bin_q = db.session.query(Binnacle).options(
+                joinedload(Binnacle.user).joinedload(User.person),
+                joinedload(Binnacle.user).selectinload(User.roles_assoc).joinedload(RoleUser.role),
+            ).order_by(Binnacle.created_at.desc())
             start_utc, end_utc = AnalyticsService._resolve_caracas_utc_bounds(
                 date_from=filters.get('date_from'),
                 date_to=filters.get('date_to'),
@@ -426,7 +435,11 @@ class AnalyticsService:
             if end_utc is not None:
                 bin_q = bin_q.filter(Binnacle.created_at <= end_utc)
 
-            logs = bin_q.limit(200).all()
+            audit_limit = AnalyticsService.MAX_AUDIT_ROWS
+            logs = bin_q.limit(audit_limit + 1).all()
+            is_truncated = len(logs) > audit_limit
+            if is_truncated:
+                logs = logs[:audit_limit]
             role_labels = {
                 'super_admin': 'Super Administrador',
                 'state_admin': 'Administrador Estadal',
@@ -551,11 +564,14 @@ class AnalyticsService:
             ])
 
             pct_ok = round((completed_logs / len(logs) * 100), 1) if logs else 100.0
+            trunc_suffix = f" — Mostrando los {audit_limit} eventos más recientes" if is_truncated else ""
             report_meta = {
                 'report_type': report_type,
                 'include_metrics': include_metrics,
                 'subtitle_scope': scope_label,
                 'force_page_size': 'letter',
+                'is_truncated': is_truncated,
+                'row_limit': audit_limit,
                 'kpi_headers': ["EVENTOS AUDITADOS", "OPERACIONES EXITOSAS", "OPERADORES ACTIVOS", "FUENTE DE TRAZABILIDAD"],
                 'kpi_values': [f"{len(logs)} Registros Forenses", f"{completed_logs} ({pct_ok}%)", f"{len(operators_set)} Actores / Operadores", "Bitácora (sages.binnacle)"],
                 'summary_title': "1. Resumen de Actividad Operativa por Tipo de Acción y Rol Institucional",
@@ -574,7 +590,7 @@ class AnalyticsService:
                     "Tabla Objetivo", "Super Admin", "Admin Estadal",
                     "Solicitante", "Sistema / Anónimo", "Total Eventos",
                 },
-                'detail_title': "2. Bitácora Cronológica de Eventos y Trazabilidad por Operador (Formato Carta Horizontal)",
+                'detail_title': f"2. Bitácora Cronológica de Eventos y Trazabilidad por Operador (Formato Carta Horizontal){trunc_suffix}",
                 'pdf_headers': ["ID Evento / Fecha", "Módulo / Acción Ejecutada", "Tabla Objetivo", "Operador Responsable", "Rol y Jurisdicción", "Detalle Técnico de la Operación", "Resultado"],
                 'pdf_rows': pdf_rows,
                 'pdf_weights': [1.05, 1.30, 1.45, 1.15, 1.20, 2.35, 0.85],
@@ -584,26 +600,56 @@ class AnalyticsService:
 
         # ── REPORTES 1, 2 Y 3 (BASADOS EN SAGES.REQUESTS) ──
         from app.models.request_justification_model import RequestJustification
-        from app.models.reason_model import Reason
-        from app.models.request_planning_model import RequestPlanning
 
-        query = AnalyticsService.get_scoped_base_query(user, filters)\
-            .join(Request.status)\
-            .join(Request.training)\
-            .join(Training.training_module)\
-            .outerjoin(Request.plannings)
-
-        if include_metrics:
-            query = query.options(joinedload(Request.ratings))
+        query = AnalyticsService.get_scoped_base_query(user, filters)
 
         if report_type == 'impacto_educativo':
-            query = query.filter(Status.status_code == 'STAT-007')
+            query = query.join(Request.status).filter(Status.status_code == 'STAT-007')
         elif report_type == 'retrasos_ans':
-            query = query.filter(RequestPlanning.is_exceeded == True)\
-                         .outerjoin(Request.justifications)\
-                         .outerjoin(RequestJustification.reason)
+            query = query.filter(Request.plannings.any(RequestPlanning.is_exceeded.is_(True)))
 
-        records = query.order_by(Request.created_at.desc()).all()
+        eager_options = [
+            joinedload(Request.status),
+            joinedload(Request.training).joinedload(Training.training_module),
+            joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.person),
+            joinedload(Request.institutional_staff).joinedload(InstitutionalStaff.position),
+            joinedload(Request.institutional_staff)
+                .joinedload(InstitutionalStaff.institution)
+                .joinedload(Institution.institution_scope),
+            joinedload(Request.institutional_staff)
+                .joinedload(InstitutionalStaff.institution)
+                .joinedload(Institution.parish)
+                .joinedload(Parish.municipality)
+                .joinedload(Municipality.state),
+            joinedload(Request.institutional_staff)
+                .joinedload(InstitutionalStaff.institution)
+                .selectinload(Institution.institution_levels)
+                .joinedload(InstitutionLevel.educational_level),
+            selectinload(Request.plannings),
+        ]
+
+        if include_metrics:
+            eager_options.append(selectinload(Request.ratings))
+
+        if report_type == 'retrasos_ans':
+            eager_options.append(
+                selectinload(Request.justifications).joinedload(RequestJustification.reason)
+            )
+
+        export_format = str(form_data.get('export_format') or 'pdf').strip().lower()
+        max_rows = (
+            AnalyticsService.MAX_EXPORT_ROWS_TABULAR
+            if export_format in ('xlsx', 'csv')
+            else AnalyticsService.MAX_EXPORT_ROWS_PDF
+        )
+
+        records = query.options(*eager_options)\
+            .order_by(Request.created_at.desc())\
+            .limit(max_rows + 1)\
+            .all()
+        is_truncated = len(records) > max_rows
+        if is_truncated:
+            records = records[:max_rows]
 
         # 1. Encabezados atómicos para Excel y CSV (15/16 columnas)
         headers = []
@@ -642,7 +688,10 @@ class AnalyticsService:
             parish = inst.parish if inst else None
             muni = parish.municipality if parish else None
             state = muni.state if muni else None
-            planning = req.plannings[0] if req.plannings else None
+            if report_type == 'retrasos_ans' and req.plannings:
+                planning = next((p for p in req.plannings if p.is_exceeded), req.plannings[0])
+            else:
+                planning = req.plannings[0] if req.plannings else None
 
             edu_level_name = 'Universitario'
             if inst and hasattr(inst, 'institution_levels') and inst.institution_levels:
@@ -700,11 +749,14 @@ class AnalyticsService:
             level_matrix[edu_level_name]['total'] += 1
             level_matrix[edu_level_name]['mods'].add(mod_name)
 
-            just = req.justifications[0] if getattr(req, 'justifications', None) else None
-            reason_name = just.reason.name if just and just.reason else 'Retraso Operativo'
-            just_text = just.justification if just else 'Sin descargo registrado'
-            reason_matrix[reason_name]['count'] += 1
-            reason_matrix[reason_name]['hours'] += ex_hours
+            reason_name = 'Retraso Operativo'
+            just_text = 'Sin descargo registrado'
+            if report_type == 'retrasos_ans':
+                just = req.justifications[0] if getattr(req, 'justifications', None) else None
+                reason_name = just.reason.name if just and just.reason else 'Retraso Operativo'
+                just_text = just.justification if just else 'Sin descargo registrado'
+                reason_matrix[reason_name]['count'] += 1
+                reason_matrix[reason_name]['hours'] += ex_hours
 
             # Fila atómica para Excel / CSV
             row = []
@@ -774,6 +826,7 @@ class AnalyticsService:
         }
 
         # 3. Configuración de la Matriz Consolidada (Sección 1) y Encabezados PDF (Sección 2)
+        trunc_suffix = f" — Mostrando los {max_rows} registros más recientes" if is_truncated else ""
         if report_type == 'impacto_educativo':
             sum_rows = []
             for lvl, d in level_matrix.items():
@@ -797,6 +850,8 @@ class AnalyticsService:
             report_meta = {
                 'report_type': report_type, 'include_metrics': include_metrics, 'subtitle_scope': scope_label,
                 'force_page_size': 'letter',
+                'is_truncated': is_truncated,
+                'row_limit': max_rows,
                 'kpi_headers': ["JORNADAS EJECUTADAS (STAT-007)", "PLANTELES BENEFICIADOS", "COBERTURA PÚBLICA VS. PRIVADA", "NIVELES EDUCATIVOS ALCANZADOS", "SATISFACCIÓN PROMEDIO"],
                 'kpi_values': [f"{total_records} Actividades", f"{len(planteles_set)} Instituciones", f"Públicos: {publicos_count} | Privados: {privados_count}", ", ".join(list(niveles_set)[:3]) or "General", satisfaction_kpi_value],
                 'satisfaction_summary': satisfaction_meta,
@@ -805,7 +860,7 @@ class AnalyticsService:
                 'summary_rows': sum_rows,
                 'summary_weights': [1.6, 1.1, 1.1, 1.2, 0.8, 2.2],
                 'center_cols_summary': {"Jornadas en Sector Público", "Jornadas en Sector Privado", "Total Actividades Atendidas", "% de Cobertura"},
-                'detail_title': "2. Detalle de Actividades Formativas Completadas en Comunidad (Formato Carta Horizontal)",
+                'detail_title': f"2. Detalle de Actividades Formativas Completadas en Comunidad (Formato Carta Horizontal){trunc_suffix}",
                 'pdf_headers': imp_pdf_headers,
                 'pdf_rows': pdf_rows,
                 'pdf_weights': imp_pdf_weights,
@@ -840,6 +895,8 @@ class AnalyticsService:
             report_meta = {
                 'report_type': report_type, 'include_metrics': include_metrics, 'subtitle_scope': scope_label,
                 'force_page_size': auto_page_ans,
+                'is_truncated': is_truncated,
+                'row_limit': max_rows,
                 'kpi_headers': ["EXPEDIENTES CON RETRASO ANS", "TIEMPO TOTAL / PROMEDIO EXCESO", "INCIDENCIA POR SECTOR", "NORMATIVA AUDITADA", "SATISFACCIÓN PROMEDIO"],
                 'kpi_values': [f"{total_records} Solicitudes", f"{total_horas_exceso} h ({prom_exceso} h Prom.)", f"Públicos: {publicos_count} | Privados: {privados_count}", "Plazos ANS (48-72h / 10 días)", satisfaction_kpi_value],
                 'satisfaction_summary': satisfaction_meta,
@@ -848,7 +905,7 @@ class AnalyticsService:
                 'summary_rows': sum_rows,
                 'summary_weights': [2.0, 1.0, 1.1, 1.0, 0.8, 2.1],
                 'center_cols_summary': {"Expedientes Afectados", "Horas Acumuladas de Exceso", "Promedio de Demora", "% de Incidencia"},
-                'detail_title': f"2. Auditoría Detallada de Expedientes con Exceso ANS y Descargos Registrados ({formato_ans_txt})",
+                'detail_title': f"2. Auditoría Detallada de Expedientes con Exceso ANS y Descargos Registrados ({formato_ans_txt}){trunc_suffix}",
                 'pdf_headers': ans_pdf_headers,
                 'pdf_rows': pdf_rows,
                 'pdf_weights': ans_pdf_weights,
@@ -883,6 +940,8 @@ class AnalyticsService:
             report_meta = {
                 'report_type': report_type, 'include_metrics': include_metrics, 'subtitle_scope': scope_label,
                 'force_page_size': auto_page,
+                'is_truncated': is_truncated,
+                'row_limit': max_rows,
                 'kpi_headers': ["TOTAL SOLICITUDES", "SOLICITUDES ATENDIDAS", "TASA DE RESOLUCIÓN", "IMPACTO POR SECTOR (SR-F-023)", "SATISFACCIÓN PROMEDIO"],
                 'kpi_values': [f"{total_records} Expedientes", f"{atendidas_count} Completadas", f"{tasa_res}%", f"Públicos: {publicos_count} | Privados: {privados_count}", satisfaction_kpi_value],
                 'satisfaction_summary': satisfaction_meta,
@@ -891,7 +950,7 @@ class AnalyticsService:
                 'summary_rows': sum_rows,
                 'summary_weights': [1.5, 0.9, 0.9, 0.9, 0.8, 2.5],
                 'center_cols_summary': {"Sector Público", "Sector Privado", "Total Solicitudes", "% del Total"},
-                'detail_title': f"2. Relación Detallada de Expedientes Registrados (Adaptado a {formato_txt})",
+                'detail_title': f"2. Relación Detallada de Expedientes Registrados (Adaptado a {formato_txt}){trunc_suffix}",
                 'pdf_headers': pdf_headers,
                 'pdf_rows': pdf_rows,
                 'pdf_weights': pdf_weights,
