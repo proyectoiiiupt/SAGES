@@ -693,12 +693,13 @@ class AnalyticsService:
             else:
                 planning = req.plannings[0] if req.plannings else None
 
-            edu_level_name = 'Universitario'
+            edu_level_name = 'No especificado'
             if inst and hasattr(inst, 'institution_levels') and inst.institution_levels:
                 first_lvl = inst.institution_levels[0]
-                if hasattr(first_lvl, 'educational_level') and first_lvl.educational_level:
+                if getattr(first_lvl, 'educational_level', None) and getattr(first_lvl.educational_level, 'name', None):
                     edu_level_name = first_lvl.educational_level.name
-            niveles_set.add(edu_level_name)
+            if edu_level_name != 'No especificado':
+                niveles_set.add(edu_level_name)
 
             inst_name = inst.institution_name if inst else 'N/A'
             dea_code = inst.plantel_code if inst else 'N/A'
@@ -774,15 +775,18 @@ class AnalyticsService:
 
             # Fila estilizada para PDF según el Tipo de Reporte
             if report_type == 'impacto_educativo':
-                imp_row = [
-                    f"{req.request_code}\n{dt_str[:10]}",
+                imp_row = []
+                if include_req:
+                    imp_row.append(f"{req.request_code}\n{dt_str[:10]}")
+                imp_row.extend([
                     f"{inst_name}\nCódigo DEA: {dea_code}",
                     f"{scope_name}\n{edu_level_name}",
-                    mod_name,
-                    tema_name,
-                    f"{state_name}\nMun. {muni_name}",
-                    f"{rep_name}\n{cargo_name} ({ci_str})"
-                ]
+                ])
+                if include_req:
+                    imp_row.extend([mod_name, tema_name])
+                imp_row.append(f"{state_name}\nMun. {muni_name}")
+                if include_user:
+                    imp_row.append(f"{rep_name}\n{cargo_name} ({ci_str})")
                 if include_metrics:
                     imp_row.append(rating_str)
                 pdf_rows.append(imp_row)
@@ -839,13 +843,33 @@ class AnalyticsService:
             )
             sum_rows.append(["Total Impacto Socioeducativo", str(publicos_count), str(privados_count), str(total_records), "100.0%", imp_total_obs])
 
-            imp_pdf_headers = ["Expediente / Cierre", "Plantel Educativo Beneficiado", "Sector / Nivel (SR-F-023)", "Módulo Rector UREE", "Tema Formativo Impartido", "Ubicación Territorial", "Enlace Institucional"]
-            imp_pdf_weights = [1.05, 1.80, 1.00, 1.25, 2.10, 1.00, 1.30]
-            imp_center_cols = {"Expediente / Cierre", "Sector / Nivel (SR-F-023)"}
+            imp_pdf_headers = []
+            imp_pdf_weights = []
+            imp_center_cols = {"Sector / Nivel (SR-F-023)"}
+            if include_req:
+                imp_pdf_headers.append("Expediente / Cierre")
+                imp_pdf_weights.append(1.05)
+                imp_center_cols.add("Expediente / Cierre")
+            imp_pdf_headers.extend(["Plantel Educativo Beneficiado", "Sector / Nivel (SR-F-023)"])
+            imp_pdf_weights.extend([1.80, 1.00])
+            if include_req:
+                imp_pdf_headers.extend(["Módulo Rector UREE", "Tema Formativo Impartido"])
+                imp_pdf_weights.extend([1.25, 2.10])
+            imp_pdf_headers.append("Ubicación Territorial")
+            imp_pdf_weights.append(1.00)
+            if include_user:
+                imp_pdf_headers.append("Enlace Institucional")
+                imp_pdf_weights.append(1.30)
             if include_metrics:
                 imp_pdf_headers.append("Satisfacción")
                 imp_pdf_weights.append(0.85)
                 imp_center_cols.add("Satisfacción")
+
+            niveles_kpi_value = (
+                ", ".join(sorted(niveles_set)[:3])
+                if niveles_set
+                else ("No especificado" if total_records > 0 else "General")
+            )
 
             report_meta = {
                 'report_type': report_type, 'include_metrics': include_metrics, 'subtitle_scope': scope_label,
@@ -853,7 +877,7 @@ class AnalyticsService:
                 'is_truncated': is_truncated,
                 'row_limit': max_rows,
                 'kpi_headers': ["JORNADAS EJECUTADAS (STAT-007)", "PLANTELES BENEFICIADOS", "COBERTURA PÚBLICA VS. PRIVADA", "NIVELES EDUCATIVOS ALCANZADOS", "SATISFACCIÓN PROMEDIO"],
-                'kpi_values': [f"{total_records} Actividades", f"{len(planteles_set)} Instituciones", f"Públicos: {publicos_count} | Privados: {privados_count}", ", ".join(list(niveles_set)[:3]) or "General", satisfaction_kpi_value],
+                'kpi_values': [f"{total_records} Actividades", f"{len(planteles_set)} Instituciones", f"Públicos: {publicos_count} | Privados: {privados_count}", niveles_kpi_value, satisfaction_kpi_value],
                 'satisfaction_summary': satisfaction_meta,
                 'summary_title': "1. Matriz de Cobertura Socioeducativa por Nivel Educativo y Sector (Normativa SR-F-023)",
                 'summary_headers': ["Nivel Educativo Oficial", "Jornadas en Sector Público", "Jornadas en Sector Privado", "Total Actividades Atendidas", "% de Cobertura", "Módulos UREE Impartidos"],
