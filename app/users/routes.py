@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, request, abort, redirect, url_for,
 from flask_login import login_required, current_user
 from sqlalchemy import or_, func
 from sqlalchemy.exc import IntegrityError
-from app.extensions import db
+from app.extensions import db, bcrypt, limiter
 from app.models.user_model import User
 from app.models.person_model import Person
 from app.models.company_model import Company
@@ -19,7 +19,6 @@ from app.models.staff_evidence_model import StaffEvidence
 from app.models.position_model import Position  
 from app.models.status_model import Status
 import secrets
-from app.extensions import db, bcrypt
 from app.models.role_user_model import RoleUser
 from app.pre_registration.services import _generate_short_code
 from app.users.forms import UserUpdateForm, AdminUserRegisterForm
@@ -988,10 +987,22 @@ def get_evidence(staff_id):
     })
 
 @users_bp.route('/requests/<int:staff_id>/approve', methods=['POST'])
+@users_bp.route('/requests/approve', methods=['POST'])
 @login_required
 @role_required('super_admin', 'state_admin')
 @check_permissions('manage_users')
-def approve_request(staff_id):
+@limiter.limit("20 per minute", methods=["POST"], key_func=lambda: str(current_user.id))
+def approve_request(staff_id=None):
+    if staff_id is None:
+        data = request.get_json(silent=True) or {}
+        staff_id = data.get('staff_id') or request.form.get('staff_id')
+        if not staff_id:
+            return jsonify({'status': 'error', 'message': 'Identificador de solicitud requerido.'}), 400
+        try:
+            staff_id = int(staff_id)
+        except (ValueError, TypeError):
+            return jsonify({'status': 'error', 'message': 'Identificador de solicitud inválido.'}), 400
+
     user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
     if user_role not in ['state_admin', 'super_admin']:
         return jsonify({'status': 'error', 'message': 'No tiene permisos para realizar esta acción.'}), 403
@@ -1370,6 +1381,7 @@ def api_places_by_state(state_id):
 @login_required
 @role_required('super_admin')
 @check_permissions('register_users')
+@limiter.limit("20 per minute", methods=["POST"], key_func=lambda: str(current_user.id))
 def register_admin():
     user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
     if user_role not in ['super_admin']:

@@ -77,11 +77,9 @@
                         </div>
                     </div>
                     <span class="field-error" id="error-code"></span>
-                    {% if remaining > 0 %}
                     <div id="timer" data-remaining="{{ remaining }}"
-                        style="color: var(--error-color); font-size: 0.85rem; margin-top: 0.5rem; font-weight: 600; text-align: center;">
+                        style="margin-top: 0.6rem; text-align: center;">
                     </div>
-                    {% endif %}
                 </div>
 
                 <button type="submit" class="submit-btn">
@@ -109,7 +107,7 @@
 
             <div class="support-links" style="text-align: center; margin-top: 1.5rem; font-size: 0.85rem; line-height: 1.6; color: #6b7280;">
                 ¿No recibes el correo? 
-                <a href="#" onclick="document.getElementById('resendCodeForm').submit(); return false;" style="color: var(--primary-color); font-weight: 600; text-decoration: none; transition: opacity 0.2s;">
+                <a href="#" id="btnResendCode" onclick="document.getElementById('resendCodeForm').submit(); return false;" style="color: var(--primary-color); font-weight: 600; text-decoration: none; transition: opacity 0.2s;">
                     Reenviar código
                 </a>
             </div>

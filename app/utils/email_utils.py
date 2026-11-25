@@ -29,15 +29,6 @@ def send_email(to_email: str, subject: str, html_content: str, text_content: str
     
     if html_content:
         msg.add_alternative(html_content, subtype='html')
-        
-        # Adjuntar logo siempre que esté disponible
-        logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'img', 'logo_corpoelec.png')
-        if os.path.exists(logo_path):
-            try:
-                with open(logo_path, 'rb') as f:
-                    msg.get_payload()[1].add_related(f.read(), 'image', 'png', cid='logo_corpoelec')
-            except Exception as e:
-                logger.warning(f"Error al adjuntar imagen inline: {e}")
                 
     # Procesar archivos adjuntos si existen
     if attachments:
@@ -64,10 +55,8 @@ def send_email(to_email: str, subject: str, html_content: str, text_content: str
 
 
 def get_logo_html() -> str:
-    logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'img', 'logo_corpoelec.png')
-    if os.path.exists(logo_path):
-        return '<img src="cid:logo_corpoelec" alt="CORPOELEC" style="max-width: 220px; height: auto; display: block; border: 0;">'
-    return '<span style="font-size: 24px; font-weight: 800; color: #1c3d73; letter-spacing: 1px;">(⚡) CORPOELEC</span>'
+    """Retorna encabezado visual corporativo en HTML limpio sin imágenes adjuntas para evitar filtros de spam."""
+    return '<span style="font-size: 24px; font-weight: 800; color: #1c3d73; letter-spacing: 1.5px; font-family: Arial, sans-serif;">(⚡) CORPOELEC</span>'
 
 
 def send_recovery_email(to_email: str, code: str) -> bool:
@@ -126,7 +115,9 @@ def send_recovery_email(to_email: str, code: str) -> bool:
     </html>
     """
     
-    return send_email(to_email, subject, html_content, text_content)
+    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content), daemon=True)
+    thread.start()
+    return True
 
 
 def send_preregistration_email(to_email: str, full_name: str, institution_name: str) -> bool:
@@ -194,7 +185,9 @@ Por favor, no responda a este correo automatizado."""
     </body>
     </html>
     """
-    return send_email(to_email, subject, html_content, text_content)
+    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content), daemon=True)
+    thread.start()
+    return True
 
 
 def send_invitation_email(to_email: str, link: str, institution_name: str) -> bool:
@@ -259,7 +252,9 @@ def send_invitation_email(to_email: str, link: str, institution_name: str) -> bo
     </body>
     </html>
     """
-    return send_email(to_email, subject, html_content, text_content)
+    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content), daemon=True)
+    thread.start()
+    return True
 
 def send_applicant_activation_email(to_email: str, token: str, full_name: str = "", institution_name: str = "") -> bool:
     """Envía el enlace de activación al solicitante tras aprobar su registro (US-10)."""
@@ -332,7 +327,7 @@ def send_applicant_activation_email(to_email: str, token: str, full_name: str = 
     </html>
     """
     # Despacho en hilo independiente para no bloquear el request de aprobación
-    thread = threading.Thread(target=send_email, args=(clean_to_email, subject, html_content, text_content))
+    thread = threading.Thread(target=send_email, args=(clean_to_email, subject, html_content, text_content), daemon=True)
     thread.start()
     return True
 
@@ -410,7 +405,7 @@ def send_applicant_rejection_email(to_email: str, full_name: str = "", instituti
     </html>
     """
     # Despacho en hilo independiente para no bloquear el request de rechazo
-    thread = threading.Thread(target=send_email, args=(clean_to_email, subject, html_content, text_content))
+    thread = threading.Thread(target=send_email, args=(clean_to_email, subject, html_content, text_content), daemon=True)
     thread.start()
     return True
 
@@ -480,7 +475,7 @@ def send_administrative_activation_email(to_email: str, token: str, role_display
     """
     
     # Despacho en hilo independiente
-    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content))
+    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content), daemon=True)
     thread.start()
     return True
 
@@ -552,7 +547,7 @@ def send_request_receipt_email(to_email: str, full_name: str, institution_name: 
     }]
     
     # Despachamos al mismo hilo genérico, pasándole los adjuntos
-    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content, attachments))
+    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content, attachments), daemon=True)
     thread.start()
     return True
 
@@ -676,7 +671,7 @@ Este mensaje fue generado automáticamente por la Gerencia de Auditoría y Fisca
     </html>
     """
 
-    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content))
+    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content), daemon=True)
     thread.start()
     return True
 
@@ -745,7 +740,7 @@ Gracias por usar el sistema SAGES.
     </html>
     """
 
-    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content))
+    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content), daemon=True)
     thread.start()
     return True
 
@@ -832,7 +827,7 @@ Gracias por usar el sistema SAGES.
     </html>
     """
 
-    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content))
+    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content), daemon=True)
     thread.start()
     return True
 
@@ -966,7 +961,7 @@ def send_request_cancelled_email(
     </html>
     """
 
-    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content))
+    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content), daemon=True)
     thread.start()
     return True
 
@@ -1077,7 +1072,7 @@ Sistema de Gestión de Solicitudes SAGES - CORPOELEC.
     </html>
     """
 
-    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content))
+    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content), daemon=True)
     thread.start()
     return True
 
@@ -1209,7 +1204,7 @@ def send_training_completed_survey_email(
     </html>
     """
 
-    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content))
+    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content), daemon=True)
     thread.start()
     return True
 
@@ -1316,7 +1311,7 @@ def send_institution_inactivated_email(
 </body>
 </html>"""
 
-    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content))
+    thread = threading.Thread(target=send_email, args=(to_email, subject, html_content, text_content), daemon=True)
     thread.start()
     return True
 
@@ -1415,7 +1410,7 @@ def send_user_deactivation_email(to_email: str, full_name: str = "", username: s
     </html>
     """
 
-    thread = threading.Thread(target=send_email, args=(clean_to_email, subject, html_content, text_content))
+    thread = threading.Thread(target=send_email, args=(clean_to_email, subject, html_content, text_content), daemon=True)
     thread.start()
     return True
 

@@ -496,7 +496,9 @@ function reenviarEnlaceDetalle(userId, email, fullName) {
                 icon: 'success',
                 title: '¡Enlace enviado!',
                 text: result.value.message || 'El nuevo enlace ha sido enviado con éxito.',
-                confirmButtonColor: '#007865'
+                confirmButtonColor: '#007865',
+                timer: 3500,
+                timerProgressBar: true
             });
         }
     });

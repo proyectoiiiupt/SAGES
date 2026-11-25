@@ -234,29 +234,43 @@
             confirmButtonColor: '#10b981',
             cancelButtonColor: '#64748b',
             confirmButtonText: 'Sí, aprobar',
-            cancelButtonText: 'Cancelar'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                fetch(`/users/requests/${requestId}/approve`, {
+            cancelButtonText: 'Cancelar',
+            showLoaderOnConfirm: true,
+            preConfirm: () => {
+                return fetch(`/users/requests/${requestId}/approve`, {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
                         'X-CSRFToken': csrfToken 
                     }
                 })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        // Limpiar el registro al aprobar exitosamente
-                        localStorage.removeItem(`evidencia_vista_${requestId}`);
-                        Swal.fire('¡Aprobado!', data.message, 'success').then(() => {
-                            location.reload();
+                .then(res => {
+                    if (!res.ok) {
+                        return res.json().then(err => {
+                            throw new Error(err.message || err.error || 'Demasiadas solicitudes o error en el servidor.');
                         });
-                    } else {
-                        Swal.fire('Error', data.message, 'error');
                     }
+                    return res.json();
                 })
-                .catch(() => Swal.fire('Error', 'No se pudo procesar la solicitud.', 'error'));
+                .catch(error => {
+                    Swal.showValidationMessage(`Error: ${error.message}`);
+                });
+            },
+            allowOutsideClick: () => !Swal.isLoading()
+        }).then((result) => {
+            if (result.isConfirmed && result.value && result.value.status === 'success') {
+                // Limpiar el registro al aprobar exitosamente
+                localStorage.removeItem(`evidencia_vista_${requestId}`);
+                Swal.fire({
+                    title: '¡Aprobado!',
+                    text: result.value.message,
+                    icon: 'success',
+                    confirmButtonColor: '#10b981',
+                    timer: 3500,
+                    timerProgressBar: true
+                }).then(() => {
+                    location.reload();
+                });
             }
         });
     }

@@ -201,23 +201,66 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Temporizador / Cuenta regresiva
+        // Temporizador / Cuenta regresiva (Reloj visual con contador reactivo)
         const timerElement = document.getElementById('timer');
+        const resendLink = document.getElementById('btnResendCode') || document.querySelector('.support-links a');
         if (timerElement) {
-            let remainingTime = parseInt(timerElement.getAttribute('data-remaining'), 10) || 300;
+            let remainingTime = parseInt(timerElement.getAttribute('data-remaining'), 10);
+            if (isNaN(remainingTime)) remainingTime = 300;
 
-            const countdownInterval = setInterval(() => {
-                const minutes = Math.floor(remainingTime / 60);
-                let seconds = remainingTime % 60;
+            const formatClock = (secondsLeft) => {
+                const minutes = Math.floor(secondsLeft / 60);
+                let seconds = secondsLeft % 60;
                 seconds = seconds < 10 ? '0' + seconds : seconds;
+                return `${minutes}:${seconds}`;
+            };
 
-                timerElement.textContent = `El código expira en: ${minutes}:${seconds}`;
+            const renderTimer = () => {
+                if (remainingTime <= 0) {
+                    timerElement.innerHTML = `
+                        <div style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 4px 10px; font-size: 0.85rem; font-weight: 600;">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                            <span>EL CÓDIGO HA EXPIRADO</span>
+                        </div>`;
+                    if (resendLink) {
+                        resendLink.style.pointerEvents = 'auto';
+                        resendLink.style.opacity = '1';
+                        resendLink.textContent = 'Reenviar código';
+                    }
+                } else {
+                    timerElement.innerHTML = `
+                        <div style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: #0284c7; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 4px 10px; font-size: 0.85rem; font-weight: 600;">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            <span>Código válido por: <strong style="font-family: monospace; font-size: 0.95rem;">${formatClock(remainingTime)}</strong></span>
+                        </div>`;
+                    if (remainingTime > 60 && resendLink) {
+                        const waitSec = remainingTime - 60;
+                        resendLink.style.pointerEvents = 'none';
+                        resendLink.style.opacity = '0.6';
+                        resendLink.textContent = `Reenviar código (esperar ${formatClock(waitSec)})`;
+                    } else if (resendLink) {
+                        resendLink.style.pointerEvents = 'auto';
+                        resendLink.style.opacity = '1';
+                        resendLink.textContent = 'Reenviar código';
+                    }
+                }
+            };
 
+            renderTimer();
+            const countdownInterval = setInterval(() => {
                 if (remainingTime <= 0) {
                     clearInterval(countdownInterval);
-                    timerElement.textContent = "EL CÓDIGO HA EXPIRADO";
+                    renderTimer();
                 } else {
                     remainingTime--;
+                    renderTimer();
                 }
             }, 1000);
         }

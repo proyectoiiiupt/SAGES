@@ -211,6 +211,10 @@ def create_app(config_class=Config) -> Flask:
                 # Guardar estado en sesión
                 session['pw_reset_email']     = old_email
                 session['pw_reset_verified']  = True
+                from app.models.person_model import Person
+                _p = Person.query.filter_by(email=old_email).first()
+                if _p and _p.user:
+                    session['pw_reset_user_id'] = _p.user.id
                 session['_fresh']             = True
                 session.modified = True
 
@@ -264,8 +268,26 @@ def create_app(config_class=Config) -> Flask:
             
         return render_template('auth/verify_code.html', email=safe_masked_email, remaining=remaining)
 
+    def _get_new_password_user_id():
+        from flask_login import current_user
+        if current_user and current_user.is_authenticated:
+            return str(current_user.id)
+        uid = session.get('pw_reset_user_id')
+        if uid:
+            return str(uid)
+        email = session.get('pw_reset_email') or session.get('pw_reset_pending_email')
+        if email:
+            from app.models.person_model import Person
+            p = Person.query.filter_by(email=email).first()
+            if p and p.user:
+                session['pw_reset_user_id'] = p.user.id
+                return str(p.user.id)
+        from flask_limiter.util import get_remote_address
+        return get_remote_address()
+
     @app.route('/new-password', methods=['GET', 'POST'])
-    @limiter.limit("5 per 10 minutes", methods=["POST"])
+    @app.route('/auth/new-password', methods=['GET', 'POST'])
+    @limiter.limit("5 per 10 minutes", methods=["POST"], key_func=_get_new_password_user_id)
     def new_password():
         # Verificar estado en sesión
         if not session.get('pw_reset_verified'):
@@ -315,6 +337,7 @@ def create_app(config_class=Config) -> Flask:
             # Limpiar sesión
             session.pop('pw_reset_verified', None)
             session.pop('pw_reset_email', None)
+            session.pop('pw_reset_user_id', None)
 
             flash('Contraseña actualizada. Inicia sesión con tu nueva contraseña.', 'success')
             return redirect(url_for('auth.login'))
