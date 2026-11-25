@@ -387,8 +387,10 @@
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.05);
     margin-bottom: 18px;                
     border-left: 4px solid var(--sages-green);
+    width: calc(100% - 2rem);
     max-width: 960px;
     margin: 1.5rem auto 1rem;
+    box-sizing: border-box;
 }
 
 .welcome-text {
@@ -424,6 +426,57 @@
     height: 17px;
     color: var(--sages-green);
     flex-shrink: 0;
+}
+
+/* Reglas Responsive para el Banner */
+@media (max-width: 768px) {
+    .welcome-banner {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px 18px;
+        border-radius: 12px;
+    }
+
+    .welcome-text {
+        font-size: 1.15rem;
+        flex-wrap: wrap;
+    }
+
+    .date-text {
+        padding: 8px 14px;
+        font-size: 0.825rem;
+        align-self: flex-start;
+    }
+}
+
+@media (max-width: 480px) {
+    .welcome-banner {
+        width: calc(100% - 1.5rem);
+        margin: 1rem auto;
+        padding: 12px 14px;
+        border-radius: 10px;
+        gap: 10px;
+    }
+
+    .welcome-text {
+        font-size: 1.05rem;
+    }
+
+    .welcome-text svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .date-text {
+        padding: 6px 12px;
+        font-size: 0.8rem;
+    }
+
+    .date-text svg {
+        width: 15px;
+        height: 15px;
+    }
 }
 
 /* =========================================
