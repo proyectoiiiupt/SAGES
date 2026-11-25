@@ -221,6 +221,7 @@ def reports_wizard():
 @analytics_bp.route('/api/geo/municipalities/<int:state_id>', methods=['GET'])
 @login_required
 @role_required('super_admin', 'state_admin')
+@check_permissions('view_statistics')
 def get_geo_municipalities(state_id):
     """
     Retorna los municipios de un estado para la cascada del wizard.
@@ -244,6 +245,7 @@ def get_geo_municipalities(state_id):
 @analytics_bp.route('/api/geo/parishes/<int:municipality_id>', methods=['GET'])
 @login_required
 @role_required('super_admin', 'state_admin')
+@check_permissions('view_statistics')
 def get_geo_parishes(municipality_id):
     """
     Retorna las parroquias de un municipio para la cascada del wizard.

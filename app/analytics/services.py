@@ -83,10 +83,10 @@ class AnalyticsService:
             diferencial_pct = round(((req_ultimos_28 - req_ciclo_previo) / req_ciclo_previo) * 100, 1)
 
         # 2. Distribución de Estatus (Gráfico Donut)
-        # STAT-007: Completado/Aprobada | STAT-006: En Proceso | STAT-003, STAT-004: Pendientes
+        # STAT-007: Completado/Aprobada | STAT-005, STAT-006: En Proceso (Planificada / En proceso) | STAT-003, STAT-004: Pendientes
         status_data = base_q.join(Request.status).with_entities(
             func.count(case((Status.status_code == 'STAT-007', Request.id))).label('aprobadas'),
-            func.count(case((Status.status_code == 'STAT-006', Request.id))).label('en_proceso'),
+            func.count(case((Status.status_code.in_(['STAT-005', 'STAT-006']), Request.id))).label('en_proceso'),
             func.count(case((Status.status_code.in_(['STAT-003', 'STAT-004']), Request.id))).label('pendientes')
         ).first()
 
@@ -103,7 +103,7 @@ class AnalyticsService:
             .with_entities(
                 func.date_trunc('day', Request.created_at).label('fecha_dia'),
                 func.count(case((Status.status_code == 'STAT-007', Request.id))).label('aprobadas'),
-                func.count(case((Status.status_code == 'STAT-006', Request.id))).label('en_proceso'),
+                func.count(case((Status.status_code.in_(['STAT-005', 'STAT-006']), Request.id))).label('en_proceso'),
                 func.count(case((Status.status_code.in_(['STAT-003', 'STAT-004']), Request.id))).label('pendientes')
             )\
             .group_by('fecha_dia')\
