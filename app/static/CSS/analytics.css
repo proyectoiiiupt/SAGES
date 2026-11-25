@@ -764,7 +764,7 @@
 }
 
 /* ========================================================
-   ESTILOS DEL ASISTENTE WIZARD (VISTA 3)
+   CABECERA BANNER Y ESTILOS COMPARTIDOS (VISTAS 2 Y 3)
    ======================================================== */
 
 /* Cabecera Estilo Banner (Idéntica a Gestión de Solicitudes) */
@@ -1404,38 +1404,6 @@
 }
 
 /* ── CONSOLA DE INDICADORES (US-54) ── */
-/* Botón Volver al Tablero tipo breadcrumb */
-.btn-breadcrumb-back {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    padding: 0.45rem 0.85rem;
-    background: #f8fafc;
-    color: #0f3669;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    font-size: 0.85rem;
-    font-weight: 700;
-    text-decoration: none;
-    transition: all 0.2s ease;
-    cursor: pointer;
-    line-height: 1;
-}
-
-.btn-breadcrumb-back:hover {
-    background: #0f3669;
-    color: #ffffff;
-    border-color: #0f3669;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(15, 54, 105, 0.2);
-}
-
-.btn-breadcrumb-back svg {
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
-}
-
 /* Layout y estructura de la consola de indicadores */
 .indicators-main-layout {
     display: grid;
