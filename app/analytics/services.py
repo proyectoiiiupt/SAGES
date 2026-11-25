@@ -1,8 +1,8 @@
 import calendar
 from collections import defaultdict
-from datetime import datetime, timezone, timedelta, time, date
-from app.utils.timezone import caracas_date_range_to_utc, get_caracas_now
-from sqlalchemy import func, case, and_, extract
+from datetime import datetime, timezone, timedelta, date
+from app.utils.timezone import caracas_date_range_to_utc, get_caracas_now, to_caracas_time
+from sqlalchemy import func, case, and_
 from app.extensions import db
 from app.models.request_model import Request
 from app.models.status_model import Status
@@ -37,6 +37,61 @@ class AnalyticsService:
         )
 
     @staticmethod
+    def _resolve_caracas_utc_bounds(date_from=None, date_to=None, month=None, year=None):
+        """
+        Normaliza filtros temporales ('YYYY-MM-DD', date, datetime o mes 1-12) a límites
+        exactos en UTC correspondientes a la hora oficial de Venezuela (America/Caracas, UTC-4),
+        delegando toda conversión de fechas calendario en caracas_date_range_to_utc().
+        """
+        def _is_provided(val) -> bool:
+            if val is None:
+                return False
+            if isinstance(val, str):
+                return bool(val.strip())
+            return True
+
+        def _normalize_bound(val, is_end: bool):
+            if not _is_provided(val):
+                return None
+            # CRÍTICO: isinstance(datetime, date) es True en Python; verificar datetime primero
+            # para no reconvertir límites UTC ya resueltos por calculate_filtered_indicators().
+            if isinstance(val, datetime):
+                return val.replace(tzinfo=timezone.utc) if val.tzinfo is None else val.astimezone(timezone.utc)
+            if is_end:
+                _, end_utc = caracas_date_range_to_utc(None, val)
+                return end_utc
+            start_utc, _ = caracas_date_range_to_utc(val, None)
+            return start_utc
+
+        has_explicit_range = _is_provided(date_from) or _is_provided(date_to)
+        if has_explicit_range:
+            return _normalize_bound(date_from, is_end=False), _normalize_bound(date_to, is_end=True)
+
+        if _is_provided(month):
+            try:
+                month_num = int(month)
+                if not (1 <= month_num <= 12):
+                    return None, None
+            except (ValueError, TypeError):
+                return None, None
+
+            now_ve_year = get_caracas_now().year
+            try:
+                target_year = int(year) if _is_provided(year) else now_ve_year
+                if not (1 <= target_year <= 9999):
+                    target_year = now_ve_year
+            except (ValueError, TypeError):
+                target_year = now_ve_year
+
+            _, last_day = calendar.monthrange(target_year, month_num)
+            return caracas_date_range_to_utc(
+                date(target_year, month_num, 1),
+                date(target_year, month_num, last_day),
+            )
+
+        return None, None
+
+    @staticmethod
     def get_scoped_requests_query(user, state_id=None):
         """
         Genera la consulta base sobre requests aplicando aislamiento territorial RBAC.
@@ -65,7 +120,8 @@ class AnalyticsService:
         """
         Calcula todos los conjuntos de datos necesarios para la Vista 1 (Tablero Ejecutivo).
         """
-        now = datetime.now(timezone.utc)
+        now_ve = get_caracas_now()
+        now = now_ve.astimezone(timezone.utc)
         hace_28_dias = now - timedelta(days=28)
         hace_56_dias = now - timedelta(days=56)
 
@@ -101,7 +157,7 @@ class AnalyticsService:
         timeline_q = base_q.join(Request.status)\
             .filter(Request.created_at >= hace_28_dias)\
             .with_entities(
-                func.date_trunc('day', Request.created_at).label('fecha_dia'),
+                func.date_trunc('day', func.timezone('America/Caracas', Request.created_at)).label('fecha_dia'),
                 func.count(case((Status.status_code == 'STAT-007', Request.id))).label('aprobadas'),
                 func.count(case((Status.status_code.in_(['STAT-005', 'STAT-006']), Request.id))).label('en_proceso'),
                 func.count(case((Status.status_code.in_(['STAT-003', 'STAT-004']), Request.id))).label('pendientes')
@@ -116,7 +172,7 @@ class AnalyticsService:
 
         # Si hay pocos registros o es inicio de mes, asegurar al menos etiquetas base
         if not line_labels:
-            line_labels = [(hace_28_dias + timedelta(days=i * 5)).strftime('%d %b') for i in range(6)]
+            line_labels = [(now_ve - timedelta(days=28) + timedelta(days=i * 5)).strftime('%d %b') for i in range(6)]
             line_aprobadas = [0] * len(line_labels)
             line_en_proceso = [0] * len(line_labels)
             line_pendientes = [0] * len(line_labels)
@@ -271,20 +327,17 @@ class AnalyticsService:
             except (ValueError, TypeError):
                 pass
 
-        # 4. Filtros Temporales (Rango de fechas o Mes seleccionado)
-        if filters.get('date_from'):
-            query = query.filter(Request.created_at >= filters['date_from'])
-        if filters.get('date_to'):
-            val_to = filters['date_to']
-            if isinstance(val_to, str) and ' ' not in val_to:
-                query = query.filter(Request.created_at <= f"{val_to} 23:59:59")
-            else:
-                query = query.filter(Request.created_at <= val_to)
-        elif filters.get('month') and not filters.get('date_from'):
-            try:
-                query = query.filter(extract('month', Request.created_at) == int(filters['month']))
-            except (ValueError, TypeError):
-                pass
+        # 4. Filtros Temporales unificados en hora oficial de Venezuela (America/Caracas, UTC-4 -> UTC)
+        start_utc, end_utc = AnalyticsService._resolve_caracas_utc_bounds(
+            date_from=filters.get('date_from'),
+            date_to=filters.get('date_to'),
+            month=filters.get('month'),
+            year=filters.get('year'),
+        )
+        if start_utc is not None:
+            query = query.filter(Request.created_at >= start_utc)
+        if end_utc is not None:
+            query = query.filter(Request.created_at <= end_utc)
 
         return query
 
@@ -320,15 +373,16 @@ class AnalyticsService:
                 )
             from app.models.binnacle_model import Binnacle
             bin_q = db.session.query(Binnacle).order_by(Binnacle.created_at.desc())
-            if filters.get('date_from'):
-                bin_q = bin_q.filter(Binnacle.created_at >= filters['date_from'])
-            if filters.get('date_to'):
-                bin_q = bin_q.filter(Binnacle.created_at <= f"{filters['date_to']} 23:59:59")
-            elif filters.get('month') and not filters.get('date_from'):
-                try:
-                    bin_q = bin_q.filter(extract('month', Binnacle.created_at) == int(filters['month']))
-                except (ValueError, TypeError):
-                    pass
+            start_utc, end_utc = AnalyticsService._resolve_caracas_utc_bounds(
+                date_from=filters.get('date_from'),
+                date_to=filters.get('date_to'),
+                month=filters.get('month'),
+                year=filters.get('year'),
+            )
+            if start_utc is not None:
+                bin_q = bin_q.filter(Binnacle.created_at >= start_utc)
+            if end_utc is not None:
+                bin_q = bin_q.filter(Binnacle.created_at <= end_utc)
 
             logs = bin_q.limit(200).all()
             headers = [
@@ -351,7 +405,8 @@ class AnalyticsService:
                 rol_label = "Super Administrador" if r_name == 'super_admin' else "Administrador Estadal"
                 jur_label = "Nacional" if r_name == 'super_admin' else scope_label
                 ev_code = f"BIN-{lg.id:05d}" if getattr(lg, 'id', None) else "BIN-SAGES"
-                dt_str = lg.created_at.strftime('%Y-%m-%d %H:%M') if getattr(lg, 'created_at', None) else "S/F"
+                dt_local = to_caracas_time(getattr(lg, 'created_at', None))
+                dt_str = dt_local.strftime('%Y-%m-%d %H:%M') if dt_local else "S/F"
                 act_name = getattr(lg, 'action_type', 'OPERACION')
                 tbl_name = getattr(lg, 'target_table', 'sages.requests') or 'sages.requests'
                 st_name = getattr(lg, 'status', 'COMPLETADO') or 'COMPLETADO'
@@ -497,7 +552,8 @@ class AnalyticsService:
 
             mod_name = req.training.training_module.name if req.training and req.training.training_module else 'N/A'
             tema_name = req.training.name if req.training else 'N/A'
-            dt_str = req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else 'S/F'
+            dt_local = to_caracas_time(req.created_at) if req.created_at else None
+            dt_str = dt_local.strftime('%Y-%m-%d %H:%M') if dt_local else 'S/F'
             ci_str = f"{person.identification_type}-{person.identification_number}" if person else 'N/A'
             rep_name = f"{person.first_name} {person.last_name}" if person else 'N/A'
             cargo_name = staff.position.name if staff and staff.position else 'Representante'
@@ -702,29 +758,34 @@ class AnalyticsService:
         else:
             raise PermissionError("Acceso denegado: Rol no autorizado para consultar indicadores.")
 
-        # ── 2. RESOLUCIÓN TEMPORAL ──
-        now = datetime.now(timezone.utc)
-        current_year = now.year
+        # ── 2. RESOLUCIÓN TEMPORAL (America/Caracas UTC-4 -> UTC) ──
+        now_ve = get_caracas_now()
+        now_utc = now_ve.astimezone(timezone.utc)
+        current_year = now_ve.year
         time_mode = params.get('time_mode', 'month')
 
         if time_mode == 'month':
             raw_month = params.get('month')
             try:
-                month_num = int(raw_month) if raw_month else now.month
+                month_num = int(raw_month) if raw_month else now_ve.month
                 if not (1 <= month_num <= 12):
-                    month_num = now.month
+                    month_num = now_ve.month
             except (ValueError, TypeError):
-                month_num = now.month
+                month_num = now_ve.month
 
-            _, last_day = calendar.monthrange(current_year, month_num)
-            start_date = datetime(current_year, month_num, 1, 0, 0, 0, tzinfo=timezone.utc)
-            end_date = datetime(current_year, month_num, last_day, 23, 59, 59, tzinfo=timezone.utc)
+            start_date, end_date = AnalyticsService._resolve_caracas_utc_bounds(
+                month=month_num,
+                year=current_year,
+            )
         else:
             raw_from = params.get('date_from')
             raw_to = params.get('date_to')
-            s_utc, e_utc = caracas_date_range_to_utc(raw_from, raw_to)
-            start_date = s_utc or (now - timedelta(days=30))
-            end_date = e_utc or now
+            s_utc, e_utc = AnalyticsService._resolve_caracas_utc_bounds(
+                date_from=raw_from,
+                date_to=raw_to,
+            )
+            start_date = s_utc or (now_utc - timedelta(days=30))
+            end_date = e_utc or now_utc
 
         # ── 3. CONSTRUCCIÓN DE LA CONSULTA RELACIONAL ──
         scoped_filters = {
@@ -741,7 +802,10 @@ class AnalyticsService:
         base_q = AnalyticsService.get_scoped_base_query(user, scoped_filters)
 
         # ── 4. AGREGACIÓN EN POSTGRESQL POR DÍA ──
-        date_bucket = func.date_trunc('day', Request.created_at).label('hitorange')
+        date_bucket = func.date_trunc(
+            'day',
+            func.timezone('America/Caracas', Request.created_at)
+        ).label('hitorange')
 
         timeline_results = base_q.outerjoin(Request.plannings)\
             .join(Request.status)\
@@ -795,7 +859,7 @@ class AnalyticsService:
         """
         Prepara los datos del mes en curso y catálogos protegidos para la Vista 2.
         """
-        now = datetime.now(timezone.utc)
+        now_ve = get_caracas_now()
         user_role = user.roles_assoc[0].role.name if user.roles_assoc else 'applicant'
         state_info = get_user_state_info(user) if user_role == 'state_admin' else None
 
@@ -809,13 +873,10 @@ class AnalyticsService:
         inst_scopes = InstitutionScope.query.order_by(InstitutionScope.name).all()
         edu_levels = EducationalLevel.query.order_by(EducationalLevel.name).all()
 
-        # Datos del mes corriente por defecto
-        primer_dia_mes = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
+        # Datos del mes corriente por defecto (en hora oficial de Caracas)
         filtros_iniciales = {
             'time_mode': 'month',
-            'month': now.month,
-            'date_from': primer_dia_mes,
-            'date_to': now,
+            'month': now_ve.month,
             'state_id': state_info['state_id'] if state_info else None
         }
         timeline_data = AnalyticsService.calculate_filtered_indicators(user, filtros_iniciales)
