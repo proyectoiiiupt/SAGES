@@ -192,20 +192,29 @@ def export_to_pdf(headers, data_rows, title="Reporte Institucional", filename="r
     ))
 
     # ── 3. BANDA EJECUTIVA DE KPIS Y SECCIÓN 1 (MATRIZ CONSOLIDADA) ──
-    if report_meta.get('include_metrics', True) and report_meta.get('kpi_headers'):
-        kpi_headers = [Paragraph(escape(h), kpi_label_style) for h in report_meta['kpi_headers']]
-        kpi_values = [Paragraph(escape(v), kpi_value_style) for v in report_meta['kpi_values']]
-        kpi_table = Table([kpi_headers, kpi_values], colWidths=[usable_width / 4.0] * 4)
-        kpi_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F8FAFC')),
-            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#CBD5E1')),
-            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E2E8F0')),
-            ('TOPPADDING', (0, 0), (-1, -1), 4.5),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 5.5),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
-        ]))
-        story.append(kpi_table)
-        story.append(Spacer(1, 7))
+    if report_meta.get('include_metrics', True):
+        kpi_h_raw = report_meta.get('kpi_headers')
+        kpi_v_raw = report_meta.get('kpi_values')
+        if (not kpi_h_raw or not kpi_v_raw) and report_meta.get('kpis'):
+            kpis_list = [k for k in report_meta['kpis'] if isinstance(k, dict)]
+            kpi_h_raw = [str(k.get('label', '')) for k in kpis_list]
+            kpi_v_raw = [str(k.get('value', '')) for k in kpis_list]
+
+        if kpi_h_raw and kpi_v_raw and len(kpi_h_raw) == len(kpi_v_raw):
+            kpi_headers = [Paragraph(escape(str(h)), kpi_label_style) for h in kpi_h_raw]
+            kpi_values = [Paragraph(escape(str(v)), kpi_value_style) for v in kpi_v_raw]
+            kpi_cols = len(kpi_headers)
+            kpi_table = Table([kpi_headers, kpi_values], colWidths=[usable_width / float(kpi_cols)] * kpi_cols)
+            kpi_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F8FAFC')),
+                ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#CBD5E1')),
+                ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E2E8F0')),
+                ('TOPPADDING', (0, 0), (-1, -1), 4.5),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 5.5),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
+            ]))
+            story.append(kpi_table)
+            story.append(Spacer(1, 7))
 
         # Renderizar Sección 1: Matriz Consolidada
         sum_headers = report_meta.get('summary_headers', [])

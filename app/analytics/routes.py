@@ -485,20 +485,67 @@ def export_indicators_api():
         safe_name = re.sub(r'[^a-zA-Z0-9_\-]', '_', base_name)
         report_title = "Indicadores de Gestión - Demanda vs Cobertura"
 
-        report_meta = {
-            'subtitle_scope': f"Ámbito: {scope_label} | Corte: {clean_filters.get('time_mode', 'Mes')}",
-            'kpis': [
-                {'label': 'Solicitudes Generadas', 'value': str(tot_g)},
-                {'label': 'Solicitudes Atendidas', 'value': str(tot_a)},
-                {'label': 'Tasa de Cumplimiento', 'value': str(tot_rate)},
-                {'label': 'Hitos Temporales', 'value': str(len(timeline_labels))}
+        has_real_milestones = bool(timeline_labels) and timeline_labels != ["Sin datos en período"]
+        milestones_count = len(timeline_labels) if has_real_milestones else 0
+        brecha = max(int(tot_g) - int(tot_a), 0)
+        brecha_pct = round((brecha / tot_g * 100), 1) if tot_g > 0 else 0.0
+        time_mode_label = "Rango de Fechas" if clean_filters.get('time_mode') == 'range' else "Mensual"
+
+        summary_headers = [
+            "Indicador de Gestión",
+            "Volumen Consolidado",
+            "Proporción (%)",
+            "Condición Operativa en el Corte"
+        ]
+        summary_rows = [
+            [
+                "Solicitudes Generadas (Demanda)",
+                str(tot_g),
+                "100.0%" if tot_g > 0 else "0.0%",
+                "Demanda institucional radicada en el período"
             ],
-            'summary_title': '1. Matriz de Serie Temporal (Demanda vs. Respuesta Operativa)',
-            'summary_headers': headers,
-            'summary_rows': data_rows,
-            'summary_weights': [2.0, 1.5, 1.5, 1.5],
-            'center_cols_summary': {"Solicitudes Generadas", "Solicitudes Atendidas", "Tasa de Cumplimiento (%)"},
-            'detail_title': '2. Relación de Indicadores por Hito',
+            [
+                "Solicitudes Atendidas (Cobertura)",
+                str(tot_a),
+                str(tot_rate),
+                "Jornadas ejecutadas y certificadas (STAT-007)"
+            ],
+            [
+                "Brecha Operativa (Pendiente / En Proceso)",
+                str(brecha),
+                f"{brecha_pct:.1f}%",
+                "Solicitudes sin cierre definitivo en el corte"
+            ],
+            [
+                "Total Consolidado del Periodo",
+                str(tot_g),
+                str(tot_rate),
+                f"{milestones_count} hito(s) temporal(es) evaluado(s)"
+            ]
+        ]
+
+        report_meta = {
+            'include_metrics': True,
+            'force_page_size': 'letter',
+            'subtitle_scope': f"Ámbito: {scope_label} | Corte: {time_mode_label}",
+            'kpi_headers': [
+                "SOLICITUDES GENERADAS",
+                "SOLICITUDES ATENDIDAS",
+                "TASA DE CUMPLIMIENTO",
+                "HITOS TEMPORALES"
+            ],
+            'kpi_values': [
+                str(tot_g),
+                str(tot_a),
+                str(tot_rate),
+                str(milestones_count)
+            ],
+            'summary_title': '1. Resumen Consolidado de Gestión (Demanda vs. Cobertura Operativa)',
+            'summary_headers': summary_headers,
+            'summary_rows': summary_rows,
+            'summary_weights': [2.2, 1.2, 1.0, 2.6],
+            'center_cols_summary': {"Volumen Consolidado", "Proporción (%)"},
+            'detail_title': '2. Relación Detallada de Indicadores por Hito Temporal',
             'pdf_headers': headers,
             'pdf_rows': data_rows,
             'pdf_weights': [2.0, 1.5, 1.5, 1.5],
