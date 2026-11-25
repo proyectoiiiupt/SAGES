@@ -135,6 +135,14 @@ class IndicatorsFilterForm(FlaskForm):
     municipality_id = IntegerField('Municipio', validators=[Optional()])
     parish_id = IntegerField('Parroquia', validators=[Optional()])
     institution_scope_id = IntegerField('Sector', validators=[Optional()])
+    institution_type_id = IntegerField(
+        'Tipo de Institución',
+        validators=[Optional(), NumberRange(min=1, message="Tipo de institución inválido.")]
+    )
+    institution_dependency_id = IntegerField(
+        'Dependencia',
+        validators=[Optional(), NumberRange(min=1, message="Dependencia institucional inválida.")]
+    )
     educational_level_id = IntegerField('Nivel Educativo', validators=[Optional()])
 
     def __init__(self, formdata=None, *args, **kwargs):
@@ -215,5 +223,7 @@ class IndicatorsFilterForm(FlaskForm):
             'municipality_id': self.municipality_id.data,
             'parish_id': self.parish_id.data,
             'institution_scope_id': self.institution_scope_id.data,
+            'institution_type_id': self.institution_type_id.data,
+            'institution_dependency_id': self.institution_dependency_id.data,
             'educational_level_id': self.educational_level_id.data
         }

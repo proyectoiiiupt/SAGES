@@ -216,6 +216,26 @@
                             {% endfor %}
                         </select>
                     </div>
+
+                    <div class="filter-field-item">
+                        <label for="sel-filter-type">Tipo de Institución:</label>
+                        <select id="sel-filter-type" class="filter-control">
+                            <option value="">Todos los Tipos</option>
+                            {% for tp in ctx.get('institution_types', []) %}
+                            <option value="{{ tp.id }}">{{ tp.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="filter-field-item">
+                        <label for="sel-filter-dependency">Dependencia:</label>
+                        <select id="sel-filter-dependency" class="filter-control">
+                            <option value="">Todas las Dependencias</option>
+                            {% for dep in ctx.get('institution_dependencies', []) %}
+                            <option value="{{ dep.id }}">{{ dep.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
 
                 <!-- Botones de Acción -->

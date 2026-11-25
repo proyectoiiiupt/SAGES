@@ -356,6 +356,8 @@ def export_report():
         'municipality_id': request.form.get('municipality_id', type=int),
         'parish_id': request.form.get('parish_id', type=int),
         'institution_scope_id': request.form.get('institution_scope_id', type=int),
+        'institution_type_id': request.form.get('institution_type_id', type=int),
+        'institution_dependency_id': request.form.get('institution_dependency_id', type=int),
         'educational_level_id': request.form.get('educational_level_id', type=int),
         'month': request.form.get('month', type=int),
         'date_from': request.form.get('date_from', ''),

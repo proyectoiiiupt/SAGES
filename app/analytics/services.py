@@ -14,6 +14,7 @@ from app.models.state_model import State
 from app.models.training_model import Training
 from app.models.institution_type_model import InstitutionType
 from app.models.institution_scope_model import InstitutionScope
+from app.models.institution_dependency_model import InstitutionDependency
 from app.models.educational_level_model import EducationalLevel
 from app.models.institution_level_model import InstitutionLevel
 from app.models.request_planning_model import RequestPlanning
@@ -242,6 +243,7 @@ class AnalyticsService:
 
         inst_types = InstitutionType.query.order_by(InstitutionType.name).all()
         inst_scopes = InstitutionScope.query.order_by(InstitutionScope.name).all()
+        inst_deps = InstitutionDependency.query.order_by(InstitutionDependency.name).all()
         edu_levels = EducationalLevel.query.order_by(EducationalLevel.name).all()
 
         # 2. Captura de filtros pre-seleccionados transferidos desde la Vista 2
@@ -250,6 +252,8 @@ class AnalyticsService:
             'municipality_id': request_args.get('municipality_id', type=int),
             'parish_id': request_args.get('parish_id', type=int),
             'institution_scope_id': request_args.get('institution_scope_id', type=int),
+            'institution_type_id': request_args.get('institution_type_id', type=int),
+            'institution_dependency_id': request_args.get('institution_dependency_id', type=int),
             'educational_level_id': request_args.get('educational_level_id', type=int),
             'month': request_args.get('month', type=int),
             'date_from': request_args.get('date_from', ''),
@@ -262,6 +266,7 @@ class AnalyticsService:
             'states': states,
             'institution_types': inst_types,
             'institution_scopes': inst_scopes,
+            'institution_dependencies': inst_deps,
             'educational_levels': edu_levels,
             'preselected': preselected
         }
@@ -318,6 +323,11 @@ class AnalyticsService:
         if filters.get('institution_type_id'):
             try:
                 query = query.filter(Institution.institution_type_id == int(filters['institution_type_id']))
+            except (ValueError, TypeError):
+                pass
+        if filters.get('institution_dependency_id'):
+            try:
+                query = query.filter(Institution.institution_dependency_id == int(filters['institution_dependency_id']))
             except (ValueError, TypeError):
                 pass
         if filters.get('educational_level_id'):
@@ -795,6 +805,7 @@ class AnalyticsService:
             'institution_scope_id': params.get('institution_scope_id'),
             'educational_level_id': params.get('educational_level_id'),
             'institution_type_id': params.get('institution_type_id'),
+            'institution_dependency_id': params.get('institution_dependency_id'),
             'date_from': start_date,
             'date_to': end_date
         }
@@ -871,6 +882,7 @@ class AnalyticsService:
 
         inst_types = InstitutionType.query.order_by(InstitutionType.name).all()
         inst_scopes = InstitutionScope.query.order_by(InstitutionScope.name).all()
+        inst_deps = InstitutionDependency.query.order_by(InstitutionDependency.name).all()
         edu_levels = EducationalLevel.query.order_by(EducationalLevel.name).all()
 
         # Datos del mes corriente por defecto (en hora oficial de Caracas)
@@ -889,6 +901,7 @@ class AnalyticsService:
             'states': states,
             'institution_types': inst_types,
             'institution_scopes': inst_scopes,
+            'institution_dependencies': inst_deps,
             'educational_levels': edu_levels,
             'initial_data': timeline_data
         }

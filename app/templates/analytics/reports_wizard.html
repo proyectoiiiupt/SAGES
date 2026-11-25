@@ -346,6 +346,26 @@
                             {% endfor %}
                         </select>
                     </div>
+
+                    <div class="filter-field-item">
+                        <label for="w-filter-type">Tipo de Institución:</label>
+                        <select id="w-filter-type" class="filter-control">
+                            <option value="">Todos los Tipos</option>
+                            {% for tp in ctx.get('institution_types', []) %}
+                            <option value="{{ tp.id }}" {% if ctx.preselected.institution_type_id == tp.id %}selected{% endif %}>{{ tp.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="filter-field-item">
+                        <label for="w-filter-dependency">Dependencia:</label>
+                        <select id="w-filter-dependency" class="filter-control">
+                            <option value="">Todas las Dependencias</option>
+                            {% for dep in ctx.get('institution_dependencies', []) %}
+                            <option value="{{ dep.id }}" {% if ctx.preselected.institution_dependency_id == dep.id %}selected{% endif %}>{{ dep.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
 
             </div>

@@ -308,22 +308,41 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     };
 
+    function collectFilterPayload() {
+        const radioRange = document.getElementById('radio-mode-range');
+        const timeMode = (radioRange && radioRange.checked) ? 'range' : 'month';
+
+        const readStr = (id) => document.getElementById(id)?.value.trim() || '';
+        const readInt = (id) => {
+            const val = document.getElementById(id)?.value || '';
+            return val ? parseInt(val, 10) : null;
+        };
+
+        return {
+            time_mode: timeMode,
+            month: readInt('sel-filter-month'),
+            date_from: readStr('input-date-from') || null,
+            date_to: readStr('input-date-to') || null,
+            state_id: readInt('sel-filter-state'),
+            municipality_id: readInt('sel-filter-municipality'),
+            parish_id: readInt('sel-filter-parish'),
+            institution_scope_id: readInt('sel-filter-scope'),
+            institution_type_id: readInt('sel-filter-type'),
+            institution_dependency_id: readInt('sel-filter-dependency'),
+            educational_level_id: readInt('sel-filter-level')
+        };
+    }
+
     // 5. Botón de Acción: Calcular Indicadores (Integración AJAX y Reactividad)
     const btnCalc = document.getElementById('btn-calculate-indicators');
     if (btnCalc) {
         btnCalc.addEventListener('click', function () {
-            // 1. Obtener y validar la modalidad temporal
-            const radioRange = document.getElementById('radio-mode-range');
-            const timeMode = (radioRange && radioRange.checked) ? 'range' : 'month';
-
-            const dateFromInput = document.getElementById('input-date-from');
-            const dateToInput = document.getElementById('input-date-to');
-            const dateFrom = dateFromInput ? dateFromInput.value.trim() : '';
-            const dateTo = dateToInput ? dateToInput.value.trim() : '';
+            // 1. Obtener filtros activos y validar la modalidad temporal
+            const payload = collectFilterPayload();
 
             // Validación en cliente para la modalidad de rango de fechas
-            if (timeMode === 'range') {
-                if (!dateFrom || !dateTo) {
+            if (payload.time_mode === 'range') {
+                if (!payload.date_from || !payload.date_to) {
                     if (typeof Swal !== 'undefined') {
                         Swal.fire({
                             icon: 'warning',
@@ -334,7 +353,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                     return;
                 }
-                if (dateFrom > dateTo) {
+                if (payload.date_from > payload.date_to) {
                     if (typeof Swal !== 'undefined') {
                         Swal.fire({
                             icon: 'warning',
@@ -346,26 +365,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     return;
                 }
             }
-
-            // 2. Extraer valores de filtros territoriales e institucionales
-            const stateVal = document.getElementById('sel-filter-state') ? document.getElementById('sel-filter-state').value : '';
-            const muniVal = document.getElementById('sel-filter-municipality') ? document.getElementById('sel-filter-municipality').value : '';
-            const parishVal = document.getElementById('sel-filter-parish') ? document.getElementById('sel-filter-parish').value : '';
-            const scopeVal = document.getElementById('sel-filter-scope') ? document.getElementById('sel-filter-scope').value : '';
-            const levelVal = document.getElementById('sel-filter-level') ? document.getElementById('sel-filter-level').value : '';
-            const monthVal = document.getElementById('sel-filter-month') ? document.getElementById('sel-filter-month').value : '';
-
-            const payload = {
-                time_mode: timeMode,
-                month: monthVal ? parseInt(monthVal, 10) : null,
-                date_from: dateFrom || null,
-                date_to: dateTo || null,
-                state_id: stateVal ? parseInt(stateVal, 10) : null,
-                municipality_id: muniVal ? parseInt(muniVal, 10) : null,
-                parish_id: parishVal ? parseInt(parishVal, 10) : null,
-                institution_scope_id: scopeVal ? parseInt(scopeVal, 10) : null,
-                educational_level_id: levelVal ? parseInt(levelVal, 10) : null
-            };
 
             // 3. Token CSRF desde meta tag
             const csrfMeta = document.querySelector('meta[name="csrf-token"]');
@@ -519,32 +518,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const deliveryMethod = deliveryRadio ? deliveryRadio.value : 'local';
 
             // Recoger filtros activos de la consola
-            const radioRange = document.getElementById('radio-mode-range');
-            const timeMode = (radioRange && radioRange.checked) ? 'range' : 'month';
-            const dateFromInput = document.getElementById('input-date-from');
-            const dateToInput = document.getElementById('input-date-to');
-            const dateFrom = dateFromInput ? dateFromInput.value.trim() : '';
-            const dateTo = dateToInput ? dateToInput.value.trim() : '';
-
-            const stateVal = document.getElementById('sel-filter-state') ? document.getElementById('sel-filter-state').value : '';
-            const muniVal = document.getElementById('sel-filter-municipality') ? document.getElementById('sel-filter-municipality').value : '';
-            const parishVal = document.getElementById('sel-filter-parish') ? document.getElementById('sel-filter-parish').value : '';
-            const scopeVal = document.getElementById('sel-filter-scope') ? document.getElementById('sel-filter-scope').value : '';
-            const levelVal = document.getElementById('sel-filter-level') ? document.getElementById('sel-filter-level').value : '';
-            const monthVal = document.getElementById('sel-filter-month') ? document.getElementById('sel-filter-month').value : '';
-
             const payload = {
                 export_format: exportFormat,
                 delivery_method: deliveryMethod,
-                time_mode: timeMode,
-                month: monthVal ? parseInt(monthVal, 10) : null,
-                date_from: dateFrom || null,
-                date_to: dateTo || null,
-                state_id: stateVal ? parseInt(stateVal, 10) : null,
-                municipality_id: muniVal ? parseInt(muniVal, 10) : null,
-                parish_id: parishVal ? parseInt(parishVal, 10) : null,
-                institution_scope_id: scopeVal ? parseInt(scopeVal, 10) : null,
-                educational_level_id: levelVal ? parseInt(levelVal, 10) : null
+                ...collectFilterPayload()
             };
 
             const csrfMeta = document.querySelector('meta[name="csrf-token"]');

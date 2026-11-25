@@ -201,6 +201,8 @@ document.addEventListener('DOMContentLoaded', function () {
             formData.set('municipality_id', document.getElementById('w-filter-municipality')?.value || '');
             formData.set('parish_id', document.getElementById('w-filter-parish')?.value || '');
             formData.set('institution_scope_id', document.getElementById('w-filter-scope')?.value || '');
+            formData.set('institution_type_id', document.getElementById('w-filter-type')?.value || '');
+            formData.set('institution_dependency_id', document.getElementById('w-filter-dependency')?.value || '');
             formData.set('educational_level_id', document.getElementById('w-filter-level')?.value || '');
 
             // Gestión temporal (Mes vs Rango)
