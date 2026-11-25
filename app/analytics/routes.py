@@ -348,19 +348,22 @@ def export_report():
         'include_metrics': include_metrics
     }
 
-    # Capturar filtros de segmentación de la barra lateral
-    filter_params = {
-        'state_id': request.form.get('state_id', type=int),
-        'municipality_id': request.form.get('municipality_id', type=int),
-        'parish_id': request.form.get('parish_id', type=int),
-        'institution_scope_id': request.form.get('institution_scope_id', type=int),
-        'institution_type_id': request.form.get('institution_type_id', type=int),
-        'institution_dependency_id': request.form.get('institution_dependency_id', type=int),
-        'educational_level_id': request.form.get('educational_level_id', type=int),
-        'month': request.form.get('month', type=int),
-        'date_from': request.form.get('date_from', ''),
-        'date_to': request.form.get('date_to', '')
-    }
+    # Validar y sanitizar filtros de segmentación de la barra lateral
+    filter_form = IndicatorsFilterForm.from_json(request.form.to_dict())
+    if not filter_form.validate():
+        first_filter_error = next(
+            (err for fld_errs in filter_form.errors.values() for err in fld_errs),
+            'Filtros de segmentación inválidos.'
+        )
+        if first_filter_error == 'Not a valid integer value.':
+            first_filter_error = 'Uno de los filtros numéricos enviados no es válido.'
+        return jsonify({
+            'success': False,
+            'message': first_filter_error,
+            'errors': filter_form.errors
+        }), 400
+
+    filter_params = filter_form.get_clean_filters()
 
     # Alerta IDOR preventiva si un state_admin manipula el formulario
     if user_role == 'state_admin':
@@ -444,8 +447,11 @@ def export_report():
     except PermissionError as pe:
         return jsonify({'success': False, 'message': str(pe)}), 403
     except Exception as e:
-        print(f"[ERROR export_report]: {e}")
-        return jsonify({'success': False, 'message': f'Error al compilar el reporte: {str(e)}'}), 500
+        current_app.logger.error(f"[ERROR export_report]: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': 'Ocurrió un error al compilar el reporte. Intente nuevamente más tarde.'
+        }), 500
 
 
 @analytics_bp.route('/api/export-indicators', methods=['POST'])
