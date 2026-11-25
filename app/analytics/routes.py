@@ -1,6 +1,5 @@
 import json
 import re
-from datetime import datetime
 from flask import render_template, flash, jsonify, request, redirect, url_for, send_file, current_app
 from flask_login import login_required, current_user
 from flask_limiter.errors import RateLimitExceeded
@@ -18,6 +17,7 @@ from app.models import Request, Training, Municipality, Parish
 from app.dashboard.services import get_user_state_info
 from app.notifications.services import NotificationService
 from app.notifications.enums import NotificationEvent, NotificationType
+from app.utils.timezone import get_caracas_now, get_caracas_today
 
 # ---------------------------------------------------------------------------
 # Helpers Privados de Auditoría y Seguridad
@@ -134,7 +134,6 @@ def indicators_view():
     Vista 2: Consola Analítica "Indicadores de Gestión".
     """
     try:
-        from app.utils.timezone import get_caracas_today
         context = AnalyticsService.get_indicators_initial_context(current_user)
         return render_template(
             'analytics/indicators.html',
@@ -204,7 +203,6 @@ def reports_wizard():
     Vista 3: Asistente Wizard "Generar Reportes" (Paso 1 y Paso 2).
     """
     try:
-        from app.utils.timezone import get_caracas_today
         form = ReportWizardForm(is_super_admin=AnalyticsService.is_super_admin(current_user))
         context = AnalyticsService.get_wizard_initial_context(current_user, request.args)
         return render_template(
@@ -372,7 +370,7 @@ def export_report():
 
     # 1. Sanitizar el nombre del archivo resultante
     safe_name = re.sub(r'[^a-zA-Z0-9_\-]', '_', report_name) or "Reporte_Institucional_SAGES"
-    timestamp_str = datetime.now().strftime('%Y%m%d_%H%M')
+    timestamp_str = get_caracas_now().strftime('%Y%m%d_%H%M')
 
     try:
         # 2. Extraer datos estructurados con blindaje territorial Anti-IDOR y matrices ejecutivas
@@ -519,7 +517,7 @@ def export_indicators_api():
         else:
             scope_label = "Consolidado Nacional"
 
-        timestamp_str = datetime.now().strftime('%Y%m%d_%H%M')
+        timestamp_str = get_caracas_now().strftime('%Y%m%d_%H%M')
         base_name = f"Indicadores_Gestion_{scope_label.replace(' ', '_')}"
         safe_name = re.sub(r'[^a-zA-Z0-9_\-]', '_', base_name)
         report_title = "Indicadores de Gestión - Demanda vs Cobertura"

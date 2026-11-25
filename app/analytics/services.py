@@ -448,7 +448,7 @@ class AnalyticsService:
                 jur_label = "Nacional" if r_name == 'super_admin' else scope_label
                 ev_code = f"BIN-{lg.id:05d}" if getattr(lg, 'id', None) else "BIN-SAGES"
                 dt_local = to_caracas_time(getattr(lg, 'created_at', None))
-                dt_str = dt_local.strftime('%Y-%m-%d %H:%M') if dt_local else "S/F"
+                dt_str = dt_local.strftime('%d/%m/%Y %I:%M %p') if dt_local else "S/F"
                 act_name = getattr(lg, 'action_type', 'OPERACION')
                 tbl_name = getattr(lg, 'target_table', 'sages.requests') or 'sages.requests'
                 st_name = getattr(lg, 'status', 'COMPLETADO') or 'COMPLETADO'
@@ -611,7 +611,7 @@ class AnalyticsService:
             mod_name = req.training.training_module.name if req.training and req.training.training_module else 'N/A'
             tema_name = req.training.name if req.training else 'N/A'
             dt_local = to_caracas_time(req.created_at) if req.created_at else None
-            dt_str = dt_local.strftime('%Y-%m-%d %H:%M') if dt_local else 'S/F'
+            dt_str = dt_local.strftime('%d/%m/%Y %I:%M %p') if dt_local else 'S/F'
             ci_str = f"{person.identification_type}-{person.identification_number}" if person else 'N/A'
             rep_name = f"{person.first_name} {person.last_name}" if person else 'N/A'
             cargo_name = staff.position.name if staff and staff.position else 'Representante'

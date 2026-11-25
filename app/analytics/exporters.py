@@ -1,7 +1,6 @@
 import csv
 import io
 import threading
-from datetime import datetime
 from xml.sax.saxutils import escape
 
 import openpyxl
@@ -13,6 +12,7 @@ from reportlab.lib import colors
 
 from app.trainings.services import sanitize_formula_injection
 from app.utils.email_utils import get_logo_html, send_email
+from app.utils.timezone import get_caracas_now
 
 
 # ─────────────────────────────────────────────────────────────
@@ -140,7 +140,7 @@ def export_to_pdf(headers, data_rows, title="Reporte Institucional", filename="r
     )
     story = []
     styles = getSampleStyleSheet()
-    emitted_at = datetime.now().strftime('%d/%m/%Y %H:%M')
+    emitted_at = get_caracas_now().strftime('%d/%m/%Y %I:%M %p')
     subtitle_scope = report_meta.get('subtitle_scope', 'Institucional')
 
     # ── 1. ESTILOS TIPOGRÁFICOS ──
@@ -322,7 +322,8 @@ def send_report_email_async(app, to_email, user_name, report_title, file_bytes, 
 
     # Determinar etiqueta del formato
     ext = filename.rsplit('.', 1)[-1].upper() if '.' in filename else 'ARCHIVO'
-    emitted_at = datetime.now().strftime('%d/%m/%Y a las %H:%M')
+    now_ve = get_caracas_now()
+    emitted_at = now_ve.strftime('%d/%m/%Y a las %I:%M %p')
 
     subject = f"Reporte Estadístico: {report_title} — SAGES"
 
@@ -397,7 +398,7 @@ def send_report_email_async(app, to_email, user_name, report_title, file_bytes, 
             </tr>
             <tr>
                 <td align="center" style="background-color: #f9fafb; padding: 20px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
-                    &copy; {datetime.now().year} SAGES — CORPOELEC. Todos los derechos reservados.
+                    &copy; {now_ve.year} SAGES — CORPOELEC. Todos los derechos reservados.
                 </td>
             </tr>
         </table>
