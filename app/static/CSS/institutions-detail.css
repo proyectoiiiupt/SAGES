@@ -1,7 +1,7 @@
-/*
-Estilos CSS para la Vista de Detalle de Instituciones
-Diseño profesional y estilizado basado en la referencia visual
-*/
+﻿/* ==========================================================================
+   ESTILOS DE VISTA: DETALLE DE INSTITUCIONES (institutions-detail.css)
+   SAGES | Recuadros oscurecidos y diseño institucional estandarizado
+   ========================================================================== */
 
 .page-actions {
     display: flex;
@@ -23,138 +23,157 @@ Diseño profesional y estilizado basado en la referencia visual
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    background-color: #6c757d;
-    color: white;
-    border-radius: 6px;
+    padding: 0.65rem 1.25rem;
+    background-color: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
     text-decoration: none;
-    font-weight: 500;
-    transition: background-color 0.2s, transform 0.2s;
+    font-weight: 600;
+    font-size: 0.88rem;
+    transition: all 0.2s ease;
+    height: 40px;
+    box-sizing: border-box;
 }
 
 .back-btn:hover {
-    background-color: #5a6268;
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #94a3b8;
     transform: translateY(-1px);
-    color: white;
     text-decoration: none;
 }
 
 .back-btn svg {
-    width: 20px;
-    height: 20px;
+    width: 17px;
+    height: 17px;
 }
 
 .btn-edit {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    padding: 0.65rem 1.35rem;
+    background: linear-gradient(135deg, #007865 0%, #10b981 100%);
+    color: #ffffff;
     border: none;
-    border-radius: 6px;
-    font-weight: 500;
-    font-size: 0.9rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.88rem;
     cursor: pointer;
     text-decoration: none;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 120, 101, 0.25);
+    height: 40px;
+    box-sizing: border-box;
 }
 
 .btn-edit:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-    color: white;
+    background: linear-gradient(135deg, #006956 0%, #059669 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 120, 101, 0.35);
+    color: #ffffff;
     text-decoration: none;
 }
 
 .btn-edit svg {
-    width: 18px;
-    height: 18px;
+    width: 17px;
+    height: 17px;
 }
 
 .btn-view-users {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-    color: white;
+    padding: 0.65rem 1.35rem;
+    background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
+    color: #ffffff;
     border: none;
-    border-radius: 6px;
-    font-weight: 500;
-    font-size: 0.9rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.88rem;
     cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25);
     text-decoration: none;
+    height: 40px;
+    box-sizing: border-box;
 }
 
 .btn-view-users:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
-    color: white;
+    background: linear-gradient(135deg, #0369a1 0%, #0284c7 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
+    color: #ffffff;
     text-decoration: none;
 }
 
 .btn-view-users svg {
-    width: 18px;
-    height: 18px;
+    width: 17px;
+    height: 17px;
 }
 
 .institution-detail {
-    background: #f9fafb;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
     overflow: hidden;
 }
 
 .detail-card {
-    padding: 2rem;
+    padding: 1.75rem 2rem;
 }
 
 .detail-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 2rem;
+    margin-bottom: 1.75rem;
     padding-bottom: 1rem;
-    border-bottom: 2px solid #e0e0e0;
+    border-bottom: 2px solid #e2e8f0;
 }
 
 .detail-header h2 {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: #333;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #0f172a;
     margin: 0;
+    letter-spacing: -0.2px;
 }
 
 .detail-content {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2rem;
+    grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+    gap: 1.5rem;
 }
 
+/* 2) Recuadros oscurecidos de fondo para datos de la institución */
 .detail-section {
-    background-color: #f9f9f9;
-    padding: 1.5rem;
-    border-radius: 6px;
+    background-color: #eaeded;
+    padding: 1.35rem 1.5rem;
+    border-radius: 10px;
+    border: 1px solid #cbd5e1;
+    border-left: 4px solid #007865;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
 
 .detail-section h3 {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: #333;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #111827;
     margin: 0 0 1rem 0;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 0.6rem;
+    border-bottom: 1.5px solid #cbd5e1;
+    letter-spacing: -0.2px;
 }
 
 .detail-row {
     display: flex;
     justify-content: space-between;
-    padding: 0.75rem 0;
-    border-bottom: 1px solid #e8e8e8;
+    align-items: center;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid #cbd5e1;
 }
 
 .detail-row:last-child {
@@ -162,35 +181,40 @@ Diseño profesional y estilizado basado en la referencia visual
 }
 
 .detail-row .label {
-    font-weight: 500;
-    color: #666;
+    font-weight: 600;
+    color: #475569;
+    font-size: 0.88rem;
 }
 
 .detail-row .value {
-    font-weight: 400;
-    color: #333;
+    font-weight: 600;
+    color: #0f172a;
     text-align: right;
+    font-size: 0.92rem;
 }
 
 .levels-list {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
+    justify-content: flex-end;
 }
 
 .level-tag {
     display: inline-block;
     padding: 0.25rem 0.75rem;
-    background-color: #e3f2fd;
-    color: #1976d2;
-    border-radius: 12px;
-    font-size: 0.85rem;
-    font-weight: 500;
+    background-color: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
 }
 
 .no-data {
-    color: #999;
+    color: #94a3b8;
     font-style: italic;
+    font-size: 0.88rem;
 }
 
 .detail-actions {
@@ -200,22 +224,22 @@ Diseño profesional y estilizado basado en la referencia visual
     gap: 0.5rem;
     margin-top: 2rem;
     padding-top: 1.5rem;
-    border-top: 1px solid #e0e0e0;
+    border-top: 1px solid #e2e8f0;
 }
 
 .toggle-label {
-    font-size: 16px;
-    color: #6c757d;
-    font-weight: 500;
+    font-size: 0.92rem;
+    color: #475569;
+    font-weight: 600;
 }
 
 .toggle-status-btn {
     position: relative;
-    width: 70px;
-    height: 36px;
-    background: #6c757d;
+    width: 66px;
+    height: 34px;
+    background: #94a3b8;
     border: none;
-    border-radius: 18px;
+    border-radius: 17px;
     cursor: pointer;
     padding: 0;
     transition: background 0.3s ease;
@@ -223,27 +247,27 @@ Diseño profesional y estilizado basado en la referencia visual
 }
 
 .toggle-status-btn.active {
-    background: #28a745;
+    background: #16a34a;
 }
 
 .toggle-slider {
     position: absolute;
-    top: 4px;
-    left: 4px;
+    top: 3px;
+    left: 3px;
     width: 28px;
     height: 28px;
     background: white;
     border-radius: 50%;
     transition: transform 0.3s ease;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .toggle-status-btn.active .toggle-slider {
-    transform: translateX(34px);
+    transform: translateX(32px);
 }
 
 .toggle-status-btn:hover:not(:disabled) {
-    opacity: 0.9;
+    opacity: 0.92;
 }
 
 .toggle-status-btn:disabled {
@@ -252,6 +276,10 @@ Diseño profesional y estilizado basado en la referencia visual
 }
 
 @media (max-width: 768px) {
+    .detail-card {
+        padding: 1.25rem;
+    }
+
     .detail-header {
         flex-direction: column;
         align-items: flex-start;
@@ -264,10 +292,15 @@ Diseño profesional y estilizado basado en la referencia visual
 
     .detail-row {
         flex-direction: column;
+        align-items: flex-start;
         gap: 0.25rem;
     }
 
     .detail-row .value {
         text-align: left;
+    }
+
+    .levels-list {
+        justify-content: flex-start;
     }
 }

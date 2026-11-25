@@ -69,21 +69,36 @@
 
 /* Badges de Estatus */
 .status-badge {
-    font-size: 0.92rem !important;
+    font-size: 0.85rem !important;
     font-weight: 700 !important;
-    padding: 6px 15px !important;
+    padding: 5px 12px !important;
+    border-radius: 999px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.3px !important;
+    display: inline-block !important;
 }
 
 .status-STAT-007 {
-    background: #dcfce7;
-    color: #15803d;
-    border: 1px solid #bbf7d0;
+    background: #dcfce7 !important;
+    color: #15803d !important;
+    border: 1px solid #bbf7d0 !important;
 }
 
 .status-STAT-009 {
-    background: #fee2e2;
-    color: #b91c1c;
-    border: 1px solid #fecaca;
+    background: #fee2e2 !important;
+    color: #b91c1c !important;
+    border: 1px solid #fecaca !important;
+}
+
+.mon-table .col-topic .training-topic {
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.mon-table .date-cell {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #334155;
 }
 
 /* Nombre de Institución y Ubicación */

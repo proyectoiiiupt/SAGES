@@ -90,8 +90,8 @@
                 <!-- Sección de Datos Generales -->
                 <div class="form-section">
                     <h3>Datos Generales</h3>
-                    <div class="form-row">
-                        <div class="form-group">
+                    <div class="form-row form-row-2">
+                        <div class="form-group code-col">
                             <label for="plantel_code">Código del Plantel (DEA):</label>
                             {% if is_applicant %}
                                 <input type="text" id="plantel_code" name="plantel_code" value="{{ institution.plantel_code }}" readonly class="readonly-field">
@@ -110,8 +110,8 @@
                                 {% endif %}
                             {% endif %}
                         </div>
-                        <div class="form-group">
-                            <label for="institution_name">Nombre:</label>
+                        <div class="form-group name-col">
+                            <label for="institution_name">Nombre de la Institución:</label>
                             {% if is_applicant %}
                                 <input type="text" id="institution_name" name="institution_name" value="{{ institution.institution_name }}" readonly class="readonly-field">
                             {% else %}
@@ -122,9 +122,9 @@
                             {% endif %}
                         </div>
                     </div>
-                    <div class="form-row">
+                    <div class="form-row form-row-3">
                         <div class="form-group">
-                            <label for="institution_type">Tipo:</label>
+                            <label for="institution_type">Tipo de Institución:</label>
                             {% if is_applicant %}
                                 <input type="text" id="applicant_institution_type" value="{{ institution.institution_type.name if institution.institution_type else 'No asignado' }}" readonly class="readonly-field">
                             {% else %}
@@ -135,7 +135,7 @@
                             {% endif %}
                         </div>
                         <div class="form-group">
-                            <label for="institution_scope">Alcance:</label>
+                            <label for="institution_scope">Alcance Territorial:</label>
                             {% if is_applicant %}
                                 <input type="text" id="applicant_institution_scope" value="{{ institution.institution_scope.name if institution.institution_scope else 'No asignado' }}" readonly class="readonly-field">
                             {% else %}
@@ -145,10 +145,8 @@
                                 {% endif %}
                             {% endif %}
                         </div>
-                    </div>
-                    <div class="form-row">
                         <div class="form-group">
-                            <label for="institution_dependency">Dependencia:</label>
+                            <label for="institution_dependency">Dependencia Administrativa:</label>
                             {% if is_applicant %}
                                 <input type="text" id="applicant_institution_dependency" value="{{ institution.institution_dependency.name if institution.institution_dependency else 'No asignada' }}" readonly class="readonly-field">
                             {% else %}
@@ -163,8 +161,8 @@
 
                 <!-- Sección de Ubicación -->
                 <div class="form-section">
-                    <h3>Ubicación</h3>
-                    <div class="form-row">
+                    <h3>Ubicación Territorial</h3>
+                    <div class="form-row form-row-4">
                         <div class="form-group">
                             <label for="state_id">Estado:</label>
                             {% if is_applicant %}
@@ -189,8 +187,6 @@
                                 {% endif %}
                             {% endif %}
                         </div>
-                    </div>
-                    <div class="form-row">
                         <div class="form-group">
                             <label for="parish_id">Parroquia:</label>
                             {% if is_applicant %}
@@ -218,7 +214,7 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group full-width">
-                            <label for="address">Dirección detallada:</label>
+                            <label for="address">Dirección Detallada:</label>
                             {{ form.address(placeholder="Ingrese la dirección física detallada") }}
                             {% if form.address.errors %}
                                 <span class="error-message">{{ form.address.errors[0] }}</span>
@@ -229,6 +225,13 @@
 
                 <!-- Botones de Acción -->
                 <div class="form-actions">
+                    <a href="{% if is_applicant %}{{ url_for('institutions.my_institution') }}{% else %}{{ url_for('institutions.view_institution', institution_id=institution.id) }}{% endif %}" class="btn-cancel" id="btn-cancel">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                        Cancelar
+                    </a>
                     <button type="submit" class="btn-save" id="btn-save">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
@@ -237,13 +240,6 @@
                         </svg>
                         Guardar Cambios
                     </button>
-                    <a href="{% if is_applicant %}{{ url_for('institutions.my_institution') }}{% else %}{{ url_for('institutions.view_institution', institution_id=institution.id) }}{% endif %}" class="btn-cancel" id="btn-cancel">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                        Cancelar
-                    </a>
                 </div>
             </form>
         </div>

@@ -105,11 +105,11 @@
                 <thead>
                     <tr>
                         <th style="width: 50px; text-align: center;">N°</th>
-                        <th style="width: 145px; white-space: nowrap;">Código</th>
-                        <th style="width: 115px; white-space: nowrap;">Fecha Cierre</th>
-                        <th style="width: 115px; text-align: center;">Estatus</th>
+                        <th style="width: 140px; white-space: nowrap;">Código</th>
+                        <th style="min-width: 200px;">Tema Formativo</th>
                         <th style="min-width: 210px;">Institución Educativa</th>
-                        <th style="min-width: 190px;">Tema Formativo</th>
+                        <th style="width: 120px; white-space: nowrap; text-align: center;">Fecha Cierre</th>
+                        <th style="width: 120px; text-align: center;">Estatus</th>
                         <th style="width: 155px;">Facilitador</th>
                         <th style="width: 70px; text-align: center;">Acción</th>
                     </tr>
@@ -126,30 +126,10 @@
                                 {{ req.request_code }}
                             </span>
                         </td>
-                        <td class="date-cell">
-                            {% set close_dt = req.finished_at or req.updated_at or req.created_at %}
-                            {% if close_dt %}
-                            <span class="local-datetime" data-utc="{{ close_dt.isoformat() }}" data-format="date-only">
-                                {{ close_dt.strftime('%d/%m/%Y') }}
-                            </span>
-                            {% else %}
-                            <span class="no-data" style="font-size: 0.95rem;">N/A</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if req.status.status_code == 'STAT-007' %}
-                            <span class="status-badge status-STAT-007">
-                                Completada
-                            </span>
-                            {% elif req.status.status_code == 'STAT-009' %}
-                            <span class="status-badge status-STAT-009">
-                                Cancelada
-                            </span>
-                            {% else %}
-                            <span class="status-badge status-STAT-009">
-                                {{ req.status.status_name }}
-                            </span>
-                            {% endif %}
+                        <td class="col-topic">
+                            <div class="training-topic" title="{{ req.training.name }}">
+                                {{ req.training.name }}
+                            </div>
                         </td>
                         <td class="col-school">
                             <div class="school-info">
@@ -165,10 +145,30 @@
                                 </span>
                             </div>
                         </td>
-                        <td class="col-topic">
-                            <div class="training-topic" title="{{ req.training.name }}">
-                                {{ req.training.name }}
-                            </div>
+                        <td class="date-cell text-center">
+                            {% set close_dt = req.finished_at or req.updated_at or req.created_at %}
+                            {% if close_dt %}
+                            <span class="local-datetime" data-utc="{{ close_dt.isoformat() }}" data-format="date-only">
+                                {{ close_dt.strftime('%d/%m/%Y') }}
+                            </span>
+                            {% else %}
+                            <span class="no-data" style="font-size: 0.95rem;">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if req.status.status_code == 'STAT-007' %}
+                            <span class="status-badge status-STAT-007">
+                                Completada
+                            </span>
+                            {% elif req.status.status_code == 'STAT-009' %}
+                            <span class="status-badge status-STAT-009">
+                                Cancelada
+                            </span>
+                            {% else %}
+                            <span class="status-badge status-STAT-009">
+                                {{ req.status.status_name }}
+                            </span>
+                            {% endif %}
                         </td>
                         <td>
                             {% if req.attended_by and req.attended_by.person %}

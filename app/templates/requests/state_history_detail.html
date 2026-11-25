@@ -160,34 +160,36 @@
         <div class="dossier-section-header">
           <h2 class="dossier-section-title">1. Identificación Institucional</h2>
         </div>
-        <div class="dossier-grid-3">
-          <div>
-            <div class="dossier-label">Plantel / Institución</div>
-            <div class="dossier-value">{{ detail.institution_data.name }}</div>
-          </div>
-          <div>
-            <div class="dossier-label">Código DEA</div>
-            <div class="dossier-value">{{ detail.institution_data.code_dea }}</div>
-          </div>
-          <div>
-            <div class="dossier-label">Tipo de Institución</div>
-            <div class="dossier-value">{{ detail.institution_data.type }}</div>
-          </div>
-          <div>
-            <div class="dossier-label">Ubicación Geográfica</div>
-            <div class="dossier-value">{{ detail.institution_data.state }} / {{ detail.institution_data.municipality }}
-              /
-              {{ detail.institution_data.parish }}</div>
-          </div>
-          <div class="dossier-field-span2">
-            <div class="dossier-label">Dirección</div>
-            <div class="dossier-value">{{ detail.institution_data.address }}</div>
-          </div>
-          <div class="dossier-field-full">
-            <div class="dossier-label">Representante y Cargo</div>
-            <div class="dossier-value">{{ detail.institution_data.contact_person }} — {{
-              detail.institution_data.position
-              }}</div>
+        <div class="dossier-institution-box">
+          <div class="dossier-grid-3">
+            <div>
+              <div class="dossier-label">Plantel / Institución</div>
+              <div class="dossier-value">{{ detail.institution_data.name }}</div>
+            </div>
+            <div>
+              <div class="dossier-label">Código DEA</div>
+              <div class="dossier-value">{{ detail.institution_data.code_dea }}</div>
+            </div>
+            <div>
+              <div class="dossier-label">Tipo de Institución</div>
+              <div class="dossier-value">{{ detail.institution_data.type }}</div>
+            </div>
+            <div>
+              <div class="dossier-label">Ubicación Geográfica</div>
+              <div class="dossier-value">{{ detail.institution_data.state }} / {{ detail.institution_data.municipality }}
+                /
+                {{ detail.institution_data.parish }}</div>
+            </div>
+            <div class="dossier-field-span2">
+              <div class="dossier-label">Dirección</div>
+              <div class="dossier-value">{{ detail.institution_data.address }}</div>
+            </div>
+            <div class="dossier-field-full">
+              <div class="dossier-label">Representante y Cargo</div>
+              <div class="dossier-value">{{ detail.institution_data.contact_person }} — {{
+                detail.institution_data.position
+                }}</div>
+            </div>
           </div>
         </div>
       </section>

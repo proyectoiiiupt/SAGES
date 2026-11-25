@@ -1,4 +1,4 @@
-.applicant-dashboard-container {
+﻿.applicant-dashboard-container {
     background-color: var(--bg-light, #f4f7f6);
     padding: 24px;
     /* Se remueven max-width y margin auto para que la vista y el banner
@@ -516,6 +516,27 @@
 .summary-section:last-child {
     border-bottom: none;
     background: #f8fafc;
+}
+
+/* 2) Recuadro oscurecido de datos de institución en el Wizard */
+.summary-section.institution-summary-box {
+    background: #eaeded;
+    border-bottom: 1px solid #cbd5e1;
+    border-left: 4px solid #007865;
+}
+
+.summary-section.institution-summary-box .summary-title {
+    color: #007865;
+}
+
+.summary-section.institution-summary-box .summary-label {
+    color: #475569;
+    font-weight: 600;
+}
+
+.summary-section.institution-summary-box .summary-value {
+    color: #0f172a;
+    font-weight: 600;
 }
 
 .summary-title {

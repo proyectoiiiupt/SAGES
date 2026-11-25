@@ -1080,3 +1080,53 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* Insignia de Código de Solicitud en Encabezado */
+.applicant-view-container .summary-top-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.applicant-view-container .summary-request-badge {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #007865;
+    background: #f0fdf4;
+    padding: 3px 10px;
+    border-radius: 6px;
+    border: 1px solid #a7f3d0;
+    display: inline-block;
+    letter-spacing: 0.5px;
+}
+
+/* 2) Recuadro oscurecido de datos de la institución en Ficha de Seguimiento */
+.applicant-view-container .detail-card.institution-card {
+    background: #eaeded;
+    border: 1px solid #cbd5e1;
+    border-left: 4px solid #007865;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.applicant-view-container .detail-card.institution-card .card-header-simple h3 {
+    color: #111827;
+    font-weight: 700;
+}
+
+.applicant-view-container .detail-card.institution-card .info-label {
+    color: #475569;
+    font-weight: 600;
+}
+
+.applicant-view-container .detail-card.institution-card .info-value {
+    color: #0f172a;
+    font-weight: 600;
+}
+
+.applicant-view-container .font-mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-weight: 700;
+    color: #007865;
+}
