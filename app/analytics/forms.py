@@ -5,6 +5,17 @@ from wtforms.validators import DataRequired, Length, Optional, NumberRange, Rege
 from werkzeug.datastructures import MultiDict
 
 
+BASE_REPORT_TYPE_CHOICES = [
+    ('gestion_general', 'Rendimiento y Actividad de Gestión'),
+    ('impacto_educativo', 'Impacto Social y Cobertura Educativa'),
+    ('retrasos_ans', 'Analítico de Justificaciones y Retrasos ANS'),
+]
+
+SUPER_ADMIN_REPORT_TYPE_CHOICES = BASE_REPORT_TYPE_CHOICES + [
+    ('auditoria_usuarios', 'Actividad de Usuario y Auditoría'),
+]
+
+
 class ReportWizardForm(FlaskForm):
     """
     Formulario para el Asistente de Reportes Parametrizados en 2 Pasos.
@@ -20,14 +31,17 @@ class ReportWizardForm(FlaskForm):
 
     report_type = SelectField(
         'Tipo de Reporte',
-        choices=[
-            ('gestion_general', 'Rendimiento y Actividad de Gestión'),
-            ('impacto_educativo', 'Impacto Social y Cobertura Educativa'),
-            ('retrasos_ans', 'Analítico de Justificaciones y Retrasos ANS'),
-            ('auditoria_usuarios', 'Actividad de Usuario y Auditoría')
-        ],
+        choices=BASE_REPORT_TYPE_CHOICES,
         validators=[DataRequired(message="Debe seleccionar el tipo de reporte.")]
     )
+
+    def __init__(self, *args, is_super_admin: bool = False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.report_type.choices = (
+            list(SUPER_ADMIN_REPORT_TYPE_CHOICES)
+            if is_super_admin
+            else list(BASE_REPORT_TYPE_CHOICES)
+        )
 
     include_user_data = BooleanField('Incluir datos de Usuario / Solicitante', default=True)
     include_request_details = BooleanField('Incluir detalles de Solicitudes', default=True)

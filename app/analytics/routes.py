@@ -193,7 +193,7 @@ def reports_wizard():
     """
     try:
         from app.utils.timezone import get_caracas_today
-        form = ReportWizardForm()
+        form = ReportWizardForm(is_super_admin=AnalyticsService.is_super_admin(current_user))
         context = AnalyticsService.get_wizard_initial_context(current_user, request.args)
         return render_template(
             'analytics/reports_wizard.html',
@@ -268,7 +268,7 @@ def export_report():
     """
     # Capturar datos del Wizard (Paso 1 y 2)
     report_name = request.form.get('report_name', '').strip() or "Reporte_Institucional_SAGES"
-    report_type = request.form.get('report_type', 'gestion_general')
+    report_type = (request.form.get('report_type') or 'gestion_general').strip().lower() or 'gestion_general'
     export_format = request.form.get('export_format', 'pdf').lower()
     delivery_method = request.form.get('delivery_method', 'local').lower()
 
@@ -295,11 +295,43 @@ def export_report():
         'date_to': request.form.get('date_to', '')
     }
 
-    # Alerta IDOR preventiva si un state_admin manipula el formulario
-    user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
+    # Validación de rol y blindaje territorial Anti-IDOR
+    is_super_admin = AnalyticsService.is_super_admin(current_user)
+    user_role = 'super_admin' if is_super_admin else (
+        current_user.roles_assoc[0].role.name
+        if (getattr(current_user, 'roles_assoc', None) and getattr(current_user.roles_assoc[0], 'role', None))
+        else 'applicant'
+    )
+    user_state_id = None
     if user_role == 'state_admin':
         state_info = get_user_state_info(current_user)
         user_state_id = state_info.get('state_id') if state_info else None
+
+    # Bloqueo estricto del reporte nacional de auditoría para roles distintos a super_admin
+    if report_type == 'auditoria_usuarios' and not is_super_admin:
+        try:
+            BinnacleService.log_security_event(
+                module=AuditModule.ANALYTICS.value,
+                action_type=AuditAction.ACCESO_TERRITORIAL_FALLIDO.value,
+                description=(
+                    "Alerta de seguridad: Intento de exportación del reporte nacional "
+                    "de auditoría de usuarios ('auditoria_usuarios') sin privilegios de Super Administrador "
+                    "en /analytics/export"
+                ),
+                user=current_user,
+                status=AuditStatus.FALLIDO.value
+            )
+        except Exception as audit_err:
+            current_app.logger.warning(f"[analytics.export_report] Error registrando evento de seguridad: {audit_err}")
+
+        _notify_idor_attempt(current_user, user_state_id, None, "/analytics/export (auditoria_usuarios)")
+        return jsonify({
+            'success': False,
+            'message': 'Acceso denegado: El reporte de auditoría de usuarios es exclusivo del Super Administrador.'
+        }), 403
+
+    # Alerta IDOR preventiva si un state_admin manipula el formulario
+    if user_role == 'state_admin':
         req_state = filter_params.get('state_id')
         if req_state is not None and user_state_id and int(req_state) != user_state_id:
             _notify_idor_attempt(current_user, user_state_id, req_state, "/analytics/export")
@@ -377,6 +409,8 @@ def export_report():
                 download_name=download_name
             )
 
+    except PermissionError as pe:
+        return jsonify({'success': False, 'message': str(pe)}), 403
     except Exception as e:
         print(f"[ERROR export_report]: {e}")
         return jsonify({'success': False, 'message': f'Error al compilar el reporte: {str(e)}'}), 500

@@ -23,6 +23,20 @@ from app.binnacle.types import AuditModule, AuditAction, AuditStatus
 
 class AnalyticsService:
     @staticmethod
+    def is_super_admin(user) -> bool:
+        """
+        Determina de forma segura si el usuario posee el rol 'super_admin'.
+        """
+        return bool(
+            user
+            and getattr(user, 'roles_assoc', None)
+            and any(
+                getattr(ra, 'role', None) and ra.role.name == 'super_admin'
+                for ra in user.roles_assoc
+            )
+        )
+
+    @staticmethod
     def get_scoped_requests_query(user, state_id=None):
         """
         Genera la consulta base sobre requests aplicando aislamiento territorial RBAC.
@@ -281,17 +295,29 @@ class AnalyticsService:
         1) headers y data_rows (columnas atómicas para Excel y CSV).
         2) report_meta (KPIs, Matriz Consolidada Sección 1 y Tabla Estilizada Sección 2 para PDF).
         """
-        report_type = form_data.get('report_type', 'gestion_general')
+        form_data = form_data or {}
+        filters = filters or {}
+
+        report_type = str(form_data.get('report_type') or 'gestion_general').strip().lower() or 'gestion_general'
         include_user = form_data.get('include_user_data', True)
         include_req = form_data.get('include_request_details', True)
         include_metrics = form_data.get('include_metrics', True)
 
-        user_role = user.roles_assoc[0].role.name if user.roles_assoc else 'applicant'
+        is_super_admin = AnalyticsService.is_super_admin(user)
+        user_role = 'super_admin' if is_super_admin else (
+            user.roles_assoc[0].role.name
+            if (user and getattr(user, 'roles_assoc', None) and getattr(user.roles_assoc[0], 'role', None))
+            else 'applicant'
+        )
         state_info = get_user_state_info(user) if user_role == 'state_admin' else None
         scope_label = state_info['state_name'] if state_info else "Consolidado Nacional / Filtrado"
 
         # ── CASO ESPECIAL: REPORTE 4 (AUDITORÍA DE USUARIOS Y BITÁCORA) ──
         if report_type == 'auditoria_usuarios':
+            if not is_super_admin:
+                raise PermissionError(
+                    "Acceso denegado: El reporte de auditoría de usuarios es exclusivo del Super Administrador."
+                )
             from app.models.binnacle_model import Binnacle
             bin_q = db.session.query(Binnacle).order_by(Binnacle.created_at.desc())
             if filters.get('date_from'):
