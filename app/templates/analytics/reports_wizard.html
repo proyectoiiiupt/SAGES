@@ -3,7 +3,7 @@
 {% block title %}Generar Reportes – SAGES{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='CSS/analytics.css') }}?v={{ range(1000, 9999) | random }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/analytics.css') }}?v=1.0">
 {% endblock %}
 
 {% block content %}
@@ -308,14 +308,19 @@
                             {% endfor %}
                         </select>
                         {% else %}
+                        {% if ctx.user_state %}
                         <input type="text" class="filter-control locked-field" value="{{ ctx.user_state.state_name }}" readonly title="Jurisdicción fija asignada">
                         <input type="hidden" id="w-filter-state" value="{{ ctx.user_state.state_id }}">
+                        {% else %}
+                        <input type="text" class="filter-control locked-field" value="Sin jurisdicción asignada" readonly title="Sin sede territorial asignada">
+                        <input type="hidden" id="w-filter-state" value="">
+                        {% endif %}
                         {% endif %}
                     </div>
 
                     <div class="filter-field-item">
                         <label for="w-filter-municipality">Municipio:</label>
-                        <select id="w-filter-municipality" class="filter-control" data-preselected="{{ ctx.preselected.municipality_id or '' }}" {% if ctx.user_role == 'super_admin' and not ctx.preselected.state_id %}disabled{% endif %}>
+                        <select id="w-filter-municipality" class="filter-control" data-preselected="{{ ctx.preselected.municipality_id or '' }}" {% if (ctx.user_role == 'super_admin' and not ctx.preselected.state_id) or (ctx.user_role != 'super_admin' and not ctx.user_state) %}disabled{% endif %}>
                             <option value="">Todos los Municipios</option>
                         </select>
                     </div>

@@ -2,7 +2,7 @@ import calendar
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta, date
 from app.utils.timezone import caracas_date_range_to_utc, get_caracas_now, to_caracas_time
-from sqlalchemy import func, case, and_
+from sqlalchemy import func, case, and_, distinct
 from sqlalchemy.orm import joinedload
 from app.extensions import db
 from app.models.request_model import Request
@@ -661,12 +661,18 @@ class AnalyticsService:
                     imp_row.append(rating_str)
                 pdf_rows.append(imp_row)
             elif report_type == 'retrasos_ans':
-                pdf_rows.append([
-                    req.request_code, dt_str, f"{mod_name}\n{tema_name}",
+                ans_row = []
+                if include_req:
+                    ans_row.extend([req.request_code, dt_str, f"{mod_name}\n{tema_name}"])
+                ans_row.extend([
                     inst_name, dea_code, f"{scope_name}\n{edu_level_name}",
-                    f"{state_name}\nMun. {muni_name}", f"{rep_name}\n{ci_str} ({cargo_name})",
-                    f"{ex_hours} h", reason_name, just_text
+                    f"{state_name}\nMun. {muni_name}"
                 ])
+                if include_user:
+                    ans_row.append(f"{rep_name}\n{ci_str} ({cargo_name})")
+                if include_metrics:
+                    ans_row.extend([f"{ex_hours} h", reason_name, just_text])
+                pdf_rows.append(ans_row)
             else:
                 pdf_row = []
                 if include_req:
@@ -740,21 +746,38 @@ class AnalyticsService:
                 sum_rows.append([r_name, str(d['count']), f"{d['hours']} h", f"{avg_h} h", f"{pct}%", "Expediente con justificación en bitácora"])
             sum_rows.append(["Total Consolidado de Retrasos ANS", str(total_records), f"{total_horas_exceso} h", f"{prom_exceso} h", "100.0%", "Auditoría conforme a SR-F-026"])
 
+            ans_pdf_headers = []
+            ans_pdf_weights = []
+            if include_req:
+                ans_pdf_headers.extend(["Código Solicitud", "Fecha Radicación", "Módulo y Tema Formativo"])
+                ans_pdf_weights.extend([1.10, 0.85, 1.80])
+            ans_pdf_headers.extend(["Plantel Educativo", "Código DEA", "Sector / Nivel", "Ubicación"])
+            ans_pdf_weights.extend([1.40, 0.75, 0.85, 0.90])
+            if include_user:
+                ans_pdf_headers.append("Solicitante (Cédula / Cargo)")
+                ans_pdf_weights.append(1.25)
+            if include_metrics:
+                ans_pdf_headers.extend(["Exceso ANS", "Motivo Tipificado", "Justificación Formal de Demora"])
+                ans_pdf_weights.extend([0.65, 1.35, 2.55])
+
+            auto_page_ans = 'legal' if len(ans_pdf_headers) > 8 else 'letter'
+            formato_ans_txt = "Formato Oficio Horizontal" if auto_page_ans == 'legal' else "Formato Carta Horizontal"
+
             report_meta = {
                 'report_type': report_type, 'include_metrics': include_metrics, 'subtitle_scope': scope_label,
-                'force_page_size': 'legal',
+                'force_page_size': auto_page_ans,
                 'kpi_headers': ["EXPEDIENTES CON RETRASO ANS", "TIEMPO TOTAL / PROMEDIO EXCESO", "INCIDENCIA POR SECTOR", "NORMATIVA AUDITADA", "SATISFACCIÓN PROMEDIO"],
                 'kpi_values': [f"{total_records} Solicitudes", f"{total_horas_exceso} h ({prom_exceso} h Prom.)", f"Públicos: {publicos_count} | Privados: {privados_count}", "Plazos ANS (48-72h / 10 días)", satisfaction_kpi_value],
                 'satisfaction_summary': satisfaction_meta,
-                'summary_title': "1. Distribución de Incidencias por Motivo Tipificado del Catálogo (sages.reasons)",
+                'summary_title': "1. Distribución de Incidencias por Motivo Tipificado de Demora",
                 'summary_headers': ["Motivo Tipificado de Demora", "Expedientes Afectados", "Horas Acumuladas de Exceso", "Promedio de Demora", "% de Incidencia", "Impacto Operativo"],
                 'summary_rows': sum_rows,
                 'summary_weights': [2.0, 1.0, 1.1, 1.0, 0.8, 2.1],
                 'center_cols_summary': {"Expedientes Afectados", "Horas Acumuladas de Exceso", "Promedio de Demora", "% de Incidencia"},
-                'detail_title': "2. Auditoría Detallada de Expedientes con Exceso ANS y Descargos Registrados (Formato Oficio Horizontal)",
-                'pdf_headers': ["Código Solicitud", "Fecha Radicación", "Módulo y Tema Formativo", "Plantel Educativo", "Código DEA", "Sector / Nivel", "Ubicación", "Solicitante (Cédula / Cargo)", "Exceso ANS", "Motivo Tipificado", "Justificación Formal de Demora (sages.request_justifications)"],
+                'detail_title': f"2. Auditoría Detallada de Expedientes con Exceso ANS y Descargos Registrados ({formato_ans_txt})",
+                'pdf_headers': ans_pdf_headers,
                 'pdf_rows': pdf_rows,
-                'pdf_weights': [1.10, 0.85, 1.80, 1.40, 0.75, 0.85, 0.90, 1.25, 0.65, 1.35, 2.55],
+                'pdf_weights': ans_pdf_weights,
                 'center_cols_detail': {"Código Solicitud", "Fecha Radicación", "Código DEA", "Sector / Nivel", "Exceso ANS"}
             }
 
@@ -901,12 +924,17 @@ class AnalyticsService:
             .join(Request.status)\
             .with_entities(
                 date_bucket,
-                func.count(Request.id).label('generadas'),
+                func.count(distinct(Request.id)).label('generadas'),
                 func.count(
-                    case((
-                        and_(Status.status_code == 'STAT-007', RequestPlanning.attended == True),
-                        Request.id
-                    ))
+                    distinct(
+                        case(
+                            (
+                                and_(Status.status_code == 'STAT-007', RequestPlanning.attended == True),
+                                Request.id,
+                            ),
+                            else_=None,
+                        )
+                    )
                 ).label('atendidas')
             )\
             .group_by('hitorange')\
