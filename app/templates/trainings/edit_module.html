@@ -476,6 +476,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
+            if (descVal.length > 2000) {
+                Swal.fire({
+                    title: 'Descripción demasiado extensa',
+                    text: 'La descripción no puede superar los 2000 caracteres.',
+                    icon: 'warning',
+                    confirmButtonColor: '#007865',
+                    confirmButtonText: 'Entendido'
+                }).then(() => { if (descInput) descInput.focus(); });
+                return;
+            }
+
             Swal.fire({
                 title: '¿Actualizar Módulo Rector?',
                 text: '¿Deseas guardar los cambios en este Módulo Rector?',

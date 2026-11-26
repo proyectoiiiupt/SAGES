@@ -5,7 +5,7 @@
  * Características principales:
  *  1. Búsqueda con técnica debounce de 400 ms para optimizar consultas a PostgreSQL.
  *  2. Sanitización de caracteres en vivo en el campo de búsqueda.
- *  3. Auto-envío de filtros en selectores y fechas con reseteo de paginación a página 1.
+ *  3. Auto-envío de filtros en selectores con reseteo de paginación a página 1.
  *  4. Paginador dinámico con persistencia de parámetros Query String.
  *  5. Fecha del sistema en formato español institucional.
  *  6. Modal de consulta rápida para visualizar detalles del tema.
@@ -89,7 +89,7 @@
 
     /* ────────────────────────────────────────────────────────────────── */
     /**
-     * 3. Auto-Envío en Filtros Desplegables y Rango de Fechas
+     * 3. Auto-Envío en Filtros Desplegables
      */
     function initFilterAutoSubmit() {
         const form = document.getElementById('trainings-filter-form');

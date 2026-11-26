@@ -9,8 +9,7 @@ Endpoints:
 
 import re
 import io
-from datetime import datetime, time, timezone
-from app.utils.timezone import caracas_date_range_to_utc
+from datetime import datetime, timezone
 from flask import render_template, jsonify, abort, request, redirect, url_for, flash, current_app, send_file
 from flask_login import login_required, current_user
 from sqlalchemy import func
@@ -274,7 +273,7 @@ def toggle_module_status_route(module_id: int):
                 'status_label': 'Activo' if (module and module.is_active) else 'Inactivo'
             }), 200
         else:
-            status_code = 404 if not module else (400 if active_count > 0 else 500)
+            status_code = 404 if not module else (409 if active_count > 0 else 500)
             return jsonify({
                 'success': False,
                 'message': message,
@@ -297,7 +296,7 @@ def toggle_module_status_route(module_id: int):
 def list_all():
     """
     Vista alternativa tabular accesible para Super Administrador y Administradores Estadales.
-    Permite buscar por término, filtrar por Módulo, Estatus (Activo/Inactivo) y Fecha de creación,
+    Permite buscar por término y filtrar por Módulo y Estatus (Activo/Inactivo),
     con paginación de 10 en 10 registros.
 
     Nota de alcance:
@@ -317,15 +316,11 @@ def list_all():
     search_query = request.args.get('search', '').strip()
     filter_module = request.args.get('module_id', '').strip()
     filter_status = request.args.get('status', '').strip()
-    date_from = request.args.get('date_from', '').strip()
-    date_to = request.args.get('date_to', '').strip()
 
     filters = {
         'search': search_query,
         'module_id': filter_module,
         'status': filter_status,
-        'date_from': date_from,
-        'date_to': date_to,
         'per_page': per_page
     }
 
@@ -355,13 +350,6 @@ def list_all():
                 query = query.filter(Training.status_id == int(filter_status))
             else:
                 query = query.filter(Status.status_code == filter_status)
-
-        # Filtro por Rango de Fecha de Creación (normalizado a UTC desde zona Venezuela)
-        start_utc, end_utc = caracas_date_range_to_utc(date_from, date_to)
-        if start_utc:
-            query = query.filter(Training.created_at >= start_utc)
-        if end_utc:
-            query = query.filter(Training.created_at <= end_utc)
 
         # Ordenamiento natural secuencial por número de formación
         query = query.order_by(Training.id.asc())
@@ -752,6 +740,7 @@ def view_training_detail(id: int):
 @login_required
 @role_required('super_admin')
 @check_permissions('upload_training')
+@limiter.limit("20 per minute", methods=["POST"], key_func=lambda: str(current_user.id))
 def edit_training(id: int):
     """
     Ruta para editar un tema formativo existente.
@@ -771,12 +760,13 @@ def edit_training(id: int):
     modules = TrainingModule.query.filter_by(is_active=True).order_by(TrainingModule.order_index).all()
     form.training_module_id.choices = [(m.id, f"{m.module_code} - {m.name}") for m in modules]
 
-    # Verificar si el tema formativo tiene solicitudes asociadas
+    # Verificar si el tema formativo tiene solicitudes asociadas (históricas o activas) y ejecuciones activas en curso (US-32 Regla 3)
     has_requests = (
         db.session.query(func.count(Request.id))
         .filter(Request.training_id == id)
         .scalar()
     ) > 0
+    active_requests_count = count_active_requests_for_training(id)
 
 
 
@@ -832,7 +822,12 @@ def edit_training(id: int):
         if not has_requests:
             training.training_module_id = target_mod_id
 
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash('No se pudo actualizar: El título ingresado ya está en uso en este Módulo Rector.', 'danger')
+            return redirect(url_for('trainings.edit_training', id=id))
 
         if old_vals or new_vals:
             try:
@@ -859,6 +854,7 @@ def edit_training(id: int):
         form=form,
         training=training,
         has_requests=has_requests,
+        active_requests_count=active_requests_count,
         is_super_admin=_is_super_admin(),
         is_admin=_is_admin(),
         user_role=_get_user_role()

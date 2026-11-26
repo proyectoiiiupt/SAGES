@@ -1,15 +1,12 @@
 from app.extensions import db
 from datetime import datetime, timezone
-from sqlalchemy import UniqueConstraint, func
+from sqlalchemy import Index, func
 from app.binnacle.mixins import AuditableMixin
 from app.binnacle.types import AuditModule
 
 class Training(db.Model, AuditableMixin):
     __tablename__ = 'trainings'
-    __table_args__ = (
-        UniqueConstraint('training_module_id', 'name', name='uq_module_training_name'),
-        {'schema': 'sages'},
-    )
+    __table_args__ = {'schema': 'sages'}
     __audit_module__ = AuditModule.TRAININGS.value
     __audit_exclude_fields__ = {'created_at', 'updated_at', 'deleted_at'}
 
@@ -31,3 +28,14 @@ class Training(db.Model, AuditableMixin):
 
     def __repr__(self):
         return f'<Training {self.training_code}: {self.name}>'
+
+
+# Índice único funcional case-insensitive para temas no eliminados (PostgreSQL y SQLite)
+Index(
+    'uq_module_training_name_lower',
+    Training.training_module_id,
+    func.lower(Training.name),
+    unique=True,
+    postgresql_where=Training.deleted_at.is_(None),
+    sqlite_where=Training.deleted_at.is_(None),
+)

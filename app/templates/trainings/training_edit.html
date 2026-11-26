@@ -64,6 +64,32 @@
         {# Cuerpo del formulario #}
         <div class="module-form-body">
 
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        {% set is_danger = category in ('danger', 'error') %}
+                        {% set is_success = category == 'success' %}
+                        <div class="inline-flash-banner" role="alert" style="background: {{ '#fef2f2' if is_danger else ('#f0fdf4' if is_success else '#fffbeb') }}; border: 1.5px solid {{ '#fca5a5' if is_danger else ('#86efac' if is_success else '#fcd34d') }}; color: {{ '#7f1d1d' if is_danger else ('#14532d' if is_success else '#78350f') }}; padding: 1rem 1.25rem; border-radius: 12px; margin-bottom: 1.5rem; font-size: 0.92rem; line-height: 1.5;">
+                            <strong>{{ '¡Atención!' if is_danger else ('¡Éxito!' if is_success else 'Aviso:') }}</strong> {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            {% if active_requests_count and active_requests_count > 0 %}
+            <div id="active-executions-warning" role="alert" style="background: #fffbeb; border: 1.5px solid #fcd34d; color: #78350f; padding: 1rem 1.25rem; border-radius: 12px; margin-bottom: 1.5rem; display: flex; align-items: flex-start; gap: 0.75rem; font-size: 0.92rem; line-height: 1.5;">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px;" aria-hidden="true">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <div>
+                    <strong>Ejecuciones activas en curso ({{ active_requests_count }}):</strong>
+                    Este tema tiene <strong>{{ active_requests_count }}</strong> solicitud(es) o ejecución(es) activa(s) en proceso. Cualquier cambio en el título o descripción se reflejará en dichas ejecuciones en curso sin afectar el historial ya cerrado.
+                </div>
+            </div>
+            {% endif %}
+
             {# Actualizamos la ruta apuntando a la edición y enviando el ID #}
             <form method="POST" action="{{ url_for('trainings.edit_training', id=training.id) }}" novalidate id="form-edit-training">
                 {{ form.hidden_tag() }}
@@ -158,8 +184,9 @@
 
 {% block extra_js %}
 <script>
-    // Guardamos el ID actual en una variable global
+    // Guardamos el ID actual y el conteo de ejecuciones activas en variables globales
     window.CURRENT_TRAINING_ID = "{{ training.id }}";
+    window.ACTIVE_REQUESTS_COUNT = {{ active_requests_count | default(0) }};
 </script>
-<script src="{{ url_for('static', filename='JS/training_new.js') }}"></script>
+<script src="{{ url_for('static', filename='JS/training_new.js') }}?v=2"></script>
 {% endblock %}

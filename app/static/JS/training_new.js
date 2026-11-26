@@ -222,9 +222,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Confirmación antes de guardar / actualizar
             const isEdit = !!window.CURRENT_TRAINING_ID || (form && form.id === 'form-edit-training');
+            const activeCount = Number(window.ACTIVE_REQUESTS_COUNT || 0);
             const confirmTitle = isEdit ? '¿Actualizar Tema Formativo?' : '¿Registrar Tema Formativo?';
-            const confirmText = isEdit 
-                ? '¿Deseas guardar los cambios realizados en este tema formativo?' 
+            const confirmText = isEdit
+                ? (activeCount > 0
+                    ? `Este tema tiene ${activeCount} ejecución(es)/solicitud(es) activa(s) en curso. ¿Deseas aplicar los cambios en título y descripción?`
+                    : '¿Deseas guardar los cambios realizados en este tema formativo?')
                 : '¿Deseas guardar este nuevo Tema Formativo en el sistema?';
             const confirmBtnText = isEdit ? 'Sí, actualizar' : 'Sí, guardar';
             const loadingTitle = isEdit ? 'Actualizando Tema Formativo...' : 'Guardando Tema Formativo...';

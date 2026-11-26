@@ -31,6 +31,7 @@ class TrainingModuleForm(FlaskForm):
 
     name = StringField(
         'Nombre del Módulo Rector',
+        filters=[lambda x: x.strip() if x else x],
         validators=[
             DataRequired(message='El nombre del módulo rector es obligatorio.'),
             Length(min=3, max=200, message='El nombre debe tener entre 3 y 200 caracteres.')
@@ -39,9 +40,10 @@ class TrainingModuleForm(FlaskForm):
 
     description = TextAreaField(
         'Descripción',
+        filters=[lambda x: x.strip() if x else x],
         validators=[
             DataRequired(message='La descripción es obligatoria.'),
-            Length(min=10, max=1000, message='La descripción debe tener entre 10 y 1000 caracteres.')
+            Length(min=10, max=2000, message='La descripción debe tener entre 10 y 2000 caracteres.')
         ]
     )
 

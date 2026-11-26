@@ -93,8 +93,8 @@
                         <label for="{{ form.description.id }}">
                             {{ form.description.label.text }} <span class="required-mark">*</span>
                         </label>
-                        {{ form.description(class="form-textarea-custom" ~ (" is-invalid" if form.description.errors else ""), rows="5", placeholder="Describe el alcance temático, público objetivo y objetivos de formación de este módulo rector...", maxlength="1000") }}
-                        <span class="form-helper-text">Información detallada que describe este módulo (entre 10 y 1000 caracteres).</span>
+                        {{ form.description(class="form-textarea-custom" ~ (" is-invalid" if form.description.errors else ""), rows="5", placeholder="Describe el alcance temático, público objetivo y objetivos de formación de este módulo rector...", maxlength="2000") }}
+                        <span class="form-helper-text">Información detallada que describe este módulo (entre 10 y 2000 caracteres).</span>
                         {% if form.description.errors %}
                             <div class="form-error-feedback">
                                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -227,6 +227,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 Swal.fire({
                     title: 'Descripción muy corta',
                     text: 'La descripción debe tener al menos 10 caracteres para explicar el alcance del módulo.',
+                    icon: 'warning',
+                    confirmButtonColor: '#007865',
+                    confirmButtonText: 'Entendido'
+                }).then(() => {
+                    if (descInput) descInput.focus();
+                });
+                return;
+            }
+
+            if (descVal.length > 2000) {
+                Swal.fire({
+                    title: 'Descripción demasiado extensa',
+                    text: 'La descripción no puede superar los 2000 caracteres.',
                     icon: 'warning',
                     confirmButtonColor: '#007865',
                     confirmButtonText: 'Entendido'

@@ -13,6 +13,7 @@ import openpyxl
 from datetime import datetime, timezone
 from typing import Optional, Tuple, List, Dict, Any
 from sqlalchemy import select, func
+from sqlalchemy.exc import IntegrityError
 from app.extensions import db
 from app.models.training_module_model import TrainingModule
 from app.models.training_model import Training
@@ -291,7 +292,13 @@ def create_training(module_id: int, name: str, description: str) -> Training:
     new_training_obj._skip_auto_audit = True
     
     db.session.add(new_training_obj)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError as exc:
+        db.session.rollback()
+        raise ValueError(
+            f'Ya existe un tema formativo denominado "{name}" en el módulo seleccionado.'
+        ) from exc
 
     try:
         from app.binnacle.services import BinnacleService
