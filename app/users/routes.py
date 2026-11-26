@@ -828,7 +828,7 @@ def list_requests():
 @login_required
 def serve_evidence(filename):
     """
-    Descarga o visualización protegida de evidencias físicas.
+    Descarga o visualización protegida de evidencias físicas de personal institucional.
     Requiere autenticación (@login_required) y valida que el usuario sea:
     1. Super Administrador (super_admin),
     2. Administrador Estadal de la misma jurisdicción territorial (state_admin), o
@@ -857,7 +857,7 @@ def serve_evidence(filename):
     if user_role == 'super_admin':
         is_authorized = True
     else:
-        # Buscar la evidencia en StaffEvidence
+        # Buscar la evidencia exclusivamente en StaffEvidence
         base_name = os.path.basename(clean_filename)
         evidence = StaffEvidence.query.filter(
             or_(
@@ -875,8 +875,6 @@ def serve_evidence(filename):
             is_owner = False
             if current_user.person_id and staff.person_id == current_user.person_id:
                 is_owner = True
-            elif staff.user_id and staff.user_id == current_user.id:
-                is_owner = True
             elif staff.person and staff.person.user and staff.person.user.id == current_user.id:
                 is_owner = True
 
@@ -892,32 +890,6 @@ def serve_evidence(filename):
                 )
                 if admin_state_id and admin_state_id == req_state_id:
                     is_authorized = True
-        else:
-            # Buscar en RequestEvidence por si se trata de una evidencia de solicitud formativa
-            from app.models.request_evidence_model import RequestEvidence
-            req_evidence = RequestEvidence.query.filter(
-                or_(
-                    RequestEvidence.file_path == clean_filename,
-                    RequestEvidence.file_path.endswith(f"/{base_name}"),
-                    RequestEvidence.file_path == base_name,
-                    RequestEvidence.file_name == base_name
-                )
-            ).first()
-
-            if req_evidence and req_evidence.request:
-                req = req_evidence.request
-                # Dueño de la solicitud
-                if req.created_by_id == current_user.id or req.applicant_id == current_user.id:
-                    is_authorized = True
-                elif user_role == 'state_admin':
-                    admin_state_id = get_user_state_id(current_user)
-                    req_state_id = (
-                        req.institution.parish.municipality.state_id
-                        if req.institution and req.institution.parish and req.institution.parish.municipality
-                        else None
-                    )
-                    if admin_state_id and admin_state_id == req_state_id:
-                        is_authorized = True
 
     if not is_authorized:
         abort(403)
