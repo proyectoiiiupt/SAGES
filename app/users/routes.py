@@ -664,6 +664,7 @@ def toggle_status(user_id):
         new_is_active = True
     
     try:
+        user._skip_auto_audit = True
         db.session.commit()
         
         estado_str = "activado" if new_is_active else "desactivado"
@@ -1062,6 +1063,12 @@ def approve_request(staff_id=None):
         }
         token = generate_activation_token(payload)
 
+        # Evitar doble auditoría automática ya que se registra manualmente abajo
+        staff._skip_auto_audit = True
+        user._skip_auto_audit = True
+        if staff.institution:
+            staff.institution._skip_auto_audit = True
+
         # Commit atómico
         db.session.commit()
 
@@ -1186,6 +1193,7 @@ def reject_request(staff_id):
 
         # 1. Cambiar estatus de InstitutionalStaff a STAT-008
         staff.status_id = status_rejected_id
+        staff._skip_auto_audit = True
 
         # 2. Si la institución asociada está pendiente y no tiene otros miembros activos/aprobados, rechazarla también
         institution_is_pending = (staff.institution.status and staff.institution.status.status_code == STATUS_PENDING_CODE) or (staff.institution.status_id == status_pending_id) if staff.institution else False
@@ -1197,11 +1205,13 @@ def reject_request(staff_id):
             ).first()
             if not other_active:
                 staff.institution.status_id = status_rejected_id
+                staff.institution._skip_auto_audit = True
 
         # 3. Si existía un usuario asociado pendiente, marcarlo como rechazado
         user_is_pending = (person.user.status and person.user.status.status_code in [STATUS_PENDING_CODE, STATUS_IN_PROGRESS_CODE]) or (person.user.status_id in [status_pending_id, status_in_progress_id]) if person.user else False
         if person.user and user_is_pending:
             person.user.status_id = status_rejected_id
+            person.user._skip_auto_audit = True
 
         db.session.commit()
 

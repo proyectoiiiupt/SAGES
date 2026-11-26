@@ -285,6 +285,7 @@ def update_user_contact(user: User, email: str, mobile: str, phone: str) -> Tupl
         person.email = email_clean
         person.mobile = mobile
         person.phone = phone if phone else None
+        person._skip_auto_audit = True
         db.session.add(person)
         db.session.commit()
 
@@ -452,6 +453,7 @@ def create_administrative_user(data: dict, creator_user: User) -> Tuple[bool, st
             mobile=data.get('mobile'),
             phone=data.get('phone') or None,
         )
+        person._skip_auto_audit = True
         db.session.add(person)
         db.session.flush()
 
@@ -464,6 +466,7 @@ def create_administrative_user(data: dict, creator_user: User) -> Tuple[bool, st
             password=bcrypt.generate_password_hash(temp_password).decode('utf-8'),
             status_id=status_in_progress_id
         )
+        user._skip_auto_audit = True
         db.session.add(user)
         db.session.flush()
 
@@ -474,6 +477,7 @@ def create_administrative_user(data: dict, creator_user: User) -> Tuple[bool, st
             position_id=data.get('position_id'),
             status_id=status_in_progress_id
         )
+        company_staff._skip_auto_audit = True
         db.session.add(company_staff)
         db.session.flush()
         
