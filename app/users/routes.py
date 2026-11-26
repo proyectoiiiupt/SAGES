@@ -613,6 +613,7 @@ def edit_user(user_id):
 @login_required
 @role_required('super_admin', 'state_admin')
 @check_permissions('manage_users')
+@limiter.limit("20 per minute", methods=["POST"], key_func=lambda: str(current_user.id))
 def toggle_status(user_id):
     """
     US-16: Activa o desactiva un usuario.
@@ -687,6 +688,7 @@ def toggle_status(user_id):
 
 @users_bp.route('/profile', methods=['GET', 'POST'])
 @login_required
+@limiter.limit("15 per minute", methods=["POST"], key_func=lambda: str(current_user.id))
 def profile():
     """
     Sección de Perfil de Usuario:
@@ -1110,6 +1112,7 @@ def approve_request(staff_id=None):
 @login_required
 @role_required('super_admin', 'state_admin')
 @check_permissions('manage_users')
+@limiter.limit("20 per minute", methods=["POST"], key_func=lambda: str(current_user.id))
 def reject_request(staff_id):
     """
     Rechaza una solicitud de registro pendiente (STAT-004), cambiando el estatus a STAT-008 (Rechazado).
@@ -1208,6 +1211,7 @@ def reject_request(staff_id):
 @login_required
 @role_required('super_admin', 'state_admin')
 @check_permissions('manage_users')
+@limiter.limit("10 per minute", methods=["POST"], key_func=lambda: str(current_user.id))
 def resend_activation_admin(user_id):
     """
     Permite a Super Admin o Admin Estadal reenviar el enlace de activación (48h)
@@ -1319,6 +1323,8 @@ def resend_activation_admin(user_id):
 
 @users_bp.route('/api/validate-identification', methods=['GET'])
 @login_required
+@role_required('super_admin')
+@limiter.limit("30 per minute", key_func=lambda: str(current_user.id))
 def validate_identification():
     id_number = request.args.get('id', '').strip()
     if not id_number:
@@ -1332,6 +1338,8 @@ def validate_identification():
 
 @users_bp.route('/api/validate-email', methods=['GET'])
 @login_required
+@role_required('super_admin')
+@limiter.limit("30 per minute", key_func=lambda: str(current_user.id))
 def validate_email():
     email = request.args.get('email', '').strip().lower()
     if not email:
