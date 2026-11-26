@@ -300,7 +300,7 @@ def toggle_institution_status(institution_id):
     Al inactivar NO se cambia User.status en cascada: las cuentas quedan activas en modo
     solo lectura. Se bloquea la creación de solicitudes mediante @institution_active_required.
     Se envía 1 solo correo al representante/director de la institución.
-    No permite inactivar si la institución tiene solicitudes de formación pendientes (STAT-003, STAT-004) o en proceso (STAT-006).
+    No permite inactivar si la institución tiene solicitudes de formación pendientes (STAT-003, STAT-004), planificadas (STAT-005) o en proceso (STAT-006).
     """
     try:
         institution = db.session.get(Institution, institution_id)
@@ -317,7 +317,7 @@ def toggle_institution_status(institution_id):
             # Verificar si la institución tiene solicitudes de formación pendientes o en proceso
             from app.models.request_model import Request
             pending_statuses = Status.query.filter(
-                Status.status_code.in_(['STAT-003', 'STAT-004', 'STAT-006'])
+                Status.status_code.in_(['STAT-003', 'STAT-004', 'STAT-005', 'STAT-006'])
             ).all()
             pending_status_ids = [s.id for s in pending_statuses]
 
