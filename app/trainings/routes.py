@@ -507,7 +507,7 @@ def new_module():
                         event=NotificationEvent.TRAINING_MODULE_CREATED,
                         context=ctx,
                         exclude_user_id=current_user.id,
-                        redirect_url="/trainings/",
+                        redirect_url="/training/",
                         action_text="Ver Catálogo"
                     )
             except Exception as notif_err:
@@ -639,7 +639,7 @@ def new_training():
                         ],
                     },
                     exclude_user_id=current_user.id,
-                    redirect_url="/trainings/",
+                    redirect_url="/training/",
                     action_text="Ver Taller"
                 )
             except Exception as notif_err:
@@ -1078,7 +1078,7 @@ def bulk_upload_process():
                         event=NotificationEvent.TRAINING_BULK_IMPORTED,
                         context=ctx,
                         exclude_user_id=current_user.id,
-                        redirect_url="/trainings/",
+                        redirect_url="/training/",
                         action_text="Ver Catálogo Actualizado"
                     )
             except Exception as notif_err:
@@ -1238,7 +1238,7 @@ def toggle_training_status(training_id: int):
                 },
                 exclude_user_id=current_user.id,
                 severity_override=sev,
-                redirect_url="/trainings/",
+                redirect_url="/training/",
                 action_text="Ver Catálogo"
             )
 
@@ -1280,7 +1280,7 @@ def toggle_training_status(training_id: int):
                                 ],
                             },
                             severity_override=NotificationType.DANGER,
-                            redirect_url=f"/requests/{r.id}/detail",
+                            redirect_url=f"/requests/my-requests/{r.id}",
                             action_text="Ver Solicitud Afectada"
                         )
         except Exception as notif_err:
@@ -1393,7 +1393,7 @@ def delete_training(training_id: int):
                 },
                 exclude_user_id=current_user.id,
                 severity_override=NotificationType.DANGER,
-                redirect_url="/trainings/",
+                redirect_url="/training/",
                 action_text="Revisar Catálogo"
             )
 
@@ -1431,7 +1431,7 @@ def delete_training(training_id: int):
                             ],
                         },
                         severity_override=NotificationType.DANGER,
-                        redirect_url=f"/requests/{r.id}/detail",
+                        redirect_url=f"/requests/my-requests/{r.id}",
                         action_text="Ver Solicitud"
                     )
         except Exception as notif_err:

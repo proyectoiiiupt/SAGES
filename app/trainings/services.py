@@ -83,7 +83,7 @@ def _notify_module_status_changed(module: TrainingModule, user_id: int) -> None:
             context=ctx,
             exclude_user_id=user_id,
             severity_override=sev,
-            redirect_url="/trainings/",
+            redirect_url="/training/",
             action_text="Ver Módulos"
         )
         if is_now_active:
@@ -92,7 +92,7 @@ def _notify_module_status_changed(module: TrainingModule, user_id: int) -> None:
                 event=NotificationEvent.TRAINING_MODULE_STATUS_CHANGED,
                 context=ctx,
                 severity_override=NotificationType.SUCCESS,
-                redirect_url="/requests/catalog",
+                redirect_url="/training/",
                 action_text="Explorar Catálogo"
             )
     except Exception as notif_err:
