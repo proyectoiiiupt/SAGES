@@ -9,7 +9,7 @@
 {% block title %}Gestión de Formaciones – SAGES{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='CSS/trainings.css') }}?v=2">
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/trainings.css') }}?v=4">
 {% endblock %}
 
 {% block content %}
@@ -39,8 +39,8 @@
         </div>
     </div>
 
-    {# ── BARRA DE ACCIONES (Debajo de la cabecera, a la izquierda) ────────── #}
-    <div class="table-actions-bar">
+    {# ── BARRA DE ACCIONES (Debajo de la cabecera, a la derecha) ─────────── #}
+    <div class="table-actions-bar" style="justify-content: flex-end;">
         <a href="{{ url_for('trainings.index') }}" class="btn-hub-view" title="Cambiar a Vista de Tarjetas" id="btn-toggle-hub">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="3" width="7" height="7"></rect>
@@ -60,6 +60,10 @@
 
                     {# Campo de búsqueda con técnica debounce de 400 ms #}
                     <div class="filter-group search-group">
+                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
                         <input type="text"
                                name="search"
                                id="search-input"
@@ -67,10 +71,6 @@
                                placeholder="Buscar por nombre..."
                                autocomplete="off"
                                aria-label="Buscar temas formativos">
-                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
                     </div>
 
                     {# Filtro por Módulo Rector #}
@@ -99,7 +99,13 @@
 
                     {# Botón para limpiar todos los filtros #}
                     <div class="filter-actions">
-                        <a href="{{ url_for('trainings.list_all') }}" class="btn-clear" id="btn-clear-filters">Limpiar</a>
+                        <a href="{{ url_for('trainings.list_all') }}" class="btn-clear" id="btn-clear-filters">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <polyline points="1 4 1 10 7 10"></polyline>
+                                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                            </svg>
+                            Limpiar
+                        </a>
                     </div>
                 </div>
             </form>
@@ -112,19 +118,19 @@
             <table class="trainings-table" id="trainings-table">
                 <thead>
                     <tr>
-                        <th style="width: 60px;">N°</th>
-                        <th>Tema Formativo</th>
-                        <th style="width: 260px;">Módulo Rector</th>
-                        <th style="width: 110px;">Estatus</th>
-                        <th style="width: {{ '120px' if is_super_admin else '90px' }}; text-align: center;">Acciones</th>
+                        <th class="col-num" style="width: 55px;">N°</th>
+                        <th class="col-topic-header">Tema Formativo</th>
+                        <th class="col-module" style="width: 260px;">Módulo Rector</th>
+                        <th class="col-status" style="width: 115px;">Estatus</th>
+                        <th class="col-action" style="width: {{ '120px' if is_super_admin else '90px' }}; text-align: center;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% if trainings and trainings|length > 0 %}
                         {% for training in trainings %}
                         <tr>
-                            <td class="code-cell text-muted">
-                                {{ training.id }}
+                            <td class="col-num code-cell text-muted">
+                                {{ (pagination.page - 1) * pagination.per_page + loop.index }}
                             </td>
                             <td>
                                 <div class="training-name">{{ training.name }}</div>
@@ -132,7 +138,7 @@
                                     {{ training.description | truncate(110) }}
                                 </div>
                             </td>
-                            <td>
+                            <td class="col-module">
                                 {% if training.training_module %}
                                 <span class="module-pill module-pill-mod-001">
                                     {{ training.training_module.name }}
@@ -141,7 +147,7 @@
                                 <span class="text-muted">N/A</span>
                                 {% endif %}
                             </td>
-                            <td>
+                            <td class="col-status">
                                 {% if training.status %}
                                 <span class="status-badge status-{{ training.status.status_code }}" data-status-badge-for="{{ training.id }}">
                                     {{ training.status.status_name }}
