@@ -3,6 +3,7 @@ Servicios del Módulo de Usuarios
 Lógica de negocio para consulta de perfil, edición de contacto y actualización segura de credenciales.
 """
 import re
+import threading
 from typing import Tuple, Dict, Any, Optional
 from app.extensions import db, bcrypt
 from app.models.user_model import User
@@ -558,16 +559,21 @@ def get_user_state_id(user: Optional[User]) -> Optional[int]:
     return None
 
 
+_purge_lock = threading.Lock()
+_last_purge_time = None
+_PURGE_COOLDOWN_SECONDS = 1800  # 30 minutos de intervalo entre purgas automáticas
+
+
 def purge_expired_pending_users(days_limit: int = 7) -> int:
     """
     Purga automática de registros en estado Pendiente (STAT-006) que hayan superado
     el plazo máximo de días (por defecto 7 días) desde su creación sin activar contraseña.
     
-    1. Registra evento de auditoría en Binnacle (user_id=None, old_values con datos completos).
-    2. Elimina RoleUser, User, CompanyStaff o InstitutionalStaff (y su evidencia física en disco).
-    3. Elimina Person.
-    4. Si la institución asociada quedó sin ningún personal o usuarios activos y sin trámites,
-       elimina Institution e InstitutionLevel para liberar el código de plantel.
+    Garantiza atomicidad transaccional:
+    1. Agrupa todas las eliminaciones en BD dentro de una única transacción por usuario/registro.
+    2. Ejecuta db.session.commit() asegurando integridad referencial total (o rollback ante fallos).
+    3. Elimina archivos físicos de evidencia únicamente tras la confirmación exitosa de la BD.
+    4. Registra el evento en Binnacle con posterioridad al commit para no romper la atomicidad.
     
     Retorna la cantidad total de registros purgados.
     """
@@ -579,6 +585,7 @@ def purge_expired_pending_users(days_limit: int = 7) -> int:
     from app.models.institution_level_model import InstitutionLevel
     from app.models.staff_evidence_model import StaffEvidence
 
+    global _last_purge_time
     logger = logging.getLogger(__name__)
     purged_count = 0
     cutoff = datetime.now(timezone.utc) - timedelta(days=days_limit)
@@ -596,6 +603,7 @@ def purge_expired_pending_users(days_limit: int = 7) -> int:
                 role_name = user.roles_assoc[0].role.name if user.roles_assoc and user.roles_assoc[0].role else 'N/A'
                 institution_name = None
                 inst_to_check = None
+                physical_files_to_delete = []
 
                 # Recolectar datos antes de eliminar
                 inst_staff = InstitutionalStaff.query.filter_by(person_id=person.id).first() if person else None
@@ -605,19 +613,15 @@ def purge_expired_pending_users(days_limit: int = 7) -> int:
                     inst = inst_staff.institution
                     inst_to_check = inst
                     institution_name = inst.institution_name if inst else "N/A"
-                    # Eliminar evidencias físicas y registros de evidencia
+                    # Recolectar evidencias físicas y marcar para borrado en BD
                     evidences = StaffEvidence.query.filter_by(institutional_staff_id=inst_staff.id).all()
                     upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
                     for ev in evidences:
                         if ev.file_path:
-                            try:
-                                raw_p = ev.file_path.replace('\\', '/')
-                                clean_p = raw_p.split('uploads/')[-1] if 'uploads/' in raw_p else raw_p
-                                full_file_p = os.path.join(upload_folder, clean_p)
-                                if os.path.exists(full_file_p):
-                                    os.remove(full_file_p)
-                            except Exception as fe:
-                                logger.warning(f"No se pudo eliminar archivo físico {ev.file_path}: {fe}")
+                            raw_p = ev.file_path.replace('\\', '/')
+                            clean_p = raw_p.split('uploads/')[-1] if 'uploads/' in raw_p else raw_p
+                            full_file_p = os.path.join(upload_folder, clean_p)
+                            physical_files_to_delete.append(full_file_p)
                         db.session.delete(ev)
                     db.session.delete(inst_staff)
 
@@ -638,18 +642,6 @@ def purge_expired_pending_users(days_limit: int = 7) -> int:
                     'reason': f'Expiración de plazo máximo de activación ({days_limit} días)'
                 }
 
-                # Registrar auditoría en Binnacle con user_id=None
-                BinnacleService.create_log_entry(
-                    module=AuditModule.USERS.value,
-                    action_type=AuditAction.ELIMINAR.value,
-                    description=f'Purga automática de registro pendiente no activado tras {days_limit} días: {person.first_name if person else ""} {person.last_name if person else ""} ({person.identification_number if person else ""})',
-                    status=AuditStatus.COMPLETADO.value,
-                    target_table='sages.users',
-                    record_id=user.id,
-                    old_values=old_values,
-                    user_identifier='SISTEMA'
-                )
-
                 # Eliminar asignación de roles y usuario
                 RoleUser.query.filter_by(user_id=user.id).delete()
                 db.session.delete(user)
@@ -661,13 +653,39 @@ def purge_expired_pending_users(days_limit: int = 7) -> int:
                 # Si la institución no tiene más personal, eliminarla para liberar el plantel
                 if inst_to_check:
                     remaining_staff = InstitutionalStaff.query.filter(
-                        InstitutionalStaff.institution_id == inst_to_check.id
+                        InstitutionalStaff.institution_id == inst_to_check.id,
+                        InstitutionalStaff.id != (inst_staff.id if inst_staff else None)
                     ).count()
                     if remaining_staff == 0:
                         InstitutionLevel.query.filter_by(institution_id=inst_to_check.id).delete()
                         db.session.delete(inst_to_check)
 
+                # Commit atómico: todas las entidades de este usuario se confirman juntas
                 db.session.commit()
+
+                # Eliminar evidencias físicas en disco solo tras commit exitoso de la BD
+                for full_file_p in physical_files_to_delete:
+                    try:
+                        if os.path.exists(full_file_p):
+                            os.remove(full_file_p)
+                    except Exception as fe:
+                        logger.warning(f"No se pudo eliminar archivo físico {full_file_p}: {fe}")
+
+                # Registrar auditoría en Binnacle posterior al commit para no romper atomicidad
+                try:
+                    BinnacleService.create_log_entry(
+                        module=AuditModule.USERS.value,
+                        action_type=AuditAction.ELIMINAR.value,
+                        description=f'Purga automática de registro pendiente no activado tras {days_limit} días: {old_values.get("first_name") or ""} {old_values.get("last_name") or ""} ({old_values.get("identification_number") or ""})',
+                        status=AuditStatus.COMPLETADO.value,
+                        target_table='sages.users',
+                        record_id=old_values['user_id'],
+                        old_values=old_values,
+                        user_identifier='SISTEMA'
+                    )
+                except Exception as log_err:
+                    logger.error(f"Error registrando auditoría de purga para usuario {old_values['user_id']}: {log_err}")
+
                 purged_count += 1
             except Exception as single_err:
                 db.session.rollback()
@@ -687,19 +705,16 @@ def purge_expired_pending_users(days_limit: int = 7) -> int:
 
                 inst = st.institution
                 inst_name = inst.institution_name if inst else "N/A"
+                physical_files_to_delete = []
 
                 evidences = StaffEvidence.query.filter_by(institutional_staff_id=st.id).all()
                 upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
                 for ev in evidences:
                     if ev.file_path:
-                        try:
-                            raw_p = ev.file_path.replace('\\', '/')
-                            clean_p = raw_p.split('uploads/')[-1] if 'uploads/' in raw_p else raw_p
-                            full_file_p = os.path.join(upload_folder, clean_p)
-                            if os.path.exists(full_file_p):
-                                os.remove(full_file_p)
-                        except Exception as fe:
-                            logger.warning(f"No se pudo eliminar archivo físico {ev.file_path}: {fe}")
+                        raw_p = ev.file_path.replace('\\', '/')
+                        clean_p = raw_p.split('uploads/')[-1] if 'uploads/' in raw_p else raw_p
+                        full_file_p = os.path.join(upload_folder, clean_p)
+                        physical_files_to_delete.append(full_file_p)
                     db.session.delete(ev)
 
                 old_values = {
@@ -714,39 +729,85 @@ def purge_expired_pending_users(days_limit: int = 7) -> int:
                     'reason': f'Expiración de solicitud huérfana no activada tras {days_limit} días'
                 }
 
-                BinnacleService.create_log_entry(
-                    module=AuditModule.USERS.value,
-                    action_type=AuditAction.ELIMINAR.value,
-                    description=f'Purga automática de solicitante huérfano no activado tras {days_limit} días: {person.first_name if person else ""} {person.last_name if person else ""} ({person.identification_number if person else ""})',
-                    status=AuditStatus.COMPLETADO.value,
-                    target_table='sages.institutional_staff',
-                    record_id=st.id,
-                    old_values=old_values,
-                    user_identifier='SISTEMA'
-                )
-
                 db.session.delete(st)
                 if person:
                     db.session.delete(person)
 
                 if inst:
                     remaining_staff = InstitutionalStaff.query.filter(
-                        InstitutionalStaff.institution_id == inst.id
+                        InstitutionalStaff.institution_id == inst.id,
+                        InstitutionalStaff.id != st.id
                     ).count()
                     if remaining_staff == 0:
                         InstitutionLevel.query.filter_by(institution_id=inst.id).delete()
                         db.session.delete(inst)
 
+                # Commit atómico para staff huérfano
                 db.session.commit()
+
+                # Eliminar archivos físicos tras confirmación en BD
+                for full_file_p in physical_files_to_delete:
+                    try:
+                        if os.path.exists(full_file_p):
+                            os.remove(full_file_p)
+                    except Exception as fe:
+                        logger.warning(f"No se pudo eliminar archivo físico {full_file_p}: {fe}")
+
+                # Registrar auditoría en Binnacle posterior al commit
+                try:
+                    BinnacleService.create_log_entry(
+                        module=AuditModule.USERS.value,
+                        action_type=AuditAction.ELIMINAR.value,
+                        description=f'Purga automática de solicitante huérfano no activado tras {days_limit} días: {old_values.get("first_name") or ""} {old_values.get("last_name") or ""} ({old_values.get("identification_number") or ""})',
+                        status=AuditStatus.COMPLETADO.value,
+                        target_table='sages.institutional_staff',
+                        record_id=old_values['staff_id'],
+                        old_values=old_values,
+                        user_identifier='SISTEMA'
+                    )
+                except Exception as log_err:
+                    logger.error(f"Error registrando auditoría de purga para staff {old_values['staff_id']}: {log_err}")
+
                 purged_count += 1
             except Exception as st_err:
                 db.session.rollback()
                 logger.error(f"Error al purgar institutional_staff huérfano {st.id}: {st_err}")
+
+        _last_purge_time = datetime.now(timezone.utc)
 
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error general en purge_expired_pending_users: {e}")
 
     return purged_count
+
+
+def trigger_purge_async(app, days_limit: int = 7) -> None:
+    """
+    Ejecuta la purga en segundo plano (asíncrona) para no bloquear ni penalizar
+    el tiempo de respuesta de peticiones GET como /users/list.
+    Incluye un mecanismo de cooldown y lock concurrente para evitar sobrecarga.
+    """
+    global _last_purge_time
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    if _last_purge_time and (now - _last_purge_time).total_seconds() < _PURGE_COOLDOWN_SECONDS:
+        return
+
+    def _worker():
+        global _last_purge_time
+        if not _purge_lock.acquire(blocking=False):
+            return
+        try:
+            with app.app_context():
+                purge_expired_pending_users(days_limit=days_limit)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"[ASYNC PURGE ERROR]: {e}", exc_info=True)
+        finally:
+            _purge_lock.release()
+
+    t = threading.Thread(target=_worker, daemon=True)
+    t.start()
 
 

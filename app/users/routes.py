@@ -35,6 +35,7 @@ from app.users.services import (
     create_administrative_user,
     get_user_state_id,
     purge_expired_pending_users,
+    trigger_purge_async,
     get_status_by_code,
     log_action,
     STATUS_ACTIVE_CODE,
@@ -84,9 +85,9 @@ def list_users():
     if user_role not in ['super_admin', 'state_admin']:
         abort(403)
 
-    # Purga automática de usuarios pendientes con más de 7 días sin activar
+    # Purga automática de usuarios pendientes con más de 7 días sin activar (asíncrona para no penalizar GET)
     try:
-        purge_expired_pending_users()
+        trigger_purge_async(current_app._get_current_object())
     except Exception as e:
         current_app.logger.error("[PURGE ERROR]", exc_info=True)
 
