@@ -686,6 +686,15 @@ def view_training_detail(id: int):
         .first_or_404()
     )
 
+    is_admin_user = _is_admin()
+    if not is_admin_user and (
+        not training.training_module
+        or not training.training_module.is_active
+        or not training.status
+        or training.status.status_code != 'STAT-001'
+    ):
+        abort(404)
+
     atendidas_calculadas = (
         db.session.query(func.count(Request.id))
         .join(Status, Request.status_id == Status.id)
@@ -700,7 +709,7 @@ def view_training_detail(id: int):
         training=training,
         atendidas=atendidas_calculadas,
         is_super_admin=_is_super_admin(),
-        is_admin=_is_admin(),
+        is_admin=is_admin_user,
         user_role=_get_user_role()
     )
 
