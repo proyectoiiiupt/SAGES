@@ -1293,7 +1293,7 @@ def resend_activation_admin(user_id):
         send_administrative_activation_email(
             to_email=target_person.email,
             token=new_token,
-            role_name=role_display,
+            role_display=role_display,
             place_name=place_name,
             full_name=full_name
         )

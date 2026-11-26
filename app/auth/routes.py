@@ -571,7 +571,7 @@ def resend_activation_from_token(token):
         send_administrative_activation_email(
             to_email=person.email,
             token=new_token,
-            role_name=role_display,
+            role_display=role_display,
             place_name=place_name,
             full_name=full_name
         )
