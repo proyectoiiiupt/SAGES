@@ -4,7 +4,7 @@ import smtplib
 import logging
 from email.message import EmailMessage
 import threading
-from flask import url_for
+from flask import current_app, url_for
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,6 @@ def send_email(to_email: str, subject: str, html_content: str, text_content: str
     if not smtp_user or not smtp_pass:
         error_msg = "SMTP no configurado: falta SMTP_USER o SMTP_PASS en el archivo .env"
         logger.error(error_msg)
-        print(f"\n[ERROR SMTP]: {error_msg}\n")
         return False
 
     msg = EmailMessage()
@@ -55,11 +54,11 @@ def send_email(to_email: str, subject: str, html_content: str, text_content: str
             smtp.starttls()
             smtp.login(smtp_user, smtp_pass)
             smtp.send_message(msg)
-        print(f"[SMTP ÉXITO]: Correo '{subject}' enviado exitosamente a {to_email}")
+        current_app.logger.info(f"[SMTP] Correo '{subject}' enviado exitosamente a {to_email}")
         return True
     except Exception as e:
         logger.error(f"Error enviando correo a {to_email}: {e}")
-        print(f"\n[ERROR SMTP]: Falló el envío a {to_email}. Causa: {e}\n")
+        current_app.logger.error(f"[ERROR SMTP] Falló el envío a {to_email}", exc_info=True)
         return False
 
 

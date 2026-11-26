@@ -4,7 +4,7 @@ Define los endpoints para la gestión de instituciones educativas.
 """
 import re
 
-from flask import render_template, flash, redirect, request, jsonify, abort, url_for
+from flask import render_template, flash, redirect, request, jsonify, abort, url_for, current_app
 from flask_login import login_required, current_user
 from werkzeug.exceptions import HTTPException
 from app.institutions import institutions_bp
@@ -82,7 +82,7 @@ def list_institutions():
                              filter_options=filter_options,
                              current_filters=filters)
     except Exception as e:
-        print(f"Error en list_institutions: {e}")
+        current_app.logger.error("Error en list_institutions", exc_info=True)
         flash("Error al cargar las instituciones", 'danger')
         return render_template('institutions/list.html',
                              institutions=[],
@@ -105,7 +105,7 @@ def view_institution(institution_id):
         show_success = request.args.get('success', 'false') == 'true'
         return render_template('institutions/detail.html', institution=institution, is_applicant=False, show_success=show_success)
     except Exception as e:
-        print(f"Error en view_institution: {e}")
+        current_app.logger.error("Error en view_institution", exc_info=True)
         flash("Error al cargar la institución", 'danger')
         return redirect(url_for('institutions.list_institutions'))
 
@@ -154,7 +154,7 @@ def toggle_institution_status_route(institution_id):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error en toggle_institution_status_route: {e}")
+        current_app.logger.error("Error en toggle_institution_status_route", exc_info=True)
         return jsonify({'success': False, 'message': f'Error: {str(e)}', 'affected_users': 0}), 500
 
 
@@ -188,7 +188,7 @@ def view_institution_users(institution_id):
                              users=pagination_data['users'],
                              pagination=pagination_data)
     except Exception as e:
-        print(f"Error en view_institution_users: {e}")
+        current_app.logger.error("Error en view_institution_users", exc_info=True)
         flash("Error al cargar los usuarios de la institución", 'danger')
         user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else None
         if user_role == 'applicant':
@@ -346,7 +346,7 @@ def edit_institution(institution_id):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error en edit_institution: {e}")
+        current_app.logger.error("Error en edit_institution", exc_info=True)
         flash("Error al procesar la solicitud", 'danger')
         user_role = None
         if current_user.roles_assoc and len(current_user.roles_assoc) > 0:
@@ -379,7 +379,7 @@ def my_institution():
         show_success = request.args.get('success', 'false') == 'true'
         return render_template('institutions/detail.html', institution=institution, is_applicant=True, show_success=show_success)
     except Exception as e:
-        print(f"Error en my_institution: {e}")
+        current_app.logger.error("Error en my_institution", exc_info=True)
         flash("Error al cargar tu institución. Contacta al administrador.", 'danger')
         return redirect(url_for('home_applicant'))
 
@@ -396,7 +396,7 @@ def get_parishes_by_state(state_id):
         parishes_data = [{'id': parish.id, 'name': parish.name} for parish in parishes]
         return jsonify({'parishes': parishes_data})
     except Exception as e:
-        print(f"Error en get_parishes_by_state: {e}")
+        current_app.logger.error("Error en get_parishes_by_state", exc_info=True)
         return jsonify({'parishes': []}), 500
 
 
@@ -407,7 +407,7 @@ def get_states_api():
         states = State.query.order_by(State.name).all()
         return jsonify([{'id': s.id, 'name': s.name} for s in states])
     except Exception as e:
-        print(f"Error en get_states_api: {e}")
+        current_app.logger.error("Error en get_states_api", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 
@@ -425,7 +425,7 @@ def get_cities_api():
         else:
             return jsonify([])
     except Exception as e:
-        print(f"Error en get_cities_api: {e}")
+        current_app.logger.error("Error en get_cities_api", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 
@@ -436,7 +436,7 @@ def get_municipalities_api(state_id):
         municipalities = Municipality.query.filter_by(state_id=state_id).order_by(Municipality.name).all()
         return jsonify([{'id': m.id, 'name': m.name} for m in municipalities])
     except Exception as e:
-        print(f"Error en get_municipalities_api: {e}")
+        current_app.logger.error("Error en get_municipalities_api", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 
@@ -447,7 +447,7 @@ def get_parishes_api(municipality_id):
         parishes = Parish.query.filter_by(municipality_id=municipality_id).order_by(Parish.name).all()
         return jsonify([{'id': p.id, 'name': p.name} for p in parishes])
     except Exception as e:
-        print(f"Error en get_parishes_api: {e}")
+        current_app.logger.error("Error en get_parishes_api", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 
@@ -530,7 +530,7 @@ def validate_identification():
             return jsonify({'exists': False, 'message': 'Cédula disponible'})
 
     except Exception as e:
-        print(f"Error en validate_identification: {e}")
+        current_app.logger.error("Error en validate_identification", exc_info=True)
         return jsonify({'exists': False, 'message': 'Error al validar cédula'}), 500
 
 
@@ -577,7 +577,7 @@ def validate_email():
         })
 
     except Exception as e:
-        print(f"Error en validate_email: {e}")
+        current_app.logger.error("Error en validate_email", exc_info=True)
         return jsonify({'exists': False, 'valid': False, 'message': 'Error al validar correo'}), 500
 
 

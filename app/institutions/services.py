@@ -82,7 +82,7 @@ def get_user_state_info(user):
             'state_name': state.name
         }
     except Exception as e:
-        print(f"Error en get_user_state_info: {e}")
+        current_app.logger.error("Error en get_user_state_info", exc_info=True)
         return None
 
 
@@ -104,7 +104,7 @@ def get_all_institutions(filters=None, user=None, page=1, per_page=10):
             try:
                 user_state_info = get_user_state_info(user)
             except Exception as e:
-                print(f"Error obteniendo información del estado: {e}")
+                current_app.logger.error("Error obteniendo información del estado en get_all_institutions", exc_info=True)
                 user_state_info = None
         
         query = Institution.query.options(
@@ -196,7 +196,7 @@ def get_all_institutions(filters=None, user=None, page=1, per_page=10):
             'total_all': len(all_ids)
         }
     except Exception as e:
-        print(f"Error en get_all_institutions: {e}")
+        current_app.logger.error("Error en get_all_institutions", exc_info=True)
         return {
             'institutions': [],
             'total': 0,
@@ -225,7 +225,7 @@ def get_institution_by_id(institution_id):
         ).get(institution_id)
         return institution
     except Exception as e:
-        print(f"Error en get_institution_by_id: {e}")
+        current_app.logger.error("Error en get_institution_by_id", exc_info=True)
         return None
 
 
@@ -249,7 +249,7 @@ def get_filter_options(user=None):
             try:
                 user_state_info = get_user_state_info(user)
             except Exception as e:
-                print(f"Error obteniendo información del estado: {e}")
+                current_app.logger.error("Error obteniendo información del estado en get_all_institutions", exc_info=True)
                 user_state_info = None
 
         if user_state_info:
@@ -283,7 +283,7 @@ def get_filter_options(user=None):
             'parishes': parishes
         }
     except Exception as e:
-        print(f"Error en get_filter_options: {e}")
+        current_app.logger.error("Error en get_filter_options", exc_info=True)
         return {
             'institution_types': [],
             'institution_scopes': [],
@@ -393,18 +393,18 @@ def toggle_institution_status(institution_id):
                 action_text="Ver Detalles"
             )
         except Exception as e:
-            print(f"Error enviando notificacion de estatus: {e}")
+            current_app.logger.error("Error enviando notificacion de estatus", exc_info=True)
 
         # --- Correo al representante/director (solo al inactivar, 1 solo correo) ---
         if new_status == 'Inactivo':
             try:
                 _send_inactivation_email_to_representative(institution)
             except Exception as e:
-                print(f"Error enviando correo de inactivación al representante: {e}")
+                current_app.logger.error("Error enviando correo de inactivación al representante", exc_info=True)
 
         return institution, new_status, affected_users_count
     except Exception as e:
-        print(f"Error en toggle_institution_status: {e}")
+        current_app.logger.error("Error en toggle_institution_status", exc_info=True)
         db.session.rollback()
         return None, f'Error: {str(e)}', 0
 
@@ -545,7 +545,7 @@ def get_institution_users(institution_id, page=1, per_page=10):
             'total_all': len(all_ids)
         }
     except Exception as e:
-        print(f"Error en get_institution_users: {e}")
+        current_app.logger.error("Error en get_institution_users", exc_info=True)
         return {
             'users': [],
             'total': 0,
@@ -780,13 +780,13 @@ def update_institution_contact_infrastructure(institution_id, institution_data, 
                     action_text="Ver Detalles"
                 )
         except Exception as e:
-            print(f"Error enviando notificacion de edicion institucional: {e}")
+            current_app.logger.error("Error enviando notificacion de edicion institucional", exc_info=True)
         
         db.session.refresh(institution)
         
         return institution, True, 'Datos actualizados exitosamente'
     except Exception as e:
-        print(f"Error en update_institution_contact_infrastructure: {e}")
+        current_app.logger.error("Error en update_institution_contact_infrastructure", exc_info=True)
         db.session.rollback()
         return None, False, f'Error al actualizar: {str(e)}'
 

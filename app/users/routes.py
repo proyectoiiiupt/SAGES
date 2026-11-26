@@ -88,7 +88,7 @@ def list_users():
     try:
         purge_expired_pending_users()
     except Exception as e:
-        print(f"[PURGE ERROR]: {e}")
+        current_app.logger.error("[PURGE ERROR]", exc_info=True)
 
     page = request.args.get('page', 1, type=int)
     search_query = request.args.get('search', '').strip()
@@ -262,7 +262,7 @@ def list_users():
                                 u.state_name = comp_staff.place.parish.municipality.state.name
         
     except Exception as e:
-        print(f"Error en filtros: {e}")
+        current_app.logger.error("Error en filtros de listado de usuarios", exc_info=True)
         users_list = []
         pagination = None
         db_roles = []
@@ -582,18 +582,18 @@ def edit_user(user_id):
                         action_text="Revisar Perfil"
                     )
             except Exception as e:
-                print(f"Error enviando notificacion de edicion de perfil: {e}")
+                current_app.logger.error("Error enviando notificacion de edicion de perfil", exc_info=True)
             
             flash('Datos del usuario actualizados exitosamente.', 'success')
             return redirect(url_for('users.view_user', user_id=user.id))
             
         except IntegrityError as e:
             db.session.rollback()
-            print(f"[INTEGRITY ERROR EDIT USER]: {e}")
+            current_app.logger.error("[INTEGRITY ERROR EDIT USER]", exc_info=True)
             flash('La cédula de identidad ya se encuentra registrada por otro usuario.', 'danger')
         except Exception as e:
             db.session.rollback()
-            print(f"[ERROR EDIT USER]: {e}")
+            current_app.logger.error("[ERROR EDIT USER]", exc_info=True)
             flash('Ocurrió un error al intentar guardar en la base de datos.', 'error')
         
     elif request.method == 'POST':
@@ -677,11 +677,11 @@ def toggle_status(user_id):
                     username=user.user_name
                 )
             except Exception as e:
-                print(f"\n[ERROR ENVIANDO CORREO DESACTIVACION]: {e}\n")
+                current_app.logger.error("[ERROR ENVIANDO CORREO DESACTIVACION]", exc_info=True)
         
     except Exception as e:
         db.session.rollback()
-        print(f"\n[ERROR TOGGLE STATUS]: {e}\n")
+        current_app.logger.error("[ERROR TOGGLE STATUS]", exc_info=True)
         flash('Ocurrió un error al intentar cambiar el estatus.', 'error')
         
     return redirect(url_for('users.view_user', user_id=user.id))
@@ -1078,7 +1078,7 @@ def approve_request(staff_id=None):
                 context=context
             )
         except Exception as e:
-            print(f"Error enviando notificacion de aprobacion: {e}")
+            current_app.logger.error("Error enviando notificacion de aprobacion", exc_info=True)
 
         BinnacleService.create_log_entry(
             module=AuditModule.USERS.value,
@@ -1104,7 +1104,7 @@ def approve_request(staff_id=None):
 
     except Exception as e:
         db.session.rollback()
-        print(f"[ERROR APPROVE REQUEST]: {e}")
+        current_app.logger.error("[ERROR APPROVE REQUEST]", exc_info=True)
         return jsonify({'status': 'error', 'message': 'Ocurrió un error interno al procesar la aprobación.'}), 500
 
 
@@ -1194,7 +1194,7 @@ def reject_request(staff_id):
                     institution_name=inst_name
                 )
         except Exception as e:
-            print(f"[ERROR ENVIANDO CORREO RECHAZO]: {e}")
+            current_app.logger.error("[ERROR ENVIANDO CORREO RECHAZO]", exc_info=True)
 
         return jsonify({
             'status': 'success',
@@ -1203,7 +1203,7 @@ def reject_request(staff_id):
 
     except Exception as e:
         db.session.rollback()
-        print(f"[ERROR REJECT REQUEST]: {e}")
+        current_app.logger.error("[ERROR REJECT REQUEST]", exc_info=True)
         return jsonify({'status': 'error', 'message': 'Ocurrió un error interno al procesar el rechazo de la solicitud.'}), 500
 
 

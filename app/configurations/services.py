@@ -731,6 +731,30 @@ def update_role_permissions(role_id: int, submitted_permission_ids: list, curren
         raise
 
 
+def _rotate_backups(backup_dir: str, max_keep: int = 3) -> None:
+    """
+    Elimina los backups más antiguos en backup_dir manteniendo solo los
+    max_keep más recientes, ordenados por fecha de modificación.
+
+    Args:
+        backup_dir (str): Ruta absoluta al directorio de backups.
+        max_keep   (int): Número máximo de archivos a conservar. Default: 3.
+    """
+    try:
+        entries = [
+            os.path.join(backup_dir, f)
+            for f in os.listdir(backup_dir)
+            if os.path.isfile(os.path.join(backup_dir, f))
+        ]
+        entries.sort(key=os.path.getmtime)
+        to_delete = entries[:-max_keep] if len(entries) > max_keep else []
+        for path in to_delete:
+            os.remove(path)
+            logger.info(f"[Branding] Backup eliminado por rotación: {os.path.basename(path)}")
+    except Exception:
+        current_app.logger.error("[Branding] Error durante rotación de backups", exc_info=True)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # GESTIÓN DE DATOS CORPORATIVOS E IDENTIDAD VISUAL (US-58)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -865,6 +889,7 @@ def update_corporate_branding(form_data: dict, files: dict, current_user_id: int
             if os.path.exists(target_logo):
                 backup_logo = os.path.join(backup_dir, f"backup_logo_{timestamp_str}_{uuid.uuid4().hex[:8]}.png")
                 shutil.copy2(target_logo, backup_logo)
+                _rotate_backups(backup_dir, max_keep=3)
 
             temp_logo = os.path.join(static_img_dir, f"tmp_logo_{uuid.uuid4().hex}.png")
             logo_file.seek(0)
@@ -878,6 +903,7 @@ def update_corporate_branding(form_data: dict, files: dict, current_user_id: int
             if os.path.exists(target_icon):
                 backup_icon = os.path.join(backup_dir, f"backup_icon_{timestamp_str}_{uuid.uuid4().hex[:8]}.png")
                 shutil.copy2(target_icon, backup_icon)
+                _rotate_backups(backup_dir, max_keep=3)
 
             temp_icon = os.path.join(static_img_dir, f"tmp_icon_{uuid.uuid4().hex}.png")
             icon_file.seek(0)

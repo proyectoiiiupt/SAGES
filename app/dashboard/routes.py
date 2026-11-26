@@ -2,7 +2,7 @@
 Rutas del Módulo de Dashboard (Panel Administrativo)
 Controla la visualización de los indicadores y métricas del sistema.
 """
-from flask import render_template, flash
+from flask import render_template, flash, current_app
 from flask_login import login_required, current_user
 from app.dashboard import dashboard_bp
 from app.dashboard.services import get_dashboard_indicators, get_audit_logs
@@ -30,7 +30,7 @@ def index():
         
         return render_template('dashboard/dashboard.html', metrics=metrics, logs=recent_logs)
     except Exception as e:
-        print(f"Error al cargar el dashboard: {e}")
+        current_app.logger.error("Error al cargar el dashboard", exc_info=True)
         flash("Ocurrió un error al calcular los indicadores del panel.", "danger")
         return render_template('dashboard/dashboard.html', metrics={
             'total_requests': 0,

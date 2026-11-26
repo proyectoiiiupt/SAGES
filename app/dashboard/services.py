@@ -2,6 +2,7 @@
 Servicios del Módulo de Dashboard (Panel Administrativo)
 Contiene la lógica de cálculo y agregación automatizada de indicadores y métricas de solicitudes y usuarios.
 """
+from flask import current_app
 from app.extensions import db
 from app.models.request_model import Request
 from app.models.status_model import Status
@@ -51,7 +52,7 @@ def get_user_state_info(user):
                     }
         return None
     except Exception as e:
-        print(f"Error al obtener estado del usuario: {e}")
+        current_app.logger.error("Error al obtener estado del usuario", exc_info=True)
         return None
 
 
@@ -211,7 +212,7 @@ def get_dashboard_indicators(user):
         }
 
     except Exception as e:
-        print(f"Error al calcular indicadores del dashboard: {e}")
+        current_app.logger.error("Error al calcular indicadores del dashboard", exc_info=True)
         # Valores por defecto seguros ante cualquier excepción
         return {
             'total_requests': 0,
@@ -263,7 +264,7 @@ def get_audit_logs(limit=None):
             })
         return formatted_logs
     except Exception as e:
-        print(f"Error al consultar registros de auditoría para el dashboard: {e}")
+        current_app.logger.error("Error al consultar registros de auditoría para el dashboard", exc_info=True)
         return []
 
 # ─────────────────────────────────────────────────────────────
@@ -354,7 +355,7 @@ def get_map_states_distribution():
         }
         
     except Exception as e:
-        print(f"Error al calcular distribución del mapa nacional: {e}")
+        current_app.logger.error("Error al calcular distribución del mapa nacional", exc_info=True)
         return {
             'states': [],
             'summary': {
@@ -472,5 +473,5 @@ def get_state_demand_details(state_id: int):
         }
         
     except Exception as e:
-        print(f"Error al obtener detalle de demanda para estado {state_id}: {e}")
+        current_app.logger.error(f"Error al obtener detalle de demanda para estado {state_id}", exc_info=True)
         return None

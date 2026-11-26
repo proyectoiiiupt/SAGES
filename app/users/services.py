@@ -300,7 +300,7 @@ def update_user_contact(user: User, email: str, mobile: str, phone: str) -> Tupl
         return False, "El correo electrónico ya se encuentra registrado por otro usuario."
     except Exception as e:
         db.session.rollback()
-        print(f"[ERROR UPDATE CONTACT]: {e}")
+        current_app.logger.error("[ERROR UPDATE CONTACT]", exc_info=True)
         return False, "Ocurrió un error al actualizar los datos de contacto. Por favor intente más tarde."
 
 
@@ -356,7 +356,7 @@ def change_profile_password(user: User, current_password: str, new_password: str
         return True, "Tu contraseña ha sido actualizada exitosamente."
     except Exception as e:
         db.session.rollback()
-        print(f"[ERROR CHANGE PROFILE PASSWORD]: {e}")
+        current_app.logger.error("[ERROR CHANGE PROFILE PASSWORD]", exc_info=True)
         return False, "Ocurrió un error inesperado al actualizar la contraseña. Por favor intente más tarde."
 
 

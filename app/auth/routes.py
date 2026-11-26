@@ -1,4 +1,4 @@
-from flask import request, jsonify, redirect, url_for, flash, render_template, session, current_app
+from flask import current_app, request, jsonify, redirect, url_for, flash, render_template, session, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from app.auth import auth_bp
 from app.auth.services import authenticate_user
@@ -152,7 +152,7 @@ def login():
                         }
                     )
             except Exception as e:
-                print(f"Error enviando notificacion de bienvenida: {e}")
+                current_app.logger.error("Error enviando notificacion de bienvenida", exc_info=True)
             
             next_page = request.args.get('next')
             if next_page and not is_safe_url(next_page):
@@ -512,7 +512,7 @@ def activate_account(token):
 
         except Exception as e:
             db.session.rollback()
-            print(f"[ERROR ACTIVATION]: {e}")
+            current_app.logger.error("[ERROR ACTIVATION]", exc_info=True)
             flash('Ocurrió un error al intentar activar la cuenta.', 'danger')
 
     return render_template('auth/activate.html', form=form, person=person, staff=staff, flow=flow)

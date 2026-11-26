@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import request, abort, jsonify, flash, redirect, url_for
+from flask import request, abort, jsonify, flash, redirect, url_for, current_app
 from flask_login import current_user
 from app.models.permission_model import Permission
 
@@ -135,7 +135,7 @@ def institution_active_required(f):
 
         except Exception as exc:
             # En caso de error inesperado, registrar y dejar pasar (fail-open controlado)
-            print(f"[institution_active_required] Error verificando estado de institución: {exc}")
+            current_app.logger.error("[institution_active_required] Error verificando estado de institución", exc_info=True)
 
         return f(*args, **kwargs)
     return decorated_function
