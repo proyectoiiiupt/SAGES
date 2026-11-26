@@ -7,7 +7,6 @@ Endpoints:
   GET  /training/api/counts    → get_module_counts() – Conteos asíncronos por módulo y rol
 """
 
-import re
 import io
 from datetime import datetime, timezone
 from flask import render_template, jsonify, abort, request, redirect, url_for, flash, current_app, send_file
@@ -15,7 +14,6 @@ from flask_login import login_required, current_user
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from app.trainings import trainings_bp
-import unicodedata
 from app.trainings.forms import TrainingModuleForm, TrainingForm, ModuleEditForm, TrainingEditForm
 from app.models.training_module_model import TrainingModule
 from app.models.training_model import Training
@@ -512,7 +510,8 @@ def new_module():
             current_app.logger.error(f"[trainings.new_module] Error al registrar módulo: {e}")
             flash("Ocurrió un error inesperado al registrar el Módulo Rector. Intente nuevamente.", "danger")
     elif request.method == 'POST':
-        flash("Por favor, verifica los campos obligatorios del formulario.", "warning")
+        first_error = next((errs[0] for errs in form.errors.values() if errs), None)
+        flash(first_error or "Por favor, verifica los campos obligatorios del formulario.", "warning")
 
     return render_template(
         'trainings/module_new.html',
@@ -542,37 +541,7 @@ def validate_training_name_api():
     if not name or not module_id:
         return jsonify({'valid': False, 'exists': False, 'message': 'Faltan parámetros requeridos.'}), 400
 
-    # 1. Traemos todos los temas del módulo seleccionado (excluyendo el actual si estamos editando)
-    query = Training.query.filter(
-        Training.training_module_id == module_id,
-        Training.deleted_at.is_(None)
-    )
-
-    if exclude_id:
-        query = query.filter(Training.id != exclude_id)
-        
-    all_module_trainings = query.all()
-
-    # 2. Función de normalización extrema (se queda solo con letras minúsculas y números)
-    def normalize_text(text):
-        if not text: 
-            return ""
-        # Pasar a minúsculas
-        t = text.lower()
-        # Eliminar tildes/acentos
-        t = unicodedata.normalize('NFKD', t).encode('ASCII', 'ignore').decode('utf-8')
-        # Eliminar TODO lo que no sea una letra o número (espacios, comas, puntos, etc.)
-        t = re.sub(r'[^a-z0-9]', '', t)
-        return t
-
-    name_to_check = normalize_text(name)
-    existing = None
-    
-    # 3. Comparamos
-    for t in all_module_trainings:
-        if normalize_text(t.name) == name_to_check:
-            existing = t
-            break
+    existing = is_training_name_duplicated(module_id, name, exclude_id=exclude_id)
 
     if existing:
         return jsonify({
@@ -776,29 +745,11 @@ def edit_training(id: int):
             flash('No se puede cambiar el Módulo Rector porque este tema ya posee solicitudes asociadas.', 'danger')
             return redirect(url_for('trainings.edit_training', id=id))
 
-        # --- CANDADO DE SEGURIDAD EXTREMA ANTES DE GUARDAR ---
-        import unicodedata, re
-        def normalize_text(text):
-            if not text: return ""
-            t = unicodedata.normalize('NFKD', text.lower()).encode('ASCII', 'ignore').decode('utf-8')
-            return re.sub(r'[^a-z0-9]', '', t)
-            
-        # Determinar en qué módulo se va a guardar
+        # Candado de unicidad normalizada centralizado antes de guardar
         target_module_id = training.training_module_id if has_requests else form.training_module_id.data
-        name_to_check = normalize_text(form.name.data.strip())
-        
-        # Traer todos los temas de ese módulo (excepto el que estamos editando)
-        duplicates = Training.query.filter(
-            Training.training_module_id == target_module_id,
-            Training.id != id,
-            Training.deleted_at.is_(None)
-        ).all()
-        
-        # Si encuentra coincidencia, aborta el guardado
-        if any(normalize_text(t.name) == name_to_check for t in duplicates):
+        if is_training_name_duplicated(target_module_id, form.name.data.strip(), exclude_id=id):
             flash('No se pudo actualizar: El título ingresado ya está en uso en este Módulo Rector.', 'danger')
             return redirect(url_for('trainings.edit_training', id=id))
-        # --- FIN DEL CANDADO ---
 
         old_vals = {}
         new_vals = {}

@@ -3,7 +3,9 @@ Servicios del Módulo de Formación (Trainings)
 Encapsula la lógica de negocio para módulos rectores y temas formativos.
 """
 import os
+import re
 import uuid
+import unicodedata
 import logging
 import functools
 import csv
@@ -248,22 +250,69 @@ def get_active_status_id() -> int:
     status_active = Status.query.filter_by(status_code='STAT-001').first()
     return status_active.id if status_active else 1
 
-def is_training_name_duplicated(module_id: int, name: str) -> Training:
+def normalize_training_name(text: Any) -> str:
     """
-    Verifica si existe un tema formativo con el mismo nombre en un módulo específico.
-    Devuelve el objeto Training si existe, None si está disponible.
+    Normaliza nombres de módulos y temas formativos para validación de unicidad:
+    convierte a minúsculas, elimina tildes/diacríticos y conserva únicamente [a-z0-9].
     """
-    if not name:
+    if not text:
+        return ""
+    cleaned = unicodedata.normalize('NFKD', str(text).lower()).encode('ASCII', 'ignore').decode('utf-8')
+    return re.sub(r'[^a-z0-9]', '', cleaned)
+
+
+def _normalization_key(text: Any) -> str:
+    """Retorna la clave normalizada o el texto en minúsculas si solo contiene símbolos."""
+    norm = normalize_training_name(text)
+    if norm:
+        return norm
+    return str(text or '').strip().lower()
+
+
+def is_module_name_duplicated(name: str, exclude_id: Optional[int] = None) -> Optional[TrainingModule]:
+    """
+    Verifica si existe un módulo rector con un nombre equivalente tras normalización extrema.
+    Devuelve el objeto TrainingModule si existe colisión, o None si está disponible.
+    """
+    if not name or not str(name).strip():
         return None
-        
-    query = Training.query.filter(
-        Training.name.ilike(name),
-        Training.deleted_at.is_(None)
-    )
+
+    target_key = _normalization_key(name)
+    query = TrainingModule.query
+    if exclude_id is not None:
+        query = query.filter(TrainingModule.id != exclude_id)
+
+    for module in query.all():
+        if _normalization_key(module.name) == target_key:
+            return module
+
+    return None
+
+
+def is_training_name_duplicated(
+    module_id: int,
+    name: str,
+    exclude_id: Optional[int] = None
+) -> Optional[Training]:
+    """
+    Verifica si existe un tema formativo con un nombre equivalente (sin tildes, signos ni espacios)
+    dentro de un módulo específico, excluyendo eliminados lógicamente y opcionalmente un ID dado.
+    """
+    if not name or not str(name).strip():
+        return None
+
+    target_key = _normalization_key(name)
+    query = Training.query.filter(Training.deleted_at.is_(None))
     if module_id:
         query = query.filter(Training.training_module_id == module_id)
-        
-    return query.first()
+    if exclude_id is not None:
+        query = query.filter(Training.id != exclude_id)
+
+    for training in query.all():
+        if _normalization_key(training.name) == target_key:
+            return training
+
+    return None
 
 def create_training(module_id: int, name: str, description: str) -> Training:
     """
@@ -550,11 +599,11 @@ def parse_training_file(file_storage) -> Tuple[List[Dict[str, Any]], List[Dict[s
     # Pre-cargar temas formativos existentes en memoria (RAM) para evitar consultas N+1
     existing_trainings = db.session.query(
         Training.training_module_id,
-        db.func.lower(Training.name),
+        Training.name,
         Training.training_code
     ).filter(Training.deleted_at.is_(None)).all()
-    
-    existing_db_map = {(r[0], r[1]): r[2] for r in existing_trainings}
+
+    existing_db_map = {(r[0], _normalization_key(r[1])): r[2] for r in existing_trainings}
 
     for idx, row in enumerate(data_rows, start=2):
         # Ignorar fila instructiva o de ayuda de la plantilla si está presente
@@ -617,8 +666,9 @@ def parse_training_file(file_storage) -> Tuple[List[Dict[str, Any]], List[Dict[s
             })
             continue
 
-        # 4. Validar duplicidad intra-archivo
-        batch_key = (module_obj.id, raw_name.lower())
+        # 4. Validar duplicidad intra-archivo (normalizada)
+        norm_name = _normalization_key(raw_name)
+        batch_key = (module_obj.id, norm_name)
         if batch_key in seen_in_batch:
             invalid_rows.append({
                 'row_number': idx,
@@ -630,8 +680,8 @@ def parse_training_file(file_storage) -> Tuple[List[Dict[str, Any]], List[Dict[s
             continue
         seen_in_batch.add(batch_key)
 
-        # 5. Validar duplicidad contra la base de datos (Operación O(1) en RAM)
-        db_key = (module_obj.id, raw_name.lower())
+        # 5. Validar duplicidad contra la base de datos (Operación O(1) en RAM, normalizada)
+        db_key = (module_obj.id, norm_name)
         if db_key in existing_db_map:
             existing_code = existing_db_map[db_key]
             invalid_rows.append({
@@ -781,7 +831,7 @@ def toggle_module_status(module_id: int, user_id: int) -> Tuple[bool, str, Optio
 
             BinnacleService.create_log_entry(
                 module=AuditModule.TRAININGS.value,
-                action_type=AuditAction.CAMBIO_ESTATUS.value,
+                action_type=AuditAction.CAMBIO_ESTATUS_MODULO_RECTOR.value,
                 description=f"El Módulo Rector '{module.name}' ({module.module_code}) ha sido {estado_str} exitosamente.",
                 target_table='sages.training_modules',
                 record_id=module.id,

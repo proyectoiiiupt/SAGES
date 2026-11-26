@@ -3,12 +3,14 @@ Formularios para el Módulo de Formación (Trainings)
 Maneja la validación de entrada para módulos y temas formativos.
 """
 from flask_wtf import FlaskForm
-from app.models.training_module_model import TrainingModule
 from wtforms import StringField, TextAreaField, SelectField
 from wtforms.validators import DataRequired, Length, ValidationError, Optional
 from app.users.forms import safe_int_coerce
 from app.pre_registration.forms import validate_fk_exists
-from app.models.training_model import Training
+from app.trainings.services import (
+    is_module_name_duplicated,
+    is_training_name_duplicated
+)
 
 class TrainingModuleForm(FlaskForm):
     """
@@ -47,6 +49,13 @@ class TrainingModuleForm(FlaskForm):
         ]
     )
 
+    def validate_name(self, field):
+        """Valida que no exista otro módulo rector con nombre equivalente (normalizado)."""
+        if not field.data:
+            return
+        if is_module_name_duplicated(field.data):
+            raise ValidationError("Ya existe un módulo rector registrado con este nombre.")
+
 class ModuleEditForm(FlaskForm):
     """
     Formulario exclusivo para la edición de Módulo Rector.
@@ -75,15 +84,10 @@ class ModuleEditForm(FlaskForm):
     )
 
     def validate_name(self, field):
-        """Valida que no exista otro módulo con el mismo nombre (ignora mayúsculas/minúsculas)."""
+        """Valida que no exista otro módulo rector con nombre equivalente (excluyendo el actual)."""
         if not field.data:
             return
-        query = TrainingModule.query.filter(
-            TrainingModule.name.ilike(field.data.strip())
-        )
-        if self.module_id:
-            query = query.filter(TrainingModule.id != self.module_id)
-        if query.first():
+        if is_module_name_duplicated(field.data, exclude_id=self.module_id):
             raise ValidationError("Ya existe otro módulo rector registrado con este nombre.")
 
 class TrainingForm(FlaskForm):
@@ -117,17 +121,11 @@ class TrainingForm(FlaskForm):
     )
 
     def validate_name(self, field):
-        """Valida que no exista otro tema con el mismo título en el mismo módulo."""
+        """Valida que no exista otro tema con título equivalente en el mismo módulo."""
         if not field.data or not self.training_module_id.data:
             return
-            
-        exists = Training.query.filter(
-            Training.name.ilike(field.data.strip()),
-            Training.training_module_id == self.training_module_id.data,
-            Training.deleted_at.is_(None)
-        ).first()
-        
-        if exists:
+
+        if is_training_name_duplicated(self.training_module_id.data, field.data):
             raise ValidationError("Ya existe un tema formativo registrado con este título en el módulo seleccionado.")
 
 
@@ -168,19 +166,13 @@ class TrainingEditForm(FlaskForm):
     )
 
     def validate_name(self, field):
-        """Valida que no exista otro tema con el mismo título (excluyendo el actual)."""
+        """Valida que no exista otro tema con título equivalente (excluyendo el actual)."""
         if not field.data or not self.training_module_id.data:
             return
-            
-        query = Training.query.filter(
-            Training.name.ilike(field.data.strip()),
-            Training.training_module_id == self.training_module_id.data,
-            Training.deleted_at.is_(None)
-        )
-        
-        # Excluimos el ID actual de la búsqueda de duplicados
-        if self.training_id:
-            query = query.filter(Training.id != self.training_id)
-            
-        if query.first():
+
+        if is_training_name_duplicated(
+            self.training_module_id.data,
+            field.data,
+            exclude_id=self.training_id
+        ):
             raise ValidationError("Ya existe otro tema formativo registrado con este título en el módulo seleccionado.")
