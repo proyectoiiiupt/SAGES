@@ -2,11 +2,13 @@
 Servicios del Módulo de Formación (Trainings)
 Encapsula la lógica de negocio para módulos rectores y temas formativos.
 """
+import os
 import uuid
 import logging
 import functools
 import csv
 import io
+import zipfile
 import openpyxl
 from datetime import datetime, timezone
 from typing import Optional, Tuple, List, Dict, Any
@@ -340,41 +342,170 @@ def get_active_modules_dict() -> Dict[str, TrainingModule]:
     return mapping
 
 
+XLSX_MAGIC_BYTES = b'\x50\x4b\x03\x04'
+MAX_BULK_FILE_SIZE = 5 * 1024 * 1024           # 5 MB
+MAX_XLSX_UNCOMPRESSED_SIZE = 50 * 1024 * 1024  # 50 MB (protección anti ZIP-bomb)
+MAX_BATCH_ROWS = 500
+REQUIRED_XLSX_ENTRIES = ('[Content_Types].xml', 'xl/workbook.xml')
+FORBIDDEN_CSV_SIGNATURES = (
+    b'\x50\x4b\x03\x04',
+    b'\x50\x4b\x05\x06',
+    b'\x50\x4b\x07\x08',
+    b'%PDF',
+    b'MZ',
+    b'\x7fELF',
+    b'\x89PNG',
+    b'\xff\xd8\xff',
+    b'GIF87a',
+    b'GIF89a',
+    b'\xd0\xcf\x11\xe0',
+)
+
+
+def _validate_bulk_file(file_storage, extension: str) -> None:
+    """
+    Valida tamaño máximo, Magic Bytes y estructura binaria de archivos de carga masiva.
+    Lanza ValueError si el archivo es inválido, corrupto o potencialmente malicioso.
+    """
+    stream = getattr(file_storage, 'stream', file_storage)
+    stream.seek(0, os.SEEK_END)
+    file_size = stream.tell()
+    stream.seek(0)
+
+    if file_size == 0:
+        raise ValueError("El archivo está vacío (0 bytes).")
+
+    if file_size > MAX_BULK_FILE_SIZE:
+        raise ValueError("El archivo supera el tamaño máximo permitido de 5 MB.")
+
+    if extension == '.xlsx':
+        header = stream.read(4)
+        stream.seek(0)
+        if header != XLSX_MAGIC_BYTES:
+            raise ValueError(
+                "El archivo no posee una firma binaria válida de Excel (.xlsx / Magic Bytes 50 4B 03 04). "
+                "Verifique que no sea un archivo renombrado, corrupto o protegido con contraseña."
+            )
+        try:
+            with zipfile.ZipFile(stream, 'r') as zf:
+                entries = set(zf.namelist())
+                if not all(req in entries for req in REQUIRED_XLSX_ENTRIES):
+                    raise ValueError(
+                        "El archivo ZIP/OOXML no corresponde a un libro de cálculo Excel (.xlsx) válido."
+                    )
+                infolist = zf.infolist()
+                if any(info.flag_bits & 0x1 for info in infolist):
+                    raise ValueError(
+                        "El archivo Excel está cifrado o protegido con contraseña. Desproteja el archivo antes de cargarlo."
+                    )
+                total_uncompressed = sum(info.file_size for info in infolist)
+                if total_uncompressed > MAX_XLSX_UNCOMPRESSED_SIZE:
+                    raise ValueError(
+                        "El archivo Excel excede el límite seguro de tamaño descomprimido."
+                    )
+        except zipfile.BadZipFile:
+            raise ValueError("El archivo .xlsx está corrupto o su estructura binaria no es válida.")
+        finally:
+            stream.seek(0)
+    elif extension == '.csv':
+        sample = stream.read(8192)
+        stream.seek(0)
+        if any(sample.startswith(sig) for sig in FORBIDDEN_CSV_SIGNATURES) or b'\x00' in sample:
+            raise ValueError(
+                "El archivo .csv contiene datos binarios o una firma incompatible. "
+                "Suba únicamente un archivo de texto plano CSV."
+            )
+
+
 def parse_training_file(file_storage) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], Dict[str, int]]:
     """
     Analiza un archivo Excel (.xlsx) o CSV en memoria.
     Retorna: (filas_validas, filas_invalidas, estadisticas)
     """
-    filename = file_storage.filename.lower()
+    filename = (getattr(file_storage, 'filename', '') or '').strip().lower()
+    stream = getattr(file_storage, 'stream', file_storage)
     raw_rows = []
 
     if filename.endswith('.xlsx'):
-        wb = openpyxl.load_workbook(file_storage, read_only=True, data_only=True)
-        sheet = wb.active
-        for row in sheet.iter_rows(values_only=True):
-            if any(cell is not None for cell in row):
-                raw_rows.append([str(c).strip() if c is not None else "" for c in row])
+        _validate_bulk_file(file_storage, '.xlsx')
+        wb = None
+        sheet_missing = False
+        exceeded_limit = False
+        try:
+            wb = openpyxl.load_workbook(stream, read_only=True, data_only=True)
+            sheet = wb.active
+            if sheet is None:
+                sheet_missing = True
+            else:
+                for row in sheet.iter_rows(values_only=True):
+                    if any(cell is not None and str(cell).strip() for cell in row):
+                        raw_rows.append([str(c).strip() if c is not None else "" for c in row])
+                        if len(raw_rows) > MAX_BATCH_ROWS + 1:
+                            exceeded_limit = True
+                            break
+        except Exception as exc:
+            logger.warning(
+                f"[trainings.services.parse_training_file] Archivo .xlsx ilegible o corrupto ({type(exc).__name__}): {exc}"
+            )
+            raise ValueError(
+                "No se pudo leer el archivo Excel (.xlsx). Verifique que sea un archivo válido y no esté dañado ni protegido con contraseña."
+            ) from exc
+        finally:
+            if wb is not None:
+                try:
+                    wb.close()
+                except Exception:
+                    pass
+            if not getattr(stream, 'closed', False):
+                stream.seek(0)
+
+        if sheet_missing:
+            raise ValueError("El archivo Excel no contiene hojas de cálculo legibles.")
+        if exceeded_limit:
+            raise ValueError(
+                f"El archivo supera el límite permitido de {MAX_BATCH_ROWS} filas por lote."
+            )
     elif filename.endswith('.csv'):
+        _validate_bulk_file(file_storage, '.csv')
+        raw_bytes = stream.read()
+        stream.seek(0)
+        try:
+            raw_bytes.decode('utf-8-sig')
+            csv_encoding = 'utf-8-sig'
+        except UnicodeDecodeError:
+            csv_encoding = 'cp1252'
+
         # Leer solo la primera línea para detectar el delimitador
-        first_line = file_storage.stream.readline().decode('utf-8-sig', errors='replace')
+        first_line = stream.readline().decode(csv_encoding, errors='replace')
         delimiter = ';' if ';' in first_line else ','
-        file_storage.stream.seek(0)
-        
+        stream.seek(0)
+
         # Procesar en stream (eficiente en memoria RAM)
-        wrapper = io.TextIOWrapper(file_storage.stream, encoding='utf-8-sig', errors='replace')
-        reader = csv.reader(wrapper, delimiter=delimiter)
-        for row in reader:
-            if any(cell.strip() for cell in row):
-                raw_rows.append([c.strip() for c in row])
-        
-        wrapper.detach() # Evita que el wrapper cierre el stream original
+        wrapper = io.TextIOWrapper(stream, encoding=csv_encoding, errors='replace')
+        try:
+            reader = csv.reader(wrapper, delimiter=delimiter)
+            for row in reader:
+                if any(cell.strip() for cell in row):
+                    raw_rows.append([c.strip() for c in row])
+                    if len(raw_rows) > MAX_BATCH_ROWS + 1:
+                        raise ValueError(
+                            f"El archivo supera el límite permitido de {MAX_BATCH_ROWS} filas por lote."
+                        )
+        except csv.Error as exc:
+            logger.warning(f"[trainings.services.parse_training_file] CSV malformado: {exc}")
+            raise ValueError(
+                "No se pudo leer el archivo CSV. Verifique que el formato de columnas y comillas sea válido."
+            ) from exc
+        finally:
+            wrapper.detach()  # Evita que el wrapper cierre el stream original
+            if not getattr(stream, 'closed', False):
+                stream.seek(0)
     else:
         raise ValueError("Formato no soportado. Se aceptan exclusivamente archivos .xlsx y .csv")
 
     if not raw_rows or len(raw_rows) < 2:
         raise ValueError("El archivo está vacío o solo contiene la fila de cabecera.")
 
-    MAX_BATCH_ROWS = 500
     if len(raw_rows) - 1 > MAX_BATCH_ROWS:
         raise ValueError(f"El archivo supera el límite permitido de {MAX_BATCH_ROWS} filas por lote.")
 
@@ -432,14 +563,14 @@ def parse_training_file(file_storage) -> Tuple[List[Dict[str, Any]], List[Dict[s
         # Asegurarse de que la fila tenga suficientes columnas para los índices
         max_idx_needed = max(mod_idx, name_idx, desc_idx)
         if len(row) <= max_idx_needed:
-             invalid_rows.append({
-                 'row_number': idx,
-                 'module_input': row[mod_idx] if len(row) > mod_idx else '',
-                 'name_input': row[name_idx] if len(row) > name_idx else '',
-                 'desc_input': row[desc_idx] if len(row) > desc_idx else '',
-                 'error': 'Fila incompleta: no se encontraron todas las columnas requeridas.'
-             })
-             continue
+            invalid_rows.append({
+                'row_number': idx,
+                'module_input': sanitize_formula_injection(row[mod_idx]) if len(row) > mod_idx else '',
+                'name_input': sanitize_formula_injection(row[name_idx]) if len(row) > name_idx else '',
+                'desc_input': sanitize_formula_injection(row[desc_idx]) if len(row) > desc_idx else '',
+                'error': 'Fila incompleta: no se encontraron todas las columnas requeridas.'
+            })
+            continue
 
         raw_mod = row[mod_idx].strip()
         raw_name = sanitize_formula_injection(row[name_idx])
@@ -450,7 +581,7 @@ def parse_training_file(file_storage) -> Tuple[List[Dict[str, Any]], List[Dict[s
         if not module_obj:
             invalid_rows.append({
                 'row_number': idx,
-                'module_input': raw_mod,
+                'module_input': sanitize_formula_injection(raw_mod),
                 'name_input': raw_name,
                 'desc_input': raw_desc,
                 'error': f'Módulo Rector "{raw_mod}" no reconocido o inactivo.'
@@ -603,6 +734,7 @@ def toggle_module_status(module_id: int, user_id: int) -> Tuple[bool, str, Optio
             return False, "Módulo Rector no encontrado.", None, 0
 
         old_status = module.is_active
+        module._skip_auto_audit = True
 
         if old_status:
             # 1. Validación estricta: verificar temas activos asociados

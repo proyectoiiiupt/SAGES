@@ -143,7 +143,14 @@ document.addEventListener('DOMContentLoaded', () => {
         btnConfirm.disabled = true;
         btnConfirm.style.opacity = '0.5';
         btnConfirm.style.cursor = 'not-allowed';
+        btnConfirm.title = '';
         btnDownloadErrors.style.display = 'none';
+        const errorTooltip = document.getElementById('error-tooltip');
+        if (errorTooltip) errorTooltip.style.display = 'none';
+        statTotal.textContent = '0';
+        statValid.textContent = '0';
+        statInvalid.textContent = '0';
+        previewTbody.innerHTML = '';
     }
 
 
@@ -173,15 +180,26 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(previewUrl, {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': csrfToken
+                    'X-CSRFToken': csrfToken,
+                    'Accept': 'application/json'
                 },
                 body: formData
             });
 
-            const result = await response.json();
+            if (response.status === 401) {
+                throw new Error('Tu sesión ha expirado. Recarga la página e inicia sesión nuevamente.');
+            }
+            if (response.status === 413) {
+                throw new Error('El archivo supera el tamaño máximo permitido de 5 MB.');
+            }
+            if (response.status === 429) {
+                throw new Error('Has realizado demasiadas solicitudes seguidas. Espera un minuto e intenta nuevamente.');
+            }
 
-            if (!response.ok) {
-                throw new Error(result.error || 'Error al analizar el archivo');
+            const result = await response.json().catch(() => ({}));
+
+            if (!response.ok || result.success !== true) {
+                throw new Error(result.message || result.error || 'Error al analizar el archivo.');
             }
 
             renderPreview(result);
@@ -276,15 +294,20 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('error-tooltip').style.display = 'none';
         }
 
-        // Habilitar el botón de Confirmar SOLO si hay datos válidos (al menos 1)
-        if (data.stats.valid_count > 0) {
+        // Habilitar el botón de Confirmar SOLO si todas las filas son válidas (modo atómico todo-o-nada)
+        const canProcess = data.stats.valid_count > 0 && data.stats.invalid_count === 0 && data.can_process !== false;
+        if (canProcess) {
             btnConfirm.disabled = false;
             btnConfirm.style.opacity = '1';
             btnConfirm.style.cursor = 'pointer';
+            btnConfirm.title = 'Confirmar e insertar todas las filas válidas en una operación atómica';
         } else {
             btnConfirm.disabled = true;
             btnConfirm.style.opacity = '0.5';
             btnConfirm.style.cursor = 'not-allowed';
+            btnConfirm.title = data.stats.invalid_count > 0
+                ? 'Bloqueado (modo atómico): corrija todas las filas inválidas antes de continuar'
+                : 'No hay filas válidas para insertar';
         }
 
         // Ocultar zona de carga y mostrar resultados
@@ -346,14 +369,21 @@ document.addEventListener('DOMContentLoaded', () => {
     btnConfirm.addEventListener('click', async () => {
         if (!currentFile || btnConfirm.disabled) return;
 
-        // Confirmación visual extra usando SweetAlert con mensaje dinámico
-        const validCount = statValid.textContent;
-        const invalidCount = parseInt(statInvalid.textContent) || 0;
-        
-        let alertText = `Se crearán ${validCount} temas formativos en el sistema.`;
-        if (invalidCount > 0) {
-            alertText = `Se guardarán ${validCount} temas con éxito y las ${invalidCount} filas con errores serán ignoradas.\n\nIMPORTANTE: Si deseas conservar el registro de los errores para corregirlos, asegúrate de haberlos descargado ANTES de continuar.`;
+        // Confirmación visual extra usando SweetAlert con validación atómica
+        const validCount = parseInt(statValid.textContent, 10) || 0;
+        const invalidCount = parseInt(statInvalid.textContent, 10) || 0;
+
+        if (invalidCount > 0 || validCount <= 0) {
+            Swal.fire({
+                title: 'Carga Bloqueada',
+                text: 'No se puede confirmar la carga mientras existan filas inválidas o no haya registros válidos.',
+                icon: 'warning',
+                confirmButtonColor: '#0d9488'
+            });
+            return;
         }
+
+        const alertText = `Se crearán ${validCount} temas formativos en el sistema en una operación atómica.`;
 
         const confirmDialog = await Swal.fire({
             title: '¿Confirmar Inserción?',
@@ -382,18 +412,29 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(processUrl, {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': csrfToken
+                    'X-CSRFToken': csrfToken,
+                    'Accept': 'application/json'
                 },
                 body: formData
             });
 
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result.error || 'Ocurrió un error en el servidor al intentar guardar los temas.');
+            if (response.status === 401) {
+                throw new Error('Tu sesión ha expirado. Recarga la página e inicia sesión nuevamente.');
+            }
+            if (response.status === 413) {
+                throw new Error('El archivo supera el tamaño máximo permitido de 5 MB.');
+            }
+            if (response.status === 429) {
+                throw new Error('Has realizado demasiadas solicitudes seguidas. Espera un minuto e intenta nuevamente.');
             }
 
-            // Éxito total o parcial
+            const result = await response.json().catch(() => ({}));
+
+            if (!response.ok || result.success !== true) {
+                throw new Error(result.message || result.error || 'Ocurrió un error en el servidor al intentar guardar los temas.');
+            }
+
+            // Éxito total atómico
             await Swal.fire({
                 title: '¡Operación Exitosa!',
                 text: result.message,
@@ -402,7 +443,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             // Redirigir al Hub
-            window.location.href = '/training';
+            window.location.href = '/training/';
 
         } catch (error) {
             Swal.fire({
@@ -412,7 +453,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 confirmButtonColor: '#0d9488'
             });
         } finally {
-            btnConfirm.disabled = false;
+            const curValid = parseInt(statValid.textContent, 10) || 0;
+            const curInvalid = parseInt(statInvalid.textContent, 10) || 0;
+            const keepEnabled = curValid > 0 && curInvalid === 0;
+            btnConfirm.disabled = !keepEnabled;
+            btnConfirm.style.opacity = keepEnabled ? '1' : '0.5';
+            btnConfirm.style.cursor = keepEnabled ? 'pointer' : 'not-allowed';
             btnCancel.disabled = false;
             btnConfirm.innerHTML = `
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
@@ -441,16 +487,26 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(downloadErrorsUrl, {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': csrfToken
+                    'X-CSRFToken': csrfToken,
+                    'Accept': 'application/json'
                 },
                 body: formData
             });
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    throw new Error('Tu sesión ha expirado. Recarga la página e inicia sesión nuevamente.');
+                }
+                if (response.status === 413) {
+                    throw new Error('El archivo supera el tamaño máximo permitido de 5 MB.');
+                }
+                if (response.status === 429) {
+                    throw new Error('Has realizado demasiadas solicitudes seguidas. Espera un minuto e intenta nuevamente.');
+                }
                 let errorMsg = 'Error al generar el archivo de errores.';
                 try {
                     const result = await response.json();
-                    errorMsg = result.message || errorMsg;
+                    errorMsg = result.message || result.error || errorMsg;
                 } catch(e) { }
                 throw new Error(errorMsg);
             }

@@ -14,6 +14,7 @@ from app.utils.timezone import caracas_date_range_to_utc
 from flask import render_template, jsonify, abort, request, redirect, url_for, flash, current_app, send_file
 from flask_login import login_required, current_user
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from app.trainings import trainings_bp
 import unicodedata
 from app.trainings.forms import TrainingModuleForm, TrainingForm, ModuleEditForm, TrainingEditForm
@@ -28,6 +29,7 @@ from app.trainings.services import (
     is_training_name_duplicated, 
     create_training,
     parse_training_file,
+    sanitize_formula_injection,
     toggle_module_status,
     count_active_requests_for_training
 )
@@ -979,6 +981,7 @@ def bulk_upload_preview():
             
         return jsonify({
             'success': True,
+            'can_process': (len(valid_rows) > 0 and len(invalid_rows) == 0),
             'stats': stats,
             'valid_rows': valid_preview,
             'invalid_rows': invalid_rows
@@ -1007,22 +1010,43 @@ def bulk_upload_process():
         
     try:
         valid_rows, invalid_rows, stats = parse_training_file(file)
-        
+
+        if invalid_rows:
+            return jsonify({
+                'success': False,
+                'message': (
+                    f'Carga masiva rechazada (modo atómico): el archivo contiene '
+                    f'{len(invalid_rows)} fila(s) inválida(s). Ningún registro fue guardado. '
+                    f'Descargue el reporte de errores, corrija el archivo y vuelva a intentarlo.'
+                ),
+                'stats': stats,
+                'inserted_count': 0,
+                'invalid_count': len(invalid_rows)
+            }), 400
+
         if not valid_rows:
             return jsonify({
-                'success': False, 
+                'success': False,
                 'message': 'No hay filas válidas para procesar.',
-                'stats': stats
+                'stats': stats,
+                'inserted_count': 0,
+                'invalid_count': 0
             }), 400
-            
+
         from app.trainings.services import get_active_status_id, generate_training_code
-        
+
         status_id = get_active_status_id()
+        safe_filename = file.filename
         inserted_count = 0
         created_codes = []
-        
+        used_batch_codes = set()
+
         for row in valid_rows:
             new_code = generate_training_code()
+            while new_code in used_batch_codes:
+                new_code = generate_training_code()
+            used_batch_codes.add(new_code)
+
             new_training = Training(
                 training_code=new_code,
                 name=row['name'],
@@ -1034,7 +1058,7 @@ def bulk_upload_process():
             db.session.add(new_training)
             inserted_count += 1
             created_codes.append(new_code)
-            
+
         db.session.commit()
 
         if inserted_count > 0:
@@ -1044,10 +1068,10 @@ def bulk_upload_process():
                 BinnacleService.create_log_entry(
                     module=AuditModule.TRAININGS.value,
                     action_type=AuditAction.CARGA_MASIVA_TEMAS.value,
-                    description=f"Carga masiva completada: {inserted_count} tema(s) formativo(s) registrado(s) desde '{file.filename}'",
+                    description=f"Carga masiva completada: {inserted_count} tema(s) formativo(s) registrado(s) desde '{safe_filename}'",
                     target_table='sages.trainings',
                     new_values={
-                        'file_name': file.filename,
+                        'file_name': safe_filename,
                         'inserted_count': inserted_count,
                         'invalid_count': len(invalid_rows),
                         'sample_codes': created_codes[:15]
@@ -1091,13 +1115,23 @@ def bulk_upload_process():
             'inserted_count': inserted_count,
             'invalid_count': len(invalid_rows)
         })
-        
+
     except ValueError as ve:
         return jsonify({'success': False, 'message': str(ve)}), 400
+    except IntegrityError as ie:
+        db.session.rollback()
+        current_app.logger.warning(f"[bulk_upload_process] Conflicto de integridad en carga masiva: {ie}")
+        return jsonify({
+            'success': False,
+            'message': 'Conflicto de integridad al guardar el lote (posible tema duplicado en base de datos). Se realizó rollback completo: ningún registro fue guardado.'
+        }), 409
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"[bulk_upload_process] Error guardando carga masiva: {e}")
-        return jsonify({'success': False, 'message': 'Ocurrió un error al guardar los registros en BD.'}), 500
+        return jsonify({
+            'success': False,
+            'message': 'Ocurrió un error al guardar los registros en BD. Se revirtió el lote completo: ningún registro fue guardado.'
+        }), 500
 
 
 @trainings_bp.route('/bulk/download_errors', methods=['POST'])
@@ -1137,10 +1171,12 @@ def bulk_download_errors():
 
         for row in invalid_rows:
             ws.append([
-                row.get('module_input', ''),
-                row.get('name_input', ''),
-                row.get('desc_input', ''),
-                f"[Fila Original: {row.get('row_number', '')}] - {row.get('error', '')}"
+                sanitize_formula_injection(row.get('module_input', '')),
+                sanitize_formula_injection(row.get('name_input', '')),
+                sanitize_formula_injection(row.get('desc_input', '')),
+                sanitize_formula_injection(
+                    f"[Fila Original: {row.get('row_number', '')}] - {row.get('error', '')}"
+                ),
             ])
             
         ws.column_dimensions['A'].width = 25
