@@ -20,7 +20,7 @@ from app.models.city_model import City
 from app.models.state_model import State
 from app.models.position_model import Position
 from app.institutions.forms import InstitutionEditForm, InstitutionEditApplicantForm
-from app.extensions import db
+from app.extensions import db, limiter
 from app.utils.invitation_utils import read_invitation_token
 from app.binnacle.services import BinnacleService
 from app.binnacle.types import AuditModule, AuditAction, AuditStatus
@@ -29,11 +29,14 @@ EMAIL_REGEX = re.compile(r'^[A-Za-z0-9.!#$%&\'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.
 
 
 def _has_valid_email_domain(email):
-    """Comprueba si el dominio del correo tiene registros MX."""
+    """Comprueba si el dominio del correo tiene registros MX con timeout controlado."""
     domain = email.rsplit('@', 1)[1].lower()
     try:
         import dns.resolver
-        answers = dns.resolver.resolve(domain, 'MX')
+        resolver = dns.resolver.Resolver()
+        resolver.lifetime = 3.0
+        resolver.timeout = 2.0
+        answers = resolver.resolve(domain, 'MX')
         return bool(answers)
     except Exception:
         return None
@@ -43,6 +46,7 @@ def _has_valid_email_domain(email):
 @login_required
 @role_required('super_admin', 'state_admin')
 @check_permissions('manage_institution')
+@limiter.limit("60 per minute")
 def list_institutions():
     """Vista para listar todas las instituciones con filtros y paginación."""
     try:
@@ -95,6 +99,7 @@ def list_institutions():
 @login_required
 @role_required('super_admin', 'state_admin')
 @check_permissions('manage_institution')
+@limiter.limit("60 per minute")
 def view_institution(institution_id):
     """Vista para ver detalles de una institución específica."""
     try:
@@ -114,6 +119,7 @@ def view_institution(institution_id):
 @login_required
 @role_required('super_admin', 'state_admin')
 @check_permissions('manage_institution')
+@limiter.limit("10 per minute", methods=["POST"], key_func=lambda: str(current_user.id))
 def toggle_institution_status_route(institution_id):
     """Ruta AJAX para alternar el estatus de una institución entre Activo e Inactivo."""
     try:
@@ -162,6 +168,7 @@ def toggle_institution_status_route(institution_id):
 @login_required
 @role_required('super_admin', 'state_admin', 'applicant')
 @check_permissions('manage_institution', 'view_my_institution')
+@limiter.limit("60 per minute")
 def view_institution_users(institution_id):
     """Vista para ver los usuarios afiliados a una institución específica."""
     try:
@@ -200,6 +207,7 @@ def view_institution_users(institution_id):
 @login_required
 @role_required('applicant', 'state_admin', 'super_admin')
 @check_permissions('manage_institution', 'view_my_institution')
+@limiter.limit("15 per minute", methods=['POST'], key_func=lambda: str(current_user.id))
 def edit_institution(institution_id):
     """Vista para editar los datos de una institución."""
     try:
@@ -362,6 +370,7 @@ def edit_institution(institution_id):
 @login_required
 @role_required('applicant')
 @check_permissions('view_my_institution')
+@limiter.limit("60 per minute")
 def my_institution():
     """Vista para que el usuario (applicant) vea directamente su institución afiliada."""
     try:
@@ -386,6 +395,7 @@ def my_institution():
 
 @institutions_bp.route('/api/parishes-by-state/<int:state_id>', methods=['GET'])
 @login_required
+@limiter.limit("60 per minute")
 def get_parishes_by_state(state_id):
     """API endpoint para obtener parroquias filtradas por estado."""
     try:
@@ -402,6 +412,7 @@ def get_parishes_by_state(state_id):
 
 @institutions_bp.route('/api/states', methods=['GET'])
 @login_required
+@limiter.limit("60 per minute")
 def get_states_api():
     try:
         states = State.query.order_by(State.name).all()
@@ -413,6 +424,7 @@ def get_states_api():
 
 @institutions_bp.route('/api/cities', methods=['GET'])
 @login_required
+@limiter.limit("60 per minute")
 def get_cities_api():
     try:
         parish_id = request.args.get('parish_id', type=int)
@@ -431,6 +443,7 @@ def get_cities_api():
 
 @institutions_bp.route('/api/municipalities/<int:state_id>', methods=['GET'])
 @login_required
+@limiter.limit("60 per minute")
 def get_municipalities_api(state_id):
     try:
         municipalities = Municipality.query.filter_by(state_id=state_id).order_by(Municipality.name).all()
@@ -442,6 +455,7 @@ def get_municipalities_api(state_id):
 
 @institutions_bp.route('/api/parishes/<int:municipality_id>', methods=['GET'])
 @login_required
+@limiter.limit("60 per minute")
 def get_parishes_api(municipality_id):
     try:
         parishes = Parish.query.filter_by(municipality_id=municipality_id).order_by(Parish.name).all()
@@ -456,6 +470,8 @@ def get_parishes_api(municipality_id):
 @role_required('applicant')
 @check_permissions('view_my_institution')
 @institution_active_required
+@limiter.limit("10 per minute", methods=["POST"], key_func=lambda: str(current_user.id))
+@limiter.limit("30 per hour", methods=["POST"], key_func=lambda: str(current_user.id))
 def invite_institution_collaborator(institution_id):
     institution = get_institution_by_id(institution_id)
     if not institution:
@@ -509,6 +525,8 @@ def invite_institution_collaborator(institution_id):
 
 @institutions_bp.route('/api/validate-identification', methods=['GET'])
 @login_required
+@role_required('applicant', 'state_admin', 'super_admin')
+@limiter.limit("20 per minute", key_func=lambda: str(current_user.id))
 def validate_identification():
     """API endpoint para validar si una cédula ya está registrada con un usuario activo."""
     try:
@@ -524,7 +542,7 @@ def validate_identification():
         if existing_person and existing_person.user:
             return jsonify({
                 'exists': True,
-                'message': f'La cédula "{identification_number}" ya está registrada con un usuario en el sistema'
+                'message': 'Esta cédula ya está registrada con un usuario en el sistema'
             })
         else:
             return jsonify({'exists': False, 'message': 'Cédula disponible'})
@@ -536,6 +554,8 @@ def validate_identification():
 
 @institutions_bp.route('/api/validate-email', methods=['GET'])
 @login_required
+@role_required('applicant', 'state_admin', 'super_admin')
+@limiter.limit("20 per minute", key_func=lambda: str(current_user.id))
 def validate_email():
     """API endpoint para validar si un correo electrónico es válido y está disponible."""
     try:
@@ -559,7 +579,7 @@ def validate_email():
             return jsonify({
                 'exists': True,
                 'valid': False,
-                'message': f'El correo "{email}" ya tiene un usuario registrado en el sistema'
+                'message': 'Este correo ya tiene un usuario registrado en el sistema'
             })
 
         domain_exists = _has_valid_email_domain(email)
