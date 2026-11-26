@@ -29,6 +29,15 @@ def send_email(to_email: str, subject: str, html_content: str, text_content: str
     
     if html_content:
         msg.add_alternative(html_content, subtype='html')
+        
+        # Adjuntar logo siempre que esté disponible
+        logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'img', 'logo_corpoelec.png')
+        if os.path.exists(logo_path):
+            try:
+                with open(logo_path, 'rb') as f:
+                    msg.get_payload()[1].add_related(f.read(), 'image', 'png', cid='logo_corpoelec')
+            except Exception as e:
+                logger.warning(f"Error al adjuntar imagen inline: {e}")
                 
     # Procesar archivos adjuntos si existen
     if attachments:
@@ -55,8 +64,10 @@ def send_email(to_email: str, subject: str, html_content: str, text_content: str
 
 
 def get_logo_html() -> str:
-    """Retorna encabezado visual corporativo en HTML limpio sin imágenes adjuntas para evitar filtros de spam."""
-    return '<span style="font-size: 24px; font-weight: 800; color: #1c3d73; letter-spacing: 1.5px; font-family: Arial, sans-serif;">(⚡) CORPOELEC</span>'
+    logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'img', 'logo_corpoelec.png')
+    if os.path.exists(logo_path):
+        return '<img src="cid:logo_corpoelec" alt="CORPOELEC" style="max-width: 220px; height: auto; display: block; border: 0;">'
+    return '<span style="font-size: 24px; font-weight: 800; color: #1c3d73; letter-spacing: 1px;">(⚡) CORPOELEC</span>'
 
 
 def send_recovery_email(to_email: str, code: str) -> bool:
