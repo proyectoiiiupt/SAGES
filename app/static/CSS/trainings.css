@@ -2829,3 +2829,89 @@
     height: 15px;
     flex-shrink: 0;
 }
+
+/* ── CONTROLES DE CAMBIO DE ESTATUS DE TEMAS FORMATIVOS ───────────────── */
+.table-row-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.trainings-table .toggle-status-action-btn {
+    transition: all 0.2s ease;
+}
+
+.trainings-table .toggle-status-action-btn svg {
+    width: 17px;
+    height: 17px;
+}
+
+.trainings-table .toggle-status-action-btn.is-active {
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fde68a;
+}
+
+.trainings-table .toggle-status-action-btn.is-active:hover:not(:disabled) {
+    background: #f59e0b;
+    color: #ffffff;
+    border-color: #f59e0b;
+    box-shadow: 0 4px 8px rgba(245, 158, 11, 0.25);
+    transform: translateY(-1px);
+}
+
+.trainings-table .toggle-status-action-btn.is-inactive {
+    background: #dcfce7;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+}
+
+.trainings-table .toggle-status-action-btn.is-inactive:hover:not(:disabled) {
+    background: #10b981;
+    color: #ffffff;
+    border-color: #10b981;
+    box-shadow: 0 4px 8px rgba(16, 185, 129, 0.25);
+    transform: translateY(-1px);
+}
+
+.trainings-table .toggle-status-action-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-toggle-topic-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 0.9rem;
+    border: none;
+    cursor: pointer;
+    color: #ffffff;
+    transition: background-color 0.2s, opacity 0.2s;
+}
+
+.btn-toggle-topic-status.is-active {
+    background-color: #f59e0b;
+}
+
+.btn-toggle-topic-status.is-active:hover:not(:disabled) {
+    background-color: #d97706;
+}
+
+.btn-toggle-topic-status.is-inactive {
+    background-color: #0284c7;
+}
+
+.btn-toggle-topic-status.is-inactive:hover:not(:disabled) {
+    background-color: #0369a1;
+}
+
+.btn-toggle-topic-status:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}

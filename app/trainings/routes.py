@@ -1178,24 +1178,44 @@ def bulk_download_errors():
 @check_permissions('upload_training')
 def toggle_training_status(training_id: int):
     """
-    Alterna el estatus de un tema formativo entre Activo e Inactivo.
-    Implementación basada en el modelo del módulo de usuarios (US-16).
+    Alterna el estatus de un tema formativo entre Activo (STAT-001) e Inactivo (STAT-002).
+    Valida con bloqueo pesimista la existencia del tema no eliminado y la integridad
+    jerárquica con su Módulo Rector (no permite activar si el módulo padre está inactivo).
     """
     try:
-        # 1. Buscamos el tema formativo validando el borrado lógico (deleted_at IS NULL)
-        training = Training.query.filter_by(id=training_id, deleted_at=None).first_or_404()
-        
+        # 1. Buscamos con bloqueo pesimista validando el borrado lógico (deleted_at IS NULL)
+        training = (
+            Training.query
+            .filter(Training.id == training_id, Training.deleted_at.is_(None))
+            .with_for_update()
+            .first()
+        )
+        if not training:
+            db.session.rollback()
+            return jsonify({
+                'success': False,
+                'message': 'Tema formativo no encontrado o ya fue eliminado previamente.'
+            }), 404
+
         # 2. Obtenemos los estatus usando los códigos estandarizados (STAT-001 Activo, STAT-002 Inactivo)
         active_status = Status.query.filter_by(status_code='STAT-001').first()
         inactive_status = Status.query.filter_by(status_code='STAT-002').first()
-        
+
         if not active_status or not inactive_status:
+            db.session.rollback()
             return jsonify({
-                'success': False, 
+                'success': False,
                 'message': 'Error de configuración: Los estatus no están definidos correctamente.'
             }), 500
 
-        # 3. Alternamos el estatus (Lógica idéntica al toggle_status de usuarios)
+        # Capturar atributos primitivos antes de rollback/commit para evitar lecturas sobre ORM expirado
+        training_id_val = training.id
+        training_name = training.name
+        training_code = training.training_code
+        parent_module = training.training_module
+        mod_name = parent_module.name if parent_module else "General"
+
+        # 3. Alternamos el estatus respetando la integridad jerárquica del Módulo Rector
         training._skip_auto_audit = True
         old_status = training.status_id
         if old_status == active_status.id:
@@ -1205,19 +1225,28 @@ def toggle_training_status(training_id: int):
             is_active_flag = False
             estado_str = "desactivado"
         else:
+            if parent_module and not parent_module.is_active:
+                db.session.rollback()
+                return jsonify({
+                    'success': False,
+                    'message': (
+                        f'No se puede activar el tema formativo "{training_name}" porque su Módulo Rector '
+                        f'"{mod_name}" se encuentra inactivo. Debe reactivar el módulo rector primero.'
+                    )
+                }), 409
+
             training.status_id = active_status.id
             new_status_name = active_status.status_name
             old_code, new_code = 'STAT-002', 'STAT-001'
             is_active_flag = True
             estado_str = "activado"
-            
+
         # 4. Guardamos los cambios
         db.session.commit()
 
         # Notificación Post-Commit: Cambio de Estatus de Tema Formativo
         try:
             admin_name = _get_actor_name(current_user)
-            mod_name = training.training_module.name if training.training_module else "General"
             sev = NotificationType.SUCCESS if is_active_flag else NotificationType.WARNING
             action_lbl = "activado y disponible" if is_active_flag else "inactivado temporalmente"
 
@@ -1225,13 +1254,13 @@ def toggle_training_status(training_id: int):
                 role_name="state_admin",
                 event=NotificationEvent.TRAINING_TOPIC_STATUS_CHANGED,
                 context={
-                    "topic_name": training.name,
+                    "topic_name": training_name,
                     "module_name": mod_name,
                     "action_label": action_lbl,
                     "admin_name": admin_name,
                     "impact_note": "",
                     "_display": [
-                        ("Taller Formativo", training.name),
+                        ("Taller Formativo", training_name),
                         ("Módulo Formativo", mod_name),
                         ("Estado / Acción", action_lbl.capitalize()),
                         ("Actualizado por", admin_name),
@@ -1249,7 +1278,7 @@ def toggle_training_status(training_id: int):
                     Request.query
                     .join(Status, Request.status_id == Status.id)
                     .filter(
-                        Request.training_id == training.id,
+                        Request.training_id == training_id_val,
                         Request.historical == False,
                         Status.status_code.in_(['STAT-003', 'STAT-004', 'STAT-005', 'STAT-006'])
                     )
@@ -1267,13 +1296,13 @@ def toggle_training_status(training_id: int):
                             institution_id=inst_id,
                             event=NotificationEvent.TRAINING_TOPIC_STATUS_CHANGED,
                             context={
-                                "topic_name": training.name,
+                                "topic_name": training_name,
                                 "module_name": mod_name,
                                 "action_label": "suspendido temporalmente del catálogo",
                                 "admin_name": admin_name,
                                 "impact_note": f" Esto puede requerir reprogramación o ajuste en su solicitud activa ({r.request_code}).",
                                 "_display": [
-                                    ("Taller Formativo", training.name),
+                                    ("Taller Formativo", training_name),
                                     ("Módulo Formativo", mod_name),
                                     ("Estado / Acción", "Suspendido temporalmente del catálogo"),
                                     ("Solicitud Afectada", r.request_code),
@@ -1286,7 +1315,7 @@ def toggle_training_status(training_id: int):
                         )
         except Exception as notif_err:
             current_app.logger.warning(f"No se pudo emitir notificación TRAINING_TOPIC_STATUS_CHANGED: {notif_err}")
-        
+
         # 5. Auditoría Institucional en sages.binnacle
         try:
             from app.binnacle.services import BinnacleService
@@ -1294,23 +1323,23 @@ def toggle_training_status(training_id: int):
             BinnacleService.create_log_entry(
                 module=AuditModule.TRAININGS.value,
                 action_type=AuditAction.CAMBIO_ESTATUS_TEMA_FORMATIVO.value,
-                description=f"El tema formativo '{training.name}' ({training.training_code}) ha sido {estado_str} exitosamente.",
+                description=f"El tema formativo '{training_name}' ({training_code}) ha sido {estado_str} exitosamente.",
                 target_table='sages.trainings',
-                record_id=training.id,
+                record_id=training_id_val,
                 old_values={'status_code': old_code},
                 new_values={'status_code': new_code},
                 status=AuditStatus.MODIFICADO.value
             )
         except Exception as audit_err:
             current_app.logger.warning(f"[trainings.toggle_training_status] Error en bitácora: {audit_err}")
-        
-        # Como indicaste que el frontend lo actualizará dinámicamente, devolvemos JSON
+
         return jsonify({
             'success': True,
             'message': f'Tema formativo {estado_str} exitosamente.',
             'new_status_name': new_status_name,
+            'new_status_code': new_code,
             'is_active': is_active_flag,
-            'training_id': training.id
+            'training_id': training_id_val
         }), 200
 
     except Exception as e:
