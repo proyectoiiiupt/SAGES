@@ -342,7 +342,7 @@ def send_applicant_activation_email(to_email: str, token: str, full_name: str = 
     return True
 
 
-def send_applicant_rejection_email(to_email: str, full_name: str = "", institution_name: str = "") -> bool:
+def send_applicant_rejection_email(to_email: str, full_name: str = "", institution_name: str = "", reason: str = "") -> bool:
     """Envía notificación institucional por correo al solicitante cuando su registro ha sido rechazado."""
     import html
     subject = "Estado de su Solicitud de Registro — SAGES CORPOELEC"
@@ -350,6 +350,7 @@ def send_applicant_rejection_email(to_email: str, full_name: str = "", instituti
     clean_to_email = to_email.strip().lower() if to_email else ""
     safe_name = html.escape(full_name).strip() if full_name else ""
     safe_institution = html.escape(institution_name).strip() if institution_name else ""
+    safe_reason = html.escape(reason).strip() if reason else ""
 
     # Saludo y destinatario personalizado
     if safe_name:
@@ -362,12 +363,21 @@ def send_applicant_rejection_email(to_email: str, full_name: str = "", instituti
     inst_text = f" para la institución educativa {safe_institution}" if safe_institution else " para la institución educativa"
     inst_html = f" para la institución educativa <strong>{safe_institution}</strong>" if safe_institution else " para la institución educativa"
 
+    reason_text_block = f"\n\nMotivo del rechazo:\n{reason}\n" if reason else ""
+    reason_html_block = f"""
+                    <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; border-radius: 6px; padding: 16px 20px; margin: 20px 0; text-align: left;">
+                        <span style="font-size: 13px; font-weight: 700; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px;">Motivo del Rechazo:</span>
+                        <p style="font-size: 14px; color: #b91c1c; margin: 0; line-height: 1.5; white-space: pre-wrap;">{safe_reason}</p>
+                    </div>
+    """ if safe_reason else ""
+
     text_content = (
         f"{greeting_text}\n\n"
         f"Le informamos que, tras la revisión correspondiente por parte de la Coordinación de UREE / CORPOELEC, "
-        f"su solicitud de registro y vinculación{inst_text} no ha sido aprobada.\n\n"
+        f"su solicitud de registro y vinculación{inst_text} no ha sido aprobada."
+        f"{reason_text_block}\n"
         f"Si considera que se trata de un error o requiere mayor información sobre los recaudos solicitados, "
-        f"puede comunicarse con la coordinación o realizar un nuevo proceso de registro a través de la plataforma.\n\n"
+        f"puede comunicarse con la coordinación o realizar un nuevo proceso de registro a través de la plataforma subsanando las observaciones indicadas.\n\n"
         f"Atentamente,\n"
         f"Coordinación de Uso Racional y Eficiente de la Energía (UREE)\n"
         f"CORPOELEC — SAGES\n"
@@ -392,8 +402,9 @@ def send_applicant_rejection_email(to_email: str, full_name: str = "", instituti
                     <p style="font-size: 15px; color: #4b5563; margin: 0 0 15px 0; line-height: 1.6; text-align: left;">
                         {greeting_html} le informamos que, tras la revisión correspondiente por parte de la Coordinación de UREE / CORPOELEC, su solicitud de registro y vinculación{inst_html} <strong>no ha sido aprobada</strong>.
                     </p>
+                    {reason_html_block}
                     <p style="font-size: 15px; color: #4b5563; margin: 0 0 25px 0; line-height: 1.6; text-align: left;">
-                        Si considera que se trata de un error o requiere mayor información sobre los recaudos solicitados, puede comunicarse con la coordinación o iniciar un nuevo proceso de registro a través de la plataforma.
+                        Si considera que se trata de un error o requiere mayor información sobre los recaudos solicitados, puede comunicarse con la coordinación o iniciar un nuevo proceso de registro a través de la plataforma subsanando las observaciones indicadas.
                     </p>
                 </td>
             </tr>

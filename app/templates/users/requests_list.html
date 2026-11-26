@@ -279,36 +279,87 @@
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         
         Swal.fire({
-            title: '¿Rechazar solicitud?',
-            text: 'El registro será denegado. Esta acción no se puede deshacer.',
+            title: 'Rechazar Solicitud de Registro',
+            text: 'Indique detalladamente el motivo del rechazo. Esta explicación será enviada por correo electrónico al solicitante para que pueda subsanarla.',
+            input: 'textarea',
+            inputLabel: 'Motivo del Rechazo (Mínimo 20 caracteres)',
+            inputPlaceholder: 'Ej: La constancia de designación está ilegible / El código de plantel no coincide con el registro...',
+            inputAttributes: {
+                'aria-label': 'Motivo del rechazo',
+                'maxlength': '500',
+                'rows': '4'
+            },
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#ef4444',
             cancelButtonColor: '#64748b',
-            confirmButtonText: 'Sí, rechazar',
-            cancelButtonText: 'Cancelar'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                fetch(`/users/requests/${requestId}/reject`, {
+            confirmButtonText: 'Confirmar Rechazo',
+            cancelButtonText: 'Cancelar',
+            showLoaderOnConfirm: true,
+            didOpen: () => {
+                const textarea = Swal.getInput();
+                if (textarea) {
+                    const counter = document.createElement('div');
+                    counter.id = 'swal-char-counter';
+                    counter.style.cssText = 'text-align: right; font-size: 12px; color: #64748b; margin-top: 6px; width: 100%;';
+                    counter.innerHTML = '<span id="char-current" style="color: #ef4444; font-weight: 600;">0</span> / 500 <span style="font-size: 11px; color: #94a3b8;">(mínimo 20 caracteres)</span>';
+                    textarea.parentNode.insertBefore(counter, textarea.nextSibling);
+
+                    textarea.addEventListener('input', function() {
+                        const len = this.value.trim().length;
+                        const charSpan = document.getElementById('char-current');
+                        if (charSpan) {
+                            charSpan.textContent = len;
+                            charSpan.style.color = len >= 20 ? '#10b981' : '#ef4444';
+                        }
+                    });
+                }
+            },
+            inputValidator: (value) => {
+                const trimmed = (value || '').trim();
+                if (!trimmed) {
+                    return 'Debe ingresar el motivo del rechazo.';
+                }
+                if (trimmed.length < 20) {
+                    return `El motivo debe contener al menos 20 caracteres explicativos (actualmente tiene ${trimmed.length}).`;
+                }
+                if (trimmed.length > 500) {
+                    return 'El motivo no puede exceder los 500 caracteres.';
+                }
+            },
+            preConfirm: (reason) => {
+                return fetch(`/users/requests/${requestId}/reject`, {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
                         'X-CSRFToken': csrfToken 
-                    }
+                    },
+                    body: JSON.stringify({ reason: reason.trim() })
                 })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        // Limpiar el registro al rechazar exitosamente
-                        localStorage.removeItem(`evidencia_vista_${requestId}`);
-                        Swal.fire('¡Rechazado!', 'La solicitud ha sido rechazada exitosamente.', 'success').then(() => {
-                            location.reload();
+                .then(res => {
+                    if (!res.ok) {
+                        return res.json().then(data => {
+                            throw new Error(data.message || 'Error al procesar el rechazo.');
                         });
-                    } else {
-                        Swal.fire('Error', data.message || 'Hubo un problema al rechazar la solicitud.', 'error');
                     }
+                    return res.json();
                 })
-                .catch(() => Swal.fire('Error', 'No se pudo procesar la solicitud.', 'error'));
+                .catch(error => {
+                    Swal.showValidationMessage(error.message || 'No se pudo conectar con el servidor.');
+                });
+            },
+            allowOutsideClick: () => !Swal.isLoading()
+        }).then((result) => {
+            if (result.isConfirmed && result.value && result.value.status === 'success') {
+                localStorage.removeItem(`evidencia_vista_${requestId}`);
+                Swal.fire({
+                    title: '¡Solicitud Rechazada!',
+                    text: result.value.message || 'La solicitud ha sido rechazada y se notificó al postulante.',
+                    icon: 'success',
+                    confirmButtonColor: '#0ea5e9'
+                }).then(() => {
+                    location.reload();
+                });
             }
         });
     }

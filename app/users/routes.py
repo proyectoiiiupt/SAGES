@@ -1136,10 +1136,23 @@ def reject_request(staff_id):
     """
     Rechaza una solicitud de registro pendiente (STAT-004), cambiando el estatus a STAT-008 (Rechazado).
     Aplica control de jerarquía y escudo territorial para Administrador Estadal.
+    Exige la consignación obligatoria del motivo de rechazo (US-10).
     """
     user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
     if user_role not in ['state_admin', 'super_admin']:
         return jsonify({'status': 'error', 'message': 'No tiene permisos para realizar esta acción.'}), 403
+
+    payload = request.get_json(silent=True) or {}
+    reason = (payload.get('reason') or payload.get('motivo') or '').strip()
+
+    if not reason:
+        return jsonify({'status': 'error', 'message': 'Debe ingresar el motivo del rechazo de la solicitud.'}), 400
+
+    if len(reason) < 20:
+        return jsonify({'status': 'error', 'message': 'El motivo del rechazo debe contener al menos 20 caracteres explicativos.'}), 400
+
+    if len(reason) > 500:
+        return jsonify({'status': 'error', 'message': 'El motivo del rechazo no puede exceder los 500 caracteres.'}), 400
 
     staff = InstitutionalStaff.query.get_or_404(staff_id)
 
@@ -1198,19 +1211,21 @@ def reject_request(staff_id):
         BinnacleService.create_log_entry(
             module=AuditModule.USERS.value,
             action_type=AuditAction.RECHAZO_SOLICITUD_REGISTRO.value,
-            description=f'Solicitud rechazada exitosamente para {full_name}',
+            description=f'Solicitud rechazada para {full_name}. Motivo: {reason}',
             target_table='sages.institutional_staff',
             record_id=staff.id,
-            status=AuditStatus.RECHAZADO.value
+            status=AuditStatus.RECHAZADO.value,
+            new_values={'rejection_reason': reason, 'status_id': status_rejected_id}
         )
 
-        # Despacho asíncrono de correo al postulante notificando el rechazo
+        # Despacho asíncrono de correo al postulante notificando el rechazo con su motivo
         try:
             if person.email:
                 send_applicant_rejection_email(
                     to_email=person.email,
                     full_name=full_name,
-                    institution_name=inst_name
+                    institution_name=inst_name,
+                    reason=reason
                 )
         except Exception as e:
             current_app.logger.error("[ERROR ENVIANDO CORREO RECHAZO]", exc_info=True)
