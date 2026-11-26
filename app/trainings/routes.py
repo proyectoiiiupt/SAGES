@@ -739,8 +739,16 @@ def edit_training(id: int):
     form = TrainingEditForm(obj=training, training_id=training.id)
 
     # Cargar las opciones del selector de Módulos Rectores activos
+    # e incluir el módulo actual si se encuentra inactivo para no dejar vacío el selector al editar
     modules = TrainingModule.query.filter_by(is_active=True).order_by(TrainingModule.order_index).all()
-    form.training_module_id.choices = [(m.id, f"{m.module_code} - {m.name}") for m in modules]
+    choices = [(m.id, f"{m.module_code} - {m.name}") for m in modules]
+    if training.training_module and not training.training_module.is_active:
+        if all(m_id != training.training_module.id for m_id, _ in choices):
+            choices.append((
+                training.training_module.id,
+                f"{training.training_module.module_code} - {training.training_module.name} (Inactivo)"
+            ))
+    form.training_module_id.choices = choices
 
     # Verificar si el tema formativo tiene solicitudes asociadas (históricas o activas) y ejecuciones activas en curso (US-32 Regla 3)
     has_requests = (

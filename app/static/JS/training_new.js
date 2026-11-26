@@ -46,26 +46,55 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 1.5 Carga dinámica de módulos (AJAX)
     if (moduleInput) {
+        const preselected = moduleInput.getAttribute('data-selected') || new URLSearchParams(window.location.search).get('module_id');
+        let preservedOption = null;
+        if (preselected) {
+            const existingOpt = Array.from(moduleInput.options).find(opt => String(opt.value) === String(preselected));
+            if (existingOpt) {
+                preservedOption = {
+                    value: existingOpt.value,
+                    text: existingOpt.textContent
+                };
+            }
+        }
+
         fetch('/training/api/active-modules')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.json();
+            })
             .then(data => {
+                if (!Array.isArray(data)) return;
                 moduleInput.innerHTML = '<option value="">Seleccione un módulo</option>';
+                let hasPreselected = false;
                 data.forEach(m => {
                     const option = document.createElement('option');
                     option.value = m.id;
                     option.textContent = m.name;
+                    if (preselected && String(m.id) === String(preselected)) {
+                        hasPreselected = true;
+                    }
                     moduleInput.appendChild(option);
                 });
 
+                // Conservar el módulo actual en edición cuando pertenece a un Módulo Rector inactivo
+                if (preservedOption && !hasPreselected) {
+                    const fallbackOption = document.createElement('option');
+                    fallbackOption.value = preservedOption.value;
+                    fallbackOption.textContent = preservedOption.text;
+                    moduleInput.appendChild(fallbackOption);
+                }
+
                 // Seleccionar el valor por defecto si existe (por GET ?module_id= o por POST re-render)
-                const preselected = moduleInput.getAttribute('data-selected') || new URLSearchParams(window.location.search).get('module_id');
                 if (preselected) {
                     moduleInput.value = preselected;
                 }
             })
             .catch(err => {
                 console.error('Error fetching modules:', err);
-                moduleInput.innerHTML = '<option value="">Error cargando módulos</option>';
+                if (!moduleInput.options.length) {
+                    moduleInput.innerHTML = '<option value="">Error cargando módulos</option>';
+                }
             });
     }
 

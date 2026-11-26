@@ -85,6 +85,11 @@
 
         if (clearBtn) {
             clearBtn.addEventListener('click', function () {
+                const params = new URLSearchParams(window.location.search);
+                if (params.has('search')) {
+                    window.location.href = window.location.pathname;
+                    return;
+                }
                 searchInput.value = '';
                 applyFilter();
                 searchInput.focus();

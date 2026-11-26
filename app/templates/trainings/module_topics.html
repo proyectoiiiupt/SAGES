@@ -76,6 +76,7 @@
                 <div class="filter-group search-group" style="flex: 1;">
                     <input type="text"
                            id="search-input"
+                           value="{{ search_query or '' }}"
                            placeholder="Buscar tema por nombre..."
                            autocomplete="off"
                            aria-label="Buscar tema formativo">
@@ -89,7 +90,7 @@
                     <span class="status-dot" aria-hidden="true"></span>
                     <span id="topic-count-badge">{{ total_topics }} Tema{% if total_topics != 1 %}s{% endif %} Formativo{% if total_topics != 1 %}s{% endif %}</span>
                 </span>
-                <div class="filter-actions" id="search-clear-wrapper" style="display: none;">
+                <div class="filter-actions" id="search-clear-wrapper" style="display: {{ 'block' if search_query else 'none' }};">
                     <button type="button" class="btn-clear" id="btn-clear-search">Limpiar</button>
                 </div>
             </div>
@@ -235,5 +236,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='JS/trainings_module_topics.js') }}"></script>
+<script src="{{ url_for('static', filename='JS/trainings_module_topics.js') }}?v=2"></script>
 {% endblock %}

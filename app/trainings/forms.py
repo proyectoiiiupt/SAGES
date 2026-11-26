@@ -106,6 +106,7 @@ class TrainingForm(FlaskForm):
 
     name = StringField(
         'Título del Tema Formativo',
+        filters=[lambda x: x.strip() if x else x],
         validators=[
             DataRequired(message='El título del tema formativo es obligatorio.'),
             Length(min=5, max=200, message='El título debe tener entre 5 y 200 caracteres.')
@@ -114,6 +115,7 @@ class TrainingForm(FlaskForm):
 
     description = TextAreaField(
         'Descripción Programática',
+        filters=[lambda x: x.strip() if x else x],
         validators=[
             DataRequired(message='La descripción programática es obligatoria.'),
             Length(min=15, max=1000, message='La descripción debe tener entre 15 y 1000 caracteres.')
