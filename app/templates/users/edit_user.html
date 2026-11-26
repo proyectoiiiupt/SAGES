@@ -271,7 +271,7 @@
 
                     Swal.fire({
                         title: titleText,
-                        text: '{{ message }}',
+                        text: {{ message | tojson }},
                         icon: iconType,
                         confirmButtonColor: '#019577',
                         confirmButtonText: 'Aceptar'

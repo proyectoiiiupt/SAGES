@@ -139,7 +139,10 @@
                 </div>
             </div>
             <button type="button" class="btn-resend-activation"
-                    onclick="reenviarEnlaceDetalle('{{ user.id }}', '{{ user.person.email if user.person else '' }}', '{{ user.person.first_name if user.person else '' }} {{ user.person.last_name if user.person else '' }}')">
+                    data-user-id="{{ user.id }}"
+                    data-email="{{ user.person.email if user.person else '' }}"
+                    data-name="{{ (user.person.first_name ~ ' ' ~ user.person.last_name) if user.person else '' }}"
+                    onclick="reenviarEnlaceDetalle(this)">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="23 4 23 10 17 10"></polyline>
                     <polyline points="1 20 1 14 7 14"></polyline>
@@ -293,7 +296,10 @@
                 </div>
             </div>
             <button type="button" class="btn-resend-activation"
-                    onclick="reenviarEnlaceDetalle('{{ user.id }}', '{{ user.person.email if user.person else '' }}', '{{ user.person.first_name if user.person else '' }} {{ user.person.last_name if user.person else '' }}')">
+                    data-user-id="{{ user.id }}"
+                    data-email="{{ user.person.email if user.person else '' }}"
+                    data-name="{{ (user.person.first_name ~ ' ' ~ user.person.last_name) if user.person else '' }}"
+                    onclick="reenviarEnlaceDetalle(this)">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="23 4 23 10 17 10"></polyline>
                     <polyline points="1 20 1 14 7 14"></polyline>
@@ -401,7 +407,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 Swal.fire({
                     title: titleText,
-                    text: '{{ message }}',
+                    text: {{ message | tojson }},
                     icon: iconType,
                     confirmButtonColor: '#007865',
                     confirmButtonText: 'Aceptar'
@@ -477,15 +483,29 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-function reenviarEnlaceDetalle(userId, email, fullName) {
+function reenviarEnlaceDetalle(btnOrUserId, email, fullName) {
     if (typeof Swal === 'undefined') {
         alert('Cargando componentes, por favor espere un momento...');
         return;
     }
 
+    let targetUserId = btnOrUserId;
+    let targetEmail = email || '';
+    let targetFullName = fullName || '';
+
+    if (typeof btnOrUserId === 'object' && btnOrUserId !== null) {
+        targetUserId = btnOrUserId.dataset.userId || '';
+        targetEmail = btnOrUserId.dataset.email || '';
+        targetFullName = btnOrUserId.dataset.name || '';
+    }
+
+    const escapeHtml = (str) => String(str || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const safeEmail = escapeHtml(targetEmail) || 'registrado';
+    const safeFullName = escapeHtml(targetFullName.trim());
+
     Swal.fire({
         title: '¿Reenviar enlace de activación?',
-        html: `Se regenerará un nuevo enlace válido por 48 horas y se enviará al correo:<br><strong>${email || 'registrado'}</strong> (${fullName.trim()})`,
+        html: `Se regenerará un nuevo enlace válido por 48 horas y se enviará al correo:<br><strong>${safeEmail}</strong> (${safeFullName})`,
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#007865',
@@ -497,7 +517,7 @@ function reenviarEnlaceDetalle(userId, email, fullName) {
             const csrfMeta = document.querySelector('meta[name="csrf-token"]');
             const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
 
-            return fetch(`/users/${userId}/resend-activation`, {
+            return fetch(`/users/${targetUserId}/resend-activation`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

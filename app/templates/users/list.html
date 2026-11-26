@@ -285,14 +285,14 @@
                         {% if category == 'success' %}
                             Swal.fire({
                                 title: '¡Éxito!',
-                                text: "{{ message }}",
+                                text: {{ message | tojson }},
                                 icon: 'success',
                                 confirmButtonColor: '#10b981'
                             });
                         {% elif category == 'danger' or category == 'error' %}
                             Swal.fire({
                                 title: 'Error',
-                                text: "{{ message }}",
+                                text: {{ message | tojson }},
                                 icon: 'error',
                                 confirmButtonColor: '#ef4444'
                             });
