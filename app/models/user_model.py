@@ -31,6 +31,12 @@ class User(db.Model, UserMixin, AuditableMixin):
         return f'<User {self.user_code}: {self.user_name}>'
 
     @property
+    def is_active(self) -> bool:
+        if self.status:
+            return self.status.status_code == 'STAT-001'
+        return self.status_id == 1
+
+    @property
     def permissions(self) -> set:
         perms = set()
         for role_assoc in self.roles_assoc:

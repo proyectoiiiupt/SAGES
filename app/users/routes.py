@@ -639,6 +639,17 @@ def toggle_status(user_id):
     is_currently_active = (user.status and user.status.status_code == STATUS_ACTIVE_CODE) or (user.status_id == active_id)
 
     if is_currently_active:
+        # Regla de negocio: Un super_admin no puede desactivar su propia cuenta
+        if user.id == current_user.id:
+            flash('No puede desactivar su propia cuenta de usuario.', 'warning')
+            return redirect(url_for('users.view_user', user_id=user.id))
+
+        # Regla de negocio: No se puede desactivar a otro Super Administrador
+        target_role = user.roles_assoc[0].role.name if user.roles_assoc else None
+        if target_role == 'super_admin':
+            flash('No está permitido desactivar una cuenta con rol de Super Administrador.', 'warning')
+            return redirect(url_for('users.view_user', user_id=user.id))
+
         if status_inactive:
             user.status = status_inactive
         else:
@@ -667,17 +678,24 @@ def toggle_status(user_id):
         
         flash(f'El perfil del usuario ha sido {estado_str} exitosamente.', 'success')
         
-        # Despacho asíncrono de correo si la cuenta fue desactivada (STAT-002)
-        if not new_is_active and user.person and user.person.email:
+        # Expulsión inmediata de sesión y despacho de correo si la cuenta fue desactivada (STAT-002)
+        if not new_is_active:
             try:
-                full_name = f"{user.person.first_name} {user.person.last_name}".strip()
-                send_user_deactivation_email(
-                    to_email=user.person.email,
-                    full_name=full_name,
-                    username=user.user_name
-                )
+                from app.auth.session_store import clear_active_session
+                clear_active_session(user.id)
             except Exception as e:
-                current_app.logger.error("[ERROR ENVIANDO CORREO DESACTIVACION]", exc_info=True)
+                current_app.logger.error("[ERROR CERRANDO SESION ACTIVA]", exc_info=True)
+
+            if user.person and user.person.email:
+                try:
+                    full_name = f"{user.person.first_name} {user.person.last_name}".strip()
+                    send_user_deactivation_email(
+                        to_email=user.person.email,
+                        full_name=full_name,
+                        username=user.user_name
+                    )
+                except Exception as e:
+                    current_app.logger.error("[ERROR ENVIANDO CORREO DESACTIVACION]", exc_info=True)
         
     except Exception as e:
         db.session.rollback()

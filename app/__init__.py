@@ -361,6 +361,16 @@ def create_app(config_class=Config) -> Flask:
         if request.endpoint == 'auth.logout':
             return
 
+        # Si el usuario activo fue desactivado por un administrador, invalidar sesión inmediatamente
+        if hasattr(current_user, 'status') and current_user.status and current_user.status.status_code != 'STAT-001':
+            from flask_login import logout_user
+            from app.auth.session_store import clear_active_session
+            clear_active_session(current_user.id)
+            logout_user()
+            session.clear()
+            flash('Su cuenta ha sido desactivada por un administrador. Comuníquese con la Gerencia.', 'error')
+            return redirect(url_for('auth.login'))
+
         from app.auth.session_store import get_active_session, set_active_session
         active_token = get_active_session(current_user.id)
         # Recuperar token desde session de Flask o desde la cookie persistente de Recordarme

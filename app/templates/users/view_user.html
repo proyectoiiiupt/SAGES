@@ -157,7 +157,7 @@
                 </form>
                 
                 <label class="switch" style="position: relative; display: inline-block; width: 46px; height: 24px; margin-bottom: 0; flex-shrink: 0;">
-                    <input type="checkbox" id="status-switch" {% if (user.status and user.status.status_code == 'STAT-001') or user.status_id == 1 %}checked{% endif %} data-status="{{ user.status.status_code if user.status else ('STAT-001' if user.status_id == 1 else 'STAT-002') }}">
+                    <input type="checkbox" id="status-switch" {% if (user.status and user.status.status_code == 'STAT-001') or user.status_id == 1 %}checked{% endif %} data-status="{{ user.status.status_code if user.status else ('STAT-001' if user.status_id == 1 else 'STAT-002') }}" data-is-self="{{ 'true' if user.id == current_user.id else 'false' }}" data-is-super-admin="{{ 'true' if viewed_role == 'super_admin' else 'false' }}">
                     <span class="slider"></span>
                 </label>
 
@@ -306,7 +306,7 @@
         <div class="user-action-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-top: 1px solid #e2e8f0; background-color: #fafafa; min-height: 64px; box-sizing: border-box;">
             <div class="switch-container" style="display: inline-flex; align-items: center; gap: 12px; margin: 0;">
                 <label class="switch" style="position: relative; display: inline-block; width: 46px; height: 24px; margin-bottom: 0; flex-shrink: 0;">
-                    <input type="checkbox" id="status-switch-corp" {% if (user.status and user.status.status_code == 'STAT-001') or user.status_id == 1 %}checked{% endif %} data-status="{{ user.status.status_code if user.status else ('STAT-001' if user.status_id == 1 else 'STAT-002') }}">
+                    <input type="checkbox" id="status-switch-corp" {% if (user.status and user.status.status_code == 'STAT-001') or user.status_id == 1 %}checked{% endif %} data-status="{{ user.status.status_code if user.status else ('STAT-001' if user.status_id == 1 else 'STAT-002') }}" data-is-self="{{ 'true' if user.id == current_user.id else 'false' }}" data-is-super-admin="{{ 'true' if viewed_role == 'super_admin' else 'false' }}">
                     <span class="slider"></span>
                 </label>
                 <span class="status-label {{ 'text-active' if ((user.status and user.status.status_code == 'STAT-001') or user.status_id == 1) else 'text-inactive' }}">
@@ -423,6 +423,33 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 const currentStatus = this.getAttribute('data-status');
                 const isActivating = currentStatus !== 'STAT-001' && currentStatus != 1; // STAT-001 = Activo
+                const isSelf = this.getAttribute('data-is-self') === 'true';
+                const isSuperAdmin = this.getAttribute('data-is-super-admin') === 'true';
+
+                // Si se intenta desactivar a sí mismo o a un Super Administrador, avisar inmediatamente
+                if (!isActivating) {
+                    if (isSelf) {
+                        Swal.fire({
+                            title: 'Acción No Permitida',
+                            text: 'No puedes desactivar tu propia cuenta de usuario.',
+                            icon: 'warning',
+                            confirmButtonColor: '#007865',
+                            confirmButtonText: 'Entendido'
+                        });
+                        return;
+                    }
+
+                    if (isSuperAdmin) {
+                        Swal.fire({
+                            title: 'Acción No Permitida',
+                            text: 'No está permitido desactivar una cuenta con rol de Super Administrador.',
+                            icon: 'warning',
+                            confirmButtonColor: '#007865',
+                            confirmButtonText: 'Entendido'
+                        });
+                        return;
+                    }
+                }
 
                 const actionText = isActivating ? 'activar' : 'desactivar';
                 const warningText = isActivating 
