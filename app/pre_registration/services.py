@@ -442,8 +442,6 @@ def _create_person_and_staff(person_data: dict, institution_id: int, pending_sta
         staff.position_id    = person_data['position_id']
         staff.status_id      = pending_status_id
         staff.updated_at     = datetime.now(timezone.utc)
-        if staff.user and (getattr(staff.user.status, 'status_code', None) == 'STAT-008' or getattr(staff.user, 'status_id', None) == 8):
-            staff.user.status_id = pending_status_id
     else:
         staff = InstitutionalStaff(
             person_id      = person.id,
@@ -452,6 +450,11 @@ def _create_person_and_staff(person_data: dict, institution_id: int, pending_sta
             status_id      = pending_status_id,
         )
         db.session.add(staff)
+
+    user = getattr(person, 'user', None)
+    if user and (getattr(user.status, 'status_code', None) == 'STAT-008' or getattr(user, 'status_id', None) == 8):
+        user.status_id = pending_status_id
+
     db.session.flush()  # Obtiene el PK staff.id generado
 
     return staff
