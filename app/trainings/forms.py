@@ -19,7 +19,7 @@ class TrainingModuleForm(FlaskForm):
     Regla de negocio:
       - 'module_code' es un identificador técnico de base de datos autogenerado en backend (MOD-XXX),
         invisible para usuarios finales y no asignable manualmente. Se define como solo lectura.
-      - 'name', 'description' y 'order_index' son los campos capturados para el usuario.
+      - 'name' y 'description' son los campos capturados para el usuario.
     """
     module_code = StringField(
         'Código del Módulo',

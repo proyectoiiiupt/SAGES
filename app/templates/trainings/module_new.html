@@ -129,7 +129,7 @@
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // 0. Formateo de fecha dinámica en el banner
     const dateSpan = document.getElementById('current-date');
     if (dateSpan) {
@@ -141,34 +141,28 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 1. Mensajes Flash de Flask con SweetAlert2
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                let iconType = {{ category | tojson }};
-                let titleText = 'Notificación';
-
-                if (iconType === 'success') {
-                    titleText = '¡Éxito!';
-                } else if (iconType === 'error' || iconType === 'danger') {
-                    iconType = 'error';
-                    titleText = '¡Atención!';
-                } else if (iconType === 'warning') {
-                    titleText = 'Advertencia';
-                } else {
-                    iconType = 'info';
+    // 0.5. Confirmación al presionar el botón "Volver al catálogo"
+    const backBtn = document.getElementById('btn-back-to-catalog');
+    if (backBtn) {
+        backBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const url = this.getAttribute('href');
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: 'Si vuelves, se perderán todos los datos ingresados en el formulario.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Sí, volver y descartar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = url;
                 }
-
-                Swal.fire({
-                    title: titleText,
-                    text: {{ message | tojson }},
-                    icon: iconType,
-                    confirmButtonColor: '#007865',
-                    confirmButtonText: 'Aceptar'
-                });
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
+            });
+        });
+    }
 
     // 2. Validación y confirmación interactiva al hacer clic en Guardar
     const form = document.getElementById('form-new-module');
@@ -274,6 +268,41 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
+
+    // 3. Mensajes Flash de Flask con SweetAlert2 (ejecutado tras registrar todos los listeners)
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            if (typeof Swal !== 'undefined') {
+                const flashMessages = {{ messages | tojson }};
+                for (const [category, message] of flashMessages) {
+                    let iconType = category;
+                    let titleText = 'Notificación';
+
+                    if (iconType === 'success') {
+                        titleText = '¡Éxito!';
+                    } else if (iconType === 'error' || iconType === 'danger') {
+                        iconType = 'error';
+                        titleText = '¡Atención!';
+                    } else if (iconType === 'warning') {
+                        titleText = 'Advertencia';
+                    } else {
+                        iconType = 'info';
+                    }
+
+                    await Swal.fire({
+                        title: titleText,
+                        text: message,
+                        icon: iconType,
+                        confirmButtonColor: '#007865',
+                        confirmButtonText: 'Aceptar'
+                    });
+                }
+                if (nameInput && nameInput.classList.contains('is-invalid')) {
+                    nameInput.focus();
+                }
+            }
+        {% endif %}
+    {% endwith %}
 });
 </script>
 {% endblock %}

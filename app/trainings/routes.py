@@ -235,6 +235,9 @@ def edit_module(module_id: int):
             return redirect(url_for('trainings.index'))
         else:
             flash(message, 'danger')
+    elif request.method == 'POST':
+        first_error = next((errs[0] for errs in form.errors.values() if errs), None)
+        flash(first_error or "Por favor, verifica los campos obligatorios del formulario.", "warning")
 
     return render_template(
         'trainings/edit_module.html',
