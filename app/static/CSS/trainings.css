@@ -2523,12 +2523,12 @@
 .contenedor-vista {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 24px;
+    padding: 4px 0 16px;
     font-family: system-ui, -apple-system, sans-serif;
     color: #333;
     background-color: var(--hub-page-bg, #f4f7f6);
-    /* Contraste fundamental */
-    min-height: 100vh;
+    /* Ajuste natural al contenido evitando scroll innecesario */
+    min-height: auto;
 }
 
 /* Base para todas las Tarjetas con sombras de diseño */
@@ -2624,14 +2624,16 @@
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08) !important;
 }
 
-/* Estilo para la tarjeta de fecha (más compacta) */
+/* Estilo para la tarjeta de fecha (más compacta, en una sola línea) */
 .tarjeta-registro {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 12px;
+    flex-wrap: nowrap;
     background: #f8fafc;
     border: 1px solid #e2e8f0;
-    padding: 16px 24px;
+    padding: 14px 18px;
     border-radius: 12px;
     transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
@@ -2649,14 +2651,28 @@
     letter-spacing: 0.8px;
 }
 
+.tarjeta-registro .etiqueta-superior {
+    white-space: nowrap;
+    flex-shrink: 0;
+    letter-spacing: 0.5px;
+}
+
+.fecha-valor {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #334155;
+    white-space: nowrap;
+    text-align: right;
+}
+
 .acciones-superiores {
     margin-bottom: 24px;
 }
 
 .layout-dos-columnas {
     display: grid;
-    /* Divide el espacio: 2 fracciones para la izquierda, 1 fracción para la derecha */
-    grid-template-columns: 2fr 1fr;
+    /* Divide el espacio garantizando mínimo 320px en lateral para fechas en una línea */
+    grid-template-columns: minmax(0, 1.85fr) minmax(320px, 1fr);
     gap: 24px;
     align-items: start;
     /* Evita que las tarjetas se estiren verticalmente de forma irregular */
@@ -2706,6 +2722,16 @@
 
     .impact-metric-box {
         border-left: 4px solid #007865 !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .tarjeta-registro {
+        flex-wrap: wrap;
+    }
+
+    .fecha-valor {
+        text-align: left;
     }
 }
 
