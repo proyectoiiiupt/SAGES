@@ -105,6 +105,7 @@ def index():
 
 @trainings_bp.route('/api/counts', methods=['GET'])
 @login_required
+@check_permissions('view_training_catalog')
 def get_module_counts():
     """
     Devuelve el conteo de temas formativos por módulo rector, adaptado al rol.
@@ -428,6 +429,7 @@ def _get_next_order_index() -> int:
 @login_required
 @role_required('super_admin')
 @check_permissions('upload_training')
+@limiter.limit("20 per minute", methods=["POST"], key_func=lambda: str(current_user.id))
 def new_module():
     """
     Ruta para registrar un nuevo Módulo Rector.
@@ -632,6 +634,7 @@ def new_training():
 
 @trainings_bp.route('/api/active-modules', methods=['GET'])
 @login_required
+@check_permissions('view_training_catalog', 'create_request', 'upload_training')
 def api_active_modules():
     """
     Endpoint API para cargar dinámicamente los Módulos Rectores activos en el frontend.
@@ -642,6 +645,7 @@ def api_active_modules():
 
 @trainings_bp.route('/api/modules/<int:module_id>/trainings', methods=['GET'])
 @login_required
+@check_permissions('view_training_catalog', 'create_request')
 def get_module_trainings_api(module_id: int):
     """
     API endpoint para cargar dinámicamente los temas formativos (activos y no eliminados)
