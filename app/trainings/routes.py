@@ -9,7 +9,7 @@ Endpoints:
 
 import re
 import io
-from datetime import datetime, time
+from datetime import datetime, time, timezone
 from app.utils.timezone import caracas_date_range_to_utc
 from flask import render_template, jsonify, abort, request, redirect, url_for, flash, current_app, send_file
 from flask_login import login_required, current_user
@@ -28,7 +28,8 @@ from app.trainings.services import (
     is_training_name_duplicated, 
     create_training,
     parse_training_file,
-    toggle_module_status
+    toggle_module_status,
+    count_active_requests_for_training
 )
 from app.decorators import check_permissions, role_required
 from app.extensions import db, limiter
@@ -1332,27 +1333,61 @@ def toggle_training_status(training_id: int):
 @check_permissions('upload_training')
 def delete_training(training_id: int):
     """
-    Realiza el borrado lógico de un tema formativo.
-    Asigna un estatus de eliminado y registra la fecha/hora en deleted_at.
+    Realiza el borrado lógico de un tema formativo (CU-19).
+    Valida previamente (con bloqueo pesimista) que no existan solicitudes activas
+    o pendientes (STAT-003 a STAT-006, historical=False) vinculadas al tema.
+    Si está libre de trámites vigentes, asigna STAT-010 y registra deleted_at.
     """
     try:
-        # 1. Validamos que el tema exista y no esté eliminado previamente
-        training = Training.query.filter_by(id=training_id, deleted_at=None).first_or_404()
-        
-        # 2. Obtenemos el estatus de Eliminado oficial (STAT-010)
+        # 1. Validamos con bloqueo pesimista que el tema exista y no esté eliminado previamente
+        training = (
+            Training.query
+            .filter(Training.id == training_id, Training.deleted_at.is_(None))
+            .with_for_update()
+            .first()
+        )
+        if not training:
+            db.session.rollback()
+            return jsonify({
+                'success': False,
+                'message': 'Tema formativo no encontrado o ya fue eliminado previamente.'
+            }), 404
+
+        training_id_val = training.id
+        training_name = training.name
+        training_code = training.training_code
+
+        # 2. Regla de integridad CU-19: bloquear eliminación si hay solicitudes activas o pendientes
+        active_requests_count = count_active_requests_for_training(training_id_val)
+        if active_requests_count > 0:
+            db.session.rollback()
+            return jsonify({
+                'success': False,
+                'message': (
+                    f'No se puede eliminar el tema formativo "{training_name}" porque posee '
+                    f'{active_requests_count} solicitud(es) activa(s) o pendiente(s) asociada(s). '
+                    f'Debe concluir o cancelar dichas solicitudes antes de eliminarlo, o puede inactivarlo temporalmente.'
+                ),
+                'active_requests_count': active_requests_count
+            }), 409
+
+        # 3. Obtenemos el estatus de Eliminado oficial (STAT-010)
         deleted_status = Status.query.filter_by(status_code='STAT-010').first()
         
         if not deleted_status:
+            db.session.rollback()
             return jsonify({
                 'success': False, 
                 'message': 'Error: Estatus de Eliminado no configurado en el sistema.'
             }), 500
 
-        # 3. Aplicamos el borrado lógico
+        # 4. Aplicamos el borrado lógico
         old_status_code = training.status.status_code if training.status else 'STAT-001'
+        deleted_at_now = datetime.now(timezone.utc)
+        deleted_at_iso = deleted_at_now.isoformat()
         training._skip_auto_audit = True
         training.status_id = deleted_status.id
-        training.deleted_at = datetime.now()
+        training.deleted_at = deleted_at_now
         
         db.session.commit()
 
@@ -1362,11 +1397,11 @@ def delete_training(training_id: int):
             BinnacleService.create_log_entry(
                 module=AuditModule.TRAININGS.value,
                 action_type=AuditAction.ELIMINAR_TEMA_FORMATIVO.value,
-                description=f"Eliminación lógica del tema formativo '{training.name}' ({training.training_code})",
+                description=f"Eliminación lógica del tema formativo '{training_name}' ({training_code})",
                 target_table='sages.trainings',
-                record_id=training.id,
+                record_id=training_id_val,
                 old_values={'status_code': old_status_code, 'deleted_at': None},
-                new_values={'status_code': 'STAT-010', 'deleted_at': training.deleted_at.isoformat()},
+                new_values={'status_code': 'STAT-010', 'deleted_at': deleted_at_iso},
                 status=AuditStatus.MODIFICADO.value
             )
         except Exception as audit_err:
@@ -1382,11 +1417,11 @@ def delete_training(training_id: int):
                 role_name="state_admin",
                 event=NotificationEvent.TRAINING_TOPIC_DELETED,
                 context={
-                    "topic_name": training.name,
+                    "topic_name": training_name,
                     "admin_name": admin_name,
                     "reason": reason,
                     "_display": [
-                        ("Taller Formativo", training.name),
+                        ("Taller Formativo", training_name),
                         ("Motivo", reason),
                         ("Retirado por", admin_name),
                     ],
@@ -1396,44 +1431,7 @@ def delete_training(training_id: int):
                 redirect_url="/training/",
                 action_text="Revisar Catálogo"
             )
-
-            # Si alguna institución tenía una solicitud activa en este taller, avisar a sus afiliados
-            active_reqs = (
-                Request.query
-                .join(Status, Request.status_id == Status.id)
-                .filter(
-                    Request.training_id == training.id,
-                    Request.historical == False,
-                    Status.status_code.in_(['STAT-003', 'STAT-004', 'STAT-005', 'STAT-006'])
-                )
-                .all()
-            )
-            notified_insts = set()
-            for r in active_reqs:
-                inst_id = (
-                    r.institutional_staff.institution_id
-                    if r.institutional_staff else None
-                )
-                if inst_id and inst_id not in notified_insts:
-                    notified_insts.add(inst_id)
-                    NotificationService.notify_institution_affiliates(
-                        institution_id=inst_id,
-                        event=NotificationEvent.TRAINING_TOPIC_DELETED,
-                        context={
-                            "topic_name": training.name,
-                            "admin_name": admin_name,
-                            "reason": f"{reason} (Afecta solicitud {r.request_code})",
-                            "_display": [
-                                ("Taller Formativo", training.name),
-                                ("Solicitud Afectada", r.request_code),
-                                ("Motivo", reason),
-                                ("Retirado por", admin_name),
-                            ],
-                        },
-                        severity_override=NotificationType.DANGER,
-                        redirect_url=f"/requests/my-requests/{r.id}",
-                        action_text="Ver Solicitud"
-                    )
+            # Por regla de integridad CU-19, al llegar aquí no existen solicitudes activas asociadas.
         except Exception as notif_err:
             current_app.logger.warning(f"No se pudo emitir notificación TRAINING_TOPIC_DELETED: {notif_err}")
 

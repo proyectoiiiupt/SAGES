@@ -15,6 +15,7 @@ from app.extensions import db
 from app.models.training_module_model import TrainingModule
 from app.models.training_model import Training
 from app.models.status_model import Status
+from app.models.request_model import Request
 
 logger = logging.getLogger(__name__)
 
@@ -549,6 +550,35 @@ def count_active_trainings_for_module(module_id: int) -> int:
     except Exception as e:
         logger.error(f"[trainings.services.count_active_trainings_for_module] Error al contar temas activos para módulo {module_id}: {e}")
         return 0
+
+
+ACTIVE_REQUEST_STATUS_CODES = ('STAT-003', 'STAT-004', 'STAT-005', 'STAT-006')
+
+
+def count_active_requests_for_training(training_id: int) -> int:
+    """
+    Cuenta la cantidad de solicitudes activas o pendientes asociadas a un tema formativo.
+    Se considera activa toda solicitud no histórica (historical IS FALSE) cuyo estatus
+    pertenezca al ciclo operativo vigente:
+      - STAT-003 (Nuevo)
+      - STAT-004 (Pendiente)
+      - STAT-005 (Planificada)
+      - STAT-006 (En proceso)
+
+    Diseño fail-closed: no silencia excepciones para impedir que un error de base de datos
+    evada el bloqueo de integridad referencial (CU-19).
+    """
+    count = (
+        db.session.query(func.count(Request.id))
+        .join(Status, Request.status_id == Status.id)
+        .filter(
+            Request.training_id == training_id,
+            Request.historical.is_(False),
+            Status.status_code.in_(ACTIVE_REQUEST_STATUS_CODES)
+        )
+        .scalar()
+    )
+    return count or 0
 
 
 def toggle_module_status(module_id: int, user_id: int) -> Tuple[bool, str, Optional[TrainingModule], int]:

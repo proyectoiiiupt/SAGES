@@ -221,21 +221,36 @@ function confirmarBorradoLogico(trainingId) {
             fetch(`/training/delete/${trainingId}`, {
                 method: 'POST',
                 headers: {
+                    'Accept': 'application/json',
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token() }}'  // <-- Inyectamos el token de seguridad de Flask
                 }
             })
-            .then(response => {
-                if (response.ok) {
+            .then(async response => {
+                const data = await response.json().catch(() => ({}));
+                if (response.ok && data.success === true) {
                     Swal.fire(
                         '¡Eliminado!',
-                        'El registro ha sido eliminado exitosamente.',
+                        data.message || 'El registro ha sido eliminado exitosamente.',
                         'success'
                     ).then(() => {
                         window.location.href = "{{ url_for('trainings.list_all') }}";
                     });
+                } else if (response.status === 401) {
+                    Swal.fire(
+                        'Sesión expirada',
+                        data.error || data.message || 'Tu sesión ha expirado. Inicia sesión nuevamente.',
+                        'warning'
+                    ).then(() => {
+                        window.location.href = '/auth/login';
+                    });
                 } else {
-                    Swal.fire('Error', 'Hubo un problema al intentar eliminar el registro.', 'error');
+                    const isConflict = response.status === 409;
+                    Swal.fire(
+                        isConflict ? 'Operación bloqueada' : 'Error',
+                        data.message || data.error || 'Hubo un problema al intentar eliminar el registro.',
+                        isConflict ? 'warning' : 'error'
+                    );
                 }
             })
             .catch(error => {
