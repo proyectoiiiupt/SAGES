@@ -25,8 +25,18 @@
     {# ── BARRA DE ACCIONES (Volver a la izquierda, Editar a la derecha) ────────── #}
     <div class="table-actions-bar" style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
         
-        {# Botón Volver #}
-        <a href="{{ url_for('trainings.list_all') }}" class="btn-volver" id="btn-back-to-list" title="Regresar a la lista de temas formativos">
+        {# Botón Volver (adaptado por rol para evitar 403 a solicitantes) #}
+        {% if is_admin %}
+            {% set back_url = url_for('trainings.list_all') %}
+            {% set back_title = 'Regresar a la lista de temas formativos' %}
+        {% elif training.training_module and training.training_module.is_active %}
+            {% set back_url = url_for('trainings.module_topics', module_id=training.training_module_id) %}
+            {% set back_title = 'Regresar a los temas del módulo' %}
+        {% else %}
+            {% set back_url = url_for('trainings.index') %}
+            {% set back_title = 'Regresar al catálogo de formación' %}
+        {% endif %}
+        <a href="{{ back_url }}" class="btn-volver" id="btn-back-to-list" title="{{ back_title }}">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12"></line>
                 <polyline points="12 19 5 12 12 5"></polyline>
