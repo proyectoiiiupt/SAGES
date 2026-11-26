@@ -273,12 +273,13 @@
         el.textContent = formattedDate.replace(' de 20', ', 20');
     })();
 
-    // Captura de mensajes Flash de Flask con SweetAlert2
-    document.addEventListener('DOMContentLoaded', function() {
+    // Captura única de mensajes Flash de Flask con SweetAlert2
+    document.addEventListener('DOMContentLoaded', async function () {
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                {% for category, message in messages %}
-                    let iconType = {{ category | tojson }};
+                const flashMessages = {{ messages | tojson }};
+                for (const [category, message] of flashMessages) {
+                    let iconType = category;
                     let titleText = 'Notificación';
 
                     if (iconType === 'success') {
@@ -292,49 +293,16 @@
                         iconType = 'info';
                     }
 
-                    Swal.fire({
+                    await Swal.fire({
                         title: titleText,
-                        text: {{ message | tojson }},
+                        text: message,
                         icon: iconType,
                         confirmButtonColor: '#0d9488',
                         confirmButtonText: 'Aceptar'
                     });
-                {% endfor %}
+                }
             {% endif %}
         {% endwith %}
     });
-</script>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                (function () {
-                    let iconType = {{ category | tojson }};
-                    let titleText = 'Notificación';
-
-                    if (iconType === 'success') {
-                        titleText = '¡Éxito!';
-                    } else if (iconType === 'error' || iconType === 'danger') {
-                        iconType = 'error';
-                        titleText = '¡Atención!';
-                    } else if (iconType === 'warning') {
-                        titleText = 'Advertencia';
-                    } else {
-                        iconType = 'info';
-                    }
-
-                    Swal.fire({
-                        title: titleText,
-                        text: {{ message | tojson }},
-                        icon: iconType,
-                        confirmButtonColor: '#0d9488',
-                        confirmButtonText: 'Aceptar'
-                    });
-                })();
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-});
 </script>
 {% endblock %}
