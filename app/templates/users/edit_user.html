@@ -43,7 +43,10 @@
 
     <div style="margin-top: 15px; margin-bottom: 20px;">
         <!-- Interceptaremos este enlace con JS para el SweetAlert de Cancelar -->
-        <a href="{{ url_for('users.view_user', user_id=user.id) }}" class="btn-back btn-cancel-swal">&larr; Volver</a>
+        <a href="{{ url_for('users.view_user', user_id=user.id) }}" class="sages-btn-back btn-cancel-swal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            Volver
+        </a>
     </div>
 
     <div id="personal" class="tab-content active-content">

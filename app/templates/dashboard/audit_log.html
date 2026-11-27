@@ -85,30 +85,6 @@
     .btn-page.active { background: #0f3669; color: white; border-color: #0f3669; }
     .btn-page:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    /* Botón Volver */
-    .btn-back-nav {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 0.5rem 1.1rem;
-        border-radius: 8px;
-        background: #ffffff;
-        color: #475569;
-        border: 1px solid #cbd5e1;
-        text-decoration: none;
-        font-size: 0.85rem;
-        font-weight: 600;
-        transition: all 0.2s ease;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    }
-    .btn-back-nav:hover {
-        background: #f8fafc;
-        color: #1e293b;
-        border-color: #94a3b8;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
-    }
-
     /* Contenedor de Filtros Mejorado */
     .filters-card-wrapper {
         display: flex;
@@ -176,10 +152,10 @@
         
         <!-- Fila Superior: Botón Volver -->
         <div style="display: flex; align-items: center;">
-            <a href="{{ url_for('dashboard.index') }}" class="btn-back-nav" title="Volver al Panel Principal">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <a href="{{ url_for('dashboard.index') }}" class="sages-btn-back" title="Volver al Panel Principal">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <line x1="19" y1="12" x2="5" y2="12"></line>
-                    <polyline points="12 19 5 12 12 19"></polyline>
+                    <polyline points="12 19 5 12 12 5"></polyline>
                 </svg>
                 Volver al Panel
             </a>

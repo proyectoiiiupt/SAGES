@@ -17,7 +17,7 @@ Accesible para usuarios con roles super_admin, state_admin y applicant.
 
     <div class="page-actions" style="margin-bottom: 1.5rem;">
         {% if is_applicant %}
-        <a href="{{ url_for('home_applicant') }}" class="back-btn">
+        <a href="{{ url_for('home_applicant') }}" class="sages-btn-back">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12"></line>
@@ -48,7 +48,7 @@ Accesible para usuarios con roles super_admin, state_admin y applicant.
             </a>
         </div>
         {% else %}
-        <a href="{{ url_for('institutions.list_institutions') }}" class="back-btn">
+        <a href="{{ url_for('institutions.list_institutions') }}" class="sages-btn-back">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12"></line>

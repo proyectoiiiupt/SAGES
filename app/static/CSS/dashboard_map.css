@@ -177,37 +177,6 @@
     width: 100%;
 }
 
-.btn-map-back {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 0.5rem 1.1rem;
-    border-radius: 8px;
-    /* Rectángulo con bordes redondeados - estándar SAGES */
-    background: #475569;
-    color: #ffffff;
-    border: 1px solid #475569;
-    text-decoration: none;
-    font-size: 0.85rem;
-    font-weight: 600;
-    transition: all 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-    flex-shrink: 0;
-    letter-spacing: 0.1px;
-}
-
-.btn-map-back:hover {
-    background: rgba(55, 64, 75, 0.78);
-    color: #ffffff;
-    border-color: rgba(55, 64, 75, 0.78);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 10px rgba(36, 35, 43, 0.3);
-}
-
-.btn-map-back svg {
-    flex-shrink: 0;
-}
-
 /* ── Contenedor SVG y Mapa ── */
 .map-svg-container {
     width: 100%;

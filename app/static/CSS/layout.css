@@ -1164,3 +1164,62 @@ body {
         font-size: 0.82rem;
     }
 }
+
+/* ============================================================================
+   BOTÓN ESTÁNDAR GLOBAL: VOLVER (.sages-btn-back)
+   Color sólido gris institucional, sin degradados, animación uniforme.
+   ============================================================================ */
+.sages-btn-back {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+    gap: 0.5rem !important;
+    background: #6c757d !important;
+    background-image: none !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 12px !important;
+    padding: 0.75rem 1.5rem !important;
+    font-family: inherit !important;
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    line-height: 1.4 !important;
+    text-decoration: none !important;
+    cursor: pointer !important;
+    box-shadow: 0 4px 12px rgba(90, 98, 104, 0.25) !important;
+    transition: all 0.25s ease !important;
+}
+
+.sages-btn-back:hover {
+    background: #5a6268 !important;
+    background-image: none !important;
+    color: #ffffff !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 16px rgba(90, 98, 104, 0.35) !important;
+    text-decoration: none !important;
+}
+
+.sages-btn-back:active {
+    transform: translateY(0) !important;
+    box-shadow: 0 2px 8px rgba(90, 98, 104, 0.25) !important;
+}
+
+.sages-btn-back:focus-visible {
+    outline: 3px solid rgba(108, 117, 125, 0.4) !important;
+    outline-offset: 2px !important;
+}
+
+.sages-btn-back svg {
+    width: 18px !important;
+    height: 18px !important;
+    flex-shrink: 0 !important;
+    stroke: currentColor !important;
+}
+
+@media (max-width: 768px) {
+    .sages-btn-back {
+        padding: 0.65rem 1.2rem !important;
+        font-size: 0.92rem !important;
+    }
+}

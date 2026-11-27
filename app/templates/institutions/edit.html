@@ -18,7 +18,7 @@
 
     <div class="page-actions" style="margin-bottom: 1rem;">
         {% if is_applicant %}
-        <a href="{{ url_for('institutions.my_institution') }}" class="back-btn">
+        <a href="{{ url_for('institutions.my_institution') }}" class="sages-btn-back">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12"></line>
                 <polyline points="12 19 5 12 12 5"></polyline>
@@ -26,7 +26,7 @@
             Volver al detalle
         </a>
         {% else %}
-        <a href="{{ url_for('institutions.view_institution', institution_id=institution.id) }}" class="back-btn">
+        <a href="{{ url_for('institutions.view_institution', institution_id=institution.id) }}" class="sages-btn-back">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12"></line>
                 <polyline points="12 19 5 12 12 5"></polyline>

@@ -65,30 +65,6 @@
     flex-wrap: wrap;
 }
 
-/* Botón Volver: Rectangular con bordes levemente redondeados */
-.ws-btn-volver {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: #475569;
-    border: 1px solid #cbd5e1;
-    color: #f0f1f2;
-    padding: 9px 20px;
-    border-radius: 6px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    text-decoration: none;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
-    transition: all 0.2s ease;
-}
-
-.ws-btn-volver:hover {
-    background: #475569;
-    border-color: #94a3b8;
-    color: #f0f1f2;
-    transform: translateY(-1px);
-}
-
 /* Banner Informativo de Supervisión */
 .ws-supervision-banner {
     display: flex;
@@ -533,7 +509,7 @@
         gap: 0.5rem;
     }
 
-    .ws-btn-volver,
+    .ws-toolbar-left .sages-btn-back,
     #btn-open-sla-gate {
         width: 100%;
         justify-content: center;

@@ -693,35 +693,6 @@
     align-items: center;
 }
 
-.wizard-nav-toolbar .btn-cancel {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
-    color: #ffffff;
-    border: none;
-    border-radius: 12px;
-    font-weight: 600;
-    font-size: 1rem;
-    cursor: pointer;
-    text-decoration: none;
-    transition: all 0.25s ease;
-    box-shadow: 0 4px 12px rgba(90, 98, 104, 0.25);
-}
-
-.wizard-nav-toolbar .btn-cancel:hover {
-    background: linear-gradient(135deg, #5a6268 0%, #4e555b 100%);
-    color: #ffffff;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(90, 98, 104, 0.35);
-}
-
-.wizard-nav-toolbar .btn-cancel svg {
-    width: 18px;
-    height: 18px;
-}
-
 .wizard-main-layout {
     display: grid;
     grid-template-columns: 1fr 340px;

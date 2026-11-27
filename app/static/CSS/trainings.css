@@ -2403,41 +2403,6 @@
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.02);
 }
 
-.btn-volver {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 600;
-    border-radius: 8px;
-    padding: 0.55rem 1.15rem;
-    background: #ffffff;
-    color: #475569;
-    border: 1px solid #e2e8f0;
-    transition: all 0.2s ease;
-    text-decoration: none;
-    font-size: 0.88rem;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-    cursor: pointer;
-}
-
-.btn-volver:hover {
-    background: #f8fafc;
-    color: #1e293b;
-    border-color: #cbd5e1;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-    transform: translateY(-1px);
-}
-
-.btn-volver svg {
-    width: 16px;
-    height: 16px;
-    transition: transform 0.2s ease;
-}
-
-.btn-volver:hover svg {
-    transform: translateX(-3px);
-}
-
 /* Fondo para dar contraste a las tarjetas */
 .contenedor-vista {
     max-width: 1200px;
@@ -2657,42 +2622,6 @@
 /* ==========================================================================
    VISTA FOCALIZADA: DESPLIEGUE DE TEMAS POR MÓDULO (ESTILOS GENÉRICOS)
    ========================================================================== */
-
-/* Botón de retorno al Hub */
-.btn-back-hub {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 0.55rem 1.15rem;
-    border-radius: 8px;
-    font-size: 0.88rem;
-    font-weight: 600;
-    color: #475569;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    text-decoration: none;
-    transition: all 0.2s ease;
-    cursor: pointer;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-}
-
-.btn-back-hub:hover {
-    background: #f8fafc;
-    color: #1e293b;
-    border-color: #cbd5e1;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-    transform: translateY(-1px);
-}
-
-.btn-back-hub svg {
-    width: 16px;
-    height: 16px;
-    transition: transform 0.2s ease;
-}
-
-.btn-back-hub:hover svg {
-    transform: translateX(-3px);
-}
 
 /* Resumen Contextual del Módulo (Genérico Institucional) */
 .module-context-card {

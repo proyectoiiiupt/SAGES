@@ -11,7 +11,7 @@
 <!-- Estilos del Calendario Corporativo de Planificación/Reprogramación -->
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/request_planning.css') }}">
 <!-- Estilos específicos del Espacio de Trabajo Activo -->
-<link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_workspace.css') }}?v=3.1">
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_workspace.css') }}?v=3.2">
 <!-- Estilos modulares de la Zona de Evidencias Digitales -->
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_evidences.css') }}?v=1.0">
 <!-- Bitácora de seguimiento transversal -->
@@ -32,8 +32,8 @@
     <div class="ws-actions-toolbar">
         <!-- Izquierda: Botón Volver -->
         <div class="ws-toolbar-left">
-            <a href="{{ url_for('requests.state_request_detail', id=req.id) }}" class="ws-btn-volver">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
+            <a href="{{ url_for('requests.state_request_detail', id=req.id) }}" class="sages-btn-back">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">
                     <line x1="19" y1="12" x2="5" y2="12"></line>
                     <polyline points="12 19 5 12 12 5"></polyline>
