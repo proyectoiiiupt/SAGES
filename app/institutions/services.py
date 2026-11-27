@@ -313,6 +313,9 @@ def toggle_institution_status(institution_id):
         if not active_status or not inactive_status:
             return None, 'Estados no configurados correctamente', 0
 
+        old_status_id = institution.status_id
+        old_status_name = 'Activo' if institution.status_id == active_status.id else 'Inactivo'
+
         if institution.status_id == active_status.id:
             # Verificar si la institución tiene solicitudes de formación pendientes o en proceso
             from app.models.request_model import Request
@@ -346,13 +349,17 @@ def toggle_institution_status(institution_id):
         # La creación de solicitudes se bloquea con @institution_active_required.
         affected_users_count = 0
 
+        institution._skip_auto_audit = True
+
         BinnacleService.create_log_entry(
             module=AuditModule.INSTITUTIONS.value,
             action_type=AuditAction.CAMBIO_ESTATUS_INSTITUCION.value,
             description=f'Institución {institution.institution_code} cambiada a {new_status}. Cuentas de usuarios afiliados conservadas activas en modo solo lectura (sin cascada).',
-            target_table='institutions',
+            target_table='sages.institutions',
             record_id=institution.id,
-            status=AuditStatus.MODIFICADO.value
+            status=AuditStatus.MODIFICADO.value,
+            old_values={'status_id': old_status_id, 'status': old_status_name},
+            new_values={'status_id': institution.status_id, 'status': new_status}
         )
 
         db.session.commit()
@@ -720,6 +727,7 @@ def update_institution_contact_infrastructure(institution_id, institution_data, 
                     )
                     db.session.add(new_location)
         
+        institution._skip_auto_audit = True
         db.session.commit()
         
         changed_fields = {}
@@ -756,13 +764,29 @@ def update_institution_contact_infrastructure(institution_id, institution_data, 
             
         changed_fields["Modificado Por"] = modificado_por
         
+        new_values = {
+            'address': institution.address
+        }
+        if is_admin:
+            new_values.update({
+                'plantel_code': institution.plantel_code,
+                'institution_name': institution.institution_name,
+                'institution_type_id': institution.institution_type_id,
+                'institution_scope_id': institution.institution_scope_id,
+                'institution_dependency_id': institution.institution_dependency_id,
+                'parish_id': institution.parish_id,
+                'city_id': institution_data.get('city_id') if ('city_id' in institution_data and institution_data['city_id']) else old_values.get('city_id')
+            })
+        
         BinnacleService.create_log_entry(
             module=AuditModule.INSTITUTIONS.value,
             action_type=AuditAction.ACTUALIZAR_INFRAESTRUCTURA.value,
             description=f'Actualización de datos y localización del plantel {institution.plantel_code} efectuada por {modificado_por}',
             target_table='sages.institutions',
             record_id=institution.id,
-            status=AuditStatus.MODIFICADO.value
+            status=AuditStatus.MODIFICADO.value,
+            old_values=old_values,
+            new_values=new_values
         )
         
         try:
