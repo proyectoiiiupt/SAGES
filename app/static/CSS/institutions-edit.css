@@ -1,4 +1,4 @@
-﻿/* ==========================================================================
+/* ==========================================================================
    ESTILOS DE VISTA: EDITAR INSTITUCIÓN (institutions-edit.css)
    SAGES | Optimización de espacio y estandarización visual corporativa
    ========================================================================== */
@@ -193,12 +193,14 @@
 .form-group input[type="text"],
 .form-group input[type="tel"],
 .form-group input[type="number"],
-.form-group select {
+.form-group select,
+.form-group textarea,
+#address {
+    width: 100%;
     padding: 8px 12px;
     border: 1.5px solid #cbd5e1;
     border-radius: 8px;
     font-size: 0.88rem;
-    height: 40px;
     box-sizing: border-box;
     color: #1e293b;
     background-color: #ffffff;
@@ -206,14 +208,31 @@
     font-family: inherit;
 }
 
+.form-group input[type="text"],
+.form-group input[type="tel"],
+.form-group input[type="number"],
+.form-group select {
+    height: 40px;
+}
+
+.form-group textarea,
+#address {
+    min-height: 85px;
+    resize: vertical;
+    line-height: 1.5;
+}
+
 .form-group input:focus,
-.form-group select:focus {
+.form-group select:focus,
+.form-group textarea:focus,
+#address:focus {
     outline: none;
     border-color: #007865;
     box-shadow: 0 0 0 3px rgba(0, 120, 101, 0.12);
 }
 
-.form-group input::placeholder {
+.form-group input::placeholder,
+.form-group textarea::placeholder {
     color: #94a3b8;
     font-size: 0.86rem;
 }
@@ -351,18 +370,21 @@
 }
 
 .form-group input.error,
-.form-group select.error {
+.form-group select.error,
+.form-group textarea.error {
     border-color: #dc2626;
     background-color: #fef2f2;
 }
 
 .form-group input.error:focus,
-.form-group select.error:focus {
+.form-group select.error:focus,
+.form-group textarea.error:focus {
     box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
 }
 
 .form-group input.success,
-.form-group select.success {
+.form-group select.success,
+.form-group textarea.success {
     border-color: #16a34a;
     background-color: #f0fdf4;
 }
