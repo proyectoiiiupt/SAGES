@@ -2,8 +2,8 @@
 {% from "components/page_banner.html" import page_banner %}
 
 {% block extra_css %}
-<!-- Enlace al nuevo archivo CSS local -->
-<link rel="stylesheet" href="{{ url_for('static', filename='CSS/users_list.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/requests_monitoring.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/users_list.css') }}?v=2">
 {% endblock %}
 
 {% block content %}
@@ -12,87 +12,88 @@
     <!-- Encabezado -->
     {{ page_banner(title='Gestión de Usuarios', icon='users') }}
 
-    <!-- Barra de Filtros y Acciones -->
-    <div class="actions-toolbar">
-        <form method="GET" action="{{ url_for('users.list_users') }}" class="filter-form">
-            
-            <div class="search-wrapper">
-                <span class="search-icon" aria-hidden="true">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                </span>
-                <input type="text" name="search" value="{{ filters.search or '' }}" placeholder="Buscar por nombre, cedula..." class="search-input">
-            </div>
+    <!-- Botones de Acción Superior (Estilo State Dashboard) -->
+    {% if current_role in ['super_admin', 'state_admin'] %}
+    <div class="users-top-actions">
+        <a href="{{ url_for('users.list_requests') }}" class="btn-nav-view users-btn-navy">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+                <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+            </svg>
+            Solicitudes de Registro
+        </a>
+        {% if current_role == 'super_admin' %}
+        <a href="{{ url_for('users.register_admin') }}" class="btn-nav-view users-btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Registrar Nuevo
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
 
-            <div class="separator">|</div>
+    <!-- Barra de Filtros Estándar (Estilo State Dashboard) -->
+    <div class="monitoring-filters-card users-filters-card">
+        <form method="GET" action="{{ url_for('users.list_users') }}" class="monitoring-filter-form filter-form users-filter-layout">
+
+            <div class="search-input-wrapper">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" name="search" value="{{ filters.search or '' }}" placeholder="Buscar por nombre o cédula..." class="monitoring-search-input search-input" autocomplete="off" aria-label="Buscar por nombre o cédula">
+            </div>
 
             {% if current_role == 'super_admin' %}
                 <!-- Filtros exclusivos del Super Admin -->
-                <select name="role" class="filter-select">
-                    <option value="">Tipo de Usuario</option>
+                <select name="role" class="monitoring-select" aria-label="Filtrar por Tipo de Usuario">
+                    <option value="">Todos los Tipos</option>
                     {% for r in db_roles %}
                         <option value="{{ r.id }}" {% if filters.role == r.id|string %}selected{% endif %}>{{ r.translated_name }}</option>
                     {% endfor %}
                 </select>
 
-                <select name="state" class="filter-select">
-                    <option value="">Estado</option>
+                <select name="state" class="monitoring-select" aria-label="Filtrar por Estado">
+                    <option value="">Todos los Estados</option>
                     {% for s in db_states %}
                         <option value="{{ s.id }}" {% if filters.state == s.id|string %}selected{% endif %}>{{ s.name | title }}</option>
                     {% endfor %}
                 </select>
             {% elif current_role == 'state_admin' %}
                 <!-- Filtros exclusivos del Admin Estadal -->
-                <select name="municipality" class="filter-select" onchange="this.form.submit()">
-                    <option value="">Municipio</option>
+                <select name="municipality" class="monitoring-select" onchange="this.form.submit()" aria-label="Filtrar por Municipio">
+                    <option value="">Todos los Municipios</option>
                     {% for m in db_municipalities %}
                         <option value="{{ m.id }}" {% if filters.municipality == m.id|string %}selected{% endif %}>{{ m.name | title }}</option>
                     {% endfor %}
                 </select>
 
                 <!-- Filtro de Parroquia Bloqueado / Desbloqueado -->
-                <select name="parish" class="filter-select" {% if not db_parishes %}disabled style="opacity: 0.6; cursor: not-allowed;"{% endif %}>
-                    <option value="">Parroquia</option>
+                <select name="parish" class="monitoring-select" aria-label="Filtrar por Parroquia" {% if not db_parishes %}disabled{% endif %}>
+                    <option value="">Todas las Parroquias</option>
                     {% for p in db_parishes %}
                         <option value="{{ p.id }}" {% if filters.parish == p.id|string %}selected{% endif %}>{{ p.name | title }}</option>
                     {% endfor %}
                 </select>
             {% endif %}
 
-            <select name="status" class="filter-select">
-                <option value="">Estatus</option>
+            <select name="status" class="monitoring-select" aria-label="Filtrar por Estatus">
+                <option value="">Todos los Estatus</option>
                 <option value="STAT-001" {% if filters.status == 'STAT-001' or filters.status == '1' %}selected{% endif %}>Activo</option>
                 <option value="STAT-002" {% if filters.status == 'STAT-002' or filters.status == '2' %}selected{% endif %}>Inactivo</option>
                 <option value="STAT-006" {% if filters.status == 'STAT-006' or filters.status == '6' %}selected{% endif %}>Pendiente</option>
             </select>
 
-            <a href="{{ url_for('users.list_users') }}" class="btn-clear">Limpiar</a>
-        </form>
-
-        {% if current_role == 'super_admin' %}
-        <div style="display: flex; gap: 10px; align-items: center;">
-            <a href="{{ url_for('users.list_requests') }}" class="btn-register" style="background-color: #0f766e; border-color: #0f766e; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
-                Solicitudes de Registro
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
-                    <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+            <a href="{{ url_for('users.list_users') }}" class="btn-filter-clear" id="btn-clear-filters">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="1 4 1 10 7 10"></polyline>
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
                 </svg>
+                Limpiar
             </a>
-            <a href="{{ url_for('users.register_admin') }}" class="btn-register">
-                Registrar Nuevo <span class="plus-icon">+</span>
-            </a>
-        </div>
-        {% elif current_role == 'state_admin' %}
-        <a href="{{ url_for('users.list_requests') }}" class="btn-register" style="background-color: #0f766e; border-color: #0f766e; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
-            Solicitudes de Registro
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
-                <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
-            </svg>
-        </a>
-        {% endif %}
+        </form>
     </div>
 
     <!-- Contenedor de la Tabla -->
