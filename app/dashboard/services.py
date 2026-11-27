@@ -259,7 +259,7 @@ def get_audit_logs(limit=None):
                 "user": getattr(r.user, 'full_name', 'No registrado') if r.user else "No registrado",
                 "module": r.module,
                 "action": r.action_type,
-                "desc": (r.description[:45] + "...") if r.description and len(r.description) > 45 else (r.description or ""),
+                "desc": r.description or "",
                 "status": status_label,
             })
         return formatted_logs

@@ -208,7 +208,7 @@ def get_logs_filtered():
             "user": getattr(r.user, 'full_name', 'No registrado') if r.user else "No registrado",
             "module": r.module,
             "action": r.action_type,
-            "desc": (r.description[:45] + "...") if r.description and len(r.description) > 45 else (r.description or ""),
+            "desc": r.description or "",
             "status": _format_audit_status(r.status, r.action_type),
         })
         

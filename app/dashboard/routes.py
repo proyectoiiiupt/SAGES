@@ -26,7 +26,7 @@ def index():
     """
     try:
         metrics = get_dashboard_indicators(current_user)
-        recent_logs = get_audit_logs(limit=5)
+        recent_logs = get_audit_logs(limit=6)
         
         return render_template('dashboard/dashboard.html', metrics=metrics, logs=recent_logs)
     except Exception as e:
@@ -57,7 +57,7 @@ def audit_view():
     """
     from app.binnacle.types import AuditModule, AuditAction, MODULE_ACTIONS_MAP
     from app.utils.timezone import get_caracas_today
-    logs = get_audit_logs()
+    logs = get_audit_logs(limit=15)
     audit_modules = [m.value for m in AuditModule if m != AuditModule.SERVICES]
     audit_actions = [a.value for a in AuditAction]
     return render_template(
