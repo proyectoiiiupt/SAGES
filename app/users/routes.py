@@ -368,6 +368,7 @@ def view_user(user_id):
             plantel_code = getattr(inst, 'plantel_code', None)
             
             corp_data = {
+                'institution_id': inst.id if inst else None,
                 'id_card': plantel_code if plantel_code else 'N/A',
                 'name': inst.institution_name if inst else 'N/A',
                 'type': inst.institution_type.name if inst and getattr(inst, 'institution_type', None) else 'N/A',
@@ -407,7 +408,7 @@ def view_user(user_id):
                     corp_data = {
                         'id_card': formatted_rif,
                         'name': comp.company_name,
-                        'type': 'Empresa Privada', 
+                        'type': 'Empresa Pública' if 'corpoelec' in getattr(comp, 'company_name', '').lower() else 'Empresa Privada', 
                         'sector': 'N/A',
                         'dependency': 'N/A',
                         'position': pos.name if pos else 'N/A',
@@ -433,8 +434,7 @@ def edit_user(user_id):
     """
     user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant'
     
-    # Solo el administrador puede actualizar datos base
-    if user_role != 'super_admin':
+    if user_role not in ['super_admin', 'state_admin']:
         abort(403)
 
     user = User.query.get_or_404(user_id)
@@ -444,6 +444,20 @@ def edit_user(user_id):
     if target_is_super_admin and user.id != current_user.id:
         flash('No está permitido editar los datos de otro Super Administrador.', 'warning')
         return redirect(url_for('users.view_user', user_id=user.id))
+
+    # Control de jerarquía y jurisdicción territorial para Administrador Estadal
+    if user_role == 'state_admin':
+        viewed_role = user.roles_assoc[0].role.name if user.roles_assoc else 'applicant'
+        if viewed_role not in ['applicant', 'director', 'directora']:
+            flash('No tiene permisos para editar usuarios con este rol.', 'warning')
+            abort(403)
+
+        admin_state_id = get_user_state_id(current_user)
+        target_state_id = get_user_state_id(user)
+
+        if not admin_state_id or admin_state_id != target_state_id:
+            flash('No tiene permisos para editar usuarios de otra jurisdicción territorial.', 'warning')
+            abort(403)
 
     # Si es un usuario pendiente (STAT-006) y superó los 7 días, purgar y redirigir
     status_in_progress = get_status_by_code(STATUS_IN_PROGRESS_CODE)
@@ -465,8 +479,24 @@ def edit_user(user_id):
     
     form = UserUpdateForm() 
     
-    # Poblamos las opciones del dropdown directamente desde la BD
-    form.position.choices = [(p.id, p.name) for p in Position.query.order_by(Position.name).all()]
+    # Poblamos las opciones del dropdown filtrando por tipo (escolar vs corporativo)
+    if comp_staff:
+        # Cargos corporativos de CORPOELEC (POS-006 a POS-010)
+        corpoelec_position_codes = ['POS-006', 'POS-007', 'POS-008', 'POS-009', 'POS-010']
+        positions = Position.query.filter(Position.position_code.in_(corpoelec_position_codes)).order_by(Position.name).all()
+        if not positions:
+            positions = Position.query.order_by(Position.name).all()
+        form.position.choices = [(p.id, p.name) for p in positions]
+    else:
+        # Cargos institucionales / escolares (POS-001 a POS-005)
+        school_position_codes = ['POS-001', 'POS-002', 'POS-003', 'POS-004', 'POS-005']
+        positions = Position.query.filter(Position.position_code.in_(school_position_codes)).order_by(Position.name).all()
+        if not positions:
+            positions = Position.query.order_by(Position.name).all()
+        form.position.choices = [(p.id, p.name) for p in positions]
+
+    if staff_record and staff_record.position and staff_record.position_id not in [c[0] for c in form.position.choices]:
+        form.position.choices.insert(0, (staff_record.position_id, staff_record.position.name))
 
     if comp_staff:
         active_status = get_status_by_code(STATUS_ACTIVE_CODE)
@@ -496,34 +526,9 @@ def edit_user(user_id):
 
     if form.validate_on_submit():
         try:
-            # Quitamos los puntos de la cédula antes de guardar en base de datos
-            raw_cedula = form.identification_number.data.replace('.', '').strip()
-            
             changed_fields = {}
             
-            # Validar unicidad previa y sincronizar cédula con user.user_name
-            cedula_cambio = person.identification_number != raw_cedula
-            user_name_desfasado = user.user_name != raw_cedula
-
-            if cedula_cambio or user_name_desfasado:
-                duplicate_person = Person.query.filter(
-                    Person.identification_number == raw_cedula,
-                    Person.id != person.id
-                ).first()
-                duplicate_user = User.query.filter(
-                    User.user_name == raw_cedula,
-                    User.id != user.id
-                ).first()
-                if duplicate_person or duplicate_user:
-                    flash('La cédula de identidad ya se encuentra registrada por otro usuario.', 'danger')
-                    return render_template('users/edit_user.html', user=user, current_role=user_role, form=form, comp_staff=comp_staff)
-
-                if cedula_cambio:
-                    changed_fields["Cédula"] = raw_cedula
-                    person.identification_number = raw_cedula
-
-                user.user_name = raw_cedula
-            
+            # Cédula de identidad es inmutable según norma de seguridad (US-15)
             new_first_name = form.first_name.data.strip().title()
             if person.first_name != new_first_name:
                 changed_fields["Primer Nombre"] = new_first_name

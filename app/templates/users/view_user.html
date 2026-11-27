@@ -204,8 +204,20 @@
         <div class="data-grid-container">
             <!-- Columna Izquierda: Datos Institucionales / Corporativos -->
             <div class="data-column">
-                <h4 class="figma-title-green">
-                    {% if is_corp_role %}Datos Corporativos{% else %}Datos Institucionales{% endif %}
+                <h4 class="figma-title-green" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>{% if is_corp_role %}Datos Corporativos{% else %}Datos Institucionales{% endif %}</span>
+                    {% if not is_corp_role and corp_data and corp_data.institution_id %}
+                    <a href="{{ url_for('institutions.view_institution', institution_id=corp_data.institution_id) }}" 
+                       class="quick-link-institution" title="Ver ficha del plantel educativo (US-14)"
+                       style="font-size: 13px; font-weight: 600; color: #007865; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; background: #e6f4ea; padding: 4px 10px; border-radius: 6px; transition: all 0.2s ease;">
+                        Ver Ficha del Plantel
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            <polyline points="15 3 21 3 21 9"></polyline>
+                            <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                    </a>
+                    {% endif %}
                 </h4>
                 <div class="info-grid">
                     <div>
@@ -224,11 +236,25 @@
                         <label class="figma-label">
                             {% if is_corp_role %}Nombre de Corporación{% else %}Nombre o Razón Social{% endif %}
                         </label>
-                        <div class="figma-box">{{ corp_data.name if corp_data else 'N/A' }}</div>
+                        {% if not is_corp_role and corp_data and corp_data.institution_id %}
+                            <div class="figma-box" style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>{{ corp_data.name if corp_data else 'N/A' }}</span>
+                                <a href="{{ url_for('institutions.view_institution', institution_id=corp_data.institution_id) }}" 
+                                   style="font-size: 12px; color: #007865; font-weight: 600; text-decoration: underline; margin-left: 8px;">
+                                   Ir a la institución &rarr;
+                                </a>
+                            </div>
+                        {% else %}
+                            <div class="figma-box">{{ corp_data.name if corp_data else 'N/A' }}</div>
+                        {% endif %}
                     </div>
 
                     {% if is_corp_role %}
-                        <div class="full-width">
+                        <div>
+                            <label class="figma-label">Tipo de Empresa</label>
+                            <div class="figma-box">{{ corp_data.type if corp_data and corp_data.type else 'Empresa Pública' }}</div>
+                        </div>
+                        <div>
                             <label class="figma-label">Sede Asignada</label>
                             <div class="figma-box">{{ corp_data.sede if corp_data and corp_data.sede else 'N/A' }}</div>
                         </div>

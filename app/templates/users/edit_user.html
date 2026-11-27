@@ -63,21 +63,14 @@
                     <h4 class="figma-title-green">Datos del usuario</h4>
                     <div class="info-grid">
 
-                       <!-- Cédula de Identidad -->
+                       <!-- Cédula de Identidad (Inmutable US-15) -->
                         <div class="full-width">
-                            <label class="figma-label">Cédula de Identidad</label>
+                            <label class="figma-label">Cédula de Identidad <span style="font-size: 11px; color: #64748b; font-weight: normal;">(Inmutable)</span></label>
                             <div class="id-container">
                                 <input type="text" id="identification_number" name="identification_number" 
                                        value="{{ request.form.get('identification_number', user.person.identification_number if user.person else '') }}" readonly 
-                                       class="figma-input locked-box" style="flex-grow: 1;">
-                                {% if user_role == 'super_admin' %}
-                                    <button type="button" id="unlockIdBtn" class="btn-unlock" title="Desbloquear para editar">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                                            <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
-                                        </svg>
-                                    </button>
-                                {% endif %}
+                                       class="figma-input locked-box" style="flex-grow: 1; cursor: not-allowed; background-color: #f8fafc;"
+                                       title="La cédula de identidad es inmutable según norma de seguridad (US-15)">
                             </div>
                         </div>
                         
@@ -119,7 +112,7 @@
             </div>
             
             <div class="profile-status-section" style="padding-left: 20px;">
-                {% if user_role == 'super_admin' %}
+                {% if current_role in ['super_admin', 'state_admin'] or user_role in ['super_admin', 'state_admin'] %}
                     <div class="form-actions-container">
                         <a href="{{ url_for('users.view_user', user_id=user.id) }}" class="btn-cancel btn-cancel-swal">
                             Cancelar
@@ -159,38 +152,7 @@
             idInput.value = formatCedula(idInput.value);
         }
 
-        if (idInput) {
-            idInput.addEventListener('input', function() {
-                this.value = formatCedula(this.value);
-            });
-        }
-
-        // --- 2. DESBLOQUEO DE CÉDULA ---
-        const unlockBtn = document.getElementById('unlockIdBtn');
-        if (unlockBtn) {
-            unlockBtn.addEventListener('click', function() {
-                Swal.fire({
-                    title: '¿Habilitar edición de Cédula?',
-                    text: 'Modificar este dato es una acción delicada. ¿Estás seguro?',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#f0ad4e',
-                    cancelButtonColor: '#d33',
-                    confirmButtonText: 'Sí, habilitar',
-                    cancelButtonText: 'Cancelar'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        idInput.removeAttribute('readonly');
-                        idInput.classList.remove('locked-box');
-                        idInput.focus();
-                        unlockBtn.style.display = 'none';
-                        Swal.fire('Habilitado', 'Ya puedes editar la cédula.', 'info');
-                    }
-                });
-            });
-        }
-
-        // --- 3. FORMATEO DE NOMBRES Y APELLIDOS ---
+        // --- 2. FORMATEO DE NOMBRES Y APELLIDOS ---
         const nameInputs = document.querySelectorAll('.format-name');
         nameInputs.forEach(input => {
             input.addEventListener('input', function() {
