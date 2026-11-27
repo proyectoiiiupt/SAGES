@@ -403,17 +403,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Fecha en el Header (time-formatter.js / es-VE)
-    const dateSpan = document.getElementById('current-date');
-    if (dateSpan) {
-        if (typeof formatCurrentDate === 'function') {
-            formatCurrentDate(dateSpan, 'full-date');
-        } else {
-            const options = { year: 'numeric', month: 'long', day: 'numeric' };
-            dateSpan.textContent = new Date().toLocaleDateString('es-VE', options);
-        }
-    }
-
     // Botón Cancelar con SweetAlert2
     const btnCancel = document.getElementById('btnCancelRegistro');
     if (btnCancel) {

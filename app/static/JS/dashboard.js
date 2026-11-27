@@ -4,18 +4,6 @@
  */
 
 document.addEventListener('DOMContentLoaded', function () {
-    // 1. Formatear y mostrar la fecha actual (Estandarizado con time-formatter.js / es-VE)
-    const dateElement = document.getElementById('dashboard-date-text');
-    if (dateElement) {
-        if (typeof formatCurrentDate === 'function') {
-            formatCurrentDate(dateElement, 'full-date');
-        } else {
-            const today = new Date();
-            const options = { day: 'numeric', month: 'long', year: 'numeric' };
-            dateElement.textContent = today.toLocaleDateString('es-VE', options);
-        }
-    }
-
     // 2. Animación suave para los números de los indicadores (KPIs)
     const counters = document.querySelectorAll('.counter-value');
     counters.forEach(counter => {

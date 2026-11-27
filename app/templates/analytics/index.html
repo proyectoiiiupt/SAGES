@@ -1,4 +1,5 @@
 {% extends "layouts/base.html" %}
+{% from "components/page_banner.html" import page_banner %}
 
 {% block title %}Reportes y Estadísticas – SAGES{% endblock %}
 
@@ -10,33 +11,14 @@
 {% block content %}
 <div class="analytics-container">
     <!-- ── 1. CABECERA / BANNER PRINCIPAL ESTÁNDAR SAGES ── -->
-    <div class="header-card">
-        <div class="welcome-text">
-            <i>Reportes y Estadísticas</i>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <line x1="18" y1="20" x2="18" y2="10"></line>
-                <line x1="12" y1="20" x2="12" y2="4"></line>
-                <line x1="6" y1="20" x2="6" y2="14"></line>
-            </svg>
-            <div class="analytics-jurisdiction-badge" title="Ámbito de jurisdicción territorial">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="2" y1="12" x2="22" y2="12"></line>
-                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-                </svg>
-                <span>{{ metrics.jurisdiction_label }}</span>
-            </div>
-        </div>
-        <div class="date-text date-with-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-            <span id="current-analytics-date"></span>
-        </div>
-    </div>
+    {{ page_banner(
+        title='Reportes y Estadísticas',
+        icon='chart',
+        badge_text=metrics.jurisdiction_label,
+        badge_title='Ámbito de jurisdicción territorial',
+        badge_variant='jurisdiction',
+        badge_icon='globe'
+    ) }}
 
     <!-- ── 2. CUADRO DE INDICADORES KPI ESTILO ADMINLTE (SMALL-BOXES) ── -->
     <div class="kpi-grid">

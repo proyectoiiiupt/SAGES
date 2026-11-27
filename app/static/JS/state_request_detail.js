@@ -1,16 +1,5 @@
     document.addEventListener("DOMContentLoaded", function () {
 
-        // ── Banner: Inicializar fecha actual ──────────────────────────────────
-        const dateElement = document.getElementById('current-date-display');
-        if (dateElement) {
-            dateElement.setAttribute('data-utc', new Date().toISOString());
-            dateElement.classList.add('local-datetime');
-            dateElement.setAttribute('data-format', 'full-date');
-            if (typeof formatAllLocalTimes === 'function') {
-                formatAllLocalTimes();
-            }
-        }
-
         // ── Descarga de Comprobante PDF con SweetAlert2 ───────────────────────
         const downloadPdfBtn = document.getElementById('btn-download-receipt-pdf');
         if (downloadPdfBtn) {

@@ -5,6 +5,7 @@
     Nota: Las acciones de edición y borrado lógico corresponden a una tarea posterior.
 #}
 {% extends "layouts/base.html" %}
+{% from "components/page_banner.html" import page_banner %}
 
 {% block title %}Gestión de Formaciones – SAGES{% endblock %}
 
@@ -16,28 +17,7 @@
 <div class="trainings-container">
 
     {# ── CABECERA INSTITUCIONAL (Estándar SAGES) ────────────────────────── #}
-    <div class="page-header">
-        <div class="page-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="header-icon">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-            </svg>
-            <h1>Gestión de Temas Formativos</h1>
-        </div>
-
-        <div class="header-right-actions">
-            {# Píldora de fecha dinámica #}
-            <div class="page-date">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                    <line x1="16" y1="2" x2="16" y2="6"></line>
-                    <line x1="8" y1="2" x2="8" y2="6"></line>
-                    <line x1="3" y1="10" x2="21" y2="10"></line>
-                </svg>
-                <span id="current-date"></span>
-            </div>
-        </div>
-    </div>
+    {{ page_banner(title='Gestión de Temas Formativos', icon='book') }}
 
     {# ── BARRA DE ACCIONES (Debajo de la cabecera, a la derecha) ─────────── #}
     <div class="table-actions-bar" style="justify-content: flex-end;">

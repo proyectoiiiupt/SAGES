@@ -1,17 +1,4 @@
 document.addEventListener('DOMContentLoaded', function () {
-    // 1. Fecha dinámica en cabecera (time-formatter.js / es-VE)
-    const dateEl = document.getElementById('current-wizard-date');
-    if (dateEl) {
-        if (typeof formatCurrentDate === 'function') {
-            formatCurrentDate(dateEl, 'full-date');
-        } else {
-            const options = { day: 'numeric', month: 'long', year: 'numeric' };
-            const today = new Date();
-            const formattedDate = today.toLocaleDateString('es-VE', options);
-            dateEl.textContent = formattedDate;
-        }
-    }
-
     // 2. Elementos del Stepper
     const panel1 = document.getElementById('wizard-panel-1');
     const panel2 = document.getElementById('wizard-panel-2');

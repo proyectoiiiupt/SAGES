@@ -1,16 +1,5 @@
 document.addEventListener('DOMContentLoaded', function () {
     // =========================================================================
-    // 0. Configuración Global y Limpieza (Mudanza del JS en línea de Fase 2)
-    // =========================================================================
-    const dateElement = document.getElementById('current-date-display');
-    if (dateElement) {
-        dateElement.setAttribute('data-utc', new Date().toISOString());
-        if (typeof formatAllLocalTimes === 'function') {
-            formatAllLocalTimes();
-        }
-    }
-
-    // =========================================================================
     // 1. Elementos del DOM y Nodos de Interfaz
     // =========================================================================
     const moduleSelect = document.getElementById('module_select');

@@ -10,77 +10,6 @@
     color: #334155;
 }
 
-/* ── CABECERA ESTÁNDAR SAGES (.header-card / .analytics-header-card) ── */
-.analytics-container .header-card,
-.analytics-header-card {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #f9fafb;
-    padding: 1.25rem 2rem;
-    border-radius: 30px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-    margin-bottom: 1.25rem;
-    border: 1px solid #e2e8f0;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.analytics-container .welcome-text,
-.analytics-title-group {
-    font-size: 1.3rem;
-    font-weight: bold;
-    color: #1e293b;
-    font-style: italic;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.analytics-main-title {
-    margin: 0;
-    font-size: 1.3rem;
-    font-weight: bold;
-    color: #1e293b;
-    font-style: italic;
-}
-
-.analytics-jurisdiction-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    background: #f0fdf4;
-    color: #15803d;
-    padding: 0.35rem 0.85rem;
-    border-radius: 50px;
-    font-size: 0.82rem;
-    font-weight: 600;
-    font-style: normal;
-    border: 1px solid #bbf7d0;
-}
-
-.analytics-jurisdiction-badge svg {
-    width: 15px;
-    height: 15px;
-}
-
-.analytics-container .date-text,
-.analytics-date-wrapper {
-    color: #64748b;
-    font-size: 0.9rem;
-    font-weight: 500;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.analytics-container .date-text svg,
-.analytics-date-wrapper svg {
-    width: 18px;
-    height: 18px;
-    color: #007865;
-}
-
 /* ── CUADRO DE INDICADORES KPI ESTILO ADMINLTE ── */
 .analytics-container .kpi-grid {
     display: grid;
@@ -721,16 +650,6 @@
 }
 
 @media (max-width: 768px) {
-    .analytics-container .header-card {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.75rem;
-        padding: 1rem 1.25rem;
-        border-radius: 20px;
-    }
-    .analytics-container .welcome-text {
-        flex-wrap: wrap;
-    }
     .analytics-container .kpi-grid {
         grid-template-columns: 1fr;
     }
@@ -764,53 +683,8 @@
 }
 
 /* ========================================================
-   CABECERA BANNER Y ESTILOS COMPARTIDOS (VISTAS 2 Y 3)
+   ESTILOS COMPARTIDOS (VISTAS 2 Y 3)
    ======================================================== */
-
-/* Cabecera Estilo Banner (Idéntica a Gestión de Solicitudes) */
-.dashboard-banner {
-    background: #f9fafb;
-    border-radius: 14px;
-    padding: 14px 24px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.05);
-    margin-bottom: 20px;
-    border-left: 4px solid #019577;
-    flex-direction: row-reverse;
-}
-
-.banner-title {
-    font-size: 1.35rem;
-    font-weight: 700;
-    color: #111827;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    letter-spacing: -0.3px;
-    margin: 0;
-}
-
-.banner-date {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: #6B7280;
-    font-weight: 500;
-    background: #F1F5F9;
-    padding: 10px 18px;
-    border-radius: 30px;
-    font-size: 0.95rem;
-    letter-spacing: 0.2px;
-}
-
-.banner-date svg {
-    width: 18px;
-    height: 18px;
-    color: #019577;
-    flex-shrink: 0;
-}
 
 /* Toolbar de Navegación debajo del cabezal */
 .wizard-nav-toolbar {
@@ -1395,11 +1269,6 @@
 @media (max-width: 640px) {
     .analytics-container {
         padding: 12px;
-    }
-    .dashboard-banner {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
     }
 }
 

@@ -1,17 +1,5 @@
 // Script para el formulario de edición de instituciones
 document.addEventListener('DOMContentLoaded', function() {
-    // Mostrar fecha actual (time-formatter.js / es-VE)
-    const dateElement = document.getElementById('current-date');
-    if (dateElement) {
-        if (typeof formatCurrentDate === 'function') {
-            formatCurrentDate(dateElement, 'full-date');
-        } else {
-            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            const today = new Date();
-            dateElement.textContent = today.toLocaleDateString('es-VE', options);
-        }
-    }
-    
     // === Validar todos los campos al cargar la página ===
     function validateAllFields() {
         const allInputs = document.querySelectorAll('input[required], select[required]');

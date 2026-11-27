@@ -64,56 +64,6 @@
     box-sizing: border-box;
 }
 
-/* ── CABECERA DE P\u00c1GINA (est\u00e1ndar instituciones) ────────────────────────── */
-.hub-page .page-header {
-    background: #f9fafb;
-    border-radius: 14px;
-    padding: 14px 24px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.05);
-    border-left: 4px solid #007865;
-}
-
-.hub-page .page-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #111827;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    letter-spacing: -0.3px;
-}
-
-.hub-page .page-title h1 {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #111827;
-    margin: 0;
-    letter-spacing: -0.3px;
-}
-
-.hub-page .page-date {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: #6B7280;
-    font-weight: 500;
-    background: #F1F5F9;
-    padding: 10px 18px;
-    border-radius: 30px;
-    font-size: 0.875rem;
-    letter-spacing: 0.2px;
-}
-
-.hub-page .page-date svg {
-    width: 17px;
-    height: 17px;
-    color: #007865;
-    flex-shrink: 0;
-}
-
 /* ── BANDA DE INFO: descripci\u00f3n + badge + botones ──────────────────────── */
 .hub-info-band {
     background: transparent;
@@ -1021,46 +971,6 @@
     overflow-y: visible;
 }
 
-/* Cabecera institucional */
-.trainings-container .page-header {
-    background: #f9fafb;
-    border-radius: 14px;
-    padding: 14px 24px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.05);
-    margin-bottom: 1.25rem;
-    border-left: 4px solid #007865;
-}
-
-.trainings-container .page-title {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.trainings-container .header-icon {
-    width: 24px;
-    height: 24px;
-    color: #007865;
-    flex-shrink: 0;
-}
-
-.trainings-container .page-title h1 {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #111827;
-    margin: 0;
-    letter-spacing: -0.3px;
-}
-
-.trainings-container .header-right-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
 /* ── BARRA DE ACCIONES FUERA DE CABECERA (Alineada a la izquierda) ──── */
 .trainings-container .table-actions-bar {
     display: flex;
@@ -1111,26 +1021,6 @@
 
 .btn-hub-view:active {
     transform: scale(0.97);
-}
-
-.trainings-container .page-date {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: #6b7280;
-    font-weight: 500;
-    background: #f1f5f9;
-    padding: 9px 18px;
-    border-radius: 30px;
-    font-size: 0.875rem;
-    letter-spacing: 0.2px;
-}
-
-.trainings-container .page-date svg {
-    width: 16px;
-    height: 16px;
-    color: #007865;
-    flex-shrink: 0;
 }
 
 /* ── BARRA DE FILTROS INSTITUCIONAL (Estándar Monitoreo Nacional) ───── */
@@ -1749,18 +1639,6 @@
 @media (max-width: 768px) {
     .trainings-container {
         padding: 1.25rem 1rem;
-    }
-
-    .trainings-container .page-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
-        padding: 1.2rem;
-    }
-
-    .trainings-container .header-right-actions {
-        width: 100%;
-        justify-content: flex-start;
     }
 
     .trainings-container .filter-row {

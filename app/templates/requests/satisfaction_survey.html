@@ -1,4 +1,5 @@
 {% extends 'layouts/base.html' %}
+{% from "components/page_banner.html" import page_banner %}
 
 {% block title %}SAGES - Encuesta de Satisfacción | {{ req.request_code }}{% endblock %}
 
@@ -9,6 +10,7 @@
 
 {% block content %}
 <div class="survey-page-container">
+    {{ page_banner(title='Encuesta de Satisfacción', icon='star') }}
 
     <!-- ================================================================
          CABECERA INSTITUCIONAL

@@ -9,18 +9,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const tableBody = document.getElementById('dashboardTableBody');
     let debounceTimer;
 
-    // Inicialización del reloj del banner
-    const dateElement = document.getElementById('current-date-display');
-    if (dateElement) {
-        dateElement.setAttribute('data-utc', new Date().toISOString());
-        dateElement.classList.add('local-datetime');
-        dateElement.setAttribute('data-format', 'full-date');
-
-        if (typeof formatAllLocalTimes === 'function') {
-            formatAllLocalTimes();
-        }
-    }
-
     /**
      * Función principal que solicita la tabla actualizada al servidor
      */

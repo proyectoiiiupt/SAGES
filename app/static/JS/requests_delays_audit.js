@@ -11,18 +11,6 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Mostrar fecha local actual
-    const dateDisplay = document.getElementById('audit-current-date');
-    if (dateDisplay) {
-        if (typeof formatCurrentDate === 'function') {
-            formatCurrentDate(dateDisplay, 'full-date');
-        } else {
-            const today = new Date();
-            const options = { day: 'numeric', month: 'long', year: 'numeric' };
-            dateDisplay.textContent = today.toLocaleDateString('es-VE', options);
-        }
-    }
-
     // 2. Control de Filtros reactivos y Búsqueda con Debounce
     const filterForm = document.getElementById('audit-filter-form');
     const searchInput = document.getElementById('audit-search-input');

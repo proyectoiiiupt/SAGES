@@ -531,56 +531,6 @@
     gap: 20px;
 }
 
-/* ── Banner / Cabecera Institucional SAGES ── */
-.map-page-header {
-    background: #f9fafb;
-    border-radius: 14px;
-    padding: 14px 24px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.05);
-    border-left: 4px solid #007865;
-}
-
-.map-page-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #111827;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    letter-spacing: -0.3px;
-    margin: 0;
-}
-
-.map-page-title svg {
-    width: 22px;
-    height: 22px;
-    color: #007865;
-    flex-shrink: 0;
-}
-
-.map-page-date {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: #6B7280;
-    font-weight: 500;
-    background: #F1F5F9;
-    padding: 10px 18px;
-    border-radius: 30px;
-    font-size: 0.875rem;
-    letter-spacing: 0.2px;
-}
-
-.map-page-date svg {
-    width: 17px;
-    height: 17px;
-    color: #007865;
-    flex-shrink: 0;
-}
-
 /* Cuadrícula Principal (70% Mapa / 30% Panel Lateral) */
 .map-view-grid {
     display: grid;

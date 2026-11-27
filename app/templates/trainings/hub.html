@@ -1,4 +1,5 @@
 {% extends "layouts/base.html" %}
+{% from "components/page_banner.html" import page_banner %}
 
 {% block title %}Catálogo de Formación – SAGES{% endblock %}
 
@@ -15,22 +16,9 @@
 <div class="hub-page">
 
     {# ╔══════════════════════════════════════════════════════════════╗
-       ║  CABECERA DE PÁGINA (estándar instituciones)                 ║
+       ║  CABECERA DE PÁGINA (estándar SAGES)                         ║
        ╚══════════════════════════════════════════════════════════════╝ #}
-    <div class="page-header">
-        <div class="page-title">
-            <h1>Catálogo de Formación</h1>
-        </div>
-        <div class="page-date">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-            <span id="hub-current-date"></span>
-        </div>
-    </div>
+    {{ page_banner(title='Catálogo de Formación') }}
 
     {# ╔══════════════════════════════════════════════════════════════╗
        ║  BANDA DE INFO: descripción + badge + botones              ║
@@ -264,15 +252,6 @@
 {% block extra_js %}
 <script src="{{ url_for('static', filename='JS/trainings_hub.js') }}"></script>
 <script>
-    (function () {
-        const el = document.getElementById('hub-current-date');
-        if (!el) return;
-        const options = { day: 'numeric', month: 'long', year: 'numeric' };
-        const today = new Date();
-        const formattedDate = today.toLocaleDateString('es-ES', options);
-        el.textContent = formattedDate.replace(' de 20', ', 20');
-    })();
-
     // Captura única de mensajes Flash de Flask con SweetAlert2
     document.addEventListener('DOMContentLoaded', async function () {
         {% with messages = get_flashed_messages(with_categories=true) %}

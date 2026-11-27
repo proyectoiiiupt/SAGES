@@ -2,12 +2,15 @@
  * time-formatter.js
  * Script global institucional para SAGES.
  * Estandarización de Zona Horaria y Formateo Regional para Venezuela (es-VE, America/Caracas).
- * 
+ *
  * Funcionalidades:
- * 1. Convierte timestamps UTC de elementos .local-datetime a la hora local del usuario en es-VE.
+ * 1. Convierte timestamps UTC de elementos .local-datetime a la hora oficial de Venezuela (es-VE).
  * 2. Estandariza e inicializa automáticamente los encabezados de fecha del sistema (banners).
  * 3. Expone funciones globales para re-evaluación en componentes dinámicos (modales, AJAX).
  */
+
+const SAGES_LOCALE = 'es-VE';
+const SAGES_TIMEZONE = 'America/Caracas';
 
 document.addEventListener("DOMContentLoaded", function () {
     initTimeFormatter();
@@ -19,12 +22,93 @@ function initTimeFormatter() {
 }
 
 /**
+ * Formatea un objeto Date con la configuración regional estándar de SAGES (es-VE, America/Caracas),
+ * con fallback seguro en caso de navegadores antiguos sin soporte IANA timeZone.
+ */
+function formatDateWithOptions(date, options) {
+    try {
+        return new Intl.DateTimeFormat(
+            SAGES_LOCALE,
+            Object.assign({ timeZone: SAGES_TIMEZONE }, options)
+        ).format(date);
+    } catch (e) {
+        return new Intl.DateTimeFormat(SAGES_LOCALE, options).format(date);
+    }
+}
+
+/**
+ * Normaliza un string UTC/ISO y lo formatea según el tipo estándar SAGES.
+ */
+function formatLocalTimestamp(utcString, formatType = 'standard') {
+    if (!utcString) return '';
+
+    let normalized = String(utcString).trim().replace(/Z+$/, '');
+    const hasOffset = normalized.includes('+') || normalized.lastIndexOf('-') > 10;
+    if (!hasOffset) {
+        normalized += 'Z';
+    }
+
+    const date = new Date(normalized);
+    if (isNaN(date.getTime())) {
+        console.warn("time-formatter.js: Fecha inválida detectada ->", utcString);
+        return '';
+    }
+
+    if (formatType === 'standard' || formatType === 'friendly') {
+        return formatDateWithOptions(date, {
+            year: 'numeric',
+            month: 'short',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+    }
+    if (formatType === 'full') {
+        return formatDateWithOptions(date, {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+    }
+    if (formatType === 'full-date') {
+        return formatDateWithOptions(date, {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    }
+    if (formatType === 'date-only' || formatType === 'date') {
+        return formatDateWithOptions(date, {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+    }
+    if (formatType === 'time-only' || formatType === 'time') {
+        return formatDateWithOptions(date, {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+    }
+
+    return '';
+}
+
+/**
  * Inicializa automáticamente los elementos de banner y cabecera de fecha actual.
  */
 function initCurrentDateHeaders() {
     const headerSelectors = [
+        '.sages-page-banner__date-value',
+        '[data-current-date]',
         '#current-date-display',
         '#current-date',
+        '#hub-current-date',
         '#dashboard-date-text',
         '#config-date-text',
         '#analytics-date-text',
@@ -36,8 +120,7 @@ function initCurrentDateHeaders() {
         '#audit-current-date',
         '#monitoring-current-date',
         '.current-date-display',
-        '.current-date-text',
-        '[data-current-date]'
+        '.current-date-text'
     ];
 
     const elements = document.querySelectorAll(headerSelectors.join(', '));
@@ -64,71 +147,14 @@ function formatAllLocalTimes() {
 
     timeElements.forEach(el => {
         try {
-            let utcString = el.getAttribute('data-utc');
+            const utcString = el.getAttribute('data-utc');
             if (!utcString) return;
 
-            // 1. Limpiar el string de cualquier 'Z' duplicada
-            utcString = utcString.replace(/Z+$/, '');
-
-            // 2. Detectar si ya tiene offset (+00:00 o -04:00)
-            const hasOffset = utcString.includes('+') || utcString.lastIndexOf('-') > 10;
-
-            // 3. Si no tiene offset, asumimos UTC y le colocamos la 'Z'
-            if (!hasOffset) {
-                utcString += 'Z';
-            }
-
-            const date = new Date(utcString);
-
-            // Verifica que la fecha sea válida
-            if (isNaN(date.getTime())) {
-                console.warn("time-formatter.js: Fecha inválida detectada ->", utcString);
-                return; // Mantiene el texto fallback
-            }
-
             const formatType = el.getAttribute('data-format') || 'standard';
-            let formattedStr = '';
-
-            if (formatType === 'standard' || formatType === 'friendly') {
-                formattedStr = new Intl.DateTimeFormat('es-VE', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: true
-                }).format(date);
-            } else if (formatType === 'full') {
-                formattedStr = new Intl.DateTimeFormat('es-VE', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: true
-                }).format(date);
-            } else if (formatType === 'full-date') {
-                formattedStr = new Intl.DateTimeFormat('es-VE', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                }).format(date);
-            } else if (formatType === 'date-only' || formatType === 'date') {
-                formattedStr = new Intl.DateTimeFormat('es-VE', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit'
-                }).format(date);
-            } else if (formatType === 'time-only' || formatType === 'time') {
-                formattedStr = new Intl.DateTimeFormat('es-VE', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: true
-                }).format(date);
-            }
+            const formattedStr = formatLocalTimestamp(utcString, formatType);
 
             if (formattedStr) {
-                el.innerText = formattedStr;
+                el.textContent = formattedStr;
             }
         } catch (error) {
             console.error("time-formatter.js error:", error);
@@ -137,7 +163,7 @@ function formatAllLocalTimes() {
 }
 
 /**
- * Helper programático para formatear un elemento puntual como fecha actual
+ * Helper programático para formatear un elemento puntual como fecha actual.
  */
 function formatCurrentDate(element, formatType = 'full-date') {
     if (!element) return;
@@ -148,6 +174,7 @@ function formatCurrentDate(element, formatType = 'full-date') {
 }
 
 // Exponer en el objeto global window
+window.formatLocalTimestamp = formatLocalTimestamp;
 window.formatAllLocalTimes = formatAllLocalTimes;
 window.formatCurrentDate = formatCurrentDate;
 window.initTimeFormatter = initTimeFormatter;

@@ -1,4 +1,5 @@
 {% extends "layouts/base.html" %}
+{% from "components/page_banner.html" import page_banner %}
 
 {% block extra_css %}
 <!-- Enlace al archivo CSS local -->
@@ -37,13 +38,12 @@
 
 <div class="view-container">
     
-    <!-- Encabezado -->
-    <div class="view-header">
-        <div class="header-actions">
-            <!-- Interceptaremos este enlace con JS para el SweetAlert de Cancelar -->
-            <a href="{{ url_for('users.view_user', user_id=user.id) }}" class="btn-back btn-cancel-swal">⬅ Volver</a>
-            <h2 class="view-title">Actualización de Datos</h2>
-        </div>
+    <!-- Encabezado Estándar SAGES -->
+    {{ page_banner(title='Actualización de Datos', icon='user') }}
+
+    <div style="margin-top: 15px; margin-bottom: 20px;">
+        <!-- Interceptaremos este enlace con JS para el SweetAlert de Cancelar -->
+        <a href="{{ url_for('users.view_user', user_id=user.id) }}" class="btn-back btn-cancel-swal">&larr; Volver</a>
     </div>
 
     <div id="personal" class="tab-content active-content">

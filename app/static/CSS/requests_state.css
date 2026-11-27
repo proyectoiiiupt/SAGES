@@ -9,51 +9,6 @@
     min-height: calc(100vh - 60px);
 }
 
-/* 1. Banner Superior */
-.dashboard-banner {
-    background: #f9fafb;
-    border-radius: 14px;
-    padding: 14px 24px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.05);
-    margin-bottom: 24px;
-    border-left: 4px solid #019577;
-    flex-direction: row-reverse;
-}
-
-.banner-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #111827;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    letter-spacing: -0.3px;
-    margin: 0;
-}
-
-.banner-date {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: #6B7280;
-    font-weight: 500;
-    background: #F1F5F9;
-    padding: 10px 18px;
-    border-radius: 30px;
-    font-size: 0.875rem;
-    letter-spacing: 0.2px;
-}
-
-.banner-date svg {
-    width: 17px;
-    height: 17px;
-    color: #019577;
-    flex-shrink: 0;
-}
-
 /* 2. Cuadrícula de KPIs */
 :root {
     --dash-blue-bg: #f0f7ff;

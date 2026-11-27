@@ -1,4 +1,5 @@
 {% extends 'layouts/base.html' %}
+{% from "components/page_banner.html" import page_banner %}
 
 {% block title %}SAGES - Espacio de Trabajo Activo | {{ req.request_code }}{% endblock %}
 
@@ -25,21 +26,7 @@
     data-has-pdf="{{ 'true' if ctx.evidence_metrics.has_pdf_evidence else 'false' }}">
 
     <!-- 1. CABECERA CLÁSICA ESTÁNDAR SAGES -->
-    <div class="dashboard-banner">
-        <div class="banner-date">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-            <span id="current-date-display"></span>
-        </div>
-        <div class="banner-title">
-            Espacio de Trabajo Activo
-        </div>
-    </div>
+    {{ page_banner(title='Espacio de Trabajo Activo') }}
 
     <!-- 2. BARRA DE ACCIONES UNIFICADA (Debajo de la cabecera) -->
     <div class="ws-actions-toolbar">

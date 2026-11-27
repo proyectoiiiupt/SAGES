@@ -108,24 +108,28 @@ document.addEventListener("DOMContentLoaded", function() {
                 document.getElementById('modalNotifMessage').innerText = message;
                 
                 let formattedDate = date;
-                try {
-                    let utcString = date;
-                    if (utcString) {
-                        utcString = utcString.replace(/Z+$/, '');
-                        const hasOffset = utcString.includes('+') || utcString.lastIndexOf('-') > 10;
-                        if (!hasOffset) {
-                            utcString += 'Z';
+                if (typeof window.formatLocalTimestamp === 'function') {
+                    formattedDate = window.formatLocalTimestamp(date, 'standard') || date;
+                } else {
+                    try {
+                        let utcString = date;
+                        if (utcString) {
+                            utcString = utcString.replace(/Z+$/, '');
+                            const hasOffset = utcString.includes('+') || utcString.lastIndexOf('-') > 10;
+                            if (!hasOffset) {
+                                utcString += 'Z';
+                            }
                         }
-                    }
-                    
-                    const parsed = new Date(utcString);
-                    if (!isNaN(parsed.getTime())) {
-                        formattedDate = new Intl.DateTimeFormat('es-VE', {
-                            year: 'numeric', month: 'short', day: '2-digit',
-                            hour: '2-digit', minute: '2-digit', hour12: true
-                        }).format(parsed);
-                    }
-                } catch(e) {}
+                        const parsed = new Date(utcString);
+                        if (!isNaN(parsed.getTime())) {
+                            formattedDate = new Intl.DateTimeFormat('es-VE', {
+                                year: 'numeric', month: 'short', day: '2-digit',
+                                hour: '2-digit', minute: '2-digit', hour12: true,
+                                timeZone: 'America/Caracas'
+                            }).format(parsed);
+                        }
+                    } catch(e) {}
+                }
                 document.getElementById('modalNotifDate').innerText = formattedDate;
                 
                 const extraContainer = document.getElementById('modalNotifExtra');

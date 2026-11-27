@@ -227,7 +227,15 @@ document.addEventListener("DOMContentLoaded", function () {
         if (diffDays === 1) return "Ayer";
         if (diffDays < 7) return `Hace ${diffDays} días`;
         
-        return date.toLocaleDateString();
+        if (typeof window.formatLocalTimestamp === 'function') {
+            return window.formatLocalTimestamp(isoDateStr, 'date-only') || '';
+        }
+        return date.toLocaleDateString('es-VE', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            timeZone: 'America/Caracas'
+        });
     }
 
     function getIconSvg(type) {

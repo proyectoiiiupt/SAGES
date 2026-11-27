@@ -1,4 +1,5 @@
 {% extends 'layouts/base.html' %}
+{% from "components/page_banner.html" import page_banner %}
 
 {% block title %}SAGES - Registrar Nueva Solicitud{% endblock %}
 
@@ -9,26 +10,8 @@
 
 {% block content %}
 <div class="applicant-dashboard-container">
-    <!-- Cabecera Estilo Banner (Reutilizado para consistencia UX) -->
-    <div class="dashboard-banner">
-        <div class="banner-date">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-            <!-- Fecha local inyectada por JS dinámico (solo fecha, sin hora) -->
-            <span id="current-date-display" class="local-datetime" data-format="full-date"></span>
-        </div>
-        <h1 class="banner-title">
-            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
-            </svg>
-            Registrar Solicitud Formativa
-        </h1>
-    </div>
+    <!-- Cabecera Estilo Banner -->
+    {{ page_banner(title='Registrar Solicitud Formativa', icon='plus') }}
 
     <!-- Botonera Superior -->
     <div class="wizard-top-actions">

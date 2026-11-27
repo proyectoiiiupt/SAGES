@@ -1,15 +1,4 @@
 document.addEventListener("DOMContentLoaded", function () {
-    // 1. Mostrar la fecha actual en la cabecera (time-formatter.js / es-VE)
-    const dateElement = document.getElementById('current-analytics-date');
-    if (dateElement) {
-        if (typeof formatCurrentDate === 'function') {
-            formatCurrentDate(dateElement, 'full-date');
-        } else {
-            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            let dateStr = new Date().toLocaleDateString('es-VE', options);
-            dateElement.textContent = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
-        }
-    }
 
     // 2. Leer el payload de datos inyectado de forma segura desde Flask
     const payloadElement = document.getElementById('analytics-data-payload');

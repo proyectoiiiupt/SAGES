@@ -1,33 +1,12 @@
 {% extends "layouts/base.html" %}
+{% from "components/page_banner.html" import page_banner %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/home.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="welcome-banner">
-    <div class="welcome-text">
-        <i>¡Bienvenido, {{ current_user.person.first_name }}!</i>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v0" />
-            <path d="M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2" />
-            <path d="M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8" />
-            <path
-                d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />
-        </svg>
-    </div>
-    <div class="date-text">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-            stroke-linejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="16" y1="2" x2="16" y2="6"></line>
-            <line x1="8" y1="2" x2="8" y2="6"></line>
-            <line x1="3" y1="10" x2="21" y2="10"></line>
-        </svg>
-        <span id="current-date"></span>
-    </div>
-</div>
+{{ page_banner(title='¡Bienvenido, ' ~ current_user.person.first_name ~ '!', icon='wave', icon_position='after') }}
 
 {# Lógica dinámica basada en permisos del usuario #}
 {% set user_permissions = current_user.permissions %}
@@ -401,21 +380,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // Set dynamic date in Spanish format
-        const dateElement = document.getElementById('current-date');
-        if (dateElement) {
-            const options = { day: 'numeric', month: 'long', year: 'numeric' };
-            const today = new Date();
-            // Format example: "1 de abril, 2026"
-            const formattedDate = today.toLocaleDateString('es-ES', options);
-            // Replace generic string to match the requested format "1 de abril, 2026"
-            dateElement.textContent = formattedDate.replace(' de 20', ', 20');
-        }
-    });
-</script>
-
 {% with messages = get_flashed_messages(with_categories=true) %}
 {% if messages %}
 <script>

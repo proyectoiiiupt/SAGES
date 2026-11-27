@@ -3,17 +3,6 @@
    Estilos externos unificados. Paleta institucional: #019577 (Verde), #1c3d73 (Azul).
    ========================================================================== */
 
-.dossier-page-title {
-  margin: 0;
-}
-
-.dossier-page-subtitle {
-  color: #64748b;
-  font-size: 0.9rem;
-  margin: 4px 0 0 0;
-  font-weight: 400;
-}
-
 .dossier-page {
   max-width: 1120px;
   margin: 0 auto;

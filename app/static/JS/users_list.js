@@ -1,16 +1,4 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // --- Código del calendario (time-formatter.js / es-VE) ---
-    const dateElement = document.getElementById('current-date');
-    if (dateElement) {
-        if (typeof formatCurrentDate === 'function') {
-            formatCurrentDate(dateElement, 'full-date');
-        } else {
-            const today = new Date();
-            const options = { day: 'numeric', month: 'long', year: 'numeric' };
-            dateElement.textContent = today.toLocaleDateString('es-VE', options);
-        }
-    }
-
     // --- Buscador y filtros automáticos ---
     const filterForm = document.querySelector('.filter-form');
     

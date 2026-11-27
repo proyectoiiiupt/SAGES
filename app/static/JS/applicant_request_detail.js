@@ -248,15 +248,3 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 
-// 0. Renderizar la fecha actual en el banner superior (time-formatter.js / es-VE)
-const dateDisplay = document.getElementById('current-date-display');
-if (dateDisplay) {
-    if (typeof formatCurrentDate === 'function') {
-        formatCurrentDate(dateDisplay, 'full-date');
-    } else {
-        const today = new Date();
-        const options = { day: 'numeric', month: 'long', year: 'numeric' };
-        const formattedDate = today.toLocaleDateString('es-VE', options);
-        dateDisplay.textContent = formattedDate.replace(' de 20', ', 20');
-    }
-}

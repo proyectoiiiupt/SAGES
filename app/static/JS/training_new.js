@@ -10,17 +10,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let isNameValid = true;
     let nameValidationTimeout = null;
 
-    // 0. Set current date in header (time-formatter.js / es-VE)
-    const dateSpan = document.getElementById('current-date');
-    if (dateSpan) {
-        if (typeof formatCurrentDate === 'function') {
-            formatCurrentDate(dateSpan, 'full-date');
-        } else {
-            const options = { day: 'numeric', month: 'long', year: 'numeric' };
-            dateSpan.textContent = new Date().toLocaleDateString('es-VE', options);
-        }
-    }
-
     // 0.5. Validación al presionar el botón "Volver"
     const backBtn = document.getElementById('btn-back-to-catalog');
     if (backBtn) {

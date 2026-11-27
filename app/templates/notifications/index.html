@@ -1,4 +1,5 @@
 {% extends "layouts/base.html" %}
+{% from "components/page_banner.html" import page_banner %}
 {% from "notifications/components/card_alert.html" import render_alert_card %}
 {% from "notifications/components/card_action.html" import render_action_card %}
 {% from "notifications/components/card_status.html" import render_status_card %}
@@ -11,27 +12,8 @@
 {% endblock %}
 
 {% block content %}
-<div class="welcome-banner">
-    <div class="welcome-text">
-        <i>Historial de Notificaciones</i>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-        </svg>
-    </div>
-    <div class="date-text">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-            stroke-linejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="16" y1="2" x2="16" y2="6"></line>
-            <line x1="8" y1="2" x2="8" y2="6"></line>
-            <line x1="3" y1="10" x2="21" y2="10"></line>
-        </svg>
-        <span id="current-date"></span>
-    </div>
-</div>
-
 <div class="notifications-history-container">
+    {{ page_banner(title='Historial de Notificaciones', icon='bell') }}
     {% set user_role = current_user.roles_assoc[0].role.name if current_user.roles_assoc else 'applicant' %}
     {% set default_home = url_for('home_' ~ user_role) %}
     {% set final_back_url = back_url if back_url else default_home %}
@@ -110,15 +92,4 @@
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='JS/notifications-history.js') }}?v=4"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const dateElement = document.getElementById('current-date');
-        if (dateElement) {
-            const options = { day: 'numeric', month: 'long', year: 'numeric' };
-            const today = new Date();
-            const formattedDate = today.toLocaleDateString('es-ES', options);
-            dateElement.textContent = formattedDate.replace(' de 20', ', 20');
-        }
-    });
-</script>
 {% endblock %}

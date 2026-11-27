@@ -6,23 +6,8 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-
     // =========================================================================
-    // 1. FECHA ACTUAL DINÁMICA
-    // =========================================================================
-    const dateElement = document.getElementById('config-date-text');
-    if (dateElement) {
-        if (typeof formatCurrentDate === 'function') {
-            formatCurrentDate(dateElement, 'full-date');
-        } else {
-            const today = new Date();
-            const options = { day: 'numeric', month: 'long', year: 'numeric' };
-            dateElement.textContent = today.toLocaleDateString('es-VE', options);
-        }
-    }
-
-    // =========================================================================
-    // 2. CONMUTADOR DE PESTAÑAS (TABS)
+    // CONMUTADOR DE PESTAÑAS (TABS)
     // =========================================================================
     const tabButtons = Array.from(document.querySelectorAll('.config-tab-btn'));
     const tabPanels = Array.from(document.querySelectorAll('.config-tab-content'));

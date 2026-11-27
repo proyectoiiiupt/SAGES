@@ -5,19 +5,6 @@
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Set dynamic date in Venezuelan Spanish format (time-formatter.js / es-VE)
-    const dateElement = document.getElementById('current-date');
-    if (dateElement) {
-        if (typeof formatCurrentDate === 'function') {
-            formatCurrentDate(dateElement, 'full-date');
-        } else {
-            const options = { day: 'numeric', month: 'long', year: 'numeric' };
-            const today = new Date();
-            const formattedDate = today.toLocaleDateString('es-VE', options);
-            dateElement.textContent = formattedDate.replace(' de 20', ', 20');
-        }
-    }
-
     const toggleBtn = document.getElementById('toggle-btn');
     const statusBadge = document.getElementById('status-badge');
     

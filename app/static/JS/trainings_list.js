@@ -23,30 +23,10 @@
 
     /* ── Inicialización al cargar el DOM ─────────────────────────────── */
     document.addEventListener('DOMContentLoaded', function () {
-        initCurrentDate();
         initSearchDebounce();
         initFilterAutoSubmit();
         initToggleTrainingStatus();
     });
-
-    /* ────────────────────────────────────────────────────────────────── */
-    /**
-     * 1. Fecha Dinámica del Sistema (Formato Institucional SAGES)
-     * Ejemplo: "10 de septiembre de 2026"
-     */
-    function initCurrentDate() {
-        const dateEl = document.getElementById('current-date');
-        if (!dateEl) return;
-
-        if (typeof formatCurrentDate === 'function') {
-            formatCurrentDate(dateEl, 'full-date');
-        } else {
-            const options = { day: 'numeric', month: 'long', year: 'numeric' };
-            const today = new Date();
-            const formatted = today.toLocaleDateString('es-VE', options);
-            dateEl.textContent = formatted.charAt(0).toUpperCase() + formatted.slice(1);
-        }
-    }
 
     /* ────────────────────────────────────────────────────────────────── */
     /**

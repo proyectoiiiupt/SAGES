@@ -1,4 +1,5 @@
 {% extends 'layouts/base.html' %}
+{% from "components/page_banner.html" import page_banner %}
 
 {% block title %}SAGES - Auditoría de Retrasos SLA y Exigencia de Respuesta{% endblock %}
 
@@ -10,25 +11,7 @@
 {% block content %}
 <div class="monitoring-container">
     <!-- ===== CABECERA INSTITUCIONAL ===== -->
-    <div class="page-header">
-        <div class="page-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px; color: #b91c1c;">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                <line x1="12" y1="9" x2="12" y2="13"></line>
-                <line x1="12" y1="17" x2="12.01" y2="17"></line>
-            </svg>
-            <h1>Auditoría de Retrasos SLA y Exigencia de Respuesta</h1>
-        </div>
-        <div class="page-date">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-            <span id="audit-current-date"></span>
-        </div>
-    </div>
+    {{ page_banner(title='Auditoría de Retrasos SLA y Exigencia de Respuesta', icon='alert-triangle', icon_variant='danger') }}
 
     <!-- ===== BARRA DE NAVEGACIÓN POR BOTONES (US-38) ===== -->
     <nav class="monitoring-nav-buttons" aria-label="Navegación de monitoreo y auditoría">

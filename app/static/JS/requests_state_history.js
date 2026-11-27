@@ -10,23 +10,9 @@
     const DEBOUNCE_DELAY = 400;
 
     document.addEventListener('DOMContentLoaded', function () {
-        initCurrentDate();
         initSearchDebounce();
         initFilterAutoSubmit();
     });
-
-    /**
-     * 1. Fecha Dinámica del Sistema (Formato Institucional SAGES)
-     */
-    function initCurrentDate() {
-        const dateEl = document.getElementById('current-date');
-        if (!dateEl) return;
-
-        const options = { day: 'numeric', month: 'long', year: 'numeric' };
-        const today = new Date();
-        const formatted = today.toLocaleDateString('es-ES', options);
-        dateEl.textContent = formatted.charAt(0).toUpperCase() + formatted.slice(1);
-    }
 
     /**
      * 2. Búsqueda con Técnica Debounce (400 ms) y Sanitización en Vivo

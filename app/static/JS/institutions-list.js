@@ -5,20 +5,6 @@
 
 let searchTimeout;
 
-document.addEventListener('DOMContentLoaded', function () {
-    // Set dynamic date in Venezuelan Spanish format (time-formatter.js)
-    const dateElement = document.getElementById('current-date');
-    if (dateElement) {
-        if (typeof formatCurrentDate === 'function') {
-            formatCurrentDate(dateElement, 'full-date');
-        } else {
-            const today = new Date();
-            const options = { day: 'numeric', month: 'long', year: 'numeric' };
-            dateElement.textContent = today.toLocaleDateString('es-VE', options);
-        }
-    }
-});
-
 function debouncedSearch() {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(updateFilters, 500);

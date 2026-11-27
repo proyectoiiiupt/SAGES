@@ -1,4 +1,5 @@
 {% extends "layouts/base.html" %}
+{% from "components/page_banner.html" import page_banner %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/institutions.css') }}">
@@ -9,11 +10,7 @@
 {% block content %}
 <div class="institutions-container">
     {# Formulario mínimo: cédula, correo y cargo del colaborador. #}
-    <div class="page-header">
-        <div class="page-title">
-            <h1>Invitar colaborador</h1>
-        </div>
-    </div>
+    {{ page_banner(title='Invitar colaborador') }}
     <div class="invitation-card">
         <h2>{{ institution.institution_name }}</h2>
         <p class="invitation-context">La invitación será válida durante 48 horas.</p>

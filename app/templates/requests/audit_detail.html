@@ -1,4 +1,5 @@
 {% extends 'layouts/base.html' %}
+{% from "components/page_banner.html" import page_banner %}
 
 {% block title %}SAGES - Radiografía Técnica y Ficha Forense de Expediente{% endblock %}
 
@@ -11,30 +12,13 @@
 <div class="audit-workspace-container">
 
     <!-- 1. Cabecera Clásica Institucional (Estándar SAGES) -->
-    <div class="page-header">
-        <div class="page-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="header-icon">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-            </svg>
-            <div>
-                <div class="hero-title-row">
-                    <h1>Radiografía Técnica de Expediente</h1>
-                    <span class="banner-security-badge">Inspección Forense (Solo Lectura)</span>
-                </div>
-                <p class="banner-subtext">Supervisión Nacional CORPOELEC / UREE &mdash; {{ req.request_code }} &middot; {{ audit.institution.name }}</p>
-            </div>
-        </div>
-
-        <div class="page-date">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-            <span id="current-date-display"></span>
-        </div>
-    </div>
+    {{ page_banner(
+        title='Radiografía Técnica de Expediente',
+        subtitle='Supervisión Nacional CORPOELEC / UREE — ' ~ req.request_code ~ ' · ' ~ audit.institution.name,
+        icon='shield',
+        badge_text='Inspección Forense (Solo Lectura)',
+        badge_variant='security'
+    ) }}
 
     <!-- 2. Barra de Navegación y Acción Coercitiva (Debajo del Banner) -->
     <div class="audit-action-toolbar">

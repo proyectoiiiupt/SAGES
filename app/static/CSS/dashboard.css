@@ -35,83 +35,6 @@
     gap: 1.75rem;
 }
 
-/* ── CABECERA / HEADER CARD ────────────────────────────────────────────── */
-.dashboard-header-card {
-    background: #f9fafb;
-    border-radius: 20px;
-    padding: 1.25rem 2rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-    border: 1px solid rgba(226, 232, 240, 0.8);
-    position: relative;
-    overflow: hidden;
-}
-
-.dashboard-header-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    width: 6px;
-    background: linear-gradient(180deg, var(--btn-gradient-start, #1c3d73) 0%, var(--text-teal, #1fcab0) 100%);
-}
-
-.dashboard-title-group {
-    display: flex;
-    align-items: center;
-    gap: 1.25rem;
-}
-
-.dashboard-main-title {
-    font-size: 1.45rem;
-    font-weight: 800;
-    font-style: italic;
-    color: #1e293b;
-    letter-spacing: -0.3px;
-    margin: 0;
-}
-
-.dashboard-jurisdiction-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 0.35rem 0.9rem;
-    background: #f1f5f9;
-    color: #334155;
-    font-size: 0.82rem;
-    font-weight: 600;
-    border-radius: 50px;
-    border: 1px solid #e2e8f0;
-}
-
-.dashboard-jurisdiction-badge svg {
-    width: 14px;
-    height: 14px;
-    color: #0284c7;
-}
-
-.dashboard-date-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: #475569;
-    font-size: 0.92rem;
-    font-weight: 600;
-    background: #f8fafc;
-    padding: 0.5rem 1rem;
-    border-radius: 12px;
-    border: 1px solid #e2e8f0;
-}
-
-.dashboard-date-wrapper svg {
-    width: 20px;
-    height: 20px;
-    color: #1e293b;
-}
-
 /* ── GRID DE INDICADORES PRINCIPALES (4 TARJETAS) ────────────────────────── */
 .kpi-grid {
     display: grid;
@@ -448,12 +371,6 @@
     .dashboard-container {
         padding: 1rem;
         gap: 1.2rem;
-    }
-    .dashboard-header-card {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.75rem;
-        padding: 1rem 1.25rem;
     }
     .kpi-grid {
         grid-template-columns: 1fr;
