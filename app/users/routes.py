@@ -1294,23 +1294,11 @@ def resend_activation_admin(user_id):
         if target_role_name not in ['applicant', 'director', 'directora']:
             return jsonify({'status': 'error', 'message': 'No tiene permisos para gestionar este usuario.'}), 403
 
-        admin_state_id = None
-        if current_user.person:
-            inst = InstitutionalStaff.query.filter_by(person_id=current_user.person.id).first()
-            if inst and inst.institution and inst.institution.parish and inst.institution.parish.municipality:
-                admin_state_id = inst.institution.parish.municipality.state_id
-            else:
-                comp = CompanyStaff.query.filter_by(person_id=current_user.person.id).first()
-                if comp and comp.place and comp.place.parish and comp.place.parish.municipality:
-                    admin_state_id = comp.place.parish.municipality.state_id
+        admin_state_id = get_user_state_id(current_user)
+        target_state_id = get_user_state_id(target_user)
 
-        target_inst = InstitutionalStaff.query.filter_by(person_id=target_person.id).first()
-        target_state_id = None
-        if target_inst and target_inst.institution and target_inst.institution.parish and target_inst.institution.parish.municipality:
-            target_state_id = target_inst.institution.parish.municipality.state_id
-
-        if admin_state_id and target_state_id and admin_state_id != target_state_id:
-            return jsonify({'status': 'error', 'message': 'El usuario no pertenece a su jurisdicción estatal.'}), 403
+        if not admin_state_id or admin_state_id != target_state_id:
+            return jsonify({'status': 'error', 'message': 'El usuario no pertenece a su jurisdicción territorial.'}), 403
 
     # Determinar si es flujo applicant o administrative
     if target_role_name in ['super_admin', 'state_admin']:
