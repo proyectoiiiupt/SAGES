@@ -436,7 +436,7 @@ def toggle_institution_status(institution_id):
                 institution_id=institution.id,
                 event=event_type,
                 context=context,
-                redirect_url="/institutions/profile",
+                redirect_url="/institutions/my-institution",
                 action_text="Ver Detalles"
             )
         except Exception as e:
