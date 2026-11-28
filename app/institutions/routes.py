@@ -111,7 +111,24 @@ def view_institution(institution_id):
         institution = get_institution_by_id(institution_id)
         if not institution:
             abort(404)
-        
+
+        # Seguridad IDOR: verificar que la institución pertenezca al estado del state_admin
+        is_super_admin = any(
+            role_assoc.role.name == 'super_admin'
+            for role_assoc in current_user.roles_assoc
+        ) if current_user and current_user.roles_assoc else False
+
+        if not is_super_admin:
+            user_state_info = get_user_state_info(current_user)
+            admin_state_id = user_state_info.get('state_id') if user_state_info else None
+            inst_state_id = (
+                institution.parish.municipality.state_id
+                if (institution.parish and institution.parish.municipality)
+                else None
+            )
+            if not admin_state_id or inst_state_id != admin_state_id:
+                abort(403)
+
         show_success = request.args.get('success', 'false') == 'true'
         return render_template('institutions/detail.html', institution=institution, is_applicant=False, show_success=show_success)
     except Exception as e:
@@ -177,10 +194,16 @@ def toggle_institution_status_route(institution_id):
 def view_institution_users(institution_id):
     """Vista para ver los usuarios afiliados a una institución específica."""
     try:
+        is_super_admin = any(
+            role_assoc.role.name == 'super_admin'
+            for role_assoc in current_user.roles_assoc
+        ) if current_user and current_user.roles_assoc else False
+
         is_applicant = any(
             role_assoc.role.name == 'applicant'
             for role_assoc in current_user.roles_assoc
-        )
+        ) if current_user and current_user.roles_assoc else False
+
         if is_applicant:
             staff_members = current_user.person.institutional_staff if current_user.person else []
             if not staff_members or staff_members[0].institution_id != institution_id:
@@ -189,6 +212,18 @@ def view_institution_users(institution_id):
         institution = get_institution_by_id(institution_id)
         if not institution:
             abort(404)
+
+        # Seguridad IDOR: verificar que la institución pertenezca al estado del state_admin
+        if not is_super_admin and not is_applicant:
+            user_state_info = get_user_state_info(current_user)
+            admin_state_id = user_state_info.get('state_id') if user_state_info else None
+            inst_state_id = (
+                institution.parish.municipality.state_id
+                if (institution.parish and institution.parish.municipality)
+                else None
+            )
+            if not admin_state_id or inst_state_id != admin_state_id:
+                abort(403)
         
         page = request.args.get('page', 1, type=int)
         per_page = 10
@@ -383,6 +418,17 @@ def edit_institution(institution_id):
                     'address': form.address.data
                 }
             elif user_role == 'state_admin':
+                new_parish_id = int(form.parish_id.data) if form.parish_id.data else None
+
+                # Seguridad IDOR: validar que la nueva parish_id pertenezca al estado del state_admin
+                if new_parish_id and admin_state_id:
+                    parish_obj = Parish.query.join(Municipality).filter(
+                        Parish.id == new_parish_id,
+                        Municipality.state_id == admin_state_id
+                    ).first()
+                    if not parish_obj:
+                        abort(403)
+
                 institution_data = {
                     'phone': form.phone.data,
                     'address': form.address.data,
@@ -392,7 +438,7 @@ def edit_institution(institution_id):
                     'institution_dependency_id': int(form.institution_dependency.data) if form.institution_dependency.data else None,
                     'educational_levels': form.educational_levels.data or [],
                     'municipality_id': int(form.municipality_id.data) if form.municipality_id.data else None,
-                    'parish_id': int(form.parish_id.data) if form.parish_id.data else None
+                    'parish_id': new_parish_id
                 }
             else:  # super_admin
                 institution_data = {
