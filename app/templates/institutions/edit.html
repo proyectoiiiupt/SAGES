@@ -1,15 +1,19 @@
 {# 
     Template: Editar Institución
-    Formulario para actualizar datos de una institución.
-    Los campos de datos generales y ubicación territorial están bloqueados (solo lectura) para applicants.
-    Accesible para applicants (solo su institución afiliada), state_admin y super_admin.
+    Formulario para actualizar datos de una institución según matriz estricta de edición por rol:
+    - applicant: solo teléfono institucional y dirección detallada (plantel activo).
+    - state_admin: datos generales, clasificación MPPE (incluyendo niveles educativos), teléfono, dirección
+      y ubicación (municipio y parroquia) de su estado asignado (state_id y plantel_code bloqueados).
+    - super_admin: edición completa, incluyendo state_id y desbloqueo de plantel_code (regex y unicidad).
+    - Ciudad es un campo informativo de solo lectura derivado automáticamente de parish_id.
 #}
 {% extends "layouts/base.html" %}
 {% from "components/page_banner.html" import page_banner %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='CSS/institutions.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='CSS/institutions-edit.css', v='2') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/institutions-detail.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='CSS/institutions-edit.css', v='3') }}">
 {% endblock %}
 
 {% block content %}
@@ -40,7 +44,15 @@
         <div class="edit-card">
             <div class="edit-header">
                 <h2>{{ institution.institution_name }}</h2>
-                <span class="edit-subtitle">{% if is_applicant %}Información de la institución{% else %}Actualice los datos de la institución{% endif %}</span>
+                <span class="edit-subtitle">
+                    {% if is_applicant %}
+                        Información y datos de contacto de la institución
+                    {% elif is_state_admin %}
+                        Edición de clasificación y localización estadal
+                    {% else %}
+                        Administración central de la institución
+                    {% endif %}
+                </span>
             </div>
 
             {% if is_applicant %}
@@ -53,8 +65,22 @@
                     </svg>
                 </div>
                 <div class="info-content">
-                    <h4>Información para el Usuario</h4>
-                    <p>Como usuario solicitante, solo puedes actualizar la dirección detallada. Para modificar otros datos de la institución, contacta con el administrador.</p>
+                    <h4>Información para el Usuario Solicitante</h4>
+                    <p>Como usuario de la institución, puedes actualizar el teléfono institucional y la dirección física detallada. Los datos generales y territoriales son de solo lectura; para modificarlos contacta con el administrador estadal o nacional.</p>
+                </div>
+            </div>
+            {% elif is_state_admin %}
+            <div class="warning-alert">
+                <div class="warning-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                </div>
+                <div class="warning-content">
+                    <h4>Administración Estadal ({{ user_state_info.state_name if user_state_info else 'Estado Asignado' }})</h4>
+                    <p>Puede actualizar nombre, clasificación MPPE (tipo, alcance, dependencia, niveles educativos), teléfono, dirección y ubicación territorial dentro de su estado asignado. El código de plantel (DEA) y el estado se encuentran protegidos.</p>
                 </div>
             </div>
             {% else %}
@@ -67,23 +93,22 @@
                     </svg>
                 </div>
                 <div class="warning-content">
-                    <h4>Información Delicada</h4>
-                    <p>Esta información es delicada y debe ser actualizada con información real bajo los lineamientos del Ministerio de Educación. Asegúrese de verificar todos los datos antes de guardar los cambios.</p>
+                    <h4>Administración Central (Super Admin)</h4>
+                    <p>Tiene permisos para modificar todos los aspectos del plantel, incluyendo el cambio de estado territorial y el desbloqueo del código de plantel (DEA). Verifique que los datos cumplan las normativas del MPPE.</p>
                 </div>
             </div>
             {% endif %}
 
             <form method="POST" action="{{ url_for('institutions.edit_institution', institution_id=institution.id) }}" class="edit-form">
                 {{ form.hidden_tag() }}
+
                 <!-- Sección de Datos Generales -->
                 <div class="form-section">
                     <h3>Datos Generales</h3>
                     <div class="form-row form-row-2">
                         <div class="form-group code-col">
                             <label for="plantel_code">Código del Plantel (DEA):</label>
-                            {% if is_applicant %}
-                                <input type="text" id="plantel_code" name="plantel_code" value="{{ institution.plantel_code }}" readonly class="readonly-field">
-                            {% else %}
+                            {% if is_super_admin %}
                                 <div class="plantel-code-container">
                                     {{ form.plantel_code(readonly=True, class="readonly-field") }}
                                     <button type="button" id="unlock-plantel-code" class="btn-unlock" title="Desbloquear edición de código">
@@ -96,6 +121,8 @@
                                 {% if form.plantel_code.errors %}
                                     <span class="error-message">{{ form.plantel_code.errors[0] }}</span>
                                 {% endif %}
+                            {% else %}
+                                <input type="text" id="plantel_code" name="plantel_code" value="{{ institution.plantel_code }}" readonly class="readonly-field" title="El código de plantel está protegido">
                             {% endif %}
                         </div>
                         <div class="form-group name-col">
@@ -110,6 +137,7 @@
                             {% endif %}
                         </div>
                     </div>
+
                     <div class="form-row form-row-3">
                         <div class="form-group">
                             <label for="institution_type">Tipo de Institución:</label>
@@ -145,22 +173,56 @@
                             {% endif %}
                         </div>
                     </div>
+
+                    <!-- Niveles Educativos (MPPE) -->
+                    <div class="form-row" style="margin-top: 10px;">
+                        <div class="form-group full-width">
+                            <label>Niveles Educativos (MPPE):</label>
+                            {% if is_applicant %}
+                                <div class="levels-list" style="justify-content: flex-start; padding: 6px 0;">
+                                    {% if institution.institution_levels %}
+                                        {% for level in institution.institution_levels %}
+                                            <span class="level-tag">{{ level.educational_level.name }}</span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="no-data">Sin niveles educativos asignados</span>
+                                    {% endif %}
+                                </div>
+                            {% else %}
+                                <div id="group-educational-levels" class="checkbox-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-top: 4px;">
+                                    {% for level in all_educational_levels %}
+                                        <label class="checkbox-item" id="level-label-{{ level.id }}" data-level-code="{{ level.level_code }}" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; cursor: pointer;">
+                                            <input type="checkbox" name="educational_levels" value="{{ level.id }}" class="edu-level-chk"
+                                                {% if level.id in current_level_ids %}checked{% endif %}>
+                                            <span style="font-size: 0.88rem; color: #1e293b;">{{ level.name }}</span>
+                                        </label>
+                                    {% endfor %}
+                                </div>
+                                <span class="field-hint" style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">Seleccione los niveles educativos que imparte la institución según su clasificación MPPE.</span>
+                                {% if form.educational_levels and form.educational_levels.errors %}
+                                    <span class="error-message">{{ form.educational_levels.errors[0] }}</span>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Sección de Ubicación -->
+                <!-- Sección de Contacto y Ubicación Territorial -->
                 <div class="form-section">
-                    <h3>Ubicación Territorial</h3>
+                    <h3>Contacto y Ubicación Territorial</h3>
+                    
                     <div class="form-row form-row-4">
                         <div class="form-group">
                             <label for="state_id">Estado:</label>
-                            {% if is_applicant %}
-                                <input type="text" id="state" value="{{ institution.parish.municipality.state.name if institution.parish and institution.parish.municipality and institution.parish.municipality.state else 'No asignado' }}" readonly class="readonly-field">
-                            {% else %}
+                            {% if is_super_admin %}
                                 {{ form.state_id }}
-                                <input type="hidden" id="current_state_id" value="{{ institution.parish.municipality.state_id if institution.parish and institution.parish.municipality and institution.parish.municipality.state else '' }}">
+                                <input type="hidden" id="current_state_id" value="{{ current_state_id }}">
                                 {% if form.state_id.errors %}
                                     <span class="error-message">{{ form.state_id.errors[0] }}</span>
                                 {% endif %}
+                            {% else %}
+                                <input type="text" id="state" value="{{ institution.parish.municipality.state.name if institution.parish and institution.parish.municipality and institution.parish.municipality.state else 'No asignado' }}" readonly class="readonly-field" title="El estado está bloqueado para su rol">
+                                <input type="hidden" id="current_state_id" value="{{ current_state_id }}">
                             {% endif %}
                         </div>
                         <div class="form-group">
@@ -169,7 +231,7 @@
                                 <input type="text" id="municipality" value="{{ institution.parish.municipality.name if institution.parish and institution.parish.municipality else 'No asignado' }}" readonly class="readonly-field">
                             {% else %}
                                 {{ form.municipality_id }}
-                                <input type="hidden" id="current_municipality_id" value="{{ institution.parish.municipality_id if institution.parish and institution.parish.municipality else '' }}">
+                                <input type="hidden" id="current_municipality_id" value="{{ current_municipality_id }}">
                                 {% if form.municipality_id.errors %}
                                     <span class="error-message">{{ form.municipality_id.errors[0] }}</span>
                                 {% endif %}
@@ -181,29 +243,32 @@
                                 <input type="text" id="parish" value="{{ institution.parish.name if institution.parish else 'No asignada' }}" readonly class="readonly-field">
                             {% else %}
                                 {{ form.parish_id }}
-                                <input type="hidden" id="current_parish_id" value="{{ institution.parish_id if institution.parish else '' }}">
+                                <input type="hidden" id="current_parish_id" value="{{ current_parish_id }}">
                                 {% if form.parish_id.errors %}
                                     <span class="error-message">{{ form.parish_id.errors[0] }}</span>
                                 {% endif %}
                             {% endif %}
                         </div>
                         <div class="form-group">
-                            <label for="city_id">Ciudad:</label>
-                            {% if is_applicant %}
-                                <input type="text" id="city" value="{{ current_city_name if current_city_name else 'No asignada' }}" readonly class="readonly-field">
-                            {% else %}
-                                {{ form.city_id }}
-                                <input type="hidden" id="current_city_id" value="{{ current_city_id if current_city_id else '' }}">
-                                {% if form.city_id.errors %}
-                                    <span class="error-message">{{ form.city_id.errors[0] }}</span>
-                                {% endif %}
+                            <label for="city_display">Ciudad (Inmutable):</label>
+                            <input type="text" id="city_display" name="city_display" value="{{ current_city_name }}" readonly class="readonly-field" title="Campo informativo derivado automáticamente de la parroquia">
+                        </div>
+                    </div>
+
+                    <div class="form-row form-row-2">
+                        <div class="form-group">
+                            <label for="phone">Teléfono Institucional:</label>
+                            {{ form.phone(placeholder="(0212)-1234567 o +58 212 1234567") }}
+                            {% if form.phone.errors %}
+                                <span class="error-message">{{ form.phone.errors[0] }}</span>
                             {% endif %}
                         </div>
                     </div>
+
                     <div class="form-row">
                         <div class="form-group full-width">
                             <label for="address">Dirección Detallada:</label>
-                            {{ form.address(placeholder="Ingrese la dirección física detallada", rows="3") }}
+                            {{ form.address(placeholder="Ingrese la dirección física detallada (mínimo 10 caracteres)", rows="3") }}
                             {% if form.address.errors %}
                                 <span class="error-message">{{ form.address.errors[0] }}</span>
                             {% endif %}
@@ -241,11 +306,18 @@
     (function() {
         try {
             window.dependenciesList = {{ dependencies_list | tojson }};
+            window.institutionTypesMap = {{ institution_types_map | tojson if institution_types_map else '{}' }};
+            window.educationalLevelsMap = {{ educational_levels_map | tojson if educational_levels_map else '{}' }};
+            window.userRole = {{ user_role | tojson }};
+            window.adminStateId = {{ current_state_id | tojson }};
             window.validationErrors = {{ validation_errors | tojson if validation_errors else '{}' }};
             window.formData = {{ form_data | tojson if form_data else '{}' }};
         } catch(e) {
             console.error('Error al cargar datos:', e);
             window.dependenciesList = [];
+            window.institutionTypesMap = {};
+            window.educationalLevelsMap = {};
+            window.userRole = 'applicant';
             window.validationErrors = {};
             window.formData = {};
         }

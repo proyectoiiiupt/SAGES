@@ -25,8 +25,48 @@ from app.models.user_model import User
 from app.models.position_model import Position
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_
+from flask import current_app
 from app.binnacle.services import BinnacleService
 from app.binnacle.types import AuditModule, AuditAction, AuditStatus
+
+ROLE_EDIT_WHITELISTS = {
+    'applicant': {'phone', 'address'},
+    'state_admin': {
+        'phone', 'address', 'institution_name',
+        'institution_type_id', 'institution_scope_id', 'institution_dependency_id',
+        'educational_levels', 'municipality_id', 'parish_id'
+    },
+    'super_admin': {
+        'phone', 'address', 'institution_name',
+        'institution_type_id', 'institution_scope_id', 'institution_dependency_id',
+        'educational_levels', 'municipality_id', 'parish_id',
+        'state_id', 'plantel_code'
+    }
+}
+
+ALLOWED_EDUCATIONAL_LEVELS = {
+    'INST-001': {'EDUL-005', 'EDUL-006'},  # Universidad
+    'INST-002': {'EDUL-005'},              # Instituto Universitario
+    'INST-003': {'EDUL-003', 'EDUL-004'},  # Liceo / Educación Media
+    'INST-004': {'EDUL-001', 'EDUL-002'},  # Escuela Básica / Primaria
+    'INST-006': {'EDUL-001', 'EDUL-002', 'EDUL-003', 'EDUL-004'},  # Complejo Educativo Integral
+    'INST-005': set()                      # Centro de Formación Técnica y Laboral
+}
+
+
+def get_city_by_parish_id(parish_id):
+    """
+    Obtiene la ciudad asociada a una parroquia a través de sages.locations (solo lectura).
+    Aspecto inmutable: no se edita la ciudad, solo se consulta.
+    """
+    if not parish_id:
+        return None
+    try:
+        location = Location.query.filter_by(parish_id=parish_id).first()
+        return location.city if location else None
+    except Exception as e:
+        current_app.logger.error("Error en get_city_by_parish_id", exc_info=True)
+        return None
 
 
 def get_user_state_info(user):
@@ -567,217 +607,403 @@ def get_institution_users(institution_id, page=1, per_page=10):
         }
 
 
-def validate_institution_data(institution_data, is_admin=False):
-    """Valida los datos de una institución antes de actualizar."""
+def validate_institution_data(institution_data, is_admin=False, user_role=None, user=None, institution_id=None):
+    r"""
+    Valida los datos de una institución antes de actualizar según las reglas de negocio y rol:
+    - Límites de validación unificados con forms.py:
+        * address: min 10, max 500
+        * institution_name: min 3, max 200
+        * phone: min 7, max 20, regex r'^\+?[\d\s\-]{7,20}$'
+        * plantel_code: regex ^[A-Z0-9\-]{4,20}$ y unicidad (solo super_admin)
+    - state_admin: valida en servidor que la parroquia pertenezca a su mismo estado (state_id bloqueado).
+    - super_admin: puede modificar state_id y plantel_code.
+    - educational_levels: valida correspondencia con ALLOWED_EDUCATIONAL_LEVELS según institution_type.
+    """
     errors = {}
     
+    # 1. Teléfono institucional (opcional, aplicable a todos los roles)
+    if 'phone' in institution_data:
+        phone = (institution_data['phone'] or '').strip()
+        if phone:
+            if len(phone) < 7:
+                errors['phone'] = 'El teléfono debe tener al menos 7 caracteres'
+            elif len(phone) > 20:
+                errors['phone'] = 'El teléfono no puede exceder 20 caracteres'
+            elif not re.match(r'^\+?[\d\s\-]{7,20}$', phone):
+                errors['phone'] = 'Formato de teléfono inválido (ej: 0414-1234567 o +58 212 1234567)'
+
+    # 2. Dirección detallada (min 10, max 500, unificado con forms.py)
     if 'address' in institution_data:
-        address = institution_data['address']
-        if not address or address.strip() == '':
+        address = (institution_data['address'] or '').strip()
+        if not address:
             errors['address'] = 'La dirección es obligatoria'
-        elif len(address.strip()) < 5:
-            errors['address'] = 'La dirección debe tener al menos 5 caracteres'
-        elif len(address.strip()) > 200:
-            errors['address'] = 'La dirección no puede exceder 200 caracteres'
-    
-    if is_admin:
-        if 'plantel_code' in institution_data:
-            plantel_code = institution_data['plantel_code']
-            if not plantel_code or plantel_code.strip() == '':
-                errors['plantel_code'] = 'El código de plantel es obligatorio'
+        elif len(address) < 10:
+            errors['address'] = 'La dirección debe tener al menos 10 caracteres'
+        elif len(address) > 500:
+            errors['address'] = 'La dirección no puede exceder 500 caracteres'
+
+    # 3. Código del plantel (solo editable por super_admin)
+    if 'plantel_code' in institution_data:
+        plantel_code = (institution_data['plantel_code'] or '').strip().upper()
+        if not plantel_code:
+            errors['plantel_code'] = 'El código de plantel es obligatorio'
+        elif len(plantel_code) < 4:
+            errors['plantel_code'] = 'El código de plantel debe tener al menos 4 caracteres'
+        elif len(plantel_code) > 20:
+            errors['plantel_code'] = 'El código de plantel no puede exceder 20 caracteres'
+        elif not re.match(r'^[A-Z0-9\-]{4,20}$', plantel_code):
+            errors['plantel_code'] = 'Formato de código de plantel inválido. Debe contener entre 4 y 20 caracteres (mayúsculas, números y guiones)'
+        else:
+            # Validación de unicidad
+            query = Institution.query.filter(Institution.plantel_code == plantel_code)
+            if institution_id:
+                query = query.filter(Institution.id != institution_id)
+            existing = query.first()
+            if existing:
+                errors['plantel_code'] = f'El código de plantel "{plantel_code}" ya está registrado por otra institución'
+
+    # 4. Nombre de la institución (min 3, max 200, unificado con forms.py)
+    if 'institution_name' in institution_data:
+        institution_name = (institution_data['institution_name'] or '').strip()
+        if not institution_name:
+            errors['institution_name'] = 'El nombre de la institución es obligatorio'
+        elif len(institution_name) < 3:
+            errors['institution_name'] = 'El nombre debe tener al menos 3 caracteres'
+        elif len(institution_name) > 200:
+            errors['institution_name'] = 'El nombre no puede exceder 200 caracteres'
+
+    # 5. Tipo de institución
+    inst_type_obj = None
+    if 'institution_type_id' in institution_data:
+        institution_type_id = institution_data['institution_type_id']
+        if not institution_type_id:
+            errors['institution_type'] = 'Debe seleccionar un tipo de institución'
+        else:
+            try:
+                institution_type_id = int(institution_type_id)
+                inst_type_obj = db.session.get(InstitutionType, institution_type_id)
+                if not inst_type_obj:
+                    errors['institution_type'] = 'El tipo de institución seleccionado no existe'
+            except (ValueError, TypeError):
+                errors['institution_type'] = 'Tipo de institución inválido'
+
+    # 6. Alcance
+    if 'institution_scope_id' in institution_data:
+        institution_scope_id = institution_data['institution_scope_id']
+        if not institution_scope_id:
+            errors['institution_scope'] = 'Debe seleccionar un alcance de institución'
+        else:
+            try:
+                institution_scope_id = int(institution_scope_id)
+                scope_exists = db.session.get(InstitutionScope, institution_scope_id)
+                if not scope_exists:
+                    errors['institution_scope'] = 'El alcance de institución seleccionado no existe'
+            except (ValueError, TypeError):
+                errors['institution_scope'] = 'Alcance de institución inválido'
+
+    # 7. Dependencia
+    if 'institution_dependency_id' in institution_data:
+        institution_dependency_id = institution_data['institution_dependency_id']
+        if not institution_dependency_id:
+            errors['institution_dependency'] = 'Debe seleccionar una dependencia de institución'
+        else:
+            try:
+                institution_dependency_id = int(institution_dependency_id)
+                dependency_exists = db.session.get(InstitutionDependency, institution_dependency_id)
+                if not dependency_exists:
+                    errors['institution_dependency'] = 'La dependencia de institución seleccionada no existe'
+            except (ValueError, TypeError):
+                errors['institution_dependency'] = 'Dependencia de institución inválida'
+
+    # 8. Niveles Educativos
+    if 'educational_levels' in institution_data:
+        raw_levels = institution_data['educational_levels']
+        if not isinstance(raw_levels, (list, tuple, set)):
+            raw_levels = [raw_levels] if raw_levels else []
+
+        if not inst_type_obj and institution_id:
+            current_inst = db.session.get(Institution, institution_id)
+            if current_inst:
+                inst_type_obj = current_inst.institution_type
+
+        type_code = inst_type_obj.institution_type_code if inst_type_obj else None
+        allowed_codes = ALLOWED_EDUCATIONAL_LEVELS.get(type_code, set())
+
+        resolved_levels = []
+        for item in raw_levels:
+            if not item:
+                continue
+            lvl = None
+            if str(item).isdigit():
+                lvl = db.session.get(EducationalLevel, int(item))
             else:
-                pattern = r'^[A-Z]{3}-[A-Z]{1}[0-9]{4}$'
-                if not re.match(pattern, plantel_code.upper()):
-                    errors['plantel_code'] = 'Formato de código de plantel inválido. Debe ser XXX-X0000 (ej: DEA-U0001)'
-        
-        if 'institution_name' in institution_data:
-            institution_name = institution_data['institution_name']
-            if not institution_name or institution_name.strip() == '':
-                errors['institution_name'] = 'El nombre de la institución es obligatorio'
-            elif len(institution_name.strip()) < 3:
-                errors['institution_name'] = 'El nombre debe tener al menos 3 caracteres'
-            elif len(institution_name.strip()) > 100:
-                errors['institution_name'] = 'El nombre no puede exceder 100 caracteres'
-        
-        if 'institution_type_id' in institution_data:
-            institution_type_id = institution_data['institution_type_id']
-            if not institution_type_id:
-                errors['institution_type'] = 'Debe seleccionar un tipo de institución'
+                lvl = EducationalLevel.query.filter_by(level_code=str(item).strip()).first()
+            if not lvl:
+                errors['educational_levels'] = f'Nivel educativo inválido: {item}'
+                break
+            resolved_levels.append(lvl)
+
+        if 'educational_levels' not in errors:
+            invalid = [lvl.name for lvl in resolved_levels if lvl.level_code not in allowed_codes]
+            if invalid:
+                errors['educational_levels'] = f'Los niveles educativos no corresponden al tipo de institución: {", ".join(invalid)}'
+            elif type_code and type_code != 'INST-005' and not resolved_levels:
+                errors['educational_levels'] = 'Debe seleccionar al menos un nivel educativo para el tipo de institución seleccionado'
+
+    # 9. Ubicación (Municipio y Parroquia)
+    parish_obj = None
+    if 'parish_id' in institution_data:
+        parish_id = institution_data['parish_id']
+        if not parish_id:
+            errors['parish_id'] = 'Debe seleccionar una parroquia'
+        else:
+            try:
+                parish_id = int(parish_id)
+                parish_obj = db.session.get(Parish, parish_id)
+                if not parish_obj:
+                    errors['parish_id'] = 'La parroquia seleccionada no existe'
+            except (ValueError, TypeError):
+                errors['parish_id'] = 'Parroquia inválida'
+
+    municipality_obj = None
+    if 'municipality_id' in institution_data:
+        municipality_id = institution_data['municipality_id']
+        if not municipality_id:
+            errors['municipality_id'] = 'Debe seleccionar un municipio'
+        else:
+            try:
+                municipality_id = int(municipality_id)
+                municipality_obj = db.session.get(Municipality, municipality_id)
+                if not municipality_obj:
+                    errors['municipality_id'] = 'El municipio seleccionado no existe'
+            except (ValueError, TypeError):
+                errors['municipality_id'] = 'Municipio inválido'
+
+    if parish_obj and municipality_obj:
+        if parish_obj.municipality_id != municipality_obj.id:
+            errors['parish_id'] = 'La parroquia no pertenece al municipio seleccionado'
+
+    # 10. Reglas territoriales por rol
+    effective_role = user_role
+    if not effective_role and is_admin:
+        effective_role = 'super_admin' if (user and any(ra.role.name == 'super_admin' for ra in getattr(user, 'roles_assoc', []))) else 'state_admin'
+
+    if effective_role == 'state_admin':
+        # state_admin: validando en servidor que la parroquia pertenezca a su mismo estado (state_id bloqueado)
+        user_state_info = get_user_state_info(user)
+        if not user_state_info or not user_state_info.get('state_id'):
+            errors['state_id'] = 'No se pudo determinar el estado asignado al administrador estadal'
+        else:
+            admin_state_id = user_state_info['state_id']
+            if parish_obj and parish_obj.municipality and parish_obj.municipality.state_id != admin_state_id:
+                errors['parish_id'] = 'La parroquia seleccionada no pertenece a su estado asignado'
+            if municipality_obj and municipality_obj.state_id != admin_state_id:
+                errors['municipality_id'] = 'El municipio seleccionado no pertenece a su estado asignado'
+    elif effective_role == 'super_admin':
+        # super_admin: puede modificar state_id
+        if 'state_id' in institution_data:
+            state_id = institution_data['state_id']
+            if not state_id:
+                errors['state_id'] = 'Debe seleccionar un estado'
             else:
                 try:
-                    institution_type_id = int(institution_type_id)
-                    type_exists = db.session.get(InstitutionType, institution_type_id)
-                    if not type_exists:
-                        errors['institution_type'] = 'El tipo de institución seleccionado no existe'
+                    state_id = int(state_id)
+                    state_obj = db.session.get(State, state_id)
+                    if not state_obj:
+                        errors['state_id'] = 'El estado seleccionado no existe'
+                    else:
+                        if municipality_obj and municipality_obj.state_id != state_obj.id:
+                            errors['municipality_id'] = 'El municipio no pertenece al estado seleccionado'
+                        if parish_obj and parish_obj.municipality and parish_obj.municipality.state_id != state_obj.id:
+                            errors['parish_id'] = 'La parroquia no pertenece al estado seleccionado'
                 except (ValueError, TypeError):
-                    errors['institution_type'] = 'Tipo de institución inválido'
-        
-        if 'institution_scope_id' in institution_data:
-            institution_scope_id = institution_data['institution_scope_id']
-            if not institution_scope_id:
-                errors['institution_scope'] = 'Debe seleccionar un alcance de institución'
-            else:
-                try:
-                    institution_scope_id = int(institution_scope_id)
-                    scope_exists = db.session.get(InstitutionScope, institution_scope_id)
-                    if not scope_exists:
-                        errors['institution_scope'] = 'El alcance de institución seleccionado no existe'
-                except (ValueError, TypeError):
-                    errors['institution_scope'] = 'Alcance de institución inválido'
-        
-        if 'institution_dependency_id' in institution_data:
-            institution_dependency_id = institution_data['institution_dependency_id']
-            if not institution_dependency_id:
-                errors['institution_dependency'] = 'Debe seleccionar una dependencia de institución'
-            else:
-                try:
-                    institution_dependency_id = int(institution_dependency_id)
-                    dependency_exists = db.session.get(InstitutionDependency, institution_dependency_id)
-                    if not dependency_exists:
-                        errors['institution_dependency'] = 'La dependencia de institución seleccionada no existe'
-                except (ValueError, TypeError):
-                    errors['institution_dependency'] = 'Dependencia de institución inválida'
-        
-        if 'parish_id' in institution_data:
-            parish_id = institution_data['parish_id']
-            if not parish_id:
-                errors['parish_id'] = 'Debe seleccionar una parroquia'
-            else:
-                try:
-                    parish_id = int(parish_id)
-                    parish_exists = db.session.get(Parish, parish_id)
-                    if not parish_exists:
-                        errors['parish_id'] = 'La parroquia seleccionada no existe'
-                except (ValueError, TypeError):
-                    errors['parish_id'] = 'Parroquia inválida'
-        
-        if 'city_id' in institution_data:
-            city_id = institution_data['city_id']
-            if not city_id:
-                errors['city_id'] = 'Debe seleccionar una ciudad'
-            else:
-                try:
-                    city_id = int(city_id)
-                    city_exists = db.session.get(City, city_id)
-                    if not city_exists:
-                        errors['city_id'] = 'La ciudad seleccionada no existe'
-                except (ValueError, TypeError):
-                    errors['city_id'] = 'Ciudad inválida'
-    
+                    errors['state_id'] = 'Estado inválido'
+
     return len(errors) == 0, errors
 
 
-def update_institution_contact_infrastructure(institution_id, institution_data, is_admin=False):
-    """Actualiza los datos de contacto e infraestructura de una institución."""
+def update_institution_contact_infrastructure(institution_id, institution_data, is_admin=False, user_role=None, user=None):
+    """
+    Actualiza los datos de contacto e infraestructura de una institución aplicando:
+    - Matriz estricta de edición por rol respaldada por lista blanca en backend.
+    - Rol applicant: solo si el plantel está activo (STAT-001), edita phone y address.
+    - Rol state_admin: edita phone, address, nombre, clasificación MPPE (tipo, alcance,
+      dependencia y niveles educativos) y ubicación (municipio y parroquia de su estado asignado).
+    - Rol super_admin: todo lo anterior más state_id y desbloqueo de plantel_code (regex y unicidad).
+    - Ciudad es campo informativo inmutable (sin city_id y sin borrado sobre sages.locations).
+    """
     try:
         from flask_login import current_user
-        
-        is_valid, validation_errors = validate_institution_data(institution_data, is_admin)
-        if not is_valid:
-            return None, False, 'Errores de validación: ' + '; '.join(validation_errors.values())
-        
+        effective_user = user or current_user
+
+        # Determinar rol efectivo
+        if not user_role:
+            if effective_user and hasattr(effective_user, 'roles_assoc') and effective_user.roles_assoc:
+                role_names = [ra.role.name for ra in effective_user.roles_assoc]
+                if 'super_admin' in role_names:
+                    user_role = 'super_admin'
+                elif 'state_admin' in role_names:
+                    user_role = 'state_admin'
+                else:
+                    user_role = 'applicant'
+            elif is_admin:
+                user_role = 'super_admin'
+            else:
+                user_role = 'applicant'
+
         institution = db.session.get(Institution, institution_id)
         if not institution:
             return None, False, 'Institución no encontrada'
-        
+
+        # Validación para rol applicant: solo si el plantel está activo (STAT-001)
+        if user_role == 'applicant':
+            active_status = Status.query.filter_by(status_code='STAT-001').first()
+            if not active_status or institution.status_id != active_status.id:
+                return None, False, 'La institución se encuentra inactiva. No es posible editar sus datos mientras esté en modo solo lectura.'
+
+        # Aplicar lista blanca estricta por rol
+        allowed_fields = ROLE_EDIT_WHITELISTS.get(user_role, {'phone', 'address'})
+        filtered_data = {k: v for k, v in institution_data.items() if k in allowed_fields}
+
+        is_valid, validation_errors = validate_institution_data(
+            filtered_data,
+            is_admin=(user_role in ('state_admin', 'super_admin')),
+            user_role=user_role,
+            user=effective_user,
+            institution_id=institution_id
+        )
+        if not is_valid:
+            return None, False, 'Errores de validación: ' + '; '.join(validation_errors.values())
+
+        # Capturar valores anteriores para auditoría
         old_values = {
+            'phone': institution.phone,
             'address': institution.address
         }
-        
-        if is_admin:
+        if user_role in ('state_admin', 'super_admin'):
             old_values.update({
-                'plantel_code': institution.plantel_code,
                 'institution_name': institution.institution_name,
                 'institution_type_id': institution.institution_type_id,
                 'institution_scope_id': institution.institution_scope_id,
                 'institution_dependency_id': institution.institution_dependency_id,
                 'parish_id': institution.parish_id,
-                'city_id': None
+                'educational_levels': [il.educational_level.name for il in institution.institution_levels if il.educational_level]
             })
-            
-            if institution.parish and institution.parish.locations and len(institution.parish.locations) > 0:
-                old_values['city_id'] = institution.parish.locations[0].city_id
-        
-        if 'address' in institution_data:
-            institution.address = institution_data['address']
-        
-        if is_admin:
-            if 'plantel_code' in institution_data:
-                institution.plantel_code = institution_data['plantel_code']
-            if 'institution_name' in institution_data:
-                institution.institution_name = institution_data['institution_name']
-            if 'institution_type_id' in institution_data:
-                institution.institution_type_id = institution_data['institution_type_id']
-            if 'institution_scope_id' in institution_data:
-                institution.institution_scope_id = institution_data['institution_scope_id']
-            if 'institution_dependency_id' in institution_data:
-                institution.institution_dependency_id = institution_data['institution_dependency_id']
-            if 'parish_id' in institution_data:
-                institution.parish_id = institution_data['parish_id']
-            
-            if 'city_id' in institution_data and institution_data['city_id']:
-                Location.query.filter_by(parish_id=institution.parish_id).delete()
-                city = db.session.get(City, institution_data['city_id'])
-                parish = db.session.get(Parish, institution.parish_id)
-                if city and parish:
-                    new_location = Location(
-                        city_id=institution_data['city_id'],
-                        parish_id=institution.parish_id,
-                        name=f"{city.name} - {parish.name}"
-                    )
-                    db.session.add(new_location)
-        
+        if user_role == 'super_admin':
+            old_values['plantel_code'] = institution.plantel_code
+
+        # Aplicar campos de applicant (y roles superiores)
+        if 'phone' in filtered_data:
+            phone_val = (filtered_data['phone'] or '').strip()
+            institution.phone = phone_val if phone_val else None
+
+        if 'address' in filtered_data:
+            institution.address = filtered_data['address'].strip()
+
+        # Aplicar campos de state_admin y super_admin
+        selected_levels = []
+        if user_role in ('state_admin', 'super_admin'):
+            if 'institution_name' in filtered_data:
+                institution.institution_name = filtered_data['institution_name'].strip()
+            if 'institution_type_id' in filtered_data:
+                institution.institution_type_id = int(filtered_data['institution_type_id'])
+            if 'institution_scope_id' in filtered_data:
+                institution.institution_scope_id = int(filtered_data['institution_scope_id'])
+            if 'institution_dependency_id' in filtered_data:
+                institution.institution_dependency_id = int(filtered_data['institution_dependency_id'])
+            if 'parish_id' in filtered_data:
+                institution.parish_id = int(filtered_data['parish_id'])
+
+            # Sincronización de niveles educativos (pivote institution_levels)
+            if 'educational_levels' in filtered_data:
+                raw_levels = filtered_data['educational_levels']
+                if not isinstance(raw_levels, (list, tuple, set)):
+                    raw_levels = [raw_levels] if raw_levels else []
+                for item in raw_levels:
+                    if not item:
+                        continue
+                    if str(item).isdigit():
+                        lvl = db.session.get(EducationalLevel, int(item))
+                    else:
+                        lvl = EducationalLevel.query.filter_by(level_code=str(item).strip()).first()
+                    if lvl and lvl not in selected_levels:
+                        selected_levels.append(lvl)
+
+                new_level_ids = {lvl.id for lvl in selected_levels}
+                # Eliminar los que ya no están
+                for il in list(institution.institution_levels):
+                    if il.educational_level_id not in new_level_ids:
+                        db.session.delete(il)
+                # Agregar los nuevos
+                current_level_ids = {il.educational_level_id for il in institution.institution_levels}
+                for lvl in selected_levels:
+                    if lvl.id not in current_level_ids:
+                        new_il = InstitutionLevel(institution_id=institution.id, educational_level_id=lvl.id)
+                        db.session.add(new_il)
+
+        # Aplicar campos exclusivos de super_admin
+        if user_role == 'super_admin':
+            if 'plantel_code' in filtered_data and filtered_data['plantel_code']:
+                institution.plantel_code = filtered_data['plantel_code'].strip().upper()
+
         institution._skip_auto_audit = True
         db.session.commit()
-        
+
+        # Auditoría de campos modificados
         changed_fields = {}
-        if old_values['address'] != institution.address:
+        if old_values.get('phone') != institution.phone:
+            changed_fields["Teléfono"] = institution.phone or "No registrado"
+        if old_values.get('address') != institution.address:
             changed_fields["Dirección"] = institution.address
-            
-        if is_admin:
-            if old_values['plantel_code'] != institution.plantel_code:
-                changed_fields["Código de Plantel"] = institution.plantel_code
-            if old_values['institution_name'] != institution.institution_name:
+
+        if user_role in ('state_admin', 'super_admin'):
+            if old_values.get('institution_name') != institution.institution_name:
                 changed_fields["Nombre"] = institution.institution_name
-            if old_values['institution_type_id'] != institution.institution_type_id:
+            if old_values.get('institution_type_id') != institution.institution_type_id:
                 changed_fields["Tipo de Institución"] = institution.institution_type.name if institution.institution_type else "Actualizado"
-            if old_values['institution_scope_id'] != institution.institution_scope_id:
+            if old_values.get('institution_scope_id') != institution.institution_scope_id:
                 changed_fields["Alcance"] = institution.institution_scope.name if institution.institution_scope else "Actualizado"
-            if old_values['institution_dependency_id'] != institution.institution_dependency_id:
+            if old_values.get('institution_dependency_id') != institution.institution_dependency_id:
                 changed_fields["Dependencia"] = institution.institution_dependency.name if institution.institution_dependency else "Actualizado"
-            if old_values['parish_id'] != institution.parish_id:
+            if 'educational_levels' in filtered_data:
+                old_lvl_set = set(old_values.get('educational_levels', []))
+                new_lvl_set = {lvl.name for lvl in selected_levels}
+                if old_lvl_set != new_lvl_set:
+                    changed_fields["Niveles Educativos"] = ", ".join(lvl.name for lvl in selected_levels) if selected_levels else "Ninguno"
+            if old_values.get('parish_id') != institution.parish_id:
                 changed_fields["Parroquia"] = institution.parish.name if institution.parish else "Actualizado"
                 if institution.parish and institution.parish.municipality:
                     changed_fields["Municipio"] = institution.parish.municipality.name
                     if hasattr(institution.parish.municipality, 'state') and institution.parish.municipality.state:
                         changed_fields["Estado"] = institution.parish.municipality.state.name
-            if 'city_id' in institution_data and institution_data['city_id'] and old_values.get('city_id') != institution_data.get('city_id'):
-                city_obj = db.session.get(City, institution_data['city_id'])
-                if city_obj:
-                    changed_fields["Ciudad"] = city_obj.name
-        
+
+        if user_role == 'super_admin':
+            if old_values.get('plantel_code') != institution.plantel_code:
+                changed_fields["Código de Plantel"] = institution.plantel_code
+
         # Modificado por
-        if current_user and hasattr(current_user, 'person') and current_user.person:
-            modificado_por = f"{current_user.person.first_name} {current_user.person.last_name}".strip()
+        if effective_user and hasattr(effective_user, 'person') and effective_user.person:
+            modificado_por = f"{effective_user.person.first_name} {effective_user.person.last_name}".strip()
         else:
             modificado_por = "Administración Central"
-            
         changed_fields["Modificado Por"] = modificado_por
-        
+
         new_values = {
+            'phone': institution.phone,
             'address': institution.address
         }
-        if is_admin:
+        if user_role in ('state_admin', 'super_admin'):
             new_values.update({
-                'plantel_code': institution.plantel_code,
                 'institution_name': institution.institution_name,
                 'institution_type_id': institution.institution_type_id,
                 'institution_scope_id': institution.institution_scope_id,
                 'institution_dependency_id': institution.institution_dependency_id,
                 'parish_id': institution.parish_id,
-                'city_id': institution_data.get('city_id') if ('city_id' in institution_data and institution_data['city_id']) else old_values.get('city_id')
+                'educational_levels': [lvl.name for lvl in selected_levels] if selected_levels else old_values.get('educational_levels', [])
             })
-        
+        if user_role == 'super_admin':
+            new_values['plantel_code'] = institution.plantel_code
+
         BinnacleService.create_log_entry(
             module=AuditModule.INSTITUTIONS.value,
             action_type=AuditAction.ACTUALIZAR_INFRAESTRUCTURA.value,
@@ -788,9 +1014,9 @@ def update_institution_contact_infrastructure(institution_id, institution_data, 
             old_values=old_values,
             new_values=new_values
         )
-        
+
         try:
-            if len(changed_fields) > 1: # > 1 para que solo se dispare si aparte del Modificado Por, algo mas cambió
+            if len(changed_fields) > 1:
                 from app.notifications.services import NotificationService
                 from app.notifications.enums import NotificationEvent
                 NotificationService.notify_institution_affiliates(
@@ -805,9 +1031,8 @@ def update_institution_contact_infrastructure(institution_id, institution_data, 
                 )
         except Exception as e:
             current_app.logger.error("Error enviando notificacion de edicion institucional", exc_info=True)
-        
+
         db.session.refresh(institution)
-        
         return institution, True, 'Datos actualizados exitosamente'
     except Exception as e:
         current_app.logger.error("Error en update_institution_contact_infrastructure", exc_info=True)

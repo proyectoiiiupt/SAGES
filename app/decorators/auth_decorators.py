@@ -96,6 +96,14 @@ def institution_active_required(f):
         try:
             from app.models.status_model import Status
 
+            # Solo aplica a usuarios con rol applicant
+            is_applicant = any(
+                ra.role.name == 'applicant' for ra in getattr(current_user, 'roles_assoc', [])
+            ) if getattr(current_user, 'roles_assoc', None) else False
+
+            if not is_applicant:
+                return f(*args, **kwargs)
+
             person = getattr(current_user, 'person', None)
             staff_list = getattr(person, 'institutional_staff', []) if person else []
             if not staff_list:
@@ -112,8 +120,10 @@ def institution_active_required(f):
             if institution is None:
                 return f(*args, **kwargs)
 
-            inactive_status = Status.query.filter_by(status_code='STAT-002').first()
-            if inactive_status and institution.status_id == inactive_status.id:
+            active_status = Status.query.filter_by(status_code='STAT-001').first()
+            is_not_active = (active_status and institution.status_id != active_status.id)
+
+            if is_not_active:
                 is_ajax = (
                     request.is_json
                     or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
@@ -128,7 +138,7 @@ def institution_active_required(f):
                     }), 403
 
                 flash(
-                    "Tu institución se encuentra inactiva. No puedes crear nuevas solicitudes mientras el plantel esté en modo solo lectura.",
+                    "Tu institución se encuentra inactiva. No es posible realizar esta acción mientras el plantel esté en modo solo lectura.",
                     "warning"
                 )
                 return redirect(url_for('home_applicant'))

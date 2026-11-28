@@ -11,7 +11,7 @@ from app.institutions import institutions_bp
 from app.institutions.services import (
     get_all_institutions, get_institution_by_id, get_filter_options,
     toggle_institution_status, get_institution_users, update_institution_contact_infrastructure,
-    get_user_state_info, create_institution_invitation
+    get_user_state_info, create_institution_invitation, get_city_by_parish_id
 )
 from app.decorators import role_required, check_permissions, institution_active_required
 from app.models.municipality_model import Municipality
@@ -19,7 +19,12 @@ from app.models.parish_model import Parish
 from app.models.city_model import City
 from app.models.state_model import State
 from app.models.position_model import Position
-from app.institutions.forms import InstitutionEditForm, InstitutionEditApplicantForm
+from app.models.educational_level_model import EducationalLevel
+from app.models.status_model import Status
+from app.institutions.forms import (
+    InstitutionApplicantEditForm, InstitutionStateAdminEditForm,
+    InstitutionSuperAdminEditForm, InstitutionEditForm, InstitutionEditApplicantForm
+)
 from app.extensions import db, limiter
 from app.utils.invitation_utils import read_invitation_token
 from app.binnacle.services import BinnacleService
@@ -207,34 +212,57 @@ def view_institution_users(institution_id):
 @login_required
 @role_required('applicant', 'state_admin', 'super_admin')
 @check_permissions('manage_institution', 'view_my_institution')
+@institution_active_required
 @limiter.limit("15 per minute", methods=['POST'], key_func=lambda: str(current_user.id))
 def edit_institution(institution_id):
-    """Vista para editar los datos de una institución."""
+    """Vista para editar los datos de una institución según el rol del usuario."""
     try:
-        user_role = None
-        if current_user.roles_assoc and len(current_user.roles_assoc) > 0:
-            user_role = current_user.roles_assoc[0].role.name
-        
-        if user_role == 'applicant':
-            if not current_user.person or not current_user.person.institutional_staff or len(current_user.person.institutional_staff) == 0:
-                flash("No tienes una institución afiliada.", 'warning')
-                return redirect(url_for('home_applicant'))
-            
-            user_staff = current_user.person.institutional_staff[0]
-            if user_staff.institution_id != institution_id:
-                flash("No tienes permiso para editar esta institución.", 'danger')
-                return redirect(url_for('institutions.my_institution'))
-        
-        institution = get_institution_by_id(institution_id)
-        if not institution:
-            abort(404)
-        
         is_super_admin = any(
             role_assoc.role.name == 'super_admin'
             for role_assoc in current_user.roles_assoc
         ) if current_user and current_user.roles_assoc else False
 
-        if not is_super_admin and user_role != 'applicant':
+        is_state_admin = any(
+            role_assoc.role.name == 'state_admin'
+            for role_assoc in current_user.roles_assoc
+        ) if current_user and current_user.roles_assoc else False
+
+        is_applicant = any(
+            role_assoc.role.name == 'applicant'
+            for role_assoc in current_user.roles_assoc
+        ) if current_user and current_user.roles_assoc else False
+
+        if is_super_admin:
+            user_role = 'super_admin'
+        elif is_state_admin:
+            user_role = 'state_admin'
+        else:
+            user_role = 'applicant'
+
+        institution = get_institution_by_id(institution_id)
+        if not institution:
+            abort(404)
+
+        # Reglas para applicant: solo si el plantel está activo (STAT-001) y afiliado
+        if user_role == 'applicant':
+            if not current_user.person or not current_user.person.institutional_staff or len(current_user.person.institutional_staff) == 0:
+                flash("No tienes una institución afiliada.", 'warning')
+                return redirect(url_for('home_applicant'))
+
+            user_staff = current_user.person.institutional_staff[0]
+            if user_staff.institution_id != institution_id:
+                flash("No tienes permiso para editar esta institución.", 'danger')
+                return redirect(url_for('institutions.my_institution'))
+
+            active_status = Status.query.filter_by(status_code='STAT-001').first()
+            if not active_status or institution.status_id != active_status.id:
+                flash("Tu institución se encuentra inactiva. No es posible editar sus datos mientras esté en modo solo lectura.", 'warning')
+                return redirect(url_for('institutions.my_institution'))
+
+        # Reglas territoriales para state_admin: pertenencia de la institución a su estado asignado
+        admin_state_id = None
+        user_state_info = None
+        if user_role == 'state_admin':
             user_state_info = get_user_state_info(current_user)
             admin_state_id = user_state_info.get('state_id') if user_state_info else None
             inst_state_id = (
@@ -244,102 +272,151 @@ def edit_institution(institution_id):
             )
             if not admin_state_id or inst_state_id != admin_state_id:
                 abort(403)
-        
+
         from app.models.institution_type_model import InstitutionType
         from app.models.institution_scope_model import InstitutionScope
         from app.models.institution_dependency_model import InstitutionDependency
-        
+
         institution_types = InstitutionType.query.order_by(InstitutionType.name).all()
         institution_scopes = InstitutionScope.query.order_by(InstitutionScope.name).all()
         institution_dependencies = InstitutionDependency.query.order_by(InstitutionDependency.name).all()
-        
+        all_educational_levels = EducationalLevel.query.order_by(EducationalLevel.id).all()
+
         dependencies_list = [{'id': dep.id, 'name': dep.name} for dep in institution_dependencies]
-        
-        current_city_id = None
-        current_city_name = None
-        try:
-            if institution.parish and institution.parish.locations and len(institution.parish.locations) > 0:
-                location = institution.parish.locations[0]
-                if location and hasattr(location, 'city_id'):
-                    current_city_id = location.city_id
-                if location and hasattr(location, 'city') and location.city:
-                    current_city_name = location.city.name
-        except Exception:
-            current_city_id = None
-            current_city_name = None
-        
+        institution_types_map = {str(it.id): it.institution_type_code for it in institution_types}
+        educational_levels_map = {str(el.id): el.level_code for el in all_educational_levels}
+
+        # Ciudad es un aspecto inmutable derivado automáticamente de parish_id
+        city_obj = get_city_by_parish_id(institution.parish_id)
+        current_city_name = city_obj.name if city_obj else 'No asignada'
+
+        current_level_ids = [il.educational_level_id for il in institution.institution_levels]
+        current_state_id = (
+            institution.parish.municipality.state_id
+            if (institution.parish and institution.parish.municipality and institution.parish.municipality.state)
+            else ''
+        )
+        current_municipality_id = (
+            institution.parish.municipality_id
+            if (institution.parish and institution.parish.municipality)
+            else ''
+        )
+        current_parish_id = institution.parish_id if institution.parish else ''
+
+        # Instanciar el formulario específico por rol
         if user_role == 'applicant':
-            form = InstitutionEditApplicantForm()
+            form = InstitutionApplicantEditForm()
+        elif user_role == 'state_admin':
+            form = InstitutionStateAdminEditForm(state_id=admin_state_id)
         else:
-            form = InstitutionEditForm()
-        
+            form = InstitutionSuperAdminEditForm()
+
         if request.method == 'GET':
-            form.address.data = institution.address
-            
-            if user_role != 'applicant':
-                form.plantel_code.data = institution.plantel_code
+            form.phone.data = institution.phone or ''
+            form.address.data = institution.address or ''
+
+            if user_role in ('state_admin', 'super_admin'):
                 form.institution_name.data = institution.institution_name
                 form.institution_type.data = str(institution.institution_type_id) if institution.institution_type_id else ''
                 form.institution_scope.data = str(institution.institution_scope_id) if institution.institution_scope_id else ''
                 form.institution_dependency.data = str(institution.institution_dependency_id) if institution.institution_dependency_id else ''
-                
-                try:
-                    if institution.parish and institution.parish.municipality and institution.parish.municipality.state:
-                        form.state_id.data = str(institution.parish.municipality.state_id)
-                    else:
-                        form.state_id.data = ''
-                except Exception:
-                    form.state_id.data = ''
-                
-                try:
-                    if institution.parish and institution.parish.municipality:
-                        form.municipality_id.data = str(institution.parish.municipality_id)
-                    else:
-                        form.municipality_id.data = ''
-                except Exception:
-                    form.municipality_id.data = ''
-                
-                try:
-                    if institution.parish:
-                        form.parish_id.data = str(institution.parish_id)
-                    else:
-                        form.parish_id.data = ''
-                except Exception:
-                    form.parish_id.data = ''
-                
-                form.city_id.data = str(current_city_id) if current_city_id else ''
-            
-            return render_template('institutions/edit.html', institution=institution, is_applicant=(user_role == 'applicant'),
-                                 institution_types=institution_types, institution_scopes=institution_scopes,
-                                 institution_dependencies=institution_dependencies, dependencies_list=dependencies_list,
-                                 current_city_id=current_city_id, current_city_name=current_city_name, form=form)
-        
+                form.educational_levels.data = [str(lvl_id) for lvl_id in current_level_ids]
+                form.municipality_id.data = str(current_municipality_id)
+                form.parish_id.data = str(current_parish_id)
+
+            if user_role == 'super_admin':
+                form.plantel_code.data = institution.plantel_code
+                form.state_id.data = str(current_state_id)
+
+            return render_template(
+                'institutions/edit.html',
+                institution=institution,
+                user_role=user_role,
+                is_applicant=is_applicant,
+                is_state_admin=is_state_admin,
+                is_super_admin=is_super_admin,
+                institution_types=institution_types,
+                institution_scopes=institution_scopes,
+                institution_dependencies=institution_dependencies,
+                dependencies_list=dependencies_list,
+                all_educational_levels=all_educational_levels,
+                current_level_ids=current_level_ids,
+                current_city_name=current_city_name,
+                current_state_id=current_state_id,
+                current_municipality_id=current_municipality_id,
+                current_parish_id=current_parish_id,
+                institution_types_map=institution_types_map,
+                educational_levels_map=educational_levels_map,
+                user_state_info=user_state_info,
+                form=form
+            )
+
         elif request.method == 'POST':
             if not form.validate():
-                return render_template('institutions/edit.html', institution=institution, is_applicant=(user_role == 'applicant'),
-                                     institution_types=institution_types, institution_scopes=institution_scopes,
-                                     institution_dependencies=institution_dependencies, dependencies_list=dependencies_list,
-                                     current_city_id=current_city_id, current_city_name=current_city_name, form=form)
-            
-            institution_data = {
-                'address': form.address.data
-            }
-            
-            if user_role != 'applicant':
-                institution_data.update({
+                return render_template(
+                    'institutions/edit.html',
+                    institution=institution,
+                    user_role=user_role,
+                    is_applicant=is_applicant,
+                    is_state_admin=is_state_admin,
+                    is_super_admin=is_super_admin,
+                    institution_types=institution_types,
+                    institution_scopes=institution_scopes,
+                    institution_dependencies=institution_dependencies,
+                    dependencies_list=dependencies_list,
+                    all_educational_levels=all_educational_levels,
+                    current_level_ids=current_level_ids,
+                    current_city_name=current_city_name,
+                    current_state_id=current_state_id,
+                    current_municipality_id=current_municipality_id,
+                    current_parish_id=current_parish_id,
+                    institution_types_map=institution_types_map,
+                    educational_levels_map=educational_levels_map,
+                    user_state_info=user_state_info,
+                    form=form
+                )
+
+            # Matriz estricta de extracción de datos según rol
+            if user_role == 'applicant':
+                institution_data = {
+                    'phone': form.phone.data,
+                    'address': form.address.data
+                }
+            elif user_role == 'state_admin':
+                institution_data = {
+                    'phone': form.phone.data,
+                    'address': form.address.data,
+                    'institution_name': form.institution_name.data,
+                    'institution_type_id': int(form.institution_type.data) if form.institution_type.data else None,
+                    'institution_scope_id': int(form.institution_scope.data) if form.institution_scope.data else None,
+                    'institution_dependency_id': int(form.institution_dependency.data) if form.institution_dependency.data else None,
+                    'educational_levels': form.educational_levels.data or [],
+                    'municipality_id': int(form.municipality_id.data) if form.municipality_id.data else None,
+                    'parish_id': int(form.parish_id.data) if form.parish_id.data else None
+                }
+            else:  # super_admin
+                institution_data = {
+                    'phone': form.phone.data,
+                    'address': form.address.data,
                     'plantel_code': form.plantel_code.data,
                     'institution_name': form.institution_name.data,
                     'institution_type_id': int(form.institution_type.data) if form.institution_type.data else None,
                     'institution_scope_id': int(form.institution_scope.data) if form.institution_scope.data else None,
                     'institution_dependency_id': int(form.institution_dependency.data) if form.institution_dependency.data else None,
+                    'educational_levels': form.educational_levels.data or [],
+                    'municipality_id': int(form.municipality_id.data) if form.municipality_id.data else None,
                     'parish_id': int(form.parish_id.data) if form.parish_id.data else None,
-                    'city_id': int(form.city_id.data) if form.city_id.data else None
-                })
-            
+                    'state_id': int(form.state_id.data) if form.state_id.data else None
+                }
+
             institution, success, message = update_institution_contact_infrastructure(
-                institution_id, institution_data, is_admin=(user_role != 'applicant')
+                institution_id,
+                institution_data,
+                is_admin=(user_role != 'applicant'),
+                user_role=user_role,
+                user=current_user
             )
-            
+
             if success:
                 if user_role == 'applicant':
                     return redirect(url_for('institutions.my_institution', success='true'))
@@ -347,19 +424,37 @@ def edit_institution(institution_id):
                     return redirect(url_for('institutions.view_institution', institution_id=institution_id, success='true'))
             else:
                 flash(message, 'danger')
-                return render_template('institutions/edit.html', institution=institution, is_applicant=(user_role == 'applicant'),
-                                     institution_types=institution_types, institution_scopes=institution_scopes,
-                                     institution_dependencies=institution_dependencies, dependencies_list=dependencies_list,
-                                     current_city_id=current_city_id, current_city_name=current_city_name, form=form)
+                return render_template(
+                    'institutions/edit.html',
+                    institution=institution,
+                    user_role=user_role,
+                    is_applicant=is_applicant,
+                    is_state_admin=is_state_admin,
+                    is_super_admin=is_super_admin,
+                    institution_types=institution_types,
+                    institution_scopes=institution_scopes,
+                    institution_dependencies=institution_dependencies,
+                    dependencies_list=dependencies_list,
+                    all_educational_levels=all_educational_levels,
+                    current_level_ids=current_level_ids,
+                    current_city_name=current_city_name,
+                    current_state_id=current_state_id,
+                    current_municipality_id=current_municipality_id,
+                    current_parish_id=current_parish_id,
+                    institution_types_map=institution_types_map,
+                    educational_levels_map=educational_levels_map,
+                    user_state_info=user_state_info,
+                    form=form
+                )
     except HTTPException:
         raise
     except Exception as e:
         current_app.logger.error("Error en edit_institution", exc_info=True)
         flash("Error al procesar la solicitud", 'danger')
         user_role = None
-        if current_user.roles_assoc and len(current_user.roles_assoc) > 0:
+        if current_user and current_user.roles_assoc and len(current_user.roles_assoc) > 0:
             user_role = current_user.roles_assoc[0].role.name
-        
+
         if user_role == 'applicant':
             return redirect(url_for('institutions.my_institution'))
         else:
