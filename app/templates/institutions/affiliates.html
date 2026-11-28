@@ -67,7 +67,10 @@
                         <th>Teléfono</th>
                         <th>Correo</th>
                         <th>Estatus</th>
+                        {# Solo los roles con manage_users pueden ver el detalle del usuario #}
+                        {% if user_role in ['super_admin', 'state_admin'] %}
                         <th>Acciones</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -90,7 +93,9 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if user.user_id %}
+                            {# Botón "Ver detalles" solo para roles con permiso manage_users (super_admin, state_admin).
+                               Los applicants no tienen acceso a users.view_user (requiere @role_required + @check_permissions). #}
+                            {% if user_role in ['super_admin', 'state_admin'] and user.user_id %}
                             <a href="{{ url_for('users.view_user', user_id=user.user_id) }}" class="action-btn view-btn" title="Ver detalles del usuario">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
